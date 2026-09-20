@@ -19,6 +19,7 @@ import { useSporStore } from '@/features/modes/store/useSporStore';
 import { usePlanAdaptations } from '../../hooks/usePlanAdaptations';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
+import { FormReveal, ModeField } from '../ModeField';
 import { renderModeEmojiIcon } from '../../utils/modeIcons';
 import { retirePlanTask, formatPlanDate, isDatePast, daysLeftOf , retireModeTasksByTag} from '@/features/modes/utils/planTaskOps';
 import { detectSporType, localizeSporGoal } from '../../utils/turkishModes';
@@ -31,6 +32,7 @@ import { AppIcon } from '@/shared/components/AppIcon';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { ProgressRail } from '@/shared/components/ProgressRail';
 import { ModePlanSummary } from '@/features/modes/components/ModePlanSummary';
+import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { useModeCompletionReview } from '@/features/modes/hooks/useModeCompletionReview';
@@ -105,7 +107,7 @@ function SporDatePicker({ value, onPick, onClose }: { value: Date; onPick: (iso:
 
 /** İkincil spor hedefi (spor2 / spor3). */
 function SporSlot({ slot, goalKey, dateKey, otherGoals, addLabel, onOpenPreview }: { slot: Slot; goalKey: 'spor2Goal' | 'spor3Goal'; dateKey: 'spor2Date' | 'spor3Date'; otherGoals: string[]; addLabel: string; onOpenPreview: (s: Slot) => void }) {
-  const { accent: SPOR, accentText: SPOR_TX } = useModeAccent('spor');
+  const { accent: SPOR, accentText: SPOR_TX, onAccent: SPOR_ON } = useModeAccent('spor');
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
@@ -155,7 +157,7 @@ function SporSlot({ slot, goalKey, dateKey, otherGoals, addLabel, onOpenPreview 
         </Touchable>
       ) : null}
       {expanded && (
-        <View style={{ gap: S.sm }}>
+        <FormReveal style={{ gap: S.sm }}>
           <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant }}>{tr ? 'Hedef türünü seç' : 'Select goal type'}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
             {sporGoalsForSlot(tr, goal, otherGoals).map((g) => {
@@ -177,16 +179,16 @@ function SporSlot({ slot, goalKey, dateKey, otherGoals, addLabel, onOpenPreview 
             <Touchable onPress={() => { if (goal || date) del(); setExpanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
               <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
             </Touchable>
-            {complete && (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview(slot); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: SPOR, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><AppIcon Icon={Dumbbell} color={'#fff'} size={24} radius={R.sm} iconSize={ICON.sm} /><Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
+            {complete && (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview(slot); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: SPOR, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><AppIcon Icon={Dumbbell} color={SPOR_ON} size={24} radius={R.sm} iconSize={ICON.sm} /><Text style={{ color: SPOR_ON, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
           </View>
-        </View>
+        </FormReveal>
       )}
     </View>
   );
 }
 
 export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => void }) {
-  const { accent: SPOR, accentText: SPOR_TX } = useModeAccent('spor');
+  const { accent: SPOR, accentText: SPOR_TX, onAccent: SPOR_ON } = useModeAccent('spor');
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
@@ -231,6 +233,14 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
     }
   }, [userPrefsGender]);
   const [weightEntryInput, setWeightEntryInput] = useState('');
+  /*
+    Tartım geçerliliği TEK yerde. Eskiden aynı aralık kontrolü (20–300 kg) iki ayrı
+    JSX satırında kopyalanmıştı ve "Kaydet" her zaman dolu görünüyordu: geçersiz bir
+    değerle basıldığında hiçbir şey olmuyor, hiçbir şey de söylenmiyordu. Artık buton
+    o değer kaydedilebilir olana kadar sönük ve dokunulamaz.
+  */
+  const weightEntryValue = parseFloat(weightEntryInput.replace(',', '.'));
+  const weightEntryValid = !isNaN(weightEntryValue) && weightEntryValue > 20 && weightEntryValue < 300;
   const [showWeightEntry, setShowWeightEntry] = useState(false);
 
   const goal = localizeSporGoal(seasonal.sporGoal || '', tr);
@@ -254,6 +264,8 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
   const kiloBmiCurrentUnderweight = minHealthyKg > 0 && cwNum > 0 && cwNum < minHealthyKg;
   const kiloBmiValid = !kiloBmiTargetTooLow;
   const hasPlan = sporPlanHabitIds.length > 0 || sporPlanTaskIds.length > 0;
+  // Ara verme + kat edilen yol — dört kart da aynı kaynaktan (bkz. usePlanLifecycle).
+  const lifecycle = usePlanLifecycle('spor', effectiveSporDate, sporPlanHabitIds);
   const sporInputsComplete = sporType === 'kilo'
     ? currentWeight.trim() !== '' && targetWeight.trim() !== '' && cwNum > 0 && twNum > 0 && cwNum !== twNum && kiloWeightValid && kiloWeightRealistic && kiloBmiValid
     : sporType === 'maraton' ? weeklyKm.trim() !== '' && targetEvent !== ''
@@ -382,7 +394,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                 Alert.alert(tr ? 'Spor Modu Kapatılıyor' : 'Turning off Sport Mode', tr ? 'Eklenen alışkanlıklar ve görevler kaldırılacak. Emin misin?' : 'Added habits and tasks will be removed. Are you sure?', [{ text: tr ? 'İptal' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat ve Temizle' : 'Turn Off & Remove', style: 'destructive', onPress: () => closeModeWithUndo('spor', closePlan, tr ? 'Spor modu kapatıldı' : 'Fitness mode closed', tr ? 'Geri al' : 'Undo') }]);
               } else if (v) { setSeasonalPref('sporMode', true); setExpanded(true); }
             }}
-            trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: SPOR + '80' }} thumbColor={seasonal.sporMode ? SPOR : (isDark ? '#636366' : '#fff')} />
+            trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: SPOR }} thumbColor={isDark && !seasonal.sporMode ? '#636366' : '#fff'} />
         </View>
       </View>
 
@@ -427,6 +439,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                     dateLabel={effectiveSporDate ? formatPlanDate(effectiveSporDate, tr) : ''}
                     todayDone={progDone}
                     todayTotal={progTotal}
+                    lifecycle={lifecycle}
                     progress={
                   sporType === 'kilo' && kiloGoalKg > 0 ? (
                                             <View style={{ marginTop: S.sm, gap: S.xs }}>
@@ -495,8 +508,16 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                   })}
                   {showWeightEntry ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.sm, borderTopWidth: HAIRLINE, borderTopColor: theme.separator, gap: S.sm }}>
-                      <TextInput value={weightEntryInput} onChangeText={setWeightEntryInput} placeholder={tr ? 'Kg gir (örn: 70.5)' : 'Enter kg (e.g. 70.5)'} placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)'} keyboardType="decimal-pad" style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '500', height: 36, paddingVertical: 0 }} autoFocus returnKeyType="done" underlineColorAndroid="transparent" onSubmitEditing={() => { const v = parseFloat(weightEntryInput.replace(',', '.')); if (!isNaN(v) && v > 20 && v < 300) saveWeightEntry(v); }} />
-                      <Touchable hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }} onPress={() => { const v = parseFloat(weightEntryInput.replace(',', '.')); if (!isNaN(v) && v > 20 && v < 300) saveWeightEntry(v); }} style={{ backgroundColor: SPOR, borderRadius: R.full, paddingHorizontal: S.md, height: 32, alignItems: 'center', justifyContent: 'center' }} activeOpacity={0.8}><Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Kaydet' : 'Save'}</Text></Touchable>
+                      <ModeField
+                        accent={SPOR}
+                        height={36}
+                        containerStyle={{ flex: 1 }}
+                        inputStyle={{ fontWeight: '500' }}
+                        value={weightEntryInput} onChangeText={setWeightEntryInput}
+                        placeholder={tr ? 'Kg gir (örn: 70.5)' : 'Enter kg (e.g. 70.5)'}
+                        keyboardType="decimal-pad" autoFocus returnKeyType="done"
+                        onSubmitEditing={() => { if (weightEntryValid) saveWeightEntry(weightEntryValue); }} />
+                      <Touchable disabled={!weightEntryValid} hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }} onPress={() => { if (weightEntryValid) saveWeightEntry(weightEntryValue); }} style={{ backgroundColor: weightEntryValid ? SPOR : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), borderRadius: R.full, paddingHorizontal: S.md, height: 32, alignItems: 'center', justifyContent: 'center' }} activeOpacity={0.8}><Text style={{ color: weightEntryValid ? SPOR_ON : theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Kaydet' : 'Save'}</Text></Touchable>
                       <Touchable hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} onPress={() => { setShowWeightEntry(false); setWeightEntryInput(''); }} style={{ padding: S.xs }} activeOpacity={0.7}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'İptal' : 'Cancel'}</Text></Touchable>
                     </View>
                   ) : (
@@ -517,7 +538,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
 
           {/* ── Expanded setup form (slot 1) ── */}
           {expanded && (
-            <View style={{ gap: S.sm }}>
+            <FormReveal style={{ gap: S.sm }}>
               <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant }}>{tr ? 'Hedef türünü seç' : 'Select goal type'}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
                 {goalsSelf.map((g) => {
@@ -558,14 +579,18 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                 <View style={{ gap: S.sm }}>
                   <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant }}>{tr ? 'Beden bilgileri' : 'Body info'}</Text>
                   <View style={{ flexDirection: 'row', gap: S.sm }}>
-                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: R.md, paddingHorizontal: S.md, height: 44, borderWidth: B.thin, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', gap: S.xs }}>
-                      <TextInput value={heightCm} onChangeText={setHeightCm} placeholder={tr ? 'Boy (cm)' : 'Height (cm)'} placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)'} keyboardType="number-pad" style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '500', paddingVertical: 0 }} returnKeyType="next" underlineColorAndroid="transparent" />
-                      <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption2, fontWeight: '600' }}>cm</Text>
-                    </View>
-                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: R.md, paddingHorizontal: S.md, height: 44, borderWidth: B.thin, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', gap: S.xs }}>
-                      <TextInput value={ageYears} onChangeText={setAgeYears} placeholder={tr ? 'Yaş' : 'Age'} placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)'} keyboardType="number-pad" style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '500', paddingVertical: 0 }} returnKeyType="done" underlineColorAndroid="transparent" />
-                      <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption2, fontWeight: '600' }}>{tr ? 'yaş' : 'yrs'}</Text>
-                    </View>
+                    <ModeField
+                      accent={SPOR}
+                      containerStyle={{ flex: 1 }}
+                      inputStyle={{ fontWeight: '500' }}
+                      suffix={<Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption2, fontWeight: '600' }}>cm</Text>}
+                      value={heightCm} onChangeText={setHeightCm} placeholder={tr ? 'Boy (cm)' : 'Height (cm)'} keyboardType="number-pad" returnKeyType="next" />
+                    <ModeField
+                      accent={SPOR}
+                      containerStyle={{ flex: 1 }}
+                      inputStyle={{ fontWeight: '500' }}
+                      suffix={<Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption2, fontWeight: '600' }}>{tr ? 'yaş' : 'yrs'}</Text>}
+                      value={ageYears} onChangeText={setAgeYears} placeholder={tr ? 'Yaş' : 'Age'} keyboardType="number-pad" returnKeyType="done" />
                   </View>
 
                   <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant, marginTop: S.xs }}>{tr ? 'Kilo bilgileri (kaydırarak seçin)' : 'Weight info (scroll to select)'}</Text>
@@ -629,10 +654,11 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
               {sporType === 'maraton' && (
                 <View style={{ gap: S.xs }}>
                   <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant }}>{tr ? 'Mevcut haftalık km' : 'Current weekly km'}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: R.md, paddingHorizontal: S.md, height: 44, borderWidth: B.thin, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }}>
-                    <TextInput value={weeklyKm} onChangeText={setWeeklyKm} placeholder={tr ? 'Örn: 15' : 'e.g. 15'} placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)'} keyboardType="numeric" style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '500', paddingVertical: 0 }} returnKeyType="done" underlineColorAndroid="transparent" />
-                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>km/hft</Text>
-                  </View>
+                  <ModeField
+                    accent={SPOR}
+                    inputStyle={{ fontWeight: '500' }}
+                    suffix={<Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>km/hft</Text>}
+                    value={weeklyKm} onChangeText={setWeeklyKm} placeholder={tr ? 'Örn: 15' : 'e.g. 15'} keyboardType="numeric" returnKeyType="done" />
                   <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant, marginTop: S.xxs }}>{tr ? 'Hedef mesafe' : 'Target distance'}</Text>
                   <View style={{ flexDirection: 'row', gap: S.xs }}>
                     {(['5K', '10K', 'Yarı', 'Tam'] as const).map(ev => (
@@ -679,9 +705,9 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                 <Touchable onPress={() => setExpanded(false)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
                   <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
                 </Touchable>
-                {sporIsComplete && (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview('spor'); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: SPOR, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}>{renderModeEmojiIcon(goalEmoji(sporType), 13, '#fff')}<Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
+                {sporIsComplete && (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview('spor'); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: SPOR, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}>{renderModeEmojiIcon(goalEmoji(sporType), 13, SPOR_ON)}<Text style={{ color: SPOR_ON, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
               </View>
-            </View>
+            </FormReveal>
           )}
         </View>
       )}

@@ -22,7 +22,7 @@ const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
  * ham listeyi okuyor.
  */
 describe('arşivlenmiş görev hiçbir aktif görünüme sızmamalı', () => {
-  const SCREENS = ['app/cockpit.tsx', 'app/mod-ozet.tsx', 'app/profile.tsx'];
+  const SCREENS = ['app/cockpit.tsx', 'app/profile.tsx'];
 
   it.each(SCREENS)('%s ham görev listesini değil, aktif seçiciyi okur', (rel) => {
     const src = read(rel);
@@ -30,6 +30,25 @@ describe('arşivlenmiş görev hiçbir aktif görünüme sızmamalı', () => {
     // Ham `state.tasks` aboneliği arşivlenmişleri de getirirdi.
     expect(src).not.toMatch(/useTaskStore\(\s*s(tate)?\s*=>\s*s(tate)?\.tasks\s*\)/);
     expect(src).not.toMatch(/const \{ tasks \} = useTaskStore\(\)/);
+  });
+
+  /*
+    mod-ozet.tsx artık kendi görev okuması yapmıyor — hesabın tamamı
+    `useActiveModeSummary`e taşındı (2026-09-20 tasarım sadeleştirmesi). Ekranın
+    kendisinde `useTaskStore`/`useActiveTasks` hiç geçmiyor; güvence bu yüzden
+    ORTAK HOOK'ta doğrulanıyor. İki ayrı yerin aynı özeti hesaplaması (kopyalanması)
+    zaten yasaktı — bu görev okumasını da ikiye bölmemek için buraya taşınmadı.
+  */
+  it('app/mod-ozet.tsx kendi görev okuması yapmaz, tamamen ortak hook üzerinden gider', () => {
+    const src = read('app/mod-ozet.tsx');
+    expect(src).not.toMatch(/useTaskStore|useActiveTasks/);
+    expect(src).toContain('useActiveModeSummary');
+  });
+
+  it('useActiveModeSummary arşivlenmiş görevi hiç görmez', () => {
+    const src = read('features/modes/hooks/useActiveModeSummary.ts');
+    expect(src).toContain('useActiveTasks');
+    expect(src).not.toMatch(/useTaskStore\(\s*s(tate)?\s*=>\s*s(tate)?\.tasks\s*\)/);
   });
 
   it('arşiv ekranı BİLEREK ham listeyi okur — istisna burada', () => {

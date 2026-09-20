@@ -3,7 +3,7 @@
  * Veri doğrudan `seasonal` store'dan (desync yok). Önizleme/apply merkezi → onOpenPreview.
  */
 import React, { useState } from 'react';
-import { View, Text, Switch, TextInput, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, Switch, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { ChevronRight, CalendarDays, BookOpen, X, Briefcase } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -13,6 +13,7 @@ import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { useTaskStore } from '@/features/tasks';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
+import { FormReveal, ModeField } from '../ModeField';
 import { renderModeEmojiIcon } from '../../utils/modeIcons';
 import { retirePlanTask, formatPlanDate, isDatePast, daysLeftOf , retireModeTasksByTag} from '@/features/modes/utils/planTaskOps';
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
@@ -20,6 +21,7 @@ import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { ModePlanSummary } from '@/features/modes/components/ModePlanSummary';
+import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { useModeCompletionReview } from '@/features/modes/hooks/useModeCompletionReview';
@@ -61,7 +63,7 @@ function DatePickerInline({ value, onPick, onClose }: { value: Date; onPick: (is
 
 /** İkincil slot (mulakat2 / mulakat3): kompakt satır + düzenleme formu. */
 function SecondarySlot({ slot, nameKey, dateKey, placeholder, onOpenPreview }: { slot: Slot; nameKey: 'mulakat2Name' | 'mulakat3Name'; dateKey: 'mulakat2Date' | 'mulakat3Date'; placeholder: string; onOpenPreview: (s: Slot) => void }) {
-  const { accent: ACCENT, accentText: ACCENT_TX } = useModeAccent('mulakat');
+  const { accent: ACCENT, accentText: ACCENT_TX, onAccent: ACCENT_ON } = useModeAccent('mulakat');
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
@@ -113,10 +115,8 @@ function SecondarySlot({ slot, nameKey, dateKey, placeholder, onOpenPreview }: {
         </Touchable>
       ) : null}
       {expanded && (
-        <View style={{ gap: S.sm }}>
-          <View style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: B.thin }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}>
-            <TextInput value={name} onChangeText={(v) => setSeasonalPref(nameKey, v)} placeholder={placeholder} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '600' }} returnKeyType="done" underlineColorAndroid="transparent" maxLength={60} />
-          </View>
+        <FormReveal style={{ gap: S.sm }}>
+          <ModeField accent={ACCENT} height={40} inputStyle={{ fontSize: F.caption }} value={name} onChangeText={(v) => setSeasonalPref(nameKey, v)} placeholder={placeholder} returnKeyType="done" maxLength={60} />
           <Touchable hitSlop={{ top: 2, bottom: 2, left: 0, right: 0 }} onPress={() => { haptic.select(); setShowPicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
             <Text style={{ color: date ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.caption, fontWeight: '600', flex: 1 }}>{date ? formatPlanDate(date, tr) : (tr ? 'Mülakat tarihi seç' : 'Select interview date')}</Text>
             <CalendarDays size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
@@ -126,16 +126,16 @@ function SecondarySlot({ slot, nameKey, dateKey, placeholder, onOpenPreview }: {
             <Touchable onPress={() => { if (name || date) del(); setExpanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
               <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
             </Touchable>
-            {complete && (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview(slot); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><BookOpen size={ICON.xs} color="#fff" /><Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
+            {complete && (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview(slot); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><BookOpen size={ICON.xs} color={ACCENT_ON} /><Text style={{ color: ACCENT_ON, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
           </View>
-        </View>
+        </FormReveal>
       )}
     </View>
   );
 }
 
 export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => void }) {
-  const { accent: ACCENT, accentText: ACCENT_TX } = useModeAccent('mulakat');
+  const { accent: ACCENT, accentText: ACCENT_TX, onAccent: ACCENT_ON } = useModeAccent('mulakat');
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
@@ -144,6 +144,8 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
   const setSeasonalPref = usePrefsStore(s => s.setSeasonalPref);
   const clearPlanIds = usePrefsStore(s => s.clearPlanIds);
   const mulakatPlanHabitIds = usePrefsStore(s => s.mulakatPlanHabitIds);
+  // Ara verme + kat edilen yol — dört kart da aynı kaynaktan (bkz. usePlanLifecycle).
+  const lifecycle = usePlanLifecycle('mulakat', seasonal.mulakatDate, mulakatPlanHabitIds);
   const mulakatPlanTaskIds = usePrefsStore(s => s.mulakatPlanTaskIds);
   const mulakat2PlanHabitIds = usePrefsStore(s => s.mulakat2PlanHabitIds);
   const mulakat2PlanTaskIds = usePrefsStore(s => s.mulakat2PlanTaskIds);
@@ -244,8 +246,8 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
                 Alert.alert(tr ? 'Mülakat Modu Kapatılıyor' : 'Turning off Interview Mode', tr ? 'Eklenen alışkanlıklar ve görevler kaldırılacak. Emin misin?' : 'Added habits and tasks will be removed. Are you sure?', [{ text: tr ? 'İptal' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat ve Temizle' : 'Turn Off & Remove', style: 'destructive', onPress: () => closeModeWithUndo('mulakat', closePlan, tr ? 'Mülakat modu kapatıldı' : 'Interview mode closed', tr ? 'Geri al' : 'Undo') }]);
               } else if (v) { setSeasonalPref('mulakatMode', true); setExpanded(true); }
             }}
-            trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: ACCENT + '80' }}
-            thumbColor={seasonal.mulakatMode ? ACCENT : (isDark ? '#636366' : '#fff')}
+            trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: ACCENT }}
+            thumbColor={isDark && !seasonal.mulakatMode ? '#636366' : '#fff'}
           />
         </View>
       </View>
@@ -288,6 +290,7 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
                     dateLabel={date ? formatPlanDate(date, tr) : ''}
                     todayDone={progDone}
                     todayTotal={progTotal}
+                    lifecycle={lifecycle}
                   />
                 </View>
               </View>
@@ -300,10 +303,8 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
           )}
 
           {expanded && (
-            <View style={{ gap: S.sm }}>
-              <View style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: B.thin }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}>
-                <TextInput value={name} onChangeText={(v) => setSeasonalPref('mulakatName', v)} placeholder={tr ? 'Şirket / Pozisyon (Google - SWE...)' : 'Company / Role (Google - SWE...)'} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }} returnKeyType="done" underlineColorAndroid="transparent" maxLength={60} />
-              </View>
+            <FormReveal style={{ gap: S.sm }}>
+              <ModeField accent={ACCENT} value={name} onChangeText={(v) => setSeasonalPref('mulakatName', v)} placeholder={tr ? 'Şirket / Pozisyon (Google - SWE...)' : 'Company / Role (Google - SWE...)'} returnKeyType="done" maxLength={60} />
               <Touchable onPress={() => { haptic.select(); setShowPicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
                 <Text style={{ color: date ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.body, fontWeight: '600', flex: 1 }}>{date ? formatPlanDate(date, tr) : (tr ? 'Mülakat tarihi seç' : 'Select interview date')}</Text>
                 <CalendarDays size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
@@ -313,9 +314,9 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
                 <Touchable onPress={() => setExpanded(false)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
                   <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
                 </Touchable>
-                {isComplete && (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview('mulakat'); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}><BookOpen size={ICON.sm} color="#fff" /><Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
+                {isComplete && (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview('mulakat'); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}><BookOpen size={ICON.sm} color={ACCENT_ON} /><Text style={{ color: ACCENT_ON, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
               </View>
-            </View>
+            </FormReveal>
           )}
         </View>
       )}

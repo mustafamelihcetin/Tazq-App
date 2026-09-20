@@ -162,10 +162,16 @@ describe('yoğunluk', () => {
      * bağlam menüsü de açılırken titreşir. Tek çağrı: iki jest de aynı işleyiciden
      * geçiyor (bkz. openMenu).
      *
+     * → 307: plana ARA VERME ve DEVAM ETME (üç çağrı: ara ver, devam et, geri al).
+     * Üçü de planın durumunu gerçekten değiştiriyor ve sonucu ekranda hemen görünmüyor
+     * olabilir (görev üretimi durur/başlar) — dokunuşun bir şey yaptığını söyleyen tek
+     * işaret titreşim. Ara verme kararı zaten tereddütle verilir; sessiz kalmak
+     * "basmadım mı?" sorusunu doğururdu.
+     *
      * DÜRÜST NOT: hedef oran ~1/3, bugünkü ölçüm ~1/1.4. Yani yoğunluk HÂLÂ YÜKSEK.
      * Bunu düşürmek 50+ çağrı yerinde tek tek "bu titreşim ne anlatıyor?" sorusunu
      * yanıtlamayı gerektirir — ayrı ve bilinçli bir tur işi.
      */
-    expect(hap).toBeLessThanOrEqual(304);
+    expect(hap).toBeLessThanOrEqual(307);
   });
 });

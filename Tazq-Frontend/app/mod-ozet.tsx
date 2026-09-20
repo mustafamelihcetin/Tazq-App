@@ -1,24 +1,42 @@
-import React, { useMemo, useRef } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Animated, Platform } from 'react-native';
+import React, { useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, CalendarClock, Layers, Flame, Compass } from 'lucide-react-native';
+import { CalendarClock, Layers, Flame, Compass, type LucideIcon } from 'lucide-react-native';
 import { MotiView } from 'moti';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
-import { useActiveModeSummary } from '@/features/modes/hooks/useActiveModeSummary';
-import { useHabitStore } from '@/features/habits';
-import { useTaskStore, useActiveTasks } from '@/features/tasks';
-import { ICON, S, R, F, B, TRACKING, SPRING, MAX_W , topBarSpace} from '@/shared/constants/tokens';
+import { useActiveModeSummary, type ModeSummaryEntry } from '@/features/modes/hooks/useActiveModeSummary';
+import { ICON, S, R, F, B, HAIRLINE, SPRING, topBarSpace } from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { track } from '@/shared/utils/analytics';
 import { renderModeEmojiIcon } from '@/features/modes';
-import { localizeSporGoal } from '@/features/modes';
-import { modeAccent, modeAccentText } from '@/shared/constants/Colors';
-import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
+import { AppIcon } from '@/shared/components/AppIcon';
+import { ProgressRail } from '@/shared/components/ProgressRail';
 
-// Bu haftanın (Pzt–Paz) 'YYYY-MM-DD' anahtarları.
+/**
+ * MODLARIN ÖZETİ — "karmaşık ve çirkin, uygulamayla uyuşmuyor" (2026-09-20).
+ *
+ * ── ÖLÇÜLEN SORUN ─────────────────────────────────────────────────────────────
+ * Bu ekran uygulamanın geri kalanından önce yazılmıştı ve kendi görsel dilini
+ * konuşuyordu:
+ *  · Üç ölçüt HAM iOS SİSTEM RENKLERİYLE boyanmıştı (sistem turuncusu, sistem yeşili) —
+ *    uygulamanın geri kalanı `theme.streak`/`theme.success` gibi semantik tema
+ *    token'ları kullanıyor, burada koyu temada hiç değişmeyen sabit hex'ler vardı.
+ *  · Ekranda AYRI AYRI kenarlıklı 4+N kutu duruyordu: 3 istatistik kartı, bir "GENEL
+ *    DURUM" kutusu, bir "Bugünkü plan" kutusu, N tane mod satırı — hepsi kendi
+ *    kenarlığını çiziyordu. Göz her birini ayrı bir yüzey sanıyor, hiçbiri öne çıkmıyordu.
+ *  · İlerleme raw `<View>` çubuklarıyla elle çiziliyordu — uygulamanın geri kalanı
+ *    `ProgressRail`i kullanıyor (biriken/tek-yönlü "bar" ile periyodik/sayılabilir
+ *    "segments" ayrımı burada yoktu, iki farklı ilerleme aynı çubukla anlatılıyordu).
+ *
+ * ── ÇÖZÜM: TEK KAHRAMAN KART + TEK LİSTE KABI ──────────────────────────────────
+ * Dört-beş kutu yerine iki: üstte tek bir özet kartı (genel durum cümlesi + üç ölçüt
+ * + bugünkü plan, hepsi aynı kartın içinde, aralarında ince ayırıcı), altta tek bir
+ * liste kabı (mod satırları kendi kenarlığını taşımaz, `Separator` ile ayrılır — aynı
+ * desen `app/modlar.tsx`teki "Geçmiş Hedefler" bölümünde de kullanılıyor).
+ */
 
 // Etiketteki ham emoji'leri temizle (preset adı "⚖️ Kilo Yönetimi" gibi).
 const stripEmoji = (s: string) => s
@@ -26,7 +44,48 @@ const stripEmoji = (s: string) => s
   .replace(/\s+/g, ' ')
   .trim();
 
+/** Bir mod satırının gün metni — ayrı yerlerde üç kez yazılmasın diye tek fonksiyon. */
+function daysLabel(days: number | null, tr: boolean): string {
+  if (days === null) return tr ? 'Süresiz' : 'Open-ended';
+  if (days === -1) return tr ? 'Tarih geçti' : 'Date passed';
+  if (days === 0) return tr ? 'Bugün!' : 'Today!';
+  return tr ? `${days} gün kaldı` : `${days} days left`;
+}
 
+function ModeRow({ c, tr, theme, isDark, isFirst }: { c: ModeSummaryEntry; tr: boolean; theme: ReturnType<typeof useAppTheme>['theme']; isDark: boolean; isFirst: boolean }) {
+  return (
+    <View style={{ paddingVertical: S.md, borderTopWidth: isFirst ? 0 : HAIRLINE, borderTopColor: theme.separator, gap: S.sm }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+        <View style={{ width: 40, height: 40, borderRadius: R.md, backgroundColor: c.color + (isDark ? '26' : '18'), alignItems: 'center', justifyContent: 'center' }}>
+          {renderModeEmojiIcon(c.emoji, 20, c.color)}
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }} numberOfLines={1}>{stripEmoji(c.label) || c.label}</Text>
+          <Text style={{ color: c.days === -1 ? theme.error : c.textColor, fontSize: F.caption, fontWeight: '600', marginTop: S.xxs }}>
+            {daysLabel(c.days, tr)}
+          </Text>
+        </View>
+        {c.todayTotal > 0 && (
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.caption }}>{c.todayDone}/{c.todayTotal}</Text>
+            <Text style={{ color: theme.onSurfaceMuted, fontSize: 10, fontWeight: '600' }}>{tr ? 'bugün' : 'today'}</Text>
+          </View>
+        )}
+      </View>
+      {/* Haftalık alışkanlık RİTMİ — biriken bir yol değil, her hafta sıfırlanan bir
+          sayı. `segments`, `bar`dan ayrı bir dil konuşur (bkz. ProgressRail). */}
+      {c.habitCount > 0 && (
+        <View style={{ gap: S.xs }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bu hafta alışkanlık' : 'Habits this week'}</Text>
+            <Text style={{ color: c.textColor, fontSize: F.caption, fontWeight: '700' }}>{c.weekActive}/{c.habitCount} · %{c.pct}</Text>
+          </View>
+          <ProgressRail variant="segments" value={c.weekActive} total={c.habitCount} color={c.color} />
+        </View>
+      )}
+    </View>
+  );
+}
 
 export default function ModOzetScreen() {
   const { theme, isDark } = useAppTheme();
@@ -40,19 +99,11 @@ export default function ModOzetScreen() {
   /*
     HESAP ORTAK BİR HOOK'TA (bkz. useActiveModeSummary).
 
-    Bu blok eskiden burada, ~60 satır olarak duruyordu. Ana ekran da aynı özeti
-    göstermeye başlayınca kopyalanması gerekecekti; iki kopya zamanla ayrışır —
+    Ana ekran da aynı özeti gösteriyor; kopyalansaydı iki ekran zamanla ayrışırdı —
     biri slot modlarını sayar diğeri saymaz, biri tarihi geçmiş modu aktif gösterir.
-    Aynı soruya iki farklı cevap veren iki ekran güveni bitirir.
   */
   const summary = useActiveModeSummary();
-  const computed = summary.entries;
-  const activeCount = summary.activeCount;
-  const nearest = summary.nearest;
-  const totalHabits = summary.totalHabits;
-  const overallPct = summary.overallPct;
-  const todayDoneAll = summary.todayDoneAll;
-  const todayTotalAll = summary.todayTotalAll;
+  const { entries: computed, activeCount, nearest, totalHabits, overallPct, todayDoneAll, todayTotalAll } = summary;
 
   React.useEffect(() => { track('mode_summary_opened'); }, []);
 
@@ -71,19 +122,13 @@ export default function ModOzetScreen() {
   const onScroll = Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true });
   const navTitle = tr ? 'Modların Özeti' : 'Modes Overview';
 
-  const Stat = ({ icon, value, label, color }: { icon: React.ReactNode; value: string; label: string; color: string }) => (
-    <View style={[styles.statCard, { backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, borderColor: theme.outlineVariant }]}>
-      <View style={{ width: 32, height: 32, borderRadius: R.sm, backgroundColor: color, alignItems: 'center', justifyContent: 'center', marginBottom: S.xs }}>{icon}</View>
-      <Text style={{ color: theme.onSurface, fontSize: F.title, fontWeight: '700', letterSpacing: -0.5 }}>{value}</Text>
-      <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600' }}>{label}</Text>
-    </View>
-  );
+  // Hero kartının vurgusu: en yakın hedefin rengi, yoksa nötr birincil renk.
+  const heroColor = nearest?.color ?? theme.primary;
+  const heroText = nearest?.textColor ?? theme.primary;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      {/* Ortak başlık. Burası uygulamadaki TEK çöken/buzlu başlıktı — kendi kopyası,
-          kendi 52pt yüksekliği ve ölçek dışı 30pt büyük başlığıyla. Tek örnek olması
-          onu "özel" değil TUTARSIZ yapıyordu; ana ekranlarla aynı sisteme alındı. */}
+      {/* Ortak başlık — ana ekranlarla aynı sistem. */}
       <ScreenHeader onBack={() => router.back()} title={navTitle} />
 
       {activeCount === 0 ? (
@@ -92,7 +137,7 @@ export default function ModOzetScreen() {
           <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', textAlign: 'center', marginBottom: S.sm }}>{tr ? 'Henüz aktif mod yok' : 'No active modes yet'}</Text>
           <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, textAlign: 'center', lineHeight: 20, marginBottom: S.lg }}>{tr ? 'Bir hedef aç — buradan tüm modlarının gidişatını tek bakışta görürsün.' : 'Turn on a goal — track all your modes at a glance here.'}</Text>
           <TouchableOpacity onPress={() => router.back()} style={{ paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: theme.primary }} accessibilityRole="button">
-            <Text style={{ color: '#fff', fontWeight: '700' }}>{tr ? 'Mod Seç' : 'Pick a Mode'}</Text>
+            <Text style={{ color: theme.onPrimary, fontWeight: '700' }}>{tr ? 'Mod Seç' : 'Pick a Mode'}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -102,83 +147,67 @@ export default function ModOzetScreen() {
           scrollEventThrottle={16}
           onScroll={onScroll}
         >
-
-
-          {/* İçgörü satırı */}
-          {coachLine ? (
-            <View style={[styles.coach, { backgroundColor: (nearest?.color ?? theme.primary) + '14', borderColor: (nearest?.color ?? theme.primary) + '33' }]}>
-              {/* Bölüm işareti ÇİZGİSEL ikon: sistem emojisi platformdan platforma farklı
-                  çiziliyor ve temayı dinlemiyor. İşaret korunuyor, dili düzeltiliyor. */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.xs }}>
-                <Compass size={ICON.xs} color={nearest?.color ?? theme.primary} strokeWidth={2.5} />
-                <Text style={{ color: nearest?.color ?? theme.primary, fontSize: F.caption, fontWeight: '700', letterSpacing: 0.5 }}>{tr ? 'GENEL DURUM' : 'OVERVIEW'}</Text>
+          {/*
+            TEK KAHRAMAN KARTI — genel durum + üç ölçüt + bugünkü plan, hepsi TEK
+            kartın içinde, aralarında yalnız ince ayırıcı. Eskiden bunlar üç ayrı
+            kenarlıklı kutuydu; göz hiçbirini "ana yüzey" sayamıyordu.
+          */}
+          <MotiView
+            from={{ opacity: 0, translateY: 8 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={SPRING}
+            style={[styles.hero, { backgroundColor: isDark ? heroColor + '1A' : heroColor + '12', borderColor: heroColor + (isDark ? '40' : '30') }]}
+          >
+            {coachLine ? (
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: S.sm }}>
+                <Compass size={ICON.sm} color={heroText} strokeWidth={2.5} style={{ marginTop: S.xxs }} />
+                <Text style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '600', lineHeight: 20 }}>{coachLine}</Text>
               </View>
-              <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', lineHeight: 22 }}>{coachLine}</Text>
+            ) : null}
+
+            <View style={{ height: HAIRLINE, backgroundColor: theme.separator, marginVertical: S.md }} />
+
+            {/* Üç ölçüt — kendi kenarlığı YOK, aralarında ince dikey çizgi. */}
+            <View style={{ flexDirection: 'row' }}>
+              <Metric Icon={Layers} iconColor={theme.primary}
+                value={`${activeCount}`} label={tr ? 'Aktif mod' : 'Active modes'} theme={theme} />
+              <View style={{ width: HAIRLINE, backgroundColor: theme.separator }} />
+              <Metric Icon={CalendarClock} iconColor={heroColor}
+                value={nearest ? `${nearest.days}` : '∞'} unit={nearest ? (tr ? 'gün' : 'days') : undefined}
+                label={tr ? 'En yakın hedef' : 'Nearest goal'} theme={theme} />
+              <View style={{ width: HAIRLINE, backgroundColor: theme.separator }} />
+              <Metric Icon={Flame} iconColor={theme.streak}
+                value={totalHabits > 0 ? `%${overallPct}` : '—'} label={tr ? 'Hafta istikrar' : 'Week consistency'} theme={theme} />
             </View>
-          ) : null}
 
-          {/* Özet ölçütleri */}
-          <View style={{ flexDirection: 'row', gap: S.sm }}>
-            <Stat icon={<Layers size={ICON.sm} color={theme.onPrimary} />} value={`${activeCount}`} label={tr ? 'Aktif mod' : 'Active modes'} color={theme.primary} />
-            <Stat icon={<CalendarClock size={ICON.sm} color="#FF9500" />} value={nearest ? `${nearest.days}${tr ? 'g' : 'd'}` : '∞'} label={tr ? 'En yakın hedef' : 'Nearest goal'} color="#FF9500" />
-            <Stat icon={<Flame size={ICON.sm} color="#34C759" />} value={totalHabits > 0 ? `%${overallPct}` : '—'} label={tr ? 'Hafta istikrar' : 'Week consistency'} color="#34C759" />
-          </View>
-
-          {/* Bugünkü plan genel */}
-          {todayTotalAll > 0 && (
-            <View style={[styles.section, { backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, borderColor: theme.outlineVariant }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: S.sm }}>
-                <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{tr ? 'Bugünkü plan' : "Today's plan"}</Text>
-                <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{todayDoneAll}/{todayTotalAll}</Text>
-              </View>
-              <View style={{ height: 8, borderRadius: R.xs, backgroundColor: theme.onSurfaceVariant + '20', overflow: 'hidden' }}>
-                <View style={{ height: 8, borderRadius: R.xs, width: `${Math.round((todayDoneAll / todayTotalAll) * 100)}%`, backgroundColor: '#34C759' }} />
-              </View>
-            </View>
-          )}
-
-          {/* Mod kartları */}
-          <View style={{ gap: S.sm }}>
-            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' }}>{tr ? 'Modlar' : 'Modes'}</Text>
-            {computed.map((c, i) => (
-              <MotiView
-                key={c.key}
-                from={{ opacity: 0, translateY: 8 }}
-                animate={{ opacity: 1, translateY: 0 }}
-                transition={{ ...SPRING, delay: i * 60 }}
-                style={[styles.modeRow, { backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, borderColor: c.color + (isDark ? '33' : '22') }]}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                  <View style={{ width: 40, height: 40, borderRadius: R.md, backgroundColor: c.color + (isDark ? '26' : '18'), alignItems: 'center', justifyContent: 'center' }}>
-                    {renderModeEmojiIcon(c.emoji, 20, c.color)}
+            {todayTotalAll > 0 && (
+              <>
+                <View style={{ height: HAIRLINE, backgroundColor: theme.separator, marginVertical: S.md }} />
+                <View style={{ gap: S.xs }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{tr ? 'Bugünkü plan' : "Today's plan"}</Text>
+                    <Text style={{ color: todayDoneAll >= todayTotalAll ? theme.success : theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{todayDoneAll}/{todayTotalAll}</Text>
                   </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }} numberOfLines={1}>{stripEmoji(c.label) || c.label}</Text>
-                    <Text style={{ color: c.days === -1 ? theme.error : c.color, fontSize: F.caption, fontWeight: '600', marginTop: S.xxs }}>
-                      {c.days === null ? (tr ? 'Süresiz' : 'Open-ended') : c.days === -1 ? (tr ? 'Tarih geçti' : 'Date passed') : c.days === 0 ? (tr ? 'Bugün!' : 'Today!') : (tr ? `${c.days} gün kaldı` : `${c.days} days left`)}
-                    </Text>
-                  </View>
-                  {c.todayTotal > 0 && (
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.caption }}>{c.todayDone}/{c.todayTotal}</Text>
-                      <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, fontWeight: '600' }}>{tr ? 'bugün' : 'today'}</Text>
-                    </View>
-                  )}
+                  <ProgressRail variant="segments" value={todayDoneAll} total={todayTotalAll} color={todayDoneAll >= todayTotalAll ? theme.success : heroColor} height={8} />
                 </View>
-                {/* haftalık alışkanlık istikrarı */}
-                {c.habitCount > 0 && (
-                  <View style={{ marginTop: S.sm }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: S.xs }}>
-                      <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bu hafta alışkanlık' : 'Habits this week'}</Text>
-                      <Text style={{ color: c.textColor, fontSize: F.caption, fontWeight: '700' }}>{c.weekActive}/{c.habitCount} · %{c.pct}</Text>
-                    </View>
-                    <View style={{ height: 5, borderRadius: R.xs, backgroundColor: theme.onSurfaceVariant + '20', overflow: 'hidden' }}>
-                      <View style={{ height: 5, borderRadius: R.xs, width: `${c.pct}%`, backgroundColor: c.color }} />
-                    </View>
-                  </View>
-                )}
-              </MotiView>
-            ))}
+              </>
+            )}
+          </MotiView>
+
+          {/* Mod listesi — TEK kap, satırlar kendi kenarlığını taşımaz. Aynı desen
+              modlar.tsx'teki "Geçmiş Hedefler" bölümünde de kullanılıyor. */}
+          <View style={{ gap: S.sm }}>
+            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', paddingHorizontal: S.xs }}>{tr ? 'Modlar' : 'Modes'}</Text>
+            <MotiView
+              from={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ type: 'timing', duration: 250 }}
+              style={[styles.list, { backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, borderColor: theme.outlineVariant, paddingHorizontal: S.md }]}
+            >
+              {computed.map((c, i) => (
+                <ModeRow key={c.key} c={c} tr={tr} theme={theme} isDark={isDark} isFirst={i === 0} />
+              ))}
+            </MotiView>
           </View>
         </Animated.ScrollView>
       )}
@@ -186,12 +215,32 @@ export default function ModOzetScreen() {
   );
 }
 
+/**
+ * Tek ölçüt: renkli glif + büyük sayı + etiket — kenarlıksız, dikey ayırıcıyla
+ * komşularından ayrılır.
+ *
+ * `unit` — sayı ile birimi ASLA bitiştirme ("84g" gibi bir kısaltma soğuk ve
+ * okunaksız durur). Uygulamanın geri kalanında büyük sayı ile birimi hep AYRI
+ * yazılır (bkz. modlar.tsx'teki KAHRAMAN SATIRI: sayı + altında/yanında "GÜN").
+ * Burada yanına, hafif ve küçük — kendi başına ikinci bir hero olmasın diye.
+ */
+function Metric({ Icon, iconColor, value, unit, label, theme }: { Icon: LucideIcon; iconColor: string; value: string; unit?: string; label: string; theme: ReturnType<typeof useAppTheme>['theme'] }) {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', gap: S.xxs }}>
+      <AppIcon Icon={Icon} color={iconColor} size={28} radius={R.full} iconSize={ICON.xs} />
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: S.xxs }}>
+        <Text style={{ color: theme.onSurface, fontSize: F.title, fontWeight: '700', letterSpacing: -0.5 }}>{value}</Text>
+        {unit ? (
+          <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600', marginLeft: S.xxs }}>{unit}</Text>
+        ) : null}
+      </View>
+      <Text style={{ color: theme.onSurfaceMuted, fontSize: 10, fontWeight: '600', textAlign: 'center' }}>{label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md, paddingVertical: S.sm },
-  title: { fontSize: F.title3, fontWeight: '700', letterSpacing: TRACKING.title },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: S.xl },
-  statCard: { flex: 1, borderRadius: R.lg, borderWidth: B.thin, padding: S.md, gap: S.xxs },
-  section: { borderRadius: R.lg, borderWidth: B.thin, padding: S.md },
-  coach: { borderRadius: R.lg, borderWidth: B.thin, padding: S.lg },
-  modeRow: { borderRadius: R.lg, borderWidth: B.thin, padding: S.md },
+  hero: { borderRadius: R.lg, borderWidth: B.thin, padding: S.lg },
+  list: { borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden' },
 });

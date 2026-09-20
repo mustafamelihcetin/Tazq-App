@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { View, Text, Modal, Animated, StyleSheet, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { renderModeEmojiIcon } from '@/features/modes';
-import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
 import { BrainCircuit, Zap, Target, Play, TrendingUp, TrendingDown, Check, Coffee, BarChart2, Calendar, Sparkles } from 'lucide-react-native';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
@@ -13,6 +12,7 @@ import type { AppTheme } from '@/shared/constants/Colors';
 import { fmtDateKey } from '@/features/habits';
 import { weekdayIndex } from '@/features/dashboard/utils/streakDay';
 import { AppIcon } from '@/shared/components/AppIcon';
+import { Separator } from '@/shared/components/Separator';
 interface StatusHubModalProps {
   visible: boolean;
   onClose: () => void;
@@ -278,20 +278,26 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
             */
             contentContainerStyle={{ gap: scale(16), width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
           >
-            {/* HERO: Focus Score Card */}
+            {/*
+              TEK KAHRAMAN KARTI — skor + öneri, aralarında yalnız ince ayırıcı.
+
+              ── ÖLÇÜLEN SORUN ────────────────────────────────────────────────
+              Bu iki kart eskiden AYRI kutulardı, ikisi de mavi-mor bir gradyan
+              taşıyordu (ham RGB üçlüleriyle elle yazılmış) — uygulamanın
+              hiçbir başka yerinde stat kartı gradyanla çizilmiyor; bu tek başına
+              "başka bir app" hissi veriyordu. Aynı hikâyenin iki parçası (skorun
+              kendisi + o skora dair tavsiye) tek kartta, ince bir ayırıcıyla
+              anlatılıyor — mod-ozet'teki "tek kahraman kartı" ile aynı desen.
+            */}
             <View style={{
               borderRadius: R.xl,
-              overflow: 'hidden',
-              backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.015)',
-              borderWidth: 1,
-              borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+              padding: S.md,
+              backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow,
+              borderWidth: B.thin,
+              borderColor: theme.outlineVariant,
+              gap: S.md,
             }}>
-              <LinearGradient
-                colors={isDark ? ['rgba(59, 130, 246, 0.15)', 'rgba(147, 51, 234, 0.1)'] : ['rgba(59, 130, 246, 0.05)', 'rgba(147, 51, 234, 0.03)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={{ padding: S.md, flexDirection: 'row', alignItems: 'center', gap: S.md }}
-              >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
                 {/* Circular Score Indicator */}
                 <View style={{ width: 64, height: 64, position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
                   <Svg width={64} height={64}>
@@ -329,22 +335,11 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                       : `Focus: ${totalFocusMins}m • Habits: ${completedHabitsCount} done • Streak: ${streak}d\n(Tasks checked in <10s do not count towards the score)`}
                   </Text>
                 </View>
-              </LinearGradient>
-            </View>
-            {/* Daily Focused Coach Tip */}
-            <View style={{
-              borderRadius: R.lg,
-              overflow: 'hidden',
-              backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
-              borderWidth: 1,
-              borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-            }}>
-              <LinearGradient
-                colors={isDark ? [theme.primary + '0A', 'transparent'] : [theme.primary + '05', 'transparent']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={{ padding: S.md }}
-              >
+              </View>
+
+              <Separator theme={theme} />
+
+              <View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm }}>
                   <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: theme.success }} />
                   <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primary, letterSpacing: 0.8, textTransform: 'uppercase' }}>
@@ -354,7 +349,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                 <Text style={[styles.insightMainText, { color: theme.onSurface, fontSize: F.footnote, fontWeight: '500', lineHeight: 18.5, fontStyle: 'italic' }]}>
                   "{insight}"
                 </Text>
-              </LinearGradient>
+              </View>
             </View>
 
             {/* SECTION 1: Haftalık Odaklanma Analizi (Chart + Trend metrics side-by-side) */}
@@ -410,12 +405,9 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                             width: '100%'
                           }}>
                             {isToday ? (
-                              <View style={{ height: barHeight, width: 8, borderRadius: R.xs, overflow: 'hidden' }}>
-                                <LinearGradient
-                                  colors={[theme.primary, theme.secondary || theme.primary]}
-                                  style={{ flex: 1 }}
-                                />
-                              </View>
+                              // Bugünün sütunu tam tonlu, mavi-mor gradyan değil — geri kalanı
+                              // zaten yarı saydamlıkla ayrışıyor, ikinci bir renk gerekmiyor.
+                              <View style={{ height: barHeight, width: 8, borderRadius: R.xs, backgroundColor: theme.primary }} />
                             ) : (
                               <View style={{
                                 height: barHeight,
@@ -476,9 +468,10 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: S.smd,
-                backgroundColor: isDark ? 'rgba(59, 130, 246, 0.07)' : 'rgba(59, 130, 246, 0.04)',
-                borderWidth: 1,
-                borderColor: isDark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.08)',
+                // Ham mavi rgba yerine theme.primary — aynı ton, tema-duyarlı.
+                backgroundColor: theme.primary + (isDark ? '12' : '0A'),
+                borderWidth: B.thin,
+                borderColor: theme.primary + (isDark ? '26' : '15'),
                 borderRadius: R.lg,
                 padding: S.smd,
               }}>
@@ -531,10 +524,12 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                                   width: 16,
                                   height: 16,
                                   borderRadius: R.xs,
+                                  // Ham amber hex ailesi yerine theme.warning — mola/atlama
+                                  // rengi uygulamanın her yerinde aynı semantik tondan gelir.
                                   backgroundColor: done
                                     ? habit.color
                                     : skipped
-                                    ? 'rgba(217,119,6,0.15)'
+                                    ? theme.warning + '26'
                                     : isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
                                   alignItems: 'center',
                                   justifyContent: 'center',
@@ -544,7 +539,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                                   {done ? (
                                     <Check size={ICON.xs} color="#ffffff" strokeWidth={3.5} />
                                   ) : skipped ? (
-                                    <Coffee size={ICON.xs} color="#d97706" />
+                                    <Coffee size={ICON.xs} color={theme.warning} />
                                   ) : null}
                                 </View>
                                 <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: day.isToday ? 1 : 0.5 }}>
@@ -567,7 +562,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                       </Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
-                      <View style={{ width: 6, height: 6, borderRadius: R.xs, backgroundColor: 'rgba(217,119,6,0.25)' }} />
+                      <View style={{ width: 6, height: 6, borderRadius: R.xs, backgroundColor: theme.warning + '40' }} />
                       <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted }}>
                         {language === 'tr' ? 'Mola Verildi' : 'Skipped/Break'}
                       </Text>
@@ -589,27 +584,22 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                   </Text>
                 </View>
                 {weeklyTips.map((tip, idx) => {
-                  let badgeBg = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)';
-                  let badgeBorder = theme.outlineVariant;
-                  let iconColor = theme.onSurfaceVariant;
-                  let IconComponent = BrainCircuit;
+                  /*
+                    ÜÇ TON — ÜÇ HAM RENK ÜÇLÜSÜ YERİNE ÜÇ TEMA TOKEN'I.
 
-                  if (tip.tone === 'positive') {
-                    badgeBg = isDark ? 'rgba(52, 211, 153, 0.08)' : 'rgba(5, 150, 105, 0.05)';
-                    badgeBorder = isDark ? 'rgba(52, 211, 153, 0.15)' : 'rgba(5, 150, 105, 0.1)';
-                    iconColor = isDark ? '#34D399' : '#059669';
-                    IconComponent = Target;
-                  } else if (tip.tone === 'warning') {
-                    badgeBg = isDark ? 'rgba(255, 179, 64, 0.08)' : 'rgba(255, 149, 0, 0.05)';
-                    badgeBorder = isDark ? 'rgba(255, 179, 64, 0.15)' : 'rgba(255, 149, 0, 0.1)';
-                    iconColor = theme.warning;
-                    IconComponent = Zap;
-                  } else if (tip.tone === 'motivational') {
-                    badgeBg = isDark ? 'rgba(129, 140, 248, 0.08)' : 'rgba(37, 99, 235, 0.05)';
-                    badgeBorder = isDark ? 'rgba(129, 140, 248, 0.15)' : 'rgba(37, 99, 235, 0.1)';
-                    iconColor = isDark ? '#818CF8' : '#2563EB';
-                    IconComponent = BrainCircuit;
-                  }
+                    Her ton eskiden kendi elle yazılmış rgba üçlüsünü taşıyordu (zemin +
+                    kenarlık + ikon, koyu/açık için ayrı ayrı) — 12 ayrı sabit sayı. Aynı
+                    üç anlam (olumlu/uyarı/motive edici) uygulamanın geri kalanında zaten
+                    theme.success/theme.warning/theme.secondary ile anlatılıyor.
+                  */
+                  let accent = theme.onSurfaceVariant;
+                  let IconComponent = BrainCircuit;
+                  if (tip.tone === 'positive') { accent = theme.success; IconComponent = Target; }
+                  else if (tip.tone === 'warning') { accent = theme.warning; IconComponent = Zap; }
+                  else if (tip.tone === 'motivational') { accent = theme.secondary; IconComponent = BrainCircuit; }
+                  const badgeBg = accent + (isDark ? '14' : '0D');
+                  const badgeBorder = accent + (isDark ? '26' : '1A');
+                  const iconColor = accent;
 
                   const text = language === 'tr' ? tip.textTr : tip.textEn;
 

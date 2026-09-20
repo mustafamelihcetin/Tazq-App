@@ -3,11 +3,11 @@ import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import { MotiView } from 'moti';
 import { TrendingUp, TrendingDown, Minus, CheckCircle2, Zap, Flame, Shield, Info } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
-import { ICON, S, F, R, METRIC, LH, trackingFor } from '@/shared/constants/tokens';
+import { ICON, S, F, R, B, METRIC, LH, trackingFor } from '@/shared/constants/tokens';
+import { modeAccentOn } from '@/shared/constants/Colors';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { useMomentumStore } from '@/features/user/store/useMomentumStore';
-import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { swallow } from '@/shared/utils/swallow';
 import { Separator } from '@/shared/components/Separator';
 import { BentoCard } from '@/shared/components/BentoCard';
@@ -143,28 +143,43 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
       dolgu kartı boş gösterirdi.
     */}
     <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
-    {/* Momentum Aura (Core) */}
-    {engineHeat > 0 && (
-      <MotiView
-        from={{ opacity: engineHeat / 300, scale: 0.98 }}
-        animate={{ opacity: engineHeat / 150, scale: 1 + (engineHeat / 2000) }}
-        transition={{ type: 'timing', duration: Math.max(600, 2000 - (engineHeat * 14)), loop: true }}
-        style={{
-          position: 'absolute',
-          top: -S.md, left: S.md, right: S.md, bottom: -S.md,
-          backgroundColor: (() => {
-            const { seasonal } = usePrefsStore.getState();
-            if (seasonal.sporMode) return theme.error;
-            if (seasonal.tasarrufMode) return theme.tertiary;
-            if (seasonal.examMode || seasonal.tezMode) return theme.secondary;
-            return theme.primary;
-          })(),
-          borderRadius: R.lg + S.md,
-          filter: [{ blur: 20 }]
-        }}
-      />
-    )}
-    <BentoCard index={0} style={{ padding: S.md }}>
+    {/*
+      ISI ŞERİDİ — kaldırılan "aura"nın yerine.
+
+      ── NE VARDI ─────────────────────────────────────────────────────────────
+      Kartın ARKASINDA, 20px bulanıklıkla çizilen ve SONSUZ döngüde nabız atan renkli
+      bir dikdörtgen vardı. Üç ayrı sorunu birden taşıyordu:
+
+       · RENGİ ANLAMSIZDI: hangi modun açık olduğuna bakıyordu ve spor modunda
+         `theme.error` — yani HATA kırmızısı — seçiyordu. Kullanıcının etrafı kırmızı
+         parlayan bir kutu görmesi için tek sebep, o gün spor modunu açmış olmasıydı.
+         Uygulamanın renk sözleşmesinde kırmızı "bir şey ters gitti" demek.
+       · BİLGİ TAŞIMIYORDU: parıltının şiddeti ısıyla değişiyordu ama bulanık bir
+         halenin "ne kadar" olduğu okunamaz. Göz onu bir ölçü değil, bir süs sayar.
+       · DURMUYORDU: döngü ekran açık kaldığı sürece çalışıyordu. Hiçbir şey anlatmayan
+         sürekli hareket, dikkati çalar.
+
+      ── NE VAR ───────────────────────────────────────────────────────────────
+      Aynı veri (motor ısısı) kartın ÜST KENARINDA 2pt'lik bir şerit olarak duruyor:
+      genişliği ısının kendisi, rengi uygulamanın kendi ölçeği (normal → sıcak → aşırı).
+      Okunur, ölçülebilir ve değer değiştiğinde bir kez yumuşakça büyür — dinamik ama
+      gürültüsüz. Parlama yok, sonsuz döngü yok.
+    */}
+    <BentoCard index={0} style={{ padding: S.md, overflow: 'hidden' }}>
+      {engineHeat > 0 && (
+        <MotiView
+          from={{ width: '0%' }}
+          animate={{ width: `${Math.min(100, Math.round(engineHeat))}%` }}
+          transition={{ type: 'timing', duration: 420 }}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            height: 2,
+            backgroundColor: isOverheated ? theme.error : engineHeat > 50 ? theme.streak : theme.tertiary,
+          }}
+        />
+      )}
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
 
       {/* Score + info */}
@@ -384,12 +399,24 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
             const roundedHeat = Math.round(engineHeat);
 
             return (
+              /*
+                KENARLIK UYGULAMANIN DİLİNDE.
+
+                Bu iki kutu, durumu 1.5pt'lik TAM TONLU bir halkayla anlatıyordu (kırmızı
+                / turuncu); boştayken ise kenarlığı hiç yoktu. Uygulamada başka hiçbir
+                yüzey böyle çizilmiyor — her yerde ince (B.thin) ve nötr bir kenarlık var,
+                durum ise ikon, hafif zemin tonu ve yazıyla anlatılıyor. Sonuç, panelin
+                ortasında sebepsiz parlayan bir çerçeveydi.
+
+                Durum sinyali kaybolmuyor: zemin tonu, ikon rengi ve metin yerinde.
+                Kenarlık yalnız aynı rengin ÇOK AÇIK bir tonuna geçiyor.
+              */
               <View style={{
                 backgroundColor: isOverheated ? theme.error + '10' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
                 borderRadius: R.lg,
                 padding: S.md,
-                borderWidth: 1.5,
-                borderColor: isOverheated ? theme.error : 'transparent',
+                borderWidth: B.thin,
+                borderColor: isOverheated ? theme.error + '40' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)'),
                 gap: S.sm
               }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -437,8 +464,8 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
             backgroundColor: momentumShieldActive ? theme.streak + '15' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
             borderRadius: R.lg,
             padding: S.md,
-            borderWidth: 1.5,
-            borderColor: momentumShieldActive ? theme.streak : 'transparent',
+            borderWidth: B.thin,
+            borderColor: momentumShieldActive ? theme.streak + '40' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)'),
             gap: S.smd
           }}>
             <View style={{
@@ -475,7 +502,9 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
                   opacity: (!momentumShieldActive && shieldCharges <= 0) ? 0.4 : 1
                 }}
               >
-                <Text style={{ fontSize: 10, fontWeight: '700', color: momentumShieldActive ? '#fff' : theme.onSurfaceVariant }}>
+                {/* Koyu temada `theme.streak` açık turuncuya dönüyor; üstünde beyaz yazı
+                     okunmuyordu. Dolu zeminin üstündeki yazı temaya göre çözülür. */}
+                <Text style={{ fontSize: 10, fontWeight: '700', color: momentumShieldActive ? modeAccentOn(isDark) : theme.onSurfaceVariant }}>
                   {momentumShieldActive 
                     ? (tr ? 'AKTİF' : 'ACTIVE') 
                     : (shieldCharges <= 0 ? (tr ? 'ŞARJ YOK' : 'NO CHARGE') : (tr ? 'ETKİNLEŞTİR' : 'ACTIVATE'))}

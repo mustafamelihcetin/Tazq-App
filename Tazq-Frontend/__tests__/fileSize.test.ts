@@ -62,7 +62,8 @@ const KNOWN_LARGE: Record<string, number> = {
     Sayı yine de mandallı: yeni metinler eklendikçe bilinçli olarak yükseltilir.
   */
   // 860 → 870: misafirin "cihazdaki verileri sil" metinleri (iki dil).
-  'shared/constants/i18n.ts': 870,
+  // 870 → 874: tasarruf ve bırakma da birer mod adı — özet ikisini hiç görmüyordu.
+  'shared/constants/i18n.ts': 874,
   // 2820 → 2817: baştaki emojiyi silen üç ayrı uygulamadan ikisi (biri hatalıydı,
   // \p{Emoji} rakamları da yiyordu) shared/utils/emoji.ts'e indi.
   // 2817 → 2820: YKS/KPSS/Ramazan'ın DİL kapısı (İngilizce arayüzde takvimle
@@ -239,7 +240,9 @@ const KNOWN_LARGE: Record<string, number> = {
     mantık değişmedi (bkz. useContentMaxWidth).
   */
   'app/admin.tsx': 1680,
-  'features/modes/components/TurkishModeBanner.tsx': 1690,
+  // 1690 → 1718: plan başlatılmadan ÖNCE mevcut yük söyleniyor (kaç aktif hedef,
+  // bugün kaç plan işi). Kullanıcı toplamı ancak uyguladıktan SONRA öğreniyordu.
+  'features/modes/components/TurkishModeBanner.tsx': 1718,
   // 1523 → 1529: ERİŞİLEBİLİRLİK. Alışkanlık satırının adı, durumu ve serisi ekran
   // okuyucuya hiç ulaşmıyordu (durum renkle, seri rozetle söyleniyordu).
   // 1529 → 1530: CAM SAYFALAR. Alışkanlık ekleme ve plan sayfaları ortak cam yüzeye bağlandı.
@@ -266,7 +269,15 @@ const KNOWN_LARGE: Record<string, number> = {
   // çiziyordu; sekmeli gezinmede ekran sökülmediği için arka planda açık kalan bir
   // bayrak başka sayfada patlayabiliyordu (kullanıcı Modlar'dayken Haftalık Merkez'in
   // anlatımını gördü). Artış tek çağrı + sarmalama.
-  'app/modlar.tsx': 1576, // +70: yaşayan plan ortak özete taşındı, durum kartı kahraman satırı, kartlar sırayla süzülüyor // +72: özet kartı yedi modun hepsini sayar (tasarruf/bırakma görünmüyordu), plan uygulanınca toplam günlük yük söylenir
+  // 1576 → 1617: durum kartı ÇOKLU hedefi gösteriyor (deste + noktalar) ve geçmiş
+  // hedefler bölümü eklendi. Kart eskiden kaç hedef olursa olsun yalnız birini
+  // gösteriyordu; diğerleri için tek işaret hiçbir yere götürmeyen bir '+2' yazısıydı.
+  // 1737 → 1560: durum kartının ~170 satırlık çizimi kendi bileşenine çıktı
+  // (bkz. features/modes/components/ModeStatusCard.tsx). Tavan da onunla birlikte
+  // İNDİ — borç kapandıysa tavan da kapanmalı, yoksa yer açılmış olur.
+  // 1560 → 1565: geçmiş hedef kartının kopya hatası düzeltildi (süre bilinmiyor ≠
+  // tamamlandı) + Bırakma'nın kendi başlangıcını okuyan yol.
+  'app/modlar.tsx': 1565, // +70: yaşayan plan ortak özete taşındı, durum kartı kahraman satırı, kartlar sırayla süzülüyor // +72: özet kartı yedi modun hepsini sayar (tasarruf/bırakma görünmüyordu), plan uygulanınca toplam günlük yük söylenir
   // 1199 → 1194: akıllı ayrıştırıcı ipucu NlpHintRow'a çıkarıldı. İpucu tek metin
   // olarak kuruluyordu ve temizlenmiş bir cümleyle dört HAM emojiyi (📅⏰🔁🏷️) aynı
   // Text düğümünde yan yana getiriyordu; parçalar artık tür taşıyor, ikonu sunum çiziyor.
@@ -292,7 +303,9 @@ const KNOWN_LARGE: Record<string, number> = {
   // sayılıp kart bölüm değiştiriyor, yeniden kurulup kapanıyordu. Artış dokuz koşula
   // eklenen tek çağrı + kapının NEDENİNİ anlatan yorum; o yorum silinirse kapı ilk
   // "sadeleştirmede" geri alınır.
-  'features/modes/hooks/usePlanAdaptations.ts': 1180,
+  // 1180 → 1199: duraklatma kapısı. Görev üreten dört ayrı yol var; kapı hepsinin
+  // geçtiği tek noktaya (applyTasks) kondu, çağrı yerlerine dağıtılmadı.
+  'features/modes/hooks/usePlanAdaptations.ts': 1199,
   // 910 → 864: hesap silme ve şifre değiştirmenin ÖLÜ kopyası kaldırıldı. Modal
   // işaretlemesi settings.tsx'e taşınırken bu dosyadaki state + iki handler geride
   // kalmıştı; hiçbiri çağrılmıyordu ama `deleteAccount`ın hatalı sürümü iki dosyada
@@ -300,8 +313,14 @@ const KNOWN_LARGE: Record<string, number> = {
   // 865 → 867: CAM SAYFALAR. Profil düzenleme sayfası ortak cam yüzeye bağlandı.
   // 870 → 888: MİSAFİR PROFİLİ — uydurma ad/e-posta yerine misafir durumu ve "hesap oluştur".
   // 888 → 892: profil kaydı seçilmemiş avatarı artık "Atlas" (erkek) diye yazmıyor.
-  'app/profile.tsx': 894, // +2: seri tek kaynaktan (sunucunun vade-günü sayısı profilde gösteriliyordu)
+  // 894 → 899: koyu temada okunmayan 'Kaydet' butonu (sabit beyaz yazı) + ham hex
+  // trophy ikonu tema token'larına bağlandı.
+  'app/profile.tsx': 899, // +2: seri tek kaynaktan (sunucunun vade-günü sayısı profilde gösteriliyordu)
   'shared/constants/legal.ts': 893,
+  // İlk kez 800 satırı geçti: duraklatma + geçmiş hedefler + bulut/yerel bozuk
+  // veriye karşı tek nokta koruma (bkz. PLAN_ID_KEYS/sanitizePlanIds). Sözlük gibi
+  // değil, bölünebilir — bir sonraki büyüme bu dosyayı gerçekten küçültmeli.
+  'features/modes/store/usePrefsStore.ts': 833,
   'features/modes/utils/planAdaptations.ts': 880,
   // 856 → 784: hesap silme akışı DeleteAccountModal bileşenine çıkarıldı. Silme,
   // uygulamadaki tek geri alınamaz işlem; durumu ekranın üstünde, onay kelimesi
@@ -329,7 +348,14 @@ const KNOWN_LARGE: Record<string, number> = {
     yenilendiğini söylüyor — söz verilen şeyin OLDUĞU görünsün diye.
   */
   // 911 → 925: misafirde "Hesabımı Sil" yerine "Bu cihazdaki verileri sil" (onaylı).
-  'app/settings.tsx': 925,
+  // 925 → 928: Admin Paneli düğmesindeki ham indigo hex, zaten var olan A.system
+  // token'ına bağlandı (iki ayrı kopya aynı rengi taşıyordu).
+  'app/settings.tsx': 928,
+  // Turun 5 sayfasının (dashboard/tasks/focus/modlar/cockpit) HER adımı için gerçek
+  // bileşenlerden kurulan bir mockup çiziyor — doğası gereği uzun, bölünmesi bu
+  // switch-case yapısını bozardı. 800'ü ilk kez geçti: turun güncellik denetiminde
+  // (2026-09-20) üç adım gerçeğe uydurulup bir yeni adım eklendi.
+  'features/onboarding/components/TourFeaturePreview.tsx': 840,
 };
 
 describe('dosya boyutu', () => {

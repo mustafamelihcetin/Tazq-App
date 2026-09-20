@@ -26,6 +26,8 @@ import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { ProgressRail } from '@/shared/components/ProgressRail';
 import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
+import { PlanLifecycleRow } from '@/features/modes/components/PlanPauseRow';
+import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 
 export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   const { theme, isDark } = useAppTheme();
@@ -38,6 +40,7 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   const setSeasonalPref = usePrefsStore(s => s.setSeasonalPref);
   const clearPlanIds = usePrefsStore(s => s.clearPlanIds);
   const ramazanPlanHabitIds = usePrefsStore(s => s.ramazanPlanHabitIds);
+  const lifecycle = usePlanLifecycle('ramazan', null, ramazanPlanHabitIds);
   const ramazanPlanTaskIds = usePrefsStore(s => s.ramazanPlanTaskIds);
   const habits = useHabitStore(s => s.habits);
   const removeHabit = useHabitStore(s => s.removeHabit);
@@ -125,8 +128,8 @@ clearPlanIds('ramazan');
                 }
               }
             }}
-            trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: accent + '80' }}
-            thumbColor={seasonal.ramazan ? accent : (isDark ? '#636366' : '#fff')}
+            trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: accent }}
+            thumbColor={isDark && !seasonal.ramazan ? '#636366' : '#fff'}
           />
         </View>
       </View>
@@ -146,6 +149,9 @@ clearPlanIds('ramazan');
                 <Text style={{ color: accentText, fontSize: F.caption, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text>
               </View>
               <ProgressRail variant="segments" value={progDone} total={progTotal} color={accent} />
+              {/* Ara verme — yedi modun ortak satırı (bkz. PlanPauseRow). Ramazan'ın
+                  hedef tarihi yok: ölçü dönemin kendisi, geri sayım kartın üstünde. */}
+              <PlanLifecycleRow tr={tr} accent={accent} accentText={accentText} lifecycle={lifecycle} hasPlan />
             </View>
           ) : (
             <Touchable onPress={onOpenPreview} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }} activeOpacity={0.7}>

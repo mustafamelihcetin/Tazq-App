@@ -5,7 +5,7 @@ import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { MotiView, AnimatePresence } from 'moti';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BookOpen, ChevronRight, CalendarDays, X, Info, BarChart3, Flame, Zap, Sparkles, Target, CheckCircle2, Dumbbell, Activity, FileText, Briefcase, PiggyBank, Ban } from 'lucide-react-native';
+import { BookOpen, ChevronRight, CalendarDays, X, Info, BarChart3, Flame, Zap, Sparkles, Target, CheckCircle2, Dumbbell, Activity, FileText, Briefcase, PiggyBank, Ban, Trophy } from 'lucide-react-native';
 import { AppIcon } from '@/shared/components/AppIcon';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -26,10 +26,9 @@ import {
   scheduleRamadanStartNotification,
   cancelRamadanStartNotification,
 } from '@/shared/utils/notifications';
-import { ICON, S, R, F, B, TRACKING, SPRING, MAX_W, MAX_W_WIDE, contentMaxWidth, sideInset, navBarSpace, topBarSpace, TOP_BAR_HEIGHT } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, HAIRLINE, TRACKING, SPRING, MAX_W, MAX_W_WIDE, contentMaxWidth, sideInset, navBarSpace, topBarSpace, TOP_BAR_HEIGHT } from '@/shared/constants/tokens';
 import { useTabletLayout, useWideLayout } from '@/shared/components/ResponsiveColumns';
 import { useTourGate } from '@/features/onboarding/utils/firstRun';
-import { ProgressRail } from '@/shared/components/ProgressRail';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { useSporStore, getThisWeekEntry } from '@/features/modes/store/useSporStore';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
@@ -38,23 +37,53 @@ import { recordWeeklyWeight, canLogWeight, daysUntilNextWeight, ensureWeeklyWeig
 import { getCurrentRamadanStatus, formatRamadanDate } from '@/shared/utils/ramadanDates';
 import { matchExamName, detectExamFromInput, recommendTemplateId, HOURS_OPTIONS, type ExamPreset } from '@/shared/utils/examPresets';
 
-/** Durum kartının metinleri — iki dil yan yana. */
-const STATUS_COPY = {
+/** Keşif kartlarındaki ÖRNEK GÜN — satır içi dallanma borcu artmasın diye tabloda. */
+const DISCOVERY_SAMPLE = {
   tr: {
-    unit: (d: number) => (d === 0 ? 'BUGÜN' : 'GÜN'),
-    nearest: 'en yakın hedefin',
-    openEndedTitle: 'Tarihli hedefin yok',
-    openEndedBody: 'Planların sürüyor; bir hedefe tarih vermek geri sayımı başlatır.',
-    todayLabel: 'Bugünün planı',
-    todayValue: (d: number, t: number) => (t === 0 ? 'bugün planlı iş yok' : d >= t ? `bugünlük tamam · ${d}/${t}` : `${d}/${t}`),
+    spor: 'Örn: 30 dk tempolu yürüyüş',
+    exam: 'Örn: 45 dk konu tekrarı + 20 soru',
+    tez: 'Örn: 2 sayfa yazım · kaynak tarama',
+    mulakat: 'Örn: 1 mülakat sorusuna hazırlan',
+    tasarruf: 'Örn: haftalık harcama özetini çıkar',
+    birakma: 'Örn: günlük check-in · tetikleyici notu',
   },
   en: {
-    unit: (d: number) => (d === 0 ? 'TODAY' : 'DAYS'),
-    nearest: 'your nearest goal',
-    openEndedTitle: 'No dated goal',
-    openEndedBody: 'Your plans keep running; give a goal a date to start the countdown.',
-    todayLabel: "Today's plan",
-    todayValue: (d: number, t: number) => (t === 0 ? 'nothing planned today' : d >= t ? `done for today · ${d}/${t}` : `${d}/${t}`),
+    spor: "e.g. 30 min brisk walk",
+    exam: "e.g. 45 min review + 20 questions",
+    tez: "e.g. write 2 pages · scan sources",
+    mulakat: "e.g. prep 1 interview question",
+    tasarruf: "e.g. review this week's spending",
+    birakma: "e.g. daily check-in · trigger note",
+  },
+};
+
+/** Geçmiş hedefler bölümünün metinleri — iki dil yan yana. */
+const HISTORY_COPY = {
+  tr: {
+    title: 'Geçmiş hedeflerin',
+    count: (n: number) => `${n} hedef`,
+    // Başlangıcı bilinmeyen eski planlarda süre yazılmaz; uydurma sayı güveni bozar.
+    // `days == null` "tamamlandı" DEMEK DEĞİL — yalnız ne kadar sürdüğünü
+    // bilmiyoruz demek (eski plan, başlangıç damgalanmamış). İkisini karıştırmak
+    // bir gün bile ilerlemeyen bir hedefi "başardın" gibi göstermek olurdu.
+    line: (days: number | null, effort: number | null) =>
+      days == null ? 'Kapatıldı'
+        : days === 0 ? 'Aynı gün kapatıldı'
+        : effort == null ? `${days} gün sürdü`
+        : `${days} gün sürdü · ${effort} gününde çalıştın`,
+    more: (n: number) => `${n} tane daha`,
+    less: 'Daha az göster',
+  },
+  en: {
+    title: 'Your past goals',
+    count: (n: number) => `${n} goals`,
+    line: (days: number | null, effort: number | null) =>
+      days == null ? 'Closed'
+        : days === 0 ? 'Closed the same day'
+        : effort == null ? `lasted ${days} days`
+        : `lasted ${days} days · worked on ${effort}`,
+    more: (n: number) => `${n} more`,
+    less: 'Show less',
   },
 };
 
@@ -84,9 +113,11 @@ import { MulakatCard } from '@/features/modes/components/modes/MulakatCard';
 import { RamazanCard } from '@/features/modes/components/modes/RamazanCard';
 import { ExamCard } from '@/features/modes/components/modes/ExamCard';
 import { SporCard } from '@/features/modes/components/modes/SporCard';
-import { retireModeTasksByTag } from '@/features/modes/utils/planTaskOps';
+import { retireModeTasksByTag, formatPlanDate } from '@/features/modes/utils/planTaskOps';
 import { TaskService } from '@/shared/services/api';
 import { usePlanAdaptations } from '@/features/modes';
+import { PlanRefreshContext } from '@/features/modes/hooks/usePlanLifecycle';
+import { ModeStatusCard } from '@/features/modes/components/ModeStatusCard';
 import { Touchable } from '@/shared/components/Touchable';
 import { ChromeShell } from '@/shared/components/ChromeShell';
 import { modeAccent as resolveModeAccent, modeAccentText as resolveModeAccentText } from '@/shared/constants/Colors';
@@ -693,7 +724,17 @@ export default function ModlarScreen() {
     Bırakma bilerek dışarıda: o bir "şu tarihten beri" modu, hedef tarihi yok.
   */
   pushCand(seasonal.tasarrufMode && tasarrufApplied, seasonal.tasarrufDate, seasonal.tasarrufName || SAVINGS_FALLBACK[language === 'en' ? 'en' : 'tr'], resolveModeAccent('tasarruf', isDark), resolveModeAccentText('tasarruf', isDark), '💰');
-  const statusNearest = statusCands.length ? statusCands.reduce((a, b) => (b.days < a.days ? b : a)) : null;
+  /*
+    DESTE SIRASI: en yakın hedef önce.
+
+    Kart eskiden YALNIZ en yakın hedefi gösteriyordu; üç hedefi olan kullanıcı için
+    kendi hayatının üçte birini anlatıyordu. Artık hepsi destede (bkz. ModeDeck) ve
+    sıralama burada veriliyor — hangisinin ilk görüneceğine arayüz değil bu hesap
+    karar versin. `statusNearest` yine ilk eleman: ilerleme çubuğunun rengi ve
+    geri kalan hesaplar ona bakmaya devam ediyor.
+  */
+  const statusOrdered = [...statusCands].sort((a, b) => a.days - b.days);
+  const statusNearest = statusOrdered[0] ?? null;
   const statusNow = new Date();
   const statusIsToday = (d?: string | null) => { if (!d) return false; const x = new Date(d); return x.getFullYear() === statusNow.getFullYear() && x.getMonth() === statusNow.getMonth() && x.getDate() === statusNow.getDate(); };
   /*
@@ -886,7 +927,20 @@ export default function ModlarScreen() {
     return () => { show.remove(); hide.remove(); };
   }, []);
 
+  /*
+    PLAN YENİDEN ÜRETİMİ KARTLARA BURADAN ULAŞIR.
+
+    Bir plana "devam et" denince günün işleri HEMEN gelmeli; yoksa kullanıcı düğmeye
+    basar, ekranda hiçbir şey olmaz ve işler ancak uygulama arka plana atılıp geri
+    dönülünce belirirdi. Motor uygulamada tek bir yerde kurulu (AppState dinleyicisi +
+    günlük üretim); her kartta ayrıca kurmak onu kart sayısı kadar çoğaltırdı.
+  */
+  const refreshPlans = useCallback(() => { void runAdaptations(true); }, [runAdaptations]);
+  const goalHistory = usePrefsStore(s => s.goalHistory);
+  const [historyExpanded, setHistoryExpanded] = useState(false);
+
   return (
+    <PlanRefreshContext.Provider value={refreshPlans}>
     <View style={{ flex: 1, backgroundColor: theme.background }}>
         {/*
           BAŞLIK DÜZENİ — ÖZET SAĞDA, TANITIM SOLDA.
@@ -944,162 +998,23 @@ export default function ModlarScreen() {
             onScroll={onScroll}
           >
           <View style={{ gap: S.md }}>
-            {/* ── DURUM ÖZETİ KARTI ── aktif modlar: geri sayım + bugünkü plan + motivasyon; boşken davet. */}
+            {/* ── DURUM ÖZETİ KARTI ──
+                Aktif modlar: geri sayım destesi + bugünkü plan + bir cümle; boşken davet.
+                Çizimi kendi dosyasında (bkz. ModeStatusCard) — bu blok burada ~170 satırdı
+                ve ekranın kendi işiyle (hangi plan uygulanmış, tur, önizleme) iç içe
+                geçmişti. Kart hiçbir şey HESAPLAMAZ; sayılar burada hesaplanır. */}
             <TourTarget id="presets">
-            {statusActiveCount > 0 ? (
-              <MotiView
-                from={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ type: 'timing', duration: 250 }}
-                style={[styles.modeCard, {
-                  backgroundColor: statusNearest ? (isDark ? statusNearest.color + '1A' : statusNearest.color + '12') : (theme.surfaceCard),
-                  borderColor: statusNearest ? statusNearest.color + (isDark ? '40' : '30') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)'),
-                  padding: S.md,
-                }]}
-                // Bileşik kart: ekran okuyucu bunu 6-8 kopuk parça olarak okuyordu
-                // (selamlama, "3 mod", emoji, sayı, "gün kaldı", noktalar, "2/5"…).
-                // Tek bir anlamlı cümle olarak duyurulur.
-                accessible
-                accessibilityRole="summary"
-                accessibilityLabel={[
-                  statusGreetingObj.text,
-                  `${statusActiveCount} ${language === 'tr' ? 'aktif mod' : 'active modes'}`,
-                  statusNearest
-                    ? (language === 'tr'
-                        ? `en yakın hedef ${statusNearest.label}, ${statusNearest.days === 0 ? 'bugün' : `${statusNearest.days} gün kaldı`}`
-                        : `nearest goal ${statusNearest.label}, ${statusNearest.days === 0 ? 'today' : `${statusNearest.days} days left`}`)
-                    : (language === 'tr' ? 'tarihli hedef yok' : 'no dated goal'),
-                  statusTodayTotal > 0
-                    ? (language === 'tr' ? `bugün ${statusTodayDone} / ${statusTodayTotal} tamamlandı` : `today ${statusTodayDone} of ${statusTodayTotal} done`)
-                    : (language === 'tr' ? 'bugün planlı iş yok' : 'nothing planned today'),
-                ].join('. ')}
-              >
-                {/* üst satır: selam + aktif mod çipi */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                    {statusGreetingObj.icon}
-                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{statusGreetingObj.text}</Text>
-                  </View>
-                  <View style={{ backgroundColor: (statusNearest?.color ?? urgencyColor) + (isDark ? '26' : '1A'), paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
-                    <Text style={{ color: statusNearest?.textColor ?? urgencyTextColor, fontSize: F.caption, fontWeight: '700' }}>{statusActiveCount} {language === 'tr' ? 'mod' : 'modes'}</Text>
-                  </View>
-                </View>
-
-                {/*
-                  KAHRAMAN SATIRI — tek büyük sayı, tek satır bağlam, ince ilerleme.
-
-                  Eskiden aynı satırda altı şey yarışıyordu: ikon kutusu, hedef adı, geri
-                  sayım, "gün kaldı" etiketi, altı nokta ve oran yazısı. Hepsi birbirine
-                  yakın puntolardaydı, yani hiçbiri öne çıkmıyordu. Artık göz önce SAYIYA
-                  düşüyor; gerisi onu açıklıyor. İlerleme, kartlardaki çubuğun aynısı
-                  (ProgressRail) — noktalar kendi başına bir dil daha yaratıyordu.
-                */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: S.md, gap: S.md }}>
-                  <View style={{ width: 46, height: 46, borderRadius: R.lg, backgroundColor: (statusNearest?.color ?? urgencyColor) + (isDark ? '26' : '18'), alignItems: 'center', justifyContent: 'center' }}>
-                    {renderModeEmojiIcon(statusNearest?.emoji ?? '📅', 24, statusNearest?.color ?? urgencyColor)}
-                  </View>
-                  {statusNearest ? (
-                    <>
-                      <MotiView
-                        from={{ opacity: 0, translateY: 6 }}
-                        animate={{ opacity: 1, translateY: 0 }}
-                        transition={{ type: 'timing', duration: 320 }}
-                        style={{ alignItems: 'center', minWidth: 56 }}
-                      >
-                        <Text
-                          numberOfLines={1}
-                          adjustsFontSizeToFit
-                          minimumFontScale={0.6}
-                          style={{ color: statusNearest.color, fontWeight: '700', fontSize: F.hero, lineHeight: F.hero + 2, letterSpacing: -1 }}
-                        >
-                          {statusNearest.days}
-                        </Text>
-                        <Text style={{ color: statusNearest.textColor, fontWeight: '700', fontSize: F.caption, letterSpacing: 1, opacity: 0.75 }}>
-                          {STATUS_COPY[language === 'en' ? 'en' : 'tr'].unit(statusNearest.days)}
-                        </Text>
-                      </MotiView>
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text numberOfLines={1} style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{statusNearest.label}</Text>
-                        <Text numberOfLines={1} style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginTop: S.xxs }}>
-                          {STATUS_COPY[language === 'en' ? 'en' : 'tr'].nearest}
-                        </Text>
-                      </View>
-                    </>
-                  ) : (
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text numberOfLines={1} style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>
-                        {STATUS_COPY[language === 'en' ? 'en' : 'tr'].openEndedTitle}
-                      </Text>
-                      <Text numberOfLines={2} style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginTop: S.xxs }}>
-                        {STATUS_COPY[language === 'en' ? 'en' : 'tr'].openEndedBody}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                {/* Bugünün planı — kartlardakiyle AYNI çubuk; hepsi tamamsa kutlanır. */}
-                <View style={{ marginTop: S.md, gap: S.xs }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>
-                      {STATUS_COPY[language === 'en' ? 'en' : 'tr'].todayLabel}
-                    </Text>
-                    <Text style={{ color: statusTodayTotal > 0 && statusTodayDone >= statusTodayTotal ? theme.success : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700' }}>
-                      {STATUS_COPY[language === 'en' ? 'en' : 'tr'].todayValue(statusTodayDone, statusTodayTotal)}
-                    </Text>
-                  </View>
-                  {statusTodayTotal > 0 && (
-                    <ProgressRail
-                      variant="segments"
-                      value={statusTodayDone}
-                      total={statusTodayTotal}
-                      color={statusTodayDone >= statusTodayTotal ? theme.success : (statusNearest?.color ?? urgencyColor)}
-                    />
-                  )}
-                </View>
-
-                {statusMotiv ? (
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '500', marginTop: S.md, lineHeight: 17 }}>{statusMotiv}</Text>
-                ) : null}
-              </MotiView>
-            ) : (
-              <MotiView
-                from={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ type: 'timing', duration: 250 }}
-                style={[styles.modeCard, { backgroundColor: theme.surfaceCard, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)', padding: S.md }]}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                  <Sparkles size={ICON.md} color={theme.primary} />
-                  <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? 'Bir hedef seç, gerisini bize bırak' : 'Pick a goal, leave the rest to us'}</Text>
-                </View>
-                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '500', marginTop: S.sm, lineHeight: 18 }}>{language === 'tr' ? 'Sınav, tez, mülakat ya da spor — birini aç, hazır plan otomatik olarak Haftalık Merkez ve görevlerine düşsün.' : 'Exam, thesis, interview or fitness — turn one on and a ready plan flows into your Weekly Hub and tasks automatically.'}</Text>
-
-                {/* İLK AÇILIŞ YÖNLENDİRMESİ — "hangisini seçmeliyim?"
-                    Boş durum ne olduğunu anlatıyordu ama SEÇMEYE yardım etmiyordu:
-                    6 kart, 6 anahtar, hiçbir öncelik sinyali yok. Yeni kullanıcı
-                    kendi keşfetmek zorunda kalıyordu. Üç somut cevap veriyoruz. */}
-                <View style={{ marginTop: S.md, gap: S.sm }}>
-                  {[
-                    { tr: 'Bir tarihe yetişmen mi gerekiyor?', en: 'Racing a deadline?', pick: language === 'tr' ? 'Sınav ya da Tez' : 'Exam or Thesis' },
-                    { tr: 'Bedeninle ilgili bir hedefin mi var?', en: 'A goal for your body?', pick: language === 'tr' ? 'Spor & Fiziksel' : 'Fitness & Health' },
-                    { tr: 'Bir şeyi bırakmak mı istiyorsun?', en: 'Trying to quit something?', pick: language === 'tr' ? 'Bırakma' : 'Quit Habit' },
-                  ].map((row) => (
-                    <View key={row.en} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                      <View style={{ width: 5, height: 5, borderRadius: R.full, backgroundColor: theme.primary }} />
-                      <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, flex: 1 }} numberOfLines={1}>
-                        {language === 'tr' ? row.tr : row.en}
-                      </Text>
-                      <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }} numberOfLines={1}>
-                        {row.pick}
-                      </Text>
-                    </View>
-                  ))}
-                  <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs }}>
-                    {language === 'tr' ? 'Tek seferde bir hedefle başlamanı öneririz — sonra ekleyebilirsin.' : 'We suggest starting with one goal — you can add more later.'}
-                  </Text>
-                </View>
-              </MotiView>
-            )}
+              <ModeStatusCard
+                language={language === 'en' ? 'en' : 'tr'}
+                goals={statusOrdered}
+                activeCount={statusActiveCount}
+                greeting={statusGreetingObj}
+                todayDone={statusTodayDone}
+                todayTotal={statusTodayTotal}
+                motivation={statusMotiv}
+                fallbackColor={urgencyColor}
+                fallbackTextColor={urgencyTextColor}
+              />
             </TourTarget>
             {/* ── KATMAN 1: AKTİF HEDEFLERİM / KURULUMU TAMAMLA ──
                 Tek bir "Aktif Hedeflerim" başlığı vardı ve koşulu yalnızca ANAHTARIN
@@ -1167,6 +1082,7 @@ export default function ModlarScreen() {
                   color: sporColor,
                   textColor: sporTextColor,
                   load: language === 'tr' ? '2-3 alışkanlık · günde 1-3 görev' : '2-3 habits · 1-3 tasks/day',
+                  sample: DISCOVERY_SAMPLE[language === 'en' ? 'en' : 'tr'].spor,
                   onActivate: () => { setSeasonalPref('sporMode', true); focusCard('spor'); },
                 },
                 {
@@ -1179,6 +1095,7 @@ export default function ModlarScreen() {
                   color: urgencyColor,
                   textColor: urgencyTextColor,
                   load: language === 'tr' ? '3-4 alışkanlık · günde 1-3 görev' : '3-4 habits · 1-3 tasks/day',
+                  sample: DISCOVERY_SAMPLE[language === 'en' ? 'en' : 'tr'].exam,
                   onActivate: () => { setSeasonalPref('examMode', true); focusCard('exam'); },
                 },
                 {
@@ -1191,6 +1108,7 @@ export default function ModlarScreen() {
                   color: tezUrgencyColor,
                   textColor: tezTextColor,
                   load: language === 'tr' ? '2-3 alışkanlık · günde 1-2 görev' : '2-3 habits · 1-2 tasks/day',
+                  sample: DISCOVERY_SAMPLE[language === 'en' ? 'en' : 'tr'].tez,
                   onActivate: () => { setSeasonalPref('tezMode', true); focusCard('tez'); },
                 },
                 {
@@ -1203,6 +1121,7 @@ export default function ModlarScreen() {
                   color: mulakatUrgencyColor,
                   textColor: mulakatTextColor,
                   load: language === 'tr' ? '2-3 alışkanlık · günde 1-2 görev' : '2-3 habits · 1-2 tasks/day',
+                  sample: DISCOVERY_SAMPLE[language === 'en' ? 'en' : 'tr'].mulakat,
                   onActivate: () => { setSeasonalPref('mulakatMode', true); focusCard('mulakat'); },
                 },
                 {
@@ -1215,6 +1134,7 @@ export default function ModlarScreen() {
                   color: resolveModeAccent('tasarruf', isDark),
                   textColor: resolveModeAccentText('tasarruf', isDark),
                   load: language === 'tr' ? '2-3 alışkanlık · haftalık takip' : '2-3 habits · weekly tracking',
+                  sample: DISCOVERY_SAMPLE[language === 'en' ? 'en' : 'tr'].tasarruf,
                   onActivate: () => { setSeasonalPref('tasarrufMode', true); focusCard('tasarruf'); },
                 },
                 {
@@ -1227,6 +1147,7 @@ export default function ModlarScreen() {
                   color: resolveModeAccent('birakma', isDark),
                   textColor: resolveModeAccentText('birakma', isDark),
                   load: language === 'tr' ? '3 alışkanlık · günlük check-in' : '3 habits · daily check-in',
+                  sample: DISCOVERY_SAMPLE[language === 'en' ? 'en' : 'tr'].birakma,
                   onActivate: () => { setSeasonalPref('birakmaMode', true); focusCard('birakma'); },
                 },
               ].filter(item => !item.active);
@@ -1274,7 +1195,7 @@ export default function ModlarScreen() {
                           padding: S.md,
                           gap: S.sm,
                           justifyContent: 'space-between',
-                          minHeight: 124,
+                          minHeight: 140,
                         }}
                         activeOpacity={0.7}
                       >
@@ -1299,6 +1220,13 @@ export default function ModlarScreen() {
                           <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600', marginTop: S.xxs }} numberOfLines={1}>
                             {item.load}
                           </Text>
+                          {/* ÖRNEK BİR GÜN — vaadi somutlaştırır.
+                              Kart "2-3 alışkanlık · günde 1-3 görev" diyordu: doğru ama
+                              soyut. Planın içinde ne olduğunu görmek için önce anahtarı
+                              açmak gerekiyordu, yani satın almadan bakılamıyordu. */}
+                          <Text style={{ color: item.textColor, fontSize: F.caption, fontWeight: '500' }} numberOfLines={1}>
+                            {item.sample}
+                          </Text>
                         </View>
                       </Touchable>
                     ))}
@@ -1307,6 +1235,66 @@ export default function ModlarScreen() {
               );
             })()}
             </TourTarget>
+
+            {/* ── KATMAN 3: GEÇMİŞ HEDEFLER ──
+                Üç ay çalışılıp kapatılan hedef ekrandan siliniyordu: birkaç saniyelik
+                geri alma tostu dışında hiçbir iz kalmıyordu. Uygulamanın kullanıcıya
+                "şunu başardın" diyebileceği en güçlü an buydu ve tam orada elindeki
+                her şeyi atıyordu. Kayıt kapanış anında alınır (bkz. modeUndo), çünkü
+                sonradan hesaplanamaz — görevler emekliye ayrılmış olur.
+
+                En alttadır ve hiç kapanmış hedef yoksa ÇİZİLMEZ: bu bir geri bakış,
+                günlük bir araç değil. */}
+            {goalHistory.length > 0 && (
+              <View style={{ gap: S.md, marginTop: S.lg }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.xs }}>
+                  <Trophy size={ICON.sm} color={theme.onSurfaceVariant} />
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', flex: 1 }}>
+                    {HISTORY_COPY[language === 'en' ? 'en' : 'tr'].title}
+                  </Text>
+                  <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600' }}>
+                    {HISTORY_COPY[language === 'en' ? 'en' : 'tr'].count(goalHistory.length)}
+                  </Text>
+                </View>
+                <View style={[styles.modeCard, { backgroundColor: theme.surfaceCard, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)' }]}>
+                  {goalHistory.slice(0, historyExpanded ? goalHistory.length : 3).map((g, gi) => (
+                    <View
+                      key={g.id}
+                      accessible
+                      accessibilityLabel={`${g.name}. ${HISTORY_COPY[language === 'en' ? 'en' : 'tr'].line(g.days, g.effortDays)}`}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, padding: S.md, borderTopWidth: gi === 0 ? 0 : HAIRLINE, borderTopColor: theme.separator }}
+                    >
+                      <View style={{ width: 34, height: 34, borderRadius: R.md, backgroundColor: resolveModeAccent(g.mode.replace(/[23]$/, ''), isDark) + (isDark ? '22' : '15'), alignItems: 'center', justifyContent: 'center' }}>
+                        {renderModeEmojiIcon(g.emoji, ICON.sm, resolveModeAccent(g.mode.replace(/[23]$/, ''), isDark))}
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text numberOfLines={1} style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body }}>{g.name}</Text>
+                        <Text numberOfLines={1} style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginTop: S.xxs }}>
+                          {HISTORY_COPY[language === 'en' ? 'en' : 'tr'].line(g.days, g.effortDays)}
+                        </Text>
+                      </View>
+                      <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{formatPlanDate(g.closedKey, language === 'tr')}</Text>
+                    </View>
+                  ))}
+                  {goalHistory.length > 3 && (
+                    <Touchable
+                      /* Titreşim YOK: bu bir açılır liste, bir karar değil. Aynı ekrandaki
+                         menü açma da bilinçli olarak sessiz (bkz. __tests__/haptics.test.ts). */
+                      onPress={() => setHistoryExpanded(v => !v)}
+                      style={{ alignItems: 'center', paddingVertical: S.smd, borderTopWidth: HAIRLINE, borderTopColor: theme.separator }}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                    >
+                      <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700' }}>
+                        {historyExpanded
+                          ? HISTORY_COPY[language === 'en' ? 'en' : 'tr'].less
+                          : HISTORY_COPY[language === 'en' ? 'en' : 'tr'].more(goalHistory.length - 3)}
+                      </Text>
+                    </Touchable>
+                  )}
+                </View>
+              </View>
+            )}
           </View>
         </Animated.ScrollView>
         </KeyboardAvoidingView>
@@ -1561,6 +1549,7 @@ export default function ModlarScreen() {
         />
       )}
     </View>
+    </PlanRefreshContext.Provider>
   );
 }
 

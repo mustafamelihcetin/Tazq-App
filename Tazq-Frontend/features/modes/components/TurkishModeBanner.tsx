@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MotiView } from 'moti';
-import { X, ChevronRight, Check, Zap, ArrowLeft, Flame, Target, RefreshCw, Trash2, TrendingUp, CheckCircle2, Circle, Star, Shield, Lightbulb, Pencil, Sparkles } from 'lucide-react-native';
+import { X, ChevronRight, Check, Zap, ArrowLeft, Flame, Target, RefreshCw, Trash2, TrendingUp, CheckCircle2, Circle, Star, Shield, Lightbulb, Pencil, Sparkles, Layers } from 'lucide-react-native';
 import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,7 +25,8 @@ import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { usePrefsStore, PlanMode, PlanSpec, SeasonalPrefs } from '../store/usePrefsStore';
 import { usePlanAdaptations } from '../hooks/usePlanAdaptations';
-import { modeAccent as resolveModeAccent } from '@/shared/constants/Colors';
+import { modeAccent as resolveModeAccent, modeAccentOn } from '@/shared/constants/Colors';
+import { useActiveModeSummary } from '@/features/modes/hooks/useActiveModeSummary';
 import { haptic } from '@/shared/utils/haptics';
 import { swallow } from '@/shared/utils/swallow';
 
@@ -668,6 +669,13 @@ export const TurkishModeBanner: React.FC<Props> = ({
   // Mod vurgu paleti Colors.ts'te (ModeAccents) — eskiden burada ve modlar.tsx'te
   // ayrı ayrı elle yazılıydı, yani iki kopya vardı ve hiçbiri tanımlı değildi.
   const modeAccent = resolveModeAccent(mode.type, isDark);
+  /*
+    Koyu temada aksan pastele dönüyor; üstünde SABİT beyaz yazı 1.4:1 kalıyordu —
+    yani "Planı Başlat" düğmesi okunmuyordu (bkz. modeAccentOn).
+  */
+  const onAccent = modeAccentOn(isDark);
+  // Kurulum anında söylenecek MEVCUT yük — tek kaynaktan (bkz. useActiveModeSummary).
+  const activeLoad = useActiveModeSummary();
 
   const renderAlgorithmInfo = () => {
     const desc = ALGORITHM_DESCRIPTIONS[mode.type as keyof typeof ALGORITHM_DESCRIPTIONS];
@@ -1582,6 +1590,25 @@ export const TurkishModeBanner: React.FC<Props> = ({
                     </View>
                   )}
                 </ScrollView>
+                {/*
+                  MEVCUT YÜK, BAŞLATMADAN ÖNCE SÖYLENİR.
+
+                  Kullanıcı toplam yükü ancak plan uygulandıktan SONRA öğreniyordu: aynı
+                  anda on ikiye kadar plan kurulabiliyor ve her kart yalnız KENDİ yükünü
+                  yazıyordu. İkinci, üçüncü hedefi açan kişi için görev listesi beklenmedik
+                  şekilde şişiyordu. Burada eklenecek öğe sayısı zaten düğmenin üstünde
+                  yazıyor; eksik olan, ÜSTÜNE ekleneceği mevcut yüktü.
+
+                  Hiç aktif plan yoksa satır çizilmez — uyaracak bir şey yok.
+                */}
+                {!applied && activeLoad.activeCount > 0 && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingHorizontal: S.xs, marginBottom: S.sm }}>
+                    <Layers size={ICON.xs} color={theme.onSurfaceVariant} />
+                    <Text style={{ flex: 1, fontSize: F.caption, color: theme.onSurfaceVariant, fontWeight: '500' }}>
+                      {(tr ? LOAD_HINT.tr : LOAD_HINT.en)(activeLoad.activeCount, activeLoad.todayTotalAll)}
+                    </Text>
+                  </View>
+                )}
                 <Touchable
                   onPress={applied ? () => setSheetVisible(false) : applyAll}
                   activeOpacity={0.85}
@@ -1589,13 +1616,13 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   style={[styles.applyBtn, { backgroundColor: applied ? theme.tertiary : allDone ? theme.surfaceContainerHigh : modeAccent, opacity: applying ? 0.7 : 1 }]}
                 >
                   {applying ? (
-                    <ActivityIndicator color="#fff" size="small" />
+                    <ActivityIndicator color={onAccent} size="small" />
                   ) : applied ? (
-                    <><Check size={ICON.sm} color="#fff" strokeWidth={2.5} /><Text style={styles.applyBtnText}>{tr ? 'Başladı! — Kapat' : 'Started! — Close'}</Text></>
+                    <><Check size={ICON.sm} color={onAccent} strokeWidth={2.5} /><Text style={[styles.applyBtnText, { color: onAccent }]}>{tr ? 'Başladı! — Kapat' : 'Started! — Close'}</Text></>
                   ) : allDone ? (
                     <Text style={[styles.applyBtnText, { color: theme.onSurfaceVariant }]}>{tr ? 'Tümü zaten mevcut' : 'All already added'}</Text>
                   ) : (
-                    <><Zap size={ICON.sm} color="#fff" strokeWidth={2.5} /><Text style={styles.applyBtnText}>{tr ? `Planı Başlat  (${newHabits.length + newTasks.length} öğe)` : `Start Plan  (${newHabits.length + newTasks.length} items)`}</Text></>
+                    <><Zap size={ICON.sm} color={onAccent} strokeWidth={2.5} /><Text style={[styles.applyBtnText, { color: onAccent }]}>{tr ? `Planı Başlat  (${newHabits.length + newTasks.length} öğe)` : `Start Plan  (${newHabits.length + newTasks.length} items)`}</Text></>
                   )}
                 </Touchable>
               </>
@@ -1605,6 +1632,12 @@ export const TurkishModeBanner: React.FC<Props> = ({
       </Modal>
     </>
   );
+};
+
+/** Kurulum anındaki mevcut yük cümlesi — iki dil yan yana (satır içi dallanma yok). */
+const LOAD_HINT = {
+  tr: (goals: number, today: number) => `Şu an ${goals} aktif hedefin var · bugün ${today} plan işi`,
+  en: (goals: number, today: number) => `You have ${goals} active goals · ${today} plan tasks today`,
 };
 
 const styles = StyleSheet.create({

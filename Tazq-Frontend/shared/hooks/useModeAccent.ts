@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useAppTheme } from './useAppTheme';
-import { modeAccent, modeAccentText } from '@/shared/constants/Colors';
+import { modeAccent, modeAccentText, modeAccentOn } from '@/shared/constants/Colors';
 
 /**
  * Modun vurgu renklerini aktif temaya göre çözer.
@@ -10,6 +10,8 @@ import { modeAccent, modeAccentText } from '@/shared/constants/Colors';
  *                   büyük geri sayım rakamı. WCAG büyük-metin eşiğini (3:1) geçer.
  *  - `accentText` → KÜÇÜK YAZI: caption/etiket ("GÜN", "%40", "3 gün kaldı").
  *                   Aynı ton ailesinin bir adım koyusu; AA küçük-metin (4.5:1) geçer.
+ *  - `onAccent`   → DOLU AKSAN ZEMİNİNİN ÜSTÜ: dolu butonun yazısı/ikonu. Sabit
+ *                   beyaz DEĞİL — koyu temada aksan pastel olduğu için koyu yazı.
  *
  * Neden hook: mod kartları vurgularını modül seviyesinde ham hex olarak tutuyordu
  * (`const SPOR = '#F97316'`). Bu hem iki temada AYNI rengi veriyor hem de paletin
@@ -22,5 +24,6 @@ export function useModeAccent(type: string) {
   return useMemo(() => ({
     accent: modeAccent(type, isDark),
     accentText: modeAccentText(type, isDark),
+    onAccent: modeAccentOn(isDark),
   }), [type, isDark]);
 }

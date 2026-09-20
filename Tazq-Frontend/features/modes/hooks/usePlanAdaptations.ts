@@ -49,6 +49,7 @@ import { isWeightEntryTask, canLogWeight, daysUntilNextWeight, ensureWeeklyWeigh
 import { MODE_TASK_TAGS, PLAN_TAGS, retireModeTasksByTag } from '@/features/modes/utils/planTaskOps';
 import { getExtraPool, ensureExtraPool } from '@/features/modes/utils/planPoolSync';
 import { parseDateKey } from '@/shared/utils/dateKey';
+import { isSlotPausedNow, markPausedHabitsSkipped } from '@/features/modes/utils/pauseOps';
 
 const LAST_RUN_KEY = 'plan_adaptations_last_run';
 
@@ -403,6 +404,22 @@ export function usePlanAdaptations() {
       ? currentHabitIds
       : currentHabitIds.filter(id => existingHabitIds.has(id));
 
+    /*
+      DURAKLATMA KAPISI TEK NOKTADA.
+
+      Görev üreten dört ayrı yol var (sınav/tez/mülakat adaptasyonları, Ramazan,
+      günlük plan motoru, tartım hatırlatmaları) ve hepsi buradan geçiyor. Kapıyı
+      çağrı yerlerine dağıtmak, ilerde eklenecek beşinci yolun sessizce duraklatmayı
+      delmesi demekti. Budama (prune) yine çalışır: duraklı plan da silinmiş görev
+      kimliklerini taşımamalı.
+    */
+    if (isSlotPausedNow(planMode)) {
+      if (prunedTaskIds.length !== currentTaskIds.length || prunedHabitIds.length !== currentHabitIds.length) {
+        setPlanIds(planMode, prunedHabitIds, prunedTaskIds);
+      }
+      return;
+    }
+
     if (!newTasks.length) {
       if (prunedTaskIds.length !== currentTaskIds.length || prunedHabitIds.length !== currentHabitIds.length) {
         setPlanIds(planMode, prunedHabitIds, prunedTaskIds);
@@ -460,6 +477,10 @@ export function usePlanAdaptations() {
     const habitHyd = (useHabitStore as any).persist?.hasHydrated?.() ?? true;
     const taskHyd = (useTaskStore as any).persist?.hasHydrated?.() ?? true;
     if (!prefsHyd || !habitHyd || !taskHyd) return;
+
+    // Duraklı planların bugünü seriyi kırmadan geçsin (üretim kapısından ÖNCE:
+    // günde bir çalışan kapıya takılırsa duraklı günler işaretsiz kalırdı).
+    markPausedHabitsSkipped();
 
     // ── SELF-HEALING ACTIVE MODES ──────────────────────────────────────────
     selfHealActiveModes(lang === 'tr');

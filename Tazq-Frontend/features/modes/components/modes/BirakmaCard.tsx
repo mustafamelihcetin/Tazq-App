@@ -3,7 +3,7 @@
  * her biri kendi "X gün temiz" serisi + nüks (şefkatli sıfırlama) ile takip edilir.
  */
 import React, { useState } from 'react';
-import { View, Text, TextInput, Switch } from 'react-native';
+import { View, Text, Switch } from 'react-native';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -18,6 +18,7 @@ import { usePlanAdaptations } from '@/features/modes/hooks/usePlanAdaptations';
 import { TaskService } from '@/shared/services/api';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
+import { FormReveal, ModeField } from '../ModeField';
 import { renderModeEmojiIcon } from '@/features/modes/utils/modeIcons';
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { buildBirakmaPlan, birakmaTypeTasks, birakmaTypeLabel, BIRAKMA_COLOR } from '@/shared/utils/lifeModePlans';
@@ -26,6 +27,8 @@ import { swallow } from '@/shared/utils/swallow';
 import { Ban, Shield } from 'lucide-react-native';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
+import { PlanLifecycleRow } from '@/features/modes/components/PlanPauseRow';
+import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 import { haptic } from '@/shared/utils/haptics';
 
 export function BirakmaCard() {
@@ -33,7 +36,7 @@ export function BirakmaCard() {
   const { language } = useLanguageStore();
   const tr = language === 'tr';
   // Yüzey vurgusu tema-duyarlı palet + AA geçen metin tonu.
-  const { accent: C, accentText: C_TX } = useModeAccent('birakma');
+  const { accent: C, accentText: C_TX, onAccent: C_ON } = useModeAccent('birakma');
 
   const seasonal = usePrefsStore(s => s.seasonal);
   const setSeasonalPref = usePrefsStore(s => s.setSeasonalPref);
@@ -54,6 +57,8 @@ export function BirakmaCard() {
   const [customName, setCustomName] = useState('');
 
   const applied = items.length > 0;
+  // Bırakmanın hedef TARİHİ yok (ölçüsü seridir) — geri sayım da yok, yol sayısı var.
+  const lifecycle = usePlanLifecycle('birakma', null, birakmaPlanHabitIds);
   const todayKey = fmtDateKey();
   const checkinHabit = habits.find(h => birakmaPlanHabitIds.includes(h.id) && /temiz|clean/i.test(h.name));
   const doneToday = !!checkinHabit && (checkinHabit.completedDates ?? []).includes(todayKey);
@@ -232,6 +237,8 @@ export function BirakmaCard() {
       {/* APPLIED: her bırakma kendi serisiyle */}
       {seasonal.birakmaMode && applied && (
         <View style={{ paddingHorizontal: S.md, paddingBottom: S.md, gap: S.sm }}>
+          {/* Ara verme ve kat edilen yol — yedi modun ortak satırı (bkz. PlanPauseRow). */}
+          <PlanLifecycleRow tr={tr} accent={C} accentText={C_TX} lifecycle={lifecycle} hasPlan={applied} />
           {items.map(it => {
             const days = getCleanDays(it.start);
             const next = QUIT_MILESTONES.find(m => m > days - 1) ?? null;
@@ -278,7 +285,7 @@ export function BirakmaCard() {
 
       {/* CONFIG: çoklu seçim */}
       {seasonal.birakmaMode && expanded && (
-        <View style={{ paddingHorizontal: S.md, paddingBottom: S.md, gap: S.sm }}>
+        <FormReveal style={{ paddingHorizontal: S.md, paddingBottom: S.md, gap: S.sm }}>
           <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant }}>{tr ? 'Neyi bırakıyorsun? (çoklu seçilebilir)' : 'What are you quitting? (multi-select)'}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
             {TYPES.map(t => {
@@ -293,12 +300,12 @@ export function BirakmaCard() {
             })}
           </View>
           {sel['ozel'] && (
-            <TextInput value={customName} onChangeText={setCustomName} placeholder={tr ? 'Ne? (ör. Kahve)' : 'What? (e.g. Coffee)'} placeholderTextColor={theme.onSurfaceVariant + '70'} underlineColorAndroid="transparent" maxLength={24} style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600', height: 44, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, paddingHorizontal: S.md }} />
+            <ModeField accent={C} value={customName} onChangeText={setCustomName} placeholder={tr ? 'Ne? (ör. Kahve)' : 'What? (e.g. Coffee)'} maxLength={24} returnKeyType="done" />
           )}
           <Touchable disabled={!addValid} onPress={addSelected} style={{ marginTop: S.xs, backgroundColor: addValid ? C : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), borderRadius: R.full, paddingVertical: S.sm + 2, alignItems: 'center' }}>
-            <Text style={{ color: addValid ? '#fff' : theme.onSurfaceVariant, fontWeight: '700', fontSize: F.body }}>{applied ? (tr ? 'Ekle' : 'Add') : (tr ? 'Bugünden Başla' : 'Start Today')}</Text>
+            <Text style={{ color: addValid ? C_ON : theme.onSurfaceVariant, fontWeight: '700', fontSize: F.body }}>{applied ? (tr ? 'Ekle' : 'Add') : (tr ? 'Bugünden Başla' : 'Start Today')}</Text>
           </Touchable>
-        </View>
+        </FormReveal>
       )}
     </View>
   );

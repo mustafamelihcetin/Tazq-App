@@ -398,6 +398,8 @@ export const translations = {
       fitness: 'Fitness',
       thesis: 'Thesis',
       ramadan: 'Ramadan',
+      savings: 'Savings',
+      quit: 'Quitting',
     },
     /** İkon kısayolları — işletim sisteminde görünür, dil uygulamadan gelir. */
     shortcuts: {
@@ -793,6 +795,8 @@ export const translations = {
       fitness: 'Spor',
       thesis: 'Tez',
       ramadan: 'Ramazan',
+      savings: 'Tasarruf',
+      quit: 'Bırakma',
     },
     /** İkon kısayolları — işletim sisteminde görünür, dil uygulamadan gelir. */
     shortcuts: {

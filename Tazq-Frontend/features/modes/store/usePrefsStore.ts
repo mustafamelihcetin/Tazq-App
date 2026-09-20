@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthService } from '@/shared/services/api';
 import { swallow } from '@/shared/utils/swallow';
+import { addGoalRecord, removeGoalRecord, type GoalRecord as GoalRecordT } from '@/features/modes/utils/goalHistory';
 
 export interface SeasonalPrefs {
   ramazan: boolean;
@@ -49,7 +50,19 @@ export interface PlanSpec {
   startDate?: string;      // planın oluşturulduğu an (ISO) — "kaçıncı hafta" hesabının
                            // tek kaynağı. Spor (güç deload döngüsü / maraton rampası)
                            // bunu kullanır; ilk setPlanSpec'te damgalanır, sonra korunur.
+  /**
+   * DURAKLATMA SINIRI — o gün DAHİL duraklı, ertesi gün plan kendiliğinden devam eder
+   * ('YYYY-MM-DD', bkz. utils/planPause). null/yok = duraklı değil.
+   *
+   * Planın kendisinde durur, ayrı bir sözlükte değil: plan silinince duraklatma da
+   * silinir. Ayrı tutulsaydı, kapatılıp yeniden kurulan bir mod eski duraklatmasını
+   * miras alır ve kullanıcı hiç görev üretmeyen bir planla baş başa kalırdı.
+   */
+  pausedUntil?: string | null;
 }
+
+/** Geçmiş hedef kaydı (bkz. utils/goalHistory). */
+export type { GoalRecord } from '@/features/modes/utils/goalHistory';
 
 interface PrefsState {
   seasonal: SeasonalPrefs;
@@ -59,6 +72,17 @@ interface PrefsState {
   /** Kurulum taslağı: yalnız günlük süreyi yazar, `startDate` damgalamaz. */
   setPlanDraftMinutes: (mode: PlanMode, minutes: number | null) => void;
   clearPlanSpec: (mode: PlanMode) => void;
+  /** Planı `untilKey` gününe kadar (o gün dahil) duraklat; null = devam ettir. */
+  setPlanPause: (mode: PlanMode, untilKey: string | null) => void;
+  /**
+   * Kapatılan hedeflerin özeti — en yeni başta.
+   *
+   * Plan kapanınca görevleri emekliye ayrılıyor; geçmişi sonradan hesaplamak mümkün
+   * değil. Bu yüzden kapanış anında ölçülen sayılar burada saklanıyor.
+   */
+  goalHistory: GoalRecordT[];
+  addGoalHistory: (rec: GoalRecordT) => void;
+  removeGoalHistory: (id: string) => void;
   weeklyNotification: boolean;
   setWeeklyNotification: (value: boolean) => void;
   morningBrief: boolean;
@@ -314,7 +338,54 @@ const CLOUD_PREF_KEYS = [
   'spor3PlanHabitIds', 'spor3PlanTaskIds',
   'tasarrufPlanHabitIds', 'tasarrufPlanTaskIds',
   'birakmaPlanHabitIds', 'birakmaPlanTaskIds',
+  // Geçmiş hedefler hesaba aittir, cihaza değil: telefon değişince başarılar kaybolmasın.
+  'goalHistory',
 ] as const;
+
+/**
+ * PLAN KİMLİK LİSTELERİ HİÇBİR ZAMAN DİZİDEN BAŞKA BİR ŞEY OLAMAZ.
+ *
+ * ── ÖLÇÜLEN ÇÖKME ───────────────────────────────────────────────────────────
+ * `usePlanLifecycle` (ve ondan önce yedi karttan biri) `ramazanPlanHabitIds.map(...)`
+ * çağırırken "Cannot read property 'map' of undefined" ile tüm ekranı düşürdü.
+ * Kaynağı `hydrateFromCloud`: koruma yalnız `parsed[key] === undefined` kontrolü
+ * yapıyordu. Bulut `null` göndermişse (bayat bir senkron, kısmi bir yazma, eski bir
+ * şema) `null !== undefined` olduğu için koruma delinip depoya `null` yazılıyordu —
+ * store'daki tip `string[]` dese de.
+ *
+ * Bu 28 alanı (14 mod × habit/task) her yazıldıkları yerde tek tek korumak
+ * (`hydrateFromCloud`, `merge`, ileride eklenecek her yeni yol) aynı hatayı başka
+ * bir köşede tekrar üretirdi. Doğru sınır TEK bir kapı: her ne yoldan gelirse
+ * gelsin, diziye çevrilmeden depoya giremez.
+ */
+const PLAN_ID_KEYS = [
+  'examPlanHabitIds', 'examPlanTaskIds',
+  'exam2PlanHabitIds', 'exam2PlanTaskIds',
+  'exam3PlanHabitIds', 'exam3PlanTaskIds',
+  'ramazanPlanHabitIds', 'ramazanPlanTaskIds',
+  'tezPlanHabitIds', 'tezPlanTaskIds',
+  'mulakatPlanHabitIds', 'mulakatPlanTaskIds',
+  'mulakat2PlanHabitIds', 'mulakat2PlanTaskIds',
+  'mulakat3PlanHabitIds', 'mulakat3PlanTaskIds',
+  'sporPlanHabitIds', 'sporPlanTaskIds',
+  'spor2PlanHabitIds', 'spor2PlanTaskIds',
+  'spor3PlanHabitIds', 'spor3PlanTaskIds',
+  'tasarrufPlanHabitIds', 'tasarrufPlanTaskIds',
+  'birakmaPlanHabitIds', 'birakmaPlanTaskIds',
+] as const;
+
+/** Dizi değilse (null, string, eksik…) boş dizi — asla `undefined`/`null` sızdırmaz. */
+function sanitizePlanIdField(v: unknown): unknown[] {
+  return Array.isArray(v) ? v : [];
+}
+
+/** Bir tercih nesnesindeki TÜM plan kimlik alanlarını yerinde sağlamlaştırır. */
+function sanitizePlanIds<T extends Record<string, unknown>>(obj: T): T {
+  for (const key of PLAN_ID_KEYS) {
+    if (key in obj) (obj as any)[key] = sanitizePlanIdField(obj[key]);
+  }
+  return obj;
+}
 
 export const usePrefsStore = create<PrefsState>()(
   persist(
@@ -388,6 +459,24 @@ export const usePrefsStore = create<PrefsState>()(
         set((s) => ({
           planSpecs: { ...s.planSpecs, [mode]: { ...s.planSpecs[mode], dailyMinutes: minutes } },
         })),
+
+      /*
+        DURAKLATMA YALNIZ SINIRI YAZAR.
+
+        `setPlanSpec` kullanılmıyor: o, kaydı yoksa `startDate` damgalar. Duraklatma
+        planın başlangıcını değiştiremez — değiştirseydi "kaç gündür sürüyor" sayısı
+        her ara verişte sıfırlanır, yani kullanıcı ara verdiği için emeğini kaybederdi.
+        Planı olmayan bir yuva duraklatılamaz (kayıt oluşturulmaz).
+      */
+      setPlanPause: (mode, untilKey) =>
+        set((s) => {
+          const prev = s.planSpecs[mode];
+          if (!prev) return s;
+          return { planSpecs: { ...s.planSpecs, [mode]: { ...prev, pausedUntil: untilKey } } };
+        }),
+      goalHistory: [],
+      addGoalHistory: (rec) => set((s) => ({ goalHistory: addGoalRecord(s.goalHistory, rec) })),
+      removeGoalHistory: (id) => set((s) => ({ goalHistory: removeGoalRecord(s.goalHistory, id) })),
 
       clearPlanSpec: (mode) =>
         set((s) => {
@@ -547,6 +636,8 @@ export const usePrefsStore = create<PrefsState>()(
           birakmaMode: false, birakmaName: '',
         },
         planSpecs: {},
+        // Geçmiş hedefler hesaba ait: çıkışta yerelde kalmamalı (bir sonraki kullanıcı görürdü).
+        goalHistory: [],
         examReviewShown: false,
         tezReviewShown: false,
         mulakatReviewShown: false,
@@ -667,6 +758,7 @@ export const usePrefsStore = create<PrefsState>()(
             if (localHasPlans && isPlanKey(key)) continue; // local kazanır → bayat bulut aktif planları ezmesin
             patch[key] = parsed[key];
           }
+          sanitizePlanIds(patch);
           if (Object.keys(patch).length > 0) set(patch as any);
           // Buluttaki başarım durumunu achievement store'a birleştir (union).
           // Yeni kurulum/cihazda streak ile birlikte "kutlandı" bilgisi de geri gelir →
@@ -686,9 +778,14 @@ export const usePrefsStore = create<PrefsState>()(
     {
       name: 'tazq-prefs-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      /*
+        Yerel depo da aynı hasara açık: eski bir sürüm yazımı, yarım kalmış bir
+        AsyncStorage yazması ya da elle müdahale aynı `null`/`undefined` sızıntısını
+        üretebilir. `merge` her rehydrate'te çalışır — tek kapı burada da geçerli.
+      */
       merge: (persisted: any, current) => ({
         ...current,
-        ...persisted,
+        ...sanitizePlanIds({ ...(persisted ?? {}) }),
         seasonal: {
           ramazan: false,
           examMode: false,

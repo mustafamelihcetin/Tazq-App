@@ -5,7 +5,7 @@
  * Kendi içinde kapsüllü: tüm veri store'lardan, plan oluşturma burada.
  */
 import React, { useState } from 'react';
-import { View, Text, TextInput, Switch } from 'react-native';
+import { View, Text, Switch } from 'react-native';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -20,6 +20,7 @@ import { usePlanAdaptations } from '@/features/modes/hooks/usePlanAdaptations';
 import { TaskService } from '@/shared/services/api';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
+import { FormReveal, ModeField } from '../ModeField';
 import { renderModeEmojiIcon } from '@/features/modes/utils/modeIcons';
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { buildTasarrufPlan, tasarrufTypeLabel, TASARRUF_COLOR } from '@/shared/utils/lifeModePlans';
@@ -27,6 +28,8 @@ import { retirePlanTask , retireModeTasksByTag} from '@/features/modes/utils/pla
 import { Coins } from 'lucide-react-native';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
+import { PlanLifecycleRow } from '@/features/modes/components/PlanPauseRow';
+import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 import { haptic } from '@/shared/utils/haptics';
 import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
 
@@ -37,7 +40,7 @@ export function TasarrufCard() {
   const { language } = useLanguageStore();
   const tr = language === 'tr';
   // Yüzey vurgusu tema-duyarlı palet + AA geçen metin tonu.
-  const { accent: C, accentText: C_TX } = useModeAccent('tasarruf');
+  const { accent: C, accentText: C_TX, onAccent: C_ON } = useModeAccent('tasarruf');
 
   const seasonal = usePrefsStore(s => s.seasonal);
   const setSeasonalPref = usePrefsStore(s => s.setSeasonalPref);
@@ -60,6 +63,7 @@ export function TasarrufCard() {
   const [coverMonths, setCoverMonths] = useState(6);
 
   const applied = tasarrufPlanHabitIds.length > 0 || tasarrufPlanTaskIds.length > 0;
+  const lifecycle = usePlanLifecycle('tasarruf', seasonal.tasarrufDate, tasarrufPlanHabitIds);
   const start = parseFloat(startAmount) || 0;
   const target = parseFloat(targetAmount) || 0;
   const latest = log.length ? log.reduce((a, b) => (a.date > b.date ? a : b)).amount : start;
@@ -121,20 +125,17 @@ export function TasarrufCard() {
     return digits ? digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
   };
   const moneyInput = (value: string, onChange: (v: string) => void, autoFocus = false) => (
-    <View style={{ flexDirection: 'row', alignItems: 'center', height: 44, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, paddingHorizontal: S.md }}>
-      <Text style={{ color: theme.onSurfaceMuted, fontSize: F.body, fontWeight: '700', marginRight: S.sm }}>₺</Text>
-      <TextInput
-        value={formatThousands(value)}
-        onChangeText={(t) => onChange(sanitizeMoney(t))}
-        keyboardType="number-pad"
-        placeholder="0"
-        placeholderTextColor={theme.onSurfaceVariant + '70'}
-        underlineColorAndroid="transparent"
-        maxLength={13}
-        autoFocus={autoFocus}
-        style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '700', padding: 0 }}
-      />
-    </View>
+    <ModeField
+      accent={C}
+      prefix={<Text style={{ color: theme.onSurfaceMuted, fontSize: F.body, fontWeight: '700', marginRight: S.xs }}>₺</Text>}
+      inputStyle={{ fontWeight: '700' }}
+      value={formatThousands(value)}
+      onChangeText={(t) => onChange(sanitizeMoney(t))}
+      keyboardType="number-pad"
+      placeholder="0"
+      maxLength={13}
+      autoFocus={autoFocus}
+    />
   );
 
   const createPlanTask = async (payload: any): Promise<number | null> => {
@@ -278,6 +279,8 @@ export function TasarrufCard() {
       {/* APPLIED: ilerleme + bakiye girişi */}
       {seasonal.tasarrufMode && applied && (
         <View style={{ paddingHorizontal: S.md, paddingBottom: S.md, gap: S.sm }}>
+          {/* Ara verme ve kat edilen yol — yedi modun ortak satırı (bkz. PlanPauseRow). */}
+          <PlanLifecycleRow tr={tr} accent={C} accentText={C_TX} lifecycle={lifecycle} hasPlan={applied} />
           <View style={{ borderRadius: R.md, borderWidth: B.thin, borderColor: C + '22', padding: S.md, gap: S.sm }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{seasonal.tasarrufName}</Text>
@@ -302,7 +305,7 @@ export function TasarrufCard() {
           {showEntry ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
               <View style={{ flex: 1 }}>{moneyInput(entryInput, setEntryInput, true)}</View>
-              <Touchable hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }} onPress={saveEntry} style={{ backgroundColor: C, borderRadius: R.full, paddingHorizontal: S.md, height: 36, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff', fontWeight: '700', fontSize: F.caption }}>{tr ? 'Kaydet' : 'Save'}</Text></Touchable>
+              <Touchable hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }} onPress={saveEntry} style={{ backgroundColor: C, borderRadius: R.full, paddingHorizontal: S.md, height: 36, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C_ON, fontWeight: '700', fontSize: F.caption }}>{tr ? 'Kaydet' : 'Save'}</Text></Touchable>
               <Touchable hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={() => { setShowEntry(false); setEntryInput(''); }} style={{ padding: S.xs }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'İptal' : 'Cancel'}</Text></Touchable>
             </View>
           ) : (
@@ -316,7 +319,7 @@ export function TasarrufCard() {
 
       {/* CONFIG: tür + tutarlar + süre + uygula */}
       {seasonal.tasarrufMode && !applied && expanded && (
-        <View style={{ paddingHorizontal: S.md, paddingBottom: S.md, gap: S.sm }}>
+        <FormReveal style={{ paddingHorizontal: S.md, paddingBottom: S.md, gap: S.sm }}>
           <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant }}>{tr ? 'Hedef türünü seç' : 'Select goal type'}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
             {TYPES.map(t => {
@@ -393,9 +396,9 @@ export function TasarrufCard() {
             </Text>
           )}
           <Touchable disabled={!configValid} onPress={apply} style={{ marginTop: S.xs, backgroundColor: configValid ? C : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), borderRadius: R.full, paddingVertical: S.sm + 2, alignItems: 'center' }}>
-            <Text style={{ color: configValid ? '#fff' : theme.onSurfaceVariant, fontWeight: '700', fontSize: F.body }}>{tr ? 'Planı Uygula' : 'Apply Plan'}</Text>
+            <Text style={{ color: configValid ? C_ON : theme.onSurfaceVariant, fontWeight: '700', fontSize: F.body }}>{tr ? 'Planı Uygula' : 'Apply Plan'}</Text>
           </Touchable>
-        </View>
+        </FormReveal>
       )}
     </View>
   );

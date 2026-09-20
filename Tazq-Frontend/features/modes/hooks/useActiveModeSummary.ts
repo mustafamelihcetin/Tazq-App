@@ -101,11 +101,13 @@ export function useActiveModeSummary(): ModeSummary {
       exam: modeAccent('exam', isDark), tez: modeAccent('tez', isDark),
       mulakat: modeAccent('mulakat', isDark), spor: modeAccent('spor', isDark),
       ramazan: modeAccent('ramazan', isDark),
+      tasarruf: modeAccent('tasarruf', isDark), birakma: modeAccent('birakma', isDark),
     };
     const MCT = {
       exam: modeAccentText('exam', isDark), tez: modeAccentText('tez', isDark),
       mulakat: modeAccentText('mulakat', isDark), spor: modeAccentText('spor', isDark),
       ramazan: modeAccentText('ramazan', isDark),
+      tasarruf: modeAccentText('tasarruf', isDark), birakma: modeAccentText('birakma', isDark),
     };
 
     const examLbl = names.exam;
@@ -132,6 +134,16 @@ export function useActiveModeSummary(): ModeSummary {
       if (seasonal.spor3Goal) entries.push({ key: 'spor3', label: localizeSporGoal(seasonal.spor3Goal, tr), color: MC.spor, textColor: MCT.spor, emoji: '💪', days: daysLeftOf(seasonal.spor3Date), habitIds: prefs.spor3PlanHabitIds, taskIds: prefs.spor3PlanTaskIds });
     }
     if (seasonal.ramazan) entries.push({ key: 'ramazan', label: names.ramadan, color: MC.ramazan, textColor: MCT.ramazan, emoji: '🌙', days: null, habitIds: prefs.ramazanPlanHabitIds, taskIds: prefs.ramazanPlanTaskIds });
+    /*
+      TASARRUF VE BIRAKMA DA BİRER MOD.
+
+      Bu iki mod özetin DIŞINDA kalmıştı: yalnız onları kullanan kişi ana ekranda ve
+      "Modların Özeti"nde "aktif mod yok" görüyordu — kendi kartları hemen altında
+      dururken. Bırakmanın hedef tarihi yoktur (ölçüsü seridir), o yüzden geri sayımı
+      da yoktur: `days: null` bilinçli, eksik değil.
+    */
+    if (seasonal.tasarrufMode) entries.push({ key: 'tasarruf', label: seasonal.tasarrufName || names.savings, color: MC.tasarruf, textColor: MCT.tasarruf, emoji: '💰', days: daysLeftOf(seasonal.tasarrufDate), habitIds: prefs.tasarrufPlanHabitIds, taskIds: prefs.tasarrufPlanTaskIds });
+    if (seasonal.birakmaMode) entries.push({ key: 'birakma', label: seasonal.birakmaName || names.quit, color: MC.birakma, textColor: MCT.birakma, emoji: '🚫', days: null, habitIds: prefs.birakmaPlanHabitIds, taskIds: prefs.birakmaPlanTaskIds });
 
     const weekKeys = thisWeekKeys();
     const now = new Date();

@@ -8,6 +8,12 @@ import { TaskService } from '@/shared/services/api';
 import { MODE_TASK_TAGS } from '@/features/modes/utils/planTaskOps';
 import { haptic } from '@/shared/utils/haptics';
 import { swallow } from '@/shared/utils/swallow';
+import { fmtDateKey } from '@/features/habits';
+import { toDateKey } from '@/shared/utils/dateKey';
+import { planArcFor } from '@/features/modes/utils/planArc';
+import { addGoalRecord, describeSlot, fallbackNameFor, makeGoalId, type GoalRecord } from '@/features/modes/utils/goalHistory';
+import { useLanguageStore } from '@/shared/store/useLanguageStore';
+import { useQuitStore } from '@/shared/store/useQuitStore';
 
 /**
  * MOD KAPATMA — GERİ ALINABİLİR.
@@ -139,6 +145,68 @@ export async function restoreMode(snap: ModeSnapshot): Promise<void> {
  * `close` fonksiyonu kartın kendi kapatma mantığıdır (bileşene özel: bildirim
  * iptali, yerel state sıfırlama vb.) — buraya taşınmaz, olduğu yerde kalır.
  */
+/**
+ * KAPANAN HEDEFİN ÖZETİNİ ÇIKAR — kapatmadan ÖNCE çağrılmalı.
+ *
+ * Kapandıktan sonra hesaplanamaz: görevler emekliye ayrılır, `seasonal` temizlenir,
+ * plan kaydı silinir. O yüzden ölçüler tam bu anda alınır.
+ *
+ * Hiç kurulmamış plan iz bırakmaz (`hasPlan`): modu açıp hemen kapatan kullanıcının
+ * geçmişi, hiç yaşamadığı hedeflerle dolmasın.
+ */
+function captureGoalRecord(mode: string): GoalRecord | null {
+  try {
+    const prefs = usePrefsStore.getState();
+    const bag = prefs as unknown as Record<string, unknown>;
+    const habitIds = (bag[`${mode}PlanHabitIds`] as string[] | undefined) ?? [];
+    const taskIds = (bag[`${mode}PlanTaskIds`] as number[] | undefined) ?? [];
+    if (habitIds.length === 0 && taskIds.length === 0) return null;
+
+    const names = useLanguageStore.getState().t.modeNames;
+    const { name, targetKey, emoji } = describeSlot(
+      mode,
+      prefs.seasonal as unknown as Record<string, unknown>,
+      fallbackNameFor(mode, names),
+    );
+    if (!name) return null;                     // adsız hedefin izi kullanıcıya bir şey anlatmaz
+
+    const todayKey = fmtDateKey();
+    const spec = prefs.planSpecs[mode as keyof typeof prefs.planSpecs];
+    /*
+      BIRAKMA `planSpecs`E HİÇ YAZMAZ — kendi başlangıcını `useQuitStore`da tutar
+      (her öğenin `start` tarihi). Bu okunmadan geçmiş, "1 gün bile ilerletmedim"
+      diyen bir kullanıcıya "Kapatıldı" yerine sürenin BİLİNMEDİĞİ (`days: null`)
+      bir kayıt bırakıyordu; kopya da o durumu "Tamamlandı" diye adlandırıyordu —
+      iki ayrı hata üst üste bindiğinde "bitirmediğim şey bitti" yazan bir satır
+      çıkıyordu. En ESKİ öğenin başlangıcı alınır: bir seriye en erken ne zaman
+      başlandıysa "ne kadar sürdü" sorusunun doğru cevabı odur.
+    */
+    const quitStart = mode === 'birakma'
+      ? useQuitStore.getState().items.map(i => i.start).sort()[0] ?? null
+      : null;
+    const startKey = spec?.startDate
+      ? toDateKey(new Date(spec.startDate))
+      : quitStart;
+    const habits = useHabitStore.getState().habits;
+    const arc = planArcFor({
+      startKey, targetKey, todayKey,
+      habitCompletions: habitIds.map(id => habits.find(h => h.id === id)?.completedDates),
+    });
+
+    return {
+      id: makeGoalId(mode, todayKey, Date.now()),
+      mode, name, emoji,
+      startKey, closedKey: todayKey, targetKey,
+      days: arc?.elapsedDays ?? null,
+      effortDays: arc?.effortDays ?? null,
+    };
+  } catch (e) {
+    // Geçmiş kaydı bir SÜS; alınamıyorsa kapatma yine de yapılmalı.
+    swallow('modeUndo.captureGoalRecord', e);
+    return null;
+  }
+}
+
 export function closeModeWithUndo(
   mode: string,
   close: () => void,
@@ -146,11 +214,16 @@ export function closeModeWithUndo(
   undoLabel: string,
 ): void {
   const snap = snapshotMode(mode);
+  // Ölçüler kapatmadan ÖNCE alınır; sonra kaynakları kalmaz.
+  const record = captureGoalRecord(mode);
   close();
+  if (record) usePrefsStore.getState().addGoalHistory(record);
   haptic.destructive();
   useToastStore.getState().show(message, 'info', {
     label: undoLabel,
     onAction: () => {
+      // Geri alan kullanıcı hedefi kapatmamış sayılır — geçmişte de görünmemeli.
+      if (record) usePrefsStore.getState().removeGoalHistory(record.id);
       restoreMode(snap)
         .then(() => haptic.success())
         .catch(e => swallow('modeUndo.restore', e, { capture: true }));

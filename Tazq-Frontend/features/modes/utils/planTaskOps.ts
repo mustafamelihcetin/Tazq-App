@@ -8,7 +8,7 @@ import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { TaskService } from '@/shared/services/api';
-import { parseDateKey } from '@/shared/utils/dateKey';
+import { parseDateKey, calendarDayOf } from '@/shared/utils/dateKey';
 
 /**
  * Bir plan görevini emekliye ayırır: tamamlanmışsa completion journal'a işler,
@@ -157,6 +157,33 @@ export function retireModeTasksByTag(mode: keyof typeof MODE_TASK_TAGS | string,
       return false;
     })
     .forEach(t => retirePlanTask(t.id, mode));
+}
+
+/**
+ * DURAKLATMA TEMİZLİĞİ — modun bugüne ve sonrasına kurulmuş, HENÜZ BİTMEMİŞ
+ * plan görevlerini emekliye ayırır.
+ *
+ * `retireModeTasksByTag`den kasten DAHA DAR: o, kapatma içindir ve tamamlanmışlar
+ * dahil her şeyi toplar, üstelik ad eşleşmesi de yapar. Duraklatma ise geçici bir
+ * durum; kullanıcının BİTİRDİĞİ işi geçmişinden silmek ya da adı benzeyen bir
+ * görevine dokunmak için hiçbir sebep yok. Bu yüzden yalnız etiket eşleşmesi ve
+ * yalnız açık görevler. Devam edildiğinde motor bugünün görevlerini yeniden üretir.
+ *
+ * @returns emekliye ayrılan görev sayısı (kullanıcıya kaç işin kalktığını söylemek için)
+ */
+export function retirePlanTasksFromToday(mode: keyof typeof MODE_TASK_TAGS | string, todayKey: string): number {
+  const tagSet = new Set(MODE_TASK_TAGS[mode] ?? [mode]);
+  const doomed = useTaskStore.getState().tasks.filter(t => {
+    if (t.isCompleted) return false;
+    if (!isPlanOwnedTask(t)) return false;
+    if (!(t.tags ?? []).some(tag => tagSet.has(tag))) return false;
+    const key = calendarDayOf(t.dueDate);
+    // Tarihsiz plan görevi duraklatmadan etkilenmez: onu motor günlük üretmiyor,
+    // kullanıcı ona kendi zamanında dönecek.
+    return !!key && key >= todayKey;
+  });
+  doomed.forEach(t => retirePlanTask(t.id, String(mode)));
+  return doomed.length;
 }
 
 /**

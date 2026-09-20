@@ -17,7 +17,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { Easing as REasing } from 'react-native-reanimated';
 import {
   Flame, Timer, Play, Sparkles, GraduationCap, Wind, Shield, Plus, Check, Clock, CloudRain, Coffee,
-  Waves, Coins, Dumbbell, BookOpen, Search, Trash2, CalendarClock, BarChart3, ChevronRight
+  Waves, Coins, Dumbbell, BookOpen, Search, Trash2, CalendarClock, Gauge, Compass, Trophy, BarChart3
 } from 'lucide-react-native';
 import { MomentumPulse } from '@/features/user/components/MomentumPulse';
 import { HabitBubble } from '@/features/habits/components/HabitBubble';
@@ -318,11 +318,24 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
       );
     }
 
-    case 'dashboard-3': // Kokpit girişi: BUGÜN kartı + haftalık karne butonu
+    /*
+      ÖLÇÜLEN HATA: bu adım eskiden BUGÜN kartının altında, haftalık karneye götürdüğünü
+      söyleyen tam genişlikte bir düğme ÇİZİYORDU — böyle bir eleman uygulamada hiç
+      yok. Gerçekte BUGÜN kartına dokunmak yalnız küçük bir kutlama animasyonu
+      tetikliyor; haftalık özeti açan şey başlıktaki KÜÇÜK YUVARLAK GÖSTERGE
+      ikonu (bkz. StatusHub). Önizleme artık gerçek yerleşimi anlatıyor: BUGÜN
+      kartı (ilerleme — doğru), başlığında dokunulabilir gösterge ikonu (doğru).
+    */
+    case 'dashboard-3': // Kokpit girişi: başlıktaki gösterge ikonu + BUGÜN kartı
       return (
-        <ScaledScreen innerW={frameW} tap={{ x: frameW - 34, y: 96, k: cyc3, color: theme.primary }}>
+        <ScaledScreen innerW={frameW} tap={{ x: frameW - 34, y: 22, k: cyc3, color: theme.primary }}>
           <View style={{ paddingHorizontal: S.md }}>
-            <View style={[card, { overflow: 'hidden', marginBottom: S.smd }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginBottom: S.smd }}>
+              <View style={{ width: 34, height: 34, borderRadius: R.full, borderWidth: 1, borderColor: theme.outline, alignItems: 'center', justifyContent: 'center' }}>
+                <Gauge size={ICON.sm} color={theme.onSurface} strokeWidth={2} />
+              </View>
+            </View>
+            <View style={[card, { overflow: 'hidden' }]}>
               <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: theme.primary + (isDark ? '20' : '12') }} />
               <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 0.5, color: theme.onSurfaceMuted }}>
                 {tr ? 'BUGÜN' : 'TODAY'}
@@ -335,19 +348,56 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
                 </Text>
               </View>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: S.smd, paddingHorizontal: S.md, borderRadius: R.md, backgroundColor: theme.tertiary + '18' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                <BarChart3 size={ICON.sm} color={theme.tertiary} strokeWidth={2.4} />
-                <Text style={{ fontSize: 12, fontWeight: '700', color: theme.tertiary }}>{tr ? 'Haftalık karneni gör' : 'View weekly review'}</Text>
-              </View>
-              <ChevronRight size={ICON.sm} color={theme.tertiary} strokeWidth={2.6} />
-            </View>
           </View>
         </ScaledScreen>
       );
 
     case 'dashboard-4': // TAZQ Core: logoya dokun → palet (ayrı dosyada, bkz. CoreTourPreview)
       return <ScaledScreen innerW={frameW} tap={{ x: frameW / 2, y: 22, k: cyc3, color: theme.tertiary }}><CoreTourPreview theme={theme} isDark={isDark} tr={tr} beat={beat} card={card} sectionLabel={sectionLabel} /></ScaledScreen>;
+
+    /*
+      YENİ ADIM (index 5, dashboard turunun SONUNA eklendi — bkz. HelpTourModal).
+      Aktif modu olan kullanıcı için üstte beliren KAYDIRMALI plan kartını (ModeDeck)
+      tanıtıyor; bu jest görünmez, tanıtılmazsa keşfedilmez. İki "sayfa" arasında
+      periyodik olarak kayarak jesti gösteriyor, gerçek statik bir ekran görüntüsü
+      değil — bileşenin kendisi gibi.
+    */
+    case 'dashboard-5': { // Aktif Planın: kaydırmalı hedef destesi
+      const pages = [
+        { label: tr ? 'ALES' : 'Bar Exam', days: 42, color: theme.primary },
+        { label: tr ? 'Koşu Hedefi' : 'Running Goal', days: 9, color: theme.streak },
+      ];
+      const page = pages[toggle ? 1 : 0];
+      return (
+        <ScaledScreen innerW={frameW}>
+          <View style={{ paddingHorizontal: S.md }}>
+            <MotiView
+              animate={{ translateX: toggle ? -6 : 6, opacity: 1 }}
+              transition={{ type: 'timing', duration: 320 }}
+              style={[card, { flexDirection: 'row', alignItems: 'center', gap: S.smd, overflow: 'hidden' }]}
+            >
+              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: page.color + (isDark ? '1E' : '12') }} />
+              <View style={{ width: 34, height: 34, borderRadius: R.md, backgroundColor: page.color, alignItems: 'center', justifyContent: 'center' }}>
+                <Compass size={ICON.sm} color="#FFFFFF" strokeWidth={2.3} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 0.5, color: theme.onSurfaceMuted }}>
+                  {tr ? 'AKTİF HEDEF' : 'ACTIVE GOAL'}
+                </Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: theme.onSurface, marginTop: S.xxs }}>{page.label}</Text>
+              </View>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: page.color }}>{page.days}{tr ? 'g' : 'd'}</Text>
+            </MotiView>
+            {/* Sayfa noktaları — deste birden fazla hedef taşıdığında görünür (bkz. ModeDeck). */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: S.xs, marginTop: S.sm }}>
+              {pages.map((p, i) => (
+                <View key={i} style={{ width: (toggle ? 1 : 0) === i ? 14 : 5, height: 5, borderRadius: R.full, backgroundColor: (toggle ? 1 : 0) === i ? p.color : theme.onSurfaceMuted + '55' }} />
+              ))}
+            </View>
+          </View>
+        </ScaledScreen>
+      );
+    }
 
     // ───────────────── TASKS ─────────────────
     case 'tasks-0': { // Arama + filtre çipleri + görev ekle (FAB)
@@ -609,6 +659,16 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
                 {tr ? 'Son düzlük! Bugünkü planına sadık kal, hedefe çok az kaldı.' : 'Final stretch! Stick to today’s plan, you’re almost there.'}
               </Text>
             </View>
+            {/*
+              BİRDEN FAZLA HEDEF VARSA KART DESTESİ — kullanıcının bir önceki şikâyeti
+              tam buydu: "sadece birini gösteriyor, sağa sola kaydırma yok". Bu nokta
+              dizisi ONU tanıtıyor; bir önceki mockup'ta bu jestten hiç bahsedilmiyordu.
+            */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: S.xs, marginTop: S.sm }}>
+              {[0, 1, 2].map((i) => (
+                <View key={i} style={{ width: i === 0 ? 14 : 5, height: 5, borderRadius: R.full, backgroundColor: i === 0 ? theme.primary : theme.onSurfaceVariant + '55' }} />
+              ))}
+            </View>
           </View>
         </ScaledScreen>
       );
@@ -733,40 +793,28 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
       );
     }
 
-    case 'cockpit-2': { // Gerçek "Haftalık Özet" stat çipleri
-      const stats = [
-        { Ic: Check, val: '23', lbl: tr ? 'Tamamlandı' : 'Completed', c: theme.success },
-        { Ic: Clock, val: tr ? '4s 20d' : '4h 20m', lbl: tr ? 'Odak' : 'Focus', c: theme.primary },
-        { Ic: Flame, val: '86%', lbl: tr ? 'Alışkanlık' : 'Habits', c: theme.streak },
-      ];
+    /*
+      ÖLÇÜLEN HATA: bu adım "Haftalık Özet" başlığıyla üç istatistik çipi ve bir
+      uydurma bir haftalık hedef ilerleme çubuğunu Kokpit'in KENDİ İÇİNDE duruyormuş gibi
+      çiziyordu. Gerçekte bu içerik Kokpit'te YOK — Kokpit yalnız bir düğme taşıyor,
+      grafikli haftalık karne ayrı bir ekranda (`/report`). Önizleme artık gerçeği
+      anlatıyor: başlıktaki gösterge düğmesine dokunmak seni oraya götürür.
+    */
+    case 'cockpit-2': { // Başlıktaki "Haftalık karne" düğmesi → ayrı ekran
       return (
-        <ScaledScreen innerW={frameW}>
+        <ScaledScreen innerW={frameW} tap={{ x: frameW - 34, y: 22, k: cyc3, color: theme.success }}>
           <View style={{ paddingHorizontal: S.md }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: theme.onSurface, marginBottom: S.smd }}>{tr ? 'Haftalık Özet' : 'Weekly Review'}</Text>
-            <View style={{ flexDirection: 'row', gap: S.sm }}>
-              {stats.map((s, i) => (
-                <View key={i} style={{ flex: 1, alignItems: 'center', gap: S.xs, paddingVertical: S.smd, borderRadius: R.md, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}>
-                  <s.Ic size={15} color={s.c} strokeWidth={2.5} />
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: s.c }}>{s.val}</Text>
-                  <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant }}>{s.lbl}</Text>
-                </View>
-              ))}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: S.lg }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: theme.onSurface }}>{tr ? 'Haftalık Merkez' : 'Weekly Hub'}</Text>
+              <View style={{ width: 34, height: 34, borderRadius: R.full, borderWidth: 1, borderColor: theme.outline, alignItems: 'center', justifyContent: 'center' }}>
+                <BarChart3 size={ICON.sm} color={theme.onSurface} strokeWidth={2} />
+              </View>
             </View>
-
-            {/* Haftalık hedef ilerlemesi */}
-            <View style={[card, { marginTop: S.smd, padding: S.smd }]}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: S.sm }}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: theme.onSurface }}>{tr ? 'Haftalık Hedef' : 'Weekly Goal'}</Text>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: theme.success }}>23/30</Text>
-              </View>
-              <View style={{ height: 7, borderRadius: R.xs, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                <MotiView
-                  from={{ width: '10%' }}
-                  animate={{ width: '77%' }}
-                  transition={{ type: 'timing', duration: 1200, easing: REasing.out(REasing.cubic) }}
-                  style={{ height: 7, borderRadius: R.xs, backgroundColor: theme.success }}
-                />
-              </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: theme.success + (isDark ? '14' : '0D'), borderRadius: R.md, padding: S.smd }}>
+              <Trophy size={ICON.sm} color={theme.success} />
+              <Text style={{ flex: 1, fontSize: 11.5, fontWeight: '600', color: theme.onSurface }}>
+                {tr ? 'Düğmeye dokun: grafiklerle haftalık karneni aç' : 'Tap the button: open your weekly review with charts'}
+              </Text>
             </View>
           </View>
         </ScaledScreen>

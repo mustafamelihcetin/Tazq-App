@@ -81,9 +81,8 @@ const CEILING: Record<string, number> = {
   // 18 → 13: beş modalın elle yazılmış sayfa zemini ve süre seçicinin kenar solmaları
   // ortak cam yüzeyin ton rengine (tema token'ı) bağlandı.
   'app/focus.tsx': 13,  // derin odak — Skia shader, kendi görsel dili
-  // 18 → 5: mod renklerinin ÜÇÜNCÜ kopyası (modlar.tsx'in aynısı) merkezi palete
-  // bağlandı; iki ekran aynı modu farklı tonda gösterebiliyordu.
-  'app/mod-ozet.tsx': 5,
+  // 5 → 0: son üç sabit hex de (iki sistem rengi + '#fff') tema token'larına bağlandı
+  // (theme.streak/theme.success/theme.onPrimary) — ekran tamamen palet disiplininde.
   'shared/utils/achievementIcons.tsx': 15,  // her başarımın kimlik rengi
   'features/modes/components/modes/RamazanCard.tsx': 12,
   'features/user/components/CelebrationOverlay.tsx': 12,

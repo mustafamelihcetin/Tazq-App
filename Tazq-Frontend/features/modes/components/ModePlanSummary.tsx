@@ -3,8 +3,10 @@ import { View, Text } from 'react-native';
 import { MotiView } from 'moti';
 import { Calendar, CheckCircle2 } from 'lucide-react-native';
 import { ProgressRail } from '@/shared/components/ProgressRail';
-import { S, F, R, ICON } from '@/shared/constants/tokens';
+import { S, F, ICON } from '@/shared/constants/tokens';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { PlanArcRow, PlanPausedBanner } from '@/features/modes/components/PlanPauseRow';
+import type { PlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 
 /**
  * YAŞAYAN PLANIN ÖZETİ — kurulan plan artık bir FORM değil, bir DURUM.
@@ -84,10 +86,17 @@ export interface ModePlanSummaryProps {
    * ölçüsünü silerdi.
    */
   progress?: React.ReactNode;
+  /**
+   * YAŞAM DÖNGÜSÜ — ara verme ve kat edilen yol (bkz. usePlanLifecycle).
+   *
+   * İsteğe bağlı: henüz bağlanmamış bir kart verilmediğinde eski davranışını sürdürür,
+   * yarım bir arayüz göstermez.
+   */
+  lifecycle?: PlanLifecycle;
 }
 
 export const ModePlanSummary: React.FC<ModePlanSummaryProps> = ({
-  language, accent, accentText, goalName, daysLeft, past, dateLabel, todayDone, todayTotal, pastAction, progress,
+  language, accent, accentText, goalName, daysLeft, past, dateLabel, todayDone, todayTotal, pastAction, progress, lifecycle,
 }) => {
   const { theme } = useAppTheme();
   const c = COPY[language];
@@ -157,7 +166,16 @@ export const ModePlanSummary: React.FC<ModePlanSummaryProps> = ({
           <Text numberOfLines={1} style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{c.openEnded}</Text>
         )}
 
-        {progress ? (
+        {/*
+          DURAKLI PLAN BUGÜNÜN İŞİNİ GÖSTERMEZ — çünkü bugün iş yok.
+          Geri sayım yine de duruyor: hedefin tarihi ara verince ertelenmiyor, bunu
+          saklamak kullanıcıyı yanıltmak olurdu.
+        */}
+        {lifecycle?.isPaused ? (
+          <View style={{ marginTop: S.sm }}>
+            <PlanPausedBanner tr={language === 'tr'} accent={accent} accentText={accentText} lifecycle={lifecycle} />
+          </View>
+        ) : progress ? (
           <View style={{ marginTop: S.sm }}>{progress}</View>
         ) : todayTotal > 0 ? (
           <View style={{ marginTop: S.sm, gap: S.xs }}>
@@ -178,6 +196,20 @@ export const ModePlanSummary: React.FC<ModePlanSummaryProps> = ({
           // "0/0" yazmak yerine sessizlik: bugün bu moddan bir şey beklenmiyor.
           <Text style={{ marginTop: S.sm, color: theme.onSurfaceMuted, fontSize: F.caption }}>{c.nothingToday}</Text>
         )}
+
+        {/*
+          KAT EDİLEN YOL + ARA VERME.
+
+          Geri sayım tek başına yalnız baskı üretiyordu: 25. gündeki kullanıcı ne kadar
+          AZ vakti kaldığını görüyor, 25 gündür ne yaptığını görmüyordu. Ölçü "kaç gün
+          çalıştın" — günlük görevler emekliye ayrıldığı için sayılamayan tek şey görev
+          sayısıydı; alışkanlık günleri ise kalıcı (bkz. planArc).
+        */}
+        {lifecycle && !lifecycle.isPaused ? (
+          <View style={{ marginTop: S.sm }}>
+            <PlanArcRow tr={language === 'tr'} accent={accent} accentText={accentText} lifecycle={lifecycle} />
+          </View>
+        ) : null}
       </View>
     </View>
   );

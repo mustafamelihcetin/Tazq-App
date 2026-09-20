@@ -361,6 +361,21 @@ export function modeAccent(type: string | undefined, isDark: boolean): string {
   return isDark ? entry.dark : entry.light;
 }
 
+/**
+ * Dolu aksan zemininin ÜSTÜNDEKİ yazı/ikon rengi.
+ *
+ * Dolu butonlar ("Planı Seç ›", "Kaydet", "Planı Uygula") zeminlerine `modeAccent`
+ * alıp yazılarını SABİT beyaz yazıyordu. Açık temada bu doğru: aksan koyu ton
+ * (#3B82F6 gibi), beyaz yazı AA geçiyor. Koyu temada ise aksan pastele dönüyor
+ * (#93C5FD) — beyaz yazı orada 1.4:1, yani okunmuyor. Koyu temada yazı koyulaşır.
+ *
+ * Ölçüm (koyu tema, #10131A yazı): exam 11.6 · tez 11.0 · mulakat 12.3 ·
+ * spor 10.4 · ramazan 10.6 · tasarruf 13.1 · birakma 10.2 — hepsi AA ✓.
+ */
+export function modeAccentOn(isDark: boolean): string {
+  return isDark ? '#10131A' : '#FFFFFF';
+}
+
 /** Modun METİN rengi — caption/etiket gibi küçük yazılar için AA (4.5:1) garantili. */
 export function modeAccentText(type: string | undefined, isDark: boolean): string {
   const entry = (ModeAccentsText as Record<string, { light: string; dark: string }>)[type ?? ''] ?? ModeAccentsText.default;

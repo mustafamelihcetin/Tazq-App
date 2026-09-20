@@ -33,8 +33,10 @@ import {
   TrendingUp,
   Trophy,
   Moon,
+  Compass,
 } from 'lucide-react-native';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
+import { useActiveModeSummary } from '@/features/modes/hooks/useActiveModeSummary';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { Touchable } from '@/shared/components/Touchable';
 import { S, R, F } from '@/shared/constants/tokens';
@@ -61,6 +63,27 @@ interface TourStep {
 //  Sayfa turları — uygulamanın kendi ikon seti (lucide), emoji yok.
 //  Betimleyici, kısa, boğmayan dil.
 // ─────────────────────────────────────────────────────────────
+/*
+  AKTİF PLAN ADIMI — dashboard turuna eklendi.
+
+  Bu oturumda ana ekranın en üstüne, aktif modu (sınav/spor/tez…) olan kullanıcılar
+  için kaydırmalı bir plan kartı (ModeDeck) eklendi — kullanıcının bir önceki
+  şikâyeti tam olarak buydu ("sağa sola kaydırma yok"). Beş adımlık dashboard
+  turunda buna TEK KELİME yoktu; kaydırma jesti görünmeyen bir jesttir, tanıtılmazsa
+  keşfedilmez. Adım yalnız gerçekten aktif modu OLAN kullanıcıya gösterilir (bkz.
+  ACTIVE_MODE_STEP_TITLES) — yoksa işaret ettiği kart ekranda hiç yok demektir.
+*/
+const activeModeStep: TourStep = {
+  Icon: Compass,
+  color: (t) => t.primary,
+  title: { tr: 'Aktif Planın', en: 'Your Active Plan' },
+  desc: {
+    tr: 'Aktif hedeflerin en üstte, geri sayımıyla duruyor. Birden fazla hedefin varsa aralarında sağa sola kaydır.',
+    en: 'Your active goals sit at the top with their countdown. If you have more than one, swipe left and right to switch.',
+  },
+};
+const ACTIVE_MODE_STEP_TITLES = ['Aktif Planın', 'Your Active Plan'];
+
 const TOURS: Record<PageId, TourStep[]> = {
   dashboard: [
     {
@@ -94,9 +117,14 @@ const TOURS: Record<PageId, TourStep[]> = {
       Icon: BarChart3,
       color: (t) => t.tertiary,
       title: { tr: 'Bugün & Kokpit', en: 'Today & Cockpit' },
+      /*
+        ÖLÇÜLEN HATA: "Karta dokunarak aç" diyordu — ama BUGÜN kartına dokunmak yalnız
+        küçük bir kutlama animasyonu tetikliyor. Haftalık özeti açan, başlıktaki KÜÇÜK
+        gösterge ikonu; kart onun ANLATTIĞI şey, onun kendisi değil.
+      */
       desc: {
-        tr: 'Günlük hedefine ne kadar yaklaştığını gör. Karta dokunarak haftalık karneni, odak süreni ve detaylı istatistiklerini aç.',
-        en: 'See how close you are to today’s goal. Tap the card to open your weekly review, focus time and detailed stats.',
+        tr: 'Günlük hedefine ne kadar yaklaştığını burada gör. Başlıktaki gösterge ikonuna dokunarak haftalık karneni, odak süreni ve detaylı istatistiklerini aç.',
+        en: 'See how close you are to today’s goal right here. Tap the gauge icon in the header to open your weekly review, focus time and detailed stats.',
       },
     },
     /*
@@ -113,6 +141,9 @@ const TOURS: Record<PageId, TourStep[]> = {
         en: 'Tap the logo up top: search your tasks, add one in a sentence, or tidy up a crowded day in one tap.',
       },
     },
+    // SONA eklendi (index 5) — TourFeaturePreview'daki mevcut 'dashboard-0'..'dashboard-4'
+    // eşlemesi yeniden numaralanmasın diye; yalnız yeni bir 'dashboard-5' case'i gerekti.
+    activeModeStep,
   ],
   tasks: [
     {
@@ -173,13 +204,18 @@ const TOURS: Record<PageId, TourStep[]> = {
     },
   ],
   modlar: [
+    /*
+      ÖLÇÜLEN EKSİK: kullanıcı "sağa sola kaydırma yok" diye şikâyet etmişti; kart artık
+      kaydırılabiliyor (bkz. ModeDeck) ama bu adım o jestten hiç bahsetmiyordu. Görünmeyen
+      bir jest tanıtılmazsa keşfedilmez.
+    */
     {
       Icon: Sparkles,
       color: (t) => t.primary,
       title: { tr: 'Yaşam Modları', en: 'Life Modes' },
       desc: {
-        tr: 'Aktif dönem hedeflerinin özeti. Sınav, tez, tasarruf ya da spor gibi yolculuklarını buradan takip et.',
-        en: 'A summary of your active goals. Track journeys like exams, thesis, savings, or fitness here.',
+        tr: 'Aktif dönem hedeflerinin özeti. Sınav, tez, tasarruf ya da spor gibi yolculuklarını buradan takip et — birden fazla hedefin varsa aralarında sağa sola kaydır.',
+        en: 'A summary of your active goals. Track journeys like exams, thesis, savings, or fitness here — swipe left and right if you have more than one.',
       },
     },
     {
@@ -220,13 +256,18 @@ const TOURS: Record<PageId, TourStep[]> = {
         en: 'Focus time, completed tasks, and habit rate for the selected day open up here.',
       },
     },
+    /*
+      ÖLÇÜLEN HATA: "grafiklerle takip et, geçmiş haftalarla kıyasla" diyordu — sanki
+      bu içerik Kokpit'in kendi içindeymiş gibi. Gerçekte grafikli karne ayrı bir
+      ekranda (`/report`); Kokpit yalnız oraya götüren bir düğme taşıyor.
+    */
     {
       Icon: Trophy,
       color: (t) => t.success,
       title: { tr: 'Haftalık Karne', en: 'Weekly Review' },
       desc: {
-        tr: 'Haftanın genel karnesi. İstikrarlı yükselişini grafiklerle takip et ve kendini geçmiş haftalarla kıyasla.',
-        en: 'Your weekly report card. Track your steady climb and compare against past weeks.',
+        tr: 'Başlıktaki düğmeye dokunarak haftanın genel karnesini aç — istikrarlı yükselişini grafiklerle takip et ve kendini geçmiş haftalarla kıyasla.',
+        en: 'Tap the button in the header to open your weekly report card — track your steady climb and compare against past weeks.',
       },
     },
   ],
@@ -254,10 +295,23 @@ export const HelpTourModal: React.FC<HelpTourModalProps> = ({ pageId }) => {
     şeyin nasıl çalıştığını dinliyordu. Bir tur, gördüğü ekranı anlatmalı.
   */
   const GAMIFIED_STEP_TITLES = ['İvme Skorun', 'Your Momentum'];
+  /*
+    "AKTİF PLANIN" ADIMI DA AYNI KURALA TABİ — göstermediği ekranı anlatmaz.
+
+    Adım, aktif modu olan kullanıcılar için üstte beliren kaydırmalı plan kartını
+    tanıtıyor (bkz. ACTIVE_MODE_STEP_TITLES). Hiç aktif modu olmayan biri turu
+    izlerken bu adım işaret ettiği kartı ekranında hiç göremez — var olmayan bir
+    şeyi öğretmiş olurduk.
+  */
+  const hasActiveMode = useActiveModeSummary().activeCount > 0;
   const allSteps = TOURS[pageId] ?? [];
-  const steps = uiMode === 'lite'
-    ? allSteps.filter(st => !GAMIFIED_STEP_TITLES.includes(st.title.tr) && !GAMIFIED_STEP_TITLES.includes(st.title.en))
-    : allSteps;
+  const steps = allSteps.filter(st => {
+    const isGamified = GAMIFIED_STEP_TITLES.includes(st.title.tr) || GAMIFIED_STEP_TITLES.includes(st.title.en);
+    if (uiMode === 'lite' && isGamified) return false;
+    const isActiveModeStep = ACTIVE_MODE_STEP_TITLES.includes(st.title.tr) || ACTIVE_MODE_STEP_TITLES.includes(st.title.en);
+    if (isActiveModeStep && !hasActiveMode) return false;
+    return true;
+  });
   const isTourShown = completedTours?.[pageId] === true || steps.length === 0;
 
   const [currentStep, setCurrentStep] = useState(0);

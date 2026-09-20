@@ -416,7 +416,7 @@ export default function ProfileScreen() {
               {[
                 { icon: <Zap size={ICON.sm} color={theme.primary} />, value: stats.totalFocusHours, label: language === 'tr' ? 'saat odak' : 'focus hrs' },
                 { icon: <Target size={ICON.sm} color={theme.secondary} />, value: stats.completedTasksCount, label: language === 'tr' ? 'görev tamam' : 'tasks done' },
-                { icon: <Trophy size={ICON.sm} color="#ff9f0a" />, value: displayBestStreak, label: language === 'tr' ? 'en uzun seri' : 'best streak' },
+                { icon: <Trophy size={ICON.sm} color={theme.streak} />, value: displayBestStreak, label: language === 'tr' ? 'en uzun seri' : 'best streak' },
               ].map((s, i) => (
                 <View key={i} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.xs + 2, paddingVertical: S.sm + 2, paddingHorizontal: S.sm + 2, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', borderRadius: R.md, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
                   {s.icon}
@@ -840,8 +840,13 @@ export default function ProfileScreen() {
                     style={[styles.saveBtn, { backgroundColor: theme.primary }]}
                   >
                     {savingProfile
-                      ? <ActivityIndicator color="white" />
-                      : <Text style={{ color: 'white', fontWeight: '700', fontSize: F.body }}>{t.save}</Text>
+                      /*
+                        Koyu temada theme.primary PARLAK bir mavi (onPrimary bilerek koyu) —
+                        sabit beyaz yazı orada düşük kontrastta kalırdı. Hemen üstündeki
+                        "Düzenle" düğmesi zaten theme.onPrimary kullanıyordu; ikisi tutarsızdı.
+                      */
+                      ? <ActivityIndicator color={theme.onPrimary} />
+                      : <Text style={{ color: theme.onPrimary, fontWeight: '700', fontSize: F.body }}>{t.save}</Text>
                     }
                   </Touchable>
                 </View>
@@ -865,7 +870,7 @@ const styles = StyleSheet.create({
   name: { fontWeight: '700', letterSpacing: -1 },
   email: { marginTop: S.xs },
   editBtn: { marginTop: S.md, paddingHorizontal: S.lg, borderRadius: R.full },
-  editBtnText: { color: 'white', fontWeight: '700' },
+  editBtnText: { fontWeight: '700' },  // renk kullanım yerinde theme.onPrimary ile verilir
   statsGrid: { flexDirection: 'row' },
   statValue: { fontWeight: '700', marginTop: S.sm },
   settingsSection: { },

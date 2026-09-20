@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, TextInput, StyleProp, ViewStyle, TextStyle, TextInputProps, NativeSyntheticEvent, TextInputFocusEventData } from 'react-native';
+import { View, TextInput, StyleProp, ViewStyle, TextStyle, TextInputProps } from 'react-native';
 import { MotiView } from 'moti';
 import { S, R, F, B } from '@/shared/constants/tokens';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -58,11 +58,13 @@ export const ModeField: React.FC<ModeFieldProps> = ({
   const isDark = colorScheme === 'dark';
   const [focused, setFocused] = useState(false);
 
-  const handleFocus = useCallback((e: NativeSyntheticEvent<TextInputFocusEventData>) => {
+  // Olay tipleri RN sürümüne göre değişiyor (0.85'te FocusEvent/BlurEvent) — prop'un
+  // kendi imzasından türetiliyor ki sürüm yükseldiğinde burası kırılmasın.
+  const handleFocus = useCallback((e: Parameters<NonNullable<TextInputProps['onFocus']>>[0]) => {
     setFocused(true);
     onFocus?.(e);
   }, [onFocus]);
-  const handleBlur = useCallback((e: NativeSyntheticEvent<TextInputFocusEventData>) => {
+  const handleBlur = useCallback((e: Parameters<NonNullable<TextInputProps['onBlur']>>[0]) => {
     setFocused(false);
     onBlur?.(e);
   }, [onBlur]);

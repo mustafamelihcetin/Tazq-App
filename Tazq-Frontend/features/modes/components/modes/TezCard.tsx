@@ -5,7 +5,7 @@
  * merkezi olduğundan `onOpenPreview` prop'u ile tetiklenir.
  */
 import React, { useState } from 'react';
-import { View, Text, Switch, TextInput, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, Switch, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { ChevronRight, CalendarDays, GraduationCap, Sparkles } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -15,6 +15,7 @@ import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { useTaskStore } from '@/features/tasks';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
+import { FormReveal, ModeField } from '../ModeField';
 import { renderModeEmojiIcon } from '../../utils/modeIcons';
 import { retirePlanTask, formatPlanDate, isDatePast, daysLeftOf , retireModeTasksByTag} from '@/features/modes/utils/planTaskOps';
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
@@ -22,6 +23,7 @@ import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { ModePlanSummary } from '@/features/modes/components/ModePlanSummary';
+import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { useModeCompletionReview } from '@/features/modes/hooks/useModeCompletionReview';
@@ -60,6 +62,7 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
 
   const name = seasonal.tezName || '';
   const date = seasonal.tezDate || '';
+  const lifecycle = usePlanLifecycle('tez', date, tezPlanHabitIds);
   const isComplete = name.trim() !== '' && date !== '';
   const past = isDatePast(date);
   const daysLeft = daysLeftOf(date);
@@ -129,8 +132,8 @@ clearPlanIds('tez');
                 Alert.alert(tr ? 'Tez Modu Kapatılıyor' : 'Turning off Thesis Mode', tr ? 'Eklenen alışkanlıklar ve görevler kaldırılacak. Emin misin?' : 'Added habits and tasks will be removed. Are you sure?', [{ text: tr ? 'İptal' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat ve Temizle' : 'Turn Off & Remove', style: 'destructive', onPress: () => closeModeWithUndo('tez', closePlan, tr ? 'Tez modu kapatıldı' : 'Thesis mode closed', tr ? 'Geri al' : 'Undo') }]);
               } else if (v) { setSeasonalPref('tezMode', true); setExpanded(true); }
             }}
-            trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: (isComplete ? accent : TEZ) + '80' }}
-            thumbColor={seasonal.tezMode ? (isComplete ? accent : TEZ) : (isDark ? '#636366' : '#fff')}
+            trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: TEZ }}
+            thumbColor={isDark && !seasonal.tezMode ? '#636366' : '#fff'}
           />
         </View>
       </View>
@@ -172,6 +175,7 @@ clearPlanIds('tez');
                   dateLabel={date ? formatPlanDate(date, tr) : ''}
                   todayDone={progDone}
                   todayTotal={progTotal}
+                  lifecycle={lifecycle}
                 />
                 {!hasPlan && (
                   <Touchable
@@ -202,10 +206,8 @@ clearPlanIds('tez');
           )}
 
           {expanded && (
-            <View style={{ gap: S.sm }}>
-              <View style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: B.thin }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}>
-                <TextInput value={name} onChangeText={(v) => setSeasonalPref('tezName', v)} placeholder={tr ? 'Proje adı (Yüksek Lisans Tezi...)' : "Project name (Master's Thesis...)"} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }} returnKeyType="done" underlineColorAndroid="transparent" maxLength={60} />
-              </View>
+            <FormReveal style={{ gap: S.sm }}>
+              <ModeField accent={TEZ} value={name} onChangeText={(v) => setSeasonalPref('tezName', v)} placeholder={tr ? 'Proje adı (Yüksek Lisans Tezi...)' : "Project name (Master's Thesis...)"} returnKeyType="done" maxLength={60} />
               <Touchable onPress={() => { haptic.select(); setShowDatePicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
                 <Text style={{ color: date ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.body, fontWeight: '600', flex: 1 }}>{date ? formatPlanDate(date, tr) : (tr ? 'Teslim tarihi seç' : 'Select deadline')}</Text>
                 <CalendarDays size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
@@ -240,7 +242,7 @@ clearPlanIds('tez');
               >
                 <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bitti' : 'Done'}</Text>
               </Touchable>
-            </View>
+            </FormReveal>
           )}
         </View>
       )}

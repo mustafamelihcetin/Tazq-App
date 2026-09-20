@@ -682,16 +682,19 @@ export default function SettingsScreen() {
                 />
             </SettingsCard>
 
+            {/* Ham indigo hex yerine A.system — settingsAccents zaten AYNI
+                indigo'yu tema-duyarlı veriyor (bkz. 'Görünüm & Dil' satırı); burada
+                sabit hex yazmak iki ayrı kopya demekti. */}
             {user?.role === 'Admin' && (
               <Touchable
                 onPress={() => router.push('/admin')}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: isDark ? 'rgba(99,102,241,0.12)' : 'rgba(99,102,241,0.08)', borderRadius: R.md, paddingVertical: S.md, paddingHorizontal: S.md, marginTop: S.xl, borderWidth: B.thin, borderColor: isDark ? 'rgba(99,102,241,0.25)' : 'rgba(99,102,241,0.15)' }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: A.system + (isDark ? '1F' : '14'), borderRadius: R.md, paddingVertical: S.md, paddingHorizontal: S.md, marginTop: S.xl, borderWidth: B.thin, borderColor: A.system + (isDark ? '40' : '26') }}
               >
-                <Shield size={ICON.md} color="#6366F1" />
-                <Text style={{ color: '#6366F1', fontWeight: '700', fontSize: F.body, flex: 1 }}>
+                <Shield size={ICON.md} color={A.system} />
+                <Text style={{ color: A.system, fontWeight: '700', fontSize: F.body, flex: 1 }}>
                   {language === 'tr' ? 'Admin Paneli' : 'Admin Panel'}
                 </Text>
-                <ChevronRight size={ICON.sm} color="#6366F1" />
+                <ChevronRight size={ICON.sm} color={A.system} />
               </Touchable>
             )}
 
