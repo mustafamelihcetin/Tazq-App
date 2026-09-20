@@ -99,7 +99,7 @@ const BASELINE: Record<string, number> = {
   'app/achievements.tsx': 17,
   'app/admin.tsx': 205,
   'app/archive.tsx': 8,
-  'app/cockpit.tsx': 63,
+  'app/cockpit.tsx': 57, // 63 → 57: bu turun metinleri DAY_COPY sözlüğünde
   'app/focus.tsx': 57,
   'app/index.tsx': 45, // 63 → 46: komut paleti ve Zen/Core metin nesnelerine geçti; 46 → 45: selamlamadaki yer tutucu ad ("sen") kalktı
   'app/login.tsx': 47,

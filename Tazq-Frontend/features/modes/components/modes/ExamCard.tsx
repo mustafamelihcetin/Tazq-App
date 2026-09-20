@@ -7,7 +7,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, Switch, TextInput, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useFocusEffect } from 'expo-router';
-import { ChevronRight, CalendarDays, BookOpen, X, Sprout, TrendingUp, Flame, Sparkles, Target, Calendar } from 'lucide-react-native';
+import { ChevronRight, CalendarDays, BookOpen, X, Sprout, TrendingUp, Flame, Sparkles, Target } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '../../store/usePrefsStore';
@@ -25,7 +25,7 @@ import { ICON, S, R, F, B, HAIRLINE } from '@/shared/constants/tokens';
 import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
-import { ProgressRail } from '@/shared/components/ProgressRail';
+import { ModePlanSummary } from '@/features/modes/components/ModePlanSummary';
 import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
@@ -338,7 +338,6 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
   const seasonal = usePrefsStore(s => s.seasonal);
   const setSeasonalPref = usePrefsStore(s => s.setSeasonalPref);
   const clearPlanIds = usePrefsStore(s => s.clearPlanIds);
-  const examReviewShown = usePrefsStore(s => s.examReviewShown);
   const setExamReviewShown = usePrefsStore(s => s.setExamReviewShown);
   const examPlanHabitIds = usePrefsStore(s => s.examPlanHabitIds);
   const examPlanTaskIds = usePrefsStore(s => s.examPlanTaskIds);
@@ -449,7 +448,6 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
   const wkTasks = tasks.filter(t => examPlanTaskIds.includes(t.id) && (isToday(t.dueDate) || (t.isCompleted && isToday(t.completedAt))));
   const progTotal = planHabits.length + wkTasks.length;
   const progDone = planHabits.filter(h => (h.completedDates ?? []).includes(todayKey)).length + wkTasks.filter(t => t.isCompleted).length;
-  const progPct = progTotal > 0 ? Math.round((progDone / progTotal) * 100) : 0;
 
   const closeAll = () => {
     cancelExamCountdownNotifs();
@@ -474,7 +472,16 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
     React.useCallback(() => {
       const st = usePrefsStore.getState();
       const s = st.seasonal;
-      if (s.examMode && s.examDate && !st.examReviewShown && parseDateKey(s.examDate).setHours(23, 59, 59, 999) < Date.now()) {
+      /*
+        RİTÜEL YALNIZ TEK SINAV VARKEN. `closeAll` ÜÇ slotu birden siliyor; birinci
+        sınavın tarihi geçtiğinde otomatik kapanış, aylar sonraki ikinci sınavın planını
+        da götürürdü (geri alma tostu çıkar ama kullanıcı onu kaçırabilir). Birden çok
+        sınavı olan kullanıcı kapatmayı kendisi yapar.
+      */
+      const otherExamSlotsEmpty =
+        st.exam2PlanHabitIds.length === 0 && st.exam2PlanTaskIds.length === 0 &&
+        st.exam3PlanHabitIds.length === 0 && st.exam3PlanTaskIds.length === 0;
+      if (s.examMode && otherExamSlotsEmpty && s.examDate && !st.examReviewShown && parseDateKey(s.examDate).setHours(23, 59, 59, 999) < Date.now()) {
         setExamReviewShown(true);
         const nm = s.examName || (tr ? 'Sınav' : 'Exam');
         setTimeout(() => {
@@ -568,40 +575,23 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
                       <X size={ICON.sm} color={theme.onSurfaceVariant} strokeWidth={2.5} />
                     </Touchable>
                   </View>
-                  {past ? (
-                    <View style={{ gap: S.sm }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                        {<Calendar size={ICON.sm} color={theme.error} />}
-                        <Text style={{ color: theme.error, fontWeight: '500', fontSize: F.body }}>{tr ? 'Tarih geçti' : 'Date has passed'}</Text>
-                        <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>· {formatPlanDate(date, tr)}</Text>
-                      </View>
+                  {/* Yaşayan planın ortak özeti (bkz. ModePlanSummary). */}
+                  <ModePlanSummary
+                    language={tr ? 'tr' : 'en'}
+                    accent={ACCENT}
+                    accentText={ACCENT_TX}
+                    goalName={name || (tr ? 'Sınav' : 'Exam')}
+                    daysLeft={date ? daysLeft : null}
+                    past={past}
+                    dateLabel={date ? formatPlanDate(date, tr) : ''}
+                    todayDone={progDone}
+                    todayTotal={progTotal}
+                    pastAction={
                       <Touchable onPress={() => { haptic.commit(); closeWithReview(); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: theme.error + '12', borderRadius: R.md, paddingVertical: S.sm, borderWidth: B.thin, borderColor: theme.error + '25' }} activeOpacity={0.75}>
                         <Text style={{ color: theme.error, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Sınavı Tamamla & Kapat' : 'Complete & Close Exam'}</Text>
                       </Touchable>
-                    </View>
-                  ) : (
-                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: S.lg }}>
-                      <View style={{ alignItems: 'center', minWidth: 52 }}>
-                        <Text style={{ color: ACCENT, fontWeight: '600', fontSize: 40, lineHeight: 42, letterSpacing: -1 }}>{daysLeft}</Text>
-                        <Text style={{ color: ACCENT, fontSize: 10, fontWeight: '600', opacity: 0.7, letterSpacing: 1 }}>{tr ? 'GÜN' : 'DAYS'}</Text>
-                      </View>
-                      <View style={{ flex: 1, paddingTop: S.xxs }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
-                          {<Calendar size={ICON.sm} color={theme.onSurfaceVariant} />}
-                          <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{formatPlanDate(date, tr)}</Text>
-                        </View>
-                        {progTotal > 0 && (
-                          <View style={{ marginTop: S.sm, gap: S.xs }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bugün' : 'Today'}</Text>
-                              <Text style={{ color: ACCENT_TX, fontSize: F.caption, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text>
-                            </View>
-                            <ProgressRail variant="segments" value={progDone} total={progTotal} color={ACCENT} />
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                  )}
+                    }
+                  />
                 </View>
               </View>
 

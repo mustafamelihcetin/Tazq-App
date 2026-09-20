@@ -249,7 +249,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // tetikleniyordu ve Sade mod kapısı yoktu — modu kapatan kullanıcı yine tam ekran
   // kutlama alıyordu. Artış, gözden nasıl kaçtığını anlatan not (kutlama kararı tek
   // yere toplanmıştı ama bekçi test yalnız ana ekranı tarıyordu).
-  'app/cockpit.tsx': 1583, // +6: 'Bu Hafta' kartından Haftalık Geri Bakış'a geçiş
+  'app/cockpit.tsx': 1709, // +6 geri bakış bağlantısı · +96 gün seçimi ekranın tamamını kapsıyor (alışkanlıklar seçili güne yazılır), jestler sadeleşti, metinler DAY_COPY sözlüğüne taşındı
   // 1358 → 1395: iki gerçek hatanın düzeltmesi. Kart konumları KENDİ bölümlerine göre
   // ölçülüyordu ama sayfa konumu sanılıp kullanılıyordu; aktif bir mod varken yeni mod
   // açılınca sayfa yanlış yere (yukarı) kayıyordu. Bölüm konumu da ölçülüp toplanıyor.
@@ -266,7 +266,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // çiziyordu; sekmeli gezinmede ekran sökülmediği için arka planda açık kalan bir
   // bayrak başka sayfada patlayabiliyordu (kullanıcı Modlar'dayken Haftalık Merkez'in
   // anlatımını gördü). Artış tek çağrı + sarmalama.
-  'app/modlar.tsx': 1442,
+  'app/modlar.tsx': 1576, // +70: yaşayan plan ortak özete taşındı, durum kartı kahraman satırı, kartlar sırayla süzülüyor // +72: özet kartı yedi modun hepsini sayar (tasarruf/bırakma görünmüyordu), plan uygulanınca toplam günlük yük söylenir
   // 1199 → 1194: akıllı ayrıştırıcı ipucu NlpHintRow'a çıkarıldı. İpucu tek metin
   // olarak kuruluyordu ve temizlenmiş bir cümleyle dört HAM emojiyi (📅⏰🔁🏷️) aynı
   // Text düğümünde yan yana getiriyordu; parçalar artık tür taşıyor, ikonu sunum çiziyor.

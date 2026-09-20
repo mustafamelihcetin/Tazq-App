@@ -7,12 +7,14 @@ import { MotiView, AnimatePresence } from 'moti';
 import {
   Plus, Check, Flame, Clock, Target,
   ChevronRight, Sparkles, CalendarDays, Trash2, ArrowLeft, BarChart3, Coffee,
-  RefreshCw } from 'lucide-react-native';
+  RefreshCw, CalendarCheck, Sunrise,
+} from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 import { useFocusHistoryStore } from '@/features/report/useFocusHistoryStore';
 import { weekRange, summarizeWeek } from '@/features/report/weeklyReport';
+import { useToastStore } from '@/shared/store/useToastStore';
 import { useTaskStore, useActiveTasks, getLocalizedTaskTitle } from '@/features/tasks';
 import { useFocusStore } from '@/features/focus';
 import { useHabitStore, Habit, fmtDateKey } from '@/features/habits';
@@ -101,6 +103,38 @@ function getLast28Days(): Date[] {
 const DAY_LABELS_TR = ['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pa'];
 const DAY_LABELS_EN_MON = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const DAY_LABELS_EN_SUN = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+/**
+ * Bu turda eklenen metinler — iki dil YAN YANA.
+ * Satır içi `tr ? '...' : '...'` dallanması iki dalı elle senkron tutmayı gerektiriyor
+ * ve pratikte ayrışıyor (bkz. i18nRatchet).
+ */
+const DAY_COPY = {
+  tr: {
+    hint: 'İşaretlemek için ✓ · Seçenekler için satıra dokun',
+    markingFor: (day: string) => `${day.toLocaleLowerCase('tr')} için işaretliyorsun`,
+    futureBlocked: 'Gelecek bir gün işaretlenemez',
+    markToday: 'Bugün tamamlandı olarak işaretle',
+    markDay: (day: string) => `${day} için işaretle`,
+    backToToday: 'Bugüne dön',
+    today: 'Bugün',
+    menuTitle: (day: string) => `${day} için ne yapmak istersin?`,
+    skip: (day: string) => `${day} Pas Geç (Mola)`,
+    undoSkip: 'Pas Geçmeyi Geri Al',
+  },
+  en: {
+    hint: 'Tap ✓ to mark · Tap the row for options',
+    markingFor: (day: string) => `Marking for ${day.toLowerCase()}`,
+    futureBlocked: 'You cannot check a future day',
+    markToday: 'Mark done today',
+    markDay: (day: string) => `Mark for ${day}`,
+    backToToday: 'Back to today',
+    today: 'Today',
+    menuTitle: (day: string) => `What do you want to do for ${day.toLowerCase()}?`,
+    skip: (day: string) => `Skip ${day} (Break)`,
+    undoSkip: 'Undo Skip',
+  },
+};
 
 export default function CockpitScreen() {
   const { theme, colorScheme } = useAppTheme();
@@ -246,15 +280,6 @@ export default function CockpitScreen() {
   const [planVisible, setPlanVisible] = useState(false);
   useUiDepth(addVisible || planVisible);
   const [completingHabitIds, setCompletingHabitIds] = useState<Set<string>>(new Set());
-  const [expandedHabitIds, setExpandedHabitIds] = useState<Set<string>>(new Set());
-  const toggleHabitExpand = (id: string) => {
-    setExpandedHabitIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
   const [newName, setNewName] = useState('');
   const [newEmoji, setNewEmoji] = useState('💪');
   const habitColors = [
@@ -334,7 +359,13 @@ export default function CockpitScreen() {
     [tasks, planTaskIdSet]
   );
 
-  // Week strip data
+  /*
+    ŞERİT VERİSİ — gün noktası GÖREVİ DE ALIŞKANLIĞI DA sayar.
+
+    Nokta yalnız görevlere bakıyordu: yalnız alışkanlık takip eden kullanıcının haftası
+    şeritte bomboş görünüyordu — üstelik ekranın yarısı alışkanlıklar. "Haftam nasıl
+    geçti" sorusunun cevabı, insanın ilk baktığı yerde yoktu.
+  */
   const weekData = useMemo(() => {
     const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
     return weekDays.map((d) => {
@@ -343,16 +374,33 @@ export default function CockpitScreen() {
         (t) => t.dueDate && fmtDateKey(new Date(t.dueDate)) === key
       );
       const isPast = d < todayMidnight;
+      const isFuture = key > todayKey;
+      const habitsDone = habits.filter((h) => (h.completedDates ?? []).includes(key)).length;
+      // Gelecek günde alışkanlık BEKLENMEZ; kurulmadan önceki günlerde de beklenmez.
+      const habitsExpected = isFuture ? 0 : habits.filter((h) => !h.createdAt || fmtDateKey(new Date(h.createdAt)) <= key).length;
+      const taskTotal = dayTasks.length;
+      const taskDone = dayTasks.filter((t) => t.isCompleted).length;
       return {
         date: d,
         key,
         isToday: key === todayKey,
         isPast,
-        total: dayTasks.length,
-        completed: dayTasks.filter((t) => t.isCompleted).length,
+        total: taskTotal + habitsExpected,
+        completed: taskDone + habitsDone,
       };
     });
-  }, [personalTasks, weekDays, todayKey]);
+  }, [personalTasks, habits, weekDays, todayKey]);
+
+  /*
+    SEÇİLİ GÜN ARTIK ALIŞKANLIKLARI DA KAPSIYOR.
+
+    Ekranın ana jesti gün seçmek; ama alışkanlıklar hep BUGÜNE yazılıyordu. Kullanıcı
+    çarşambaya dokunuyor, görevler değişiyor, alışkanlıklar bugünde kalıyordu — üstelik
+    "dün yaptım, işaretlemeyi unuttum" hiçbir şekilde düzeltilemiyordu.
+  */
+  const isSelectedToday = selectedDay === todayKey;
+  const isFutureDay = selectedDay > todayKey;
+  const dc = DAY_COPY[language === 'en' ? 'en' : 'tr'];
 
   // Tasks for selected day
   const selectedDayTasks = useMemo(() =>
@@ -421,11 +469,18 @@ export default function CockpitScreen() {
 
   const handleToggleHabit = (id: string) => {
     const habit = habits.find(h => h.id === id);
-    const doneToday = Array.isArray(habit?.completedDates) && habit!.completedDates.includes(todayKey);
+    const doneToday = Array.isArray(habit?.completedDates) && habit!.completedDates.includes(selectedDay);
+
+    // Gelecek bir gün işaretlenemez: yapılmamış bir şeyi "yapıldı" saymak veriyi bozar.
+    if (isFutureDay) {
+      // Titreşim yok: tost görünür bir yanıt veriyor.
+      useToastStore.getState().show(dc.futureBlocked, 'info');
+      return;
+    }
 
     if (!doneToday) {
       haptic.success();
-      const pendingHabits = habits.filter(h => h.id !== id && !h.completedDates?.includes(todayKey));
+      const pendingHabits = habits.filter(h => h.id !== id && !h.completedDates?.includes(selectedDay));
       const allHabitsDone = pendingHabits.length === 0;
 
       if (soundEffects && !allHabitsDone) {
@@ -436,7 +491,7 @@ export default function CockpitScreen() {
         });
       }
 
-      if (allHabitsDone) {
+      if (allHabitsDone && isSelectedToday) {
         /*
           ── KUTLAMA ORTAK KAPIDAN ──────────────────────────────────────────────
           Konfeti burada DOĞRUDAN tetikleniyordu ve Sade mod kapısı yoktu: modu
@@ -456,6 +511,12 @@ export default function CockpitScreen() {
           tr: language === 'tr',
         });
       }
+      if (!isSelectedToday) {
+        // Geçmiş gün düzeltmesi: sessizce işaretlenir, satır listede kalır.
+        toggleDate(id, selectedDay);
+        return;
+      }
+
       const opacity = new Animated.Value(1);
       const translateY = new Animated.Value(0);
       habitExitAnimMap.current.set(id, { opacity, translateY });
@@ -470,7 +531,7 @@ export default function CockpitScreen() {
         ]),
       ]).start(() => {
         habitExitAnimMap.current.delete(id);
-        toggleDate(id, todayKey);
+        toggleDate(id, selectedDay);
         // Remove from completing set → re-render → habit now filtered out (doneToday=true, not completing)
         setCompletingHabitIds(prev => {
           const next = new Set(prev);
@@ -480,7 +541,7 @@ export default function CockpitScreen() {
       });
     } else {
       haptic.commit();
-      toggleDate(id, todayKey);
+      toggleDate(id, selectedDay);
     }
   };
 
@@ -522,16 +583,18 @@ export default function CockpitScreen() {
     const habit = habits.find(h => h.id === id);
     if (!habit) return;
     const safeSkipped = Array.isArray(habit.skippedDates) ? habit.skippedDates : [];
-    const isSkipped = safeSkipped.includes(todayKey);
+    // Menü SEÇİLİ güne işler: kullanıcı hangi güne bakıyorsa onu düzeltir.
+    const isSkipped = safeSkipped.includes(selectedDay);
+    const dayWord = isSelectedToday ? dc.today : selectedDayLabel;
     haptic.commit();
     Alert.alert(
       name,
-      tr ? 'Bu alışkanlık için ne yapmak istersin?' : 'What do you want to do with this habit?',
+      dc.menuTitle(dayWord),
       [
         {
-          text: isSkipped ? (tr ? 'Pas Geçmeyi Geri Al' : 'Undo Skip') : (tr ? 'Bugün Pas Geç (Mola)' : 'Skip Today (Break)'),
+          text: isSkipped ? dc.undoSkip : dc.skip(dayWord),
           onPress: () => {
-            toggleSkipDate(id, todayKey);
+            toggleSkipDate(id, selectedDay);
             haptic.success();
           }
         },
@@ -563,36 +626,51 @@ export default function CockpitScreen() {
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <DottedBackground color={theme.onBackground} opacity={isDark ? 0.05 : 0.08} size={24} dotSize={1} />
 
+        {/*
+          BAŞLIK = ZAMAN ÖLÇEĞİ: sol GÜNE yakınlaşır, orta BU HAFTA, sağ GEÇMİŞ haftalar.
+
+          Eskiden sağdaki düğme alışkanlık ekliyordu; aynı iş ekranın İÇİNDE iki yerde
+          daha duruyordu (boş durum kartı ve alışkanlıklar bölümünün altındaki düğme),
+          görev ekleme de seçili günün başlığında. Yani çubuktaki düğme yeni bir şey
+          sunmuyor, yalnız tekrar ediyordu.
+
+          Sağ: GERİ BAKIŞ (/report). İkon soldan sağa taşındı; sol yuva geri tuşunun
+          yeridir, oraya konan bir eylem "geri dön" gibi okunuyordu.
+
+          Sol: BUGÜN ekranı (/gun) — günün saat ekseni ve "günü kapat" ritüeli. Adı
+          "Bugün" olduğu için hep bugünü açması dürüst: bu bir DESTİNASYON, ekran içindeki
+          gün seçimiyle ilgisi yok (seçimi bugüne almak şeritteki "Bugün" etiketinin işi).
+          O ekran alt menüde yok; yalnız Görevler'deki tek bir düğmeden ya da sabah/akşam
+          bildiriminden gidilebiliyordu, yani pratikte gizliydi.
+
+          Başlık böylece iki KALICI hedef taşıyor: solda gün, sağda geçmiş haftalar.
+        */}
         <ScreenHeader
           left={
-            <>
             <Touchable
-              onPress={() => router.push('/report')}
+              onPress={() => router.push('/gun')}
               style={styles.headerIconBtn}
               accessibilityRole="button"
-              accessibilityLabel={tr ? 'Haftalık rapor' : 'Weekly report'}
+              accessibilityLabel={dc.today}
             >
               <ChromeShell />
-              <BarChart3 size={ICON.md} color={theme.onSurface} />
+              <Sunrise size={ICON.md} color={theme.onSurface} />
             </Touchable>
-            </>
           }
           title={tr ? 'Haftalık Merkez' : 'Weekly Hub'}
           subtitle={`${weekDays[0].getDate()} – ${weekDays[6].getDate()} ${weekDays[6].toLocaleString(tr ? 'tr-TR' : 'en-US', { month: 'short' }).toUpperCase()}`}
           scrollY={scrollY}
           subtitleColor={theme.primary}
           right={
-            <>
             <Touchable
-              onPress={() => { prepareAdd(); setAddVisible(true); }}
+              onPress={() => router.push('/report')}
               style={styles.headerIconBtn}
               accessibilityRole="button"
-              accessibilityLabel={tr ? 'Ekle' : 'Add'}
+              accessibilityLabel={tr ? 'Haftalık geri bakış' : 'Weekly review'}
             >
               <ChromeShell />
-              <Plus size={ICON.md} color={theme.onSurface} />
+              <BarChart3 size={ICON.md} color={theme.onSurface} />
             </Touchable>
-            </>
           }
         />
 
@@ -613,8 +691,26 @@ export default function CockpitScreen() {
               <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
                 {tr ? 'BU HAFTA' : 'THIS WEEK'}
               </Text>
+              {/*
+                BUGÜNE DÖN — gün seçiminin YAPILDIĞI yerde ve yalnız gerektiğinde.
+                Bu düğme önce başlık çubuğundaydı; bugün seçiliyken işlevi olmadığı için
+                soluk duruyordu ve ekrana her girişte seçim bugüne döndüğü için pratikte
+                HEP soluk görünüyordu — yani "bozuk düğme" gibi. Kalıcı bir yuvada
+                çoğu zaman işlevsiz duran bir düğme, olmayan düğmeden kötüdür.
+              */}
+              {!isSelectedToday && (
+                <Touchable
+                  onPress={() => { haptic.select(); setSelectedDay(todayKey); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={dc.backToToday}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: theme.primary + '18', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.sm }}
+                >
+                  <CalendarCheck size={ICON.xs} color={theme.primary} />
+                  <Text style={{ fontSize: F.caption, color: theme.primary, fontWeight: '700' }}>{dc.today}</Text>
+                </Touchable>
+              )}
               <AnimatePresence>
-                {showDayHint && (
+                {showDayHint && isSelectedToday && (
                   <MotiView
                     key="day-hint"
                     from={{ opacity: 0, translateX: 8 }}
@@ -829,284 +925,14 @@ export default function CockpitScreen() {
           </TourTarget>
           </WideCol>
 
-          <WideCol col="right">
-          {/* ── HABITS ── */}
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>
-                {tr ? 'ALIŞKANLIKLAR' : 'HABITS'}
-              </Text>
-              <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, marginTop: S.xxs }}>
-                {tr ? 'Mola için butona basılı tut' : 'Hold check button to take break'}
-              </Text>
-            </View>
-            <Text style={[styles.sectionSub, { color: theme.onSurfaceVariant }]}>
-              {tr ? 'Son 28 gün' : 'Last 28 days'}
-            </Text>
-          </View>
+          {/*
+            SIRA: haftanın özeti alışkanlıkların ÜSTÜNDE.
 
-          {personalHabits.length === 0 ? (
-            <BentoCard index={1} style={{ alignItems: 'center', paddingVertical: S.xl, marginBottom: S.md }}>
-              <MotiView
-                animate={{ scale: [1, 1.1, 1] }}
-                transition={{ loop: true, duration: 2800 }}
-                style={{ marginBottom: S.md, opacity: 0.35 }}
-              >
-                <Flame size={ICON.xxl} color={theme.primary} />
-              </MotiView>
-              {(
-                <>
-                  <Text style={[styles.emptyTitle, { color: theme.onSurface }]}>
-                    {tr ? 'İlk alışkanlığını ekle' : 'Add your first habit'}
-                  </Text>
-                  <Text style={[styles.emptySub, { color: theme.onSurfaceVariant }]}>
-                    {hasActiveSeasonalMode
-                      ? (tr ? 'Manuel ekle veya ana ekrandan mod planını uygula.' : 'Add manually or apply your mode plan from Home.')
-                      : (tr ? 'Küçük alışkanlıklar büyük dönüşümler yaratır.' : 'Small habits create big transformations.')}
-                  </Text>
-                  <Touchable
-                    onPress={() => { prepareAdd(); setAddVisible(true); }}
-                    style={[styles.emptyAddBtn, { backgroundColor: theme.primary }]}
-                  >
-                    <Plus size={ICON.sm} color={theme.onPrimary} />
-                    <Text style={[styles.emptyAddText, { color: theme.onPrimary }]}>
-                      {tr ? 'Alışkanlık Ekle' : 'Add Habit'}
-                    </Text>
-                  </Touchable>
-                </>
-              )}
-            </BentoCard>
-          ) : (
-            <View style={{ gap: S.sm, marginBottom: S.md }}>
-              {[...personalHabits]
-                .filter((h) => {
-                  const safeDates = Array.isArray(h.completedDates) ? h.completedDates : [];
-                  const doneToday = safeDates.includes(todayKey);
-                  return !doneToday || completingHabitIds.has(h.id);
-                })
-                .sort((a, b) => getStreak(b) - getStreak(a))
-                .map((habit, hIdx) => {
-                const safeColor = habit.color ?? '#6366F1';
-                const safeDates = Array.isArray(habit.completedDates) ? habit.completedDates : [];
-                const safeSkipped = Array.isArray(habit.skippedDates) ? habit.skippedDates : [];
-                const isSkipped = safeSkipped.includes(todayKey);
-                const streak = getStreak({ ...habit, completedDates: safeDates, skippedDates: safeSkipped });
-                const doneToday = safeDates.includes(todayKey);
-                const habitExitAnim = habitExitAnimMap.current.get(habit.id);
-                return (
-                  <Animated.View key={habit.id} style={habitExitAnim ? { opacity: habitExitAnim.opacity, transform: [{ translateY: habitExitAnim.translateY }] } : undefined}>
-                    <SwipeableHabitItem
-                      onDelete={() => handleDeleteHabit(habit.id, habit.name)}
-                      onSkip={() => {
-                        haptic.commit();
-                        toggleSkipDate(habit.id, todayKey);
-                      }}
-                      isSkipped={isSkipped}
-                      showPeekHint={showSwipeHint && hIdx === 0}
-                    >
-                      {/* Sesli ad: durum + seri (ekranda bunları yalnız renk ve rozet söylüyor). */}
-                      <Touchable
-                        accessibilityRole="button"
-                        accessibilityLabel={describeHabit({ doneToday, skipped: isSkipped, streak }, habit.name, language)}
-                        accessibilityState={{ checked: doneToday, expanded: expandedHabitIds.has(habit.id) }}
-                        accessibilityHint={rowHint(language)}
-                        onPress={() => toggleHabitExpand(habit.id)}
-                        onLongPress={() => handleLongPressHabit(habit.id, habit.name)}
-                        activeOpacity={0.9}
-                      >
-                        <View style={[
-                          styles.habitCard, 
-                          { 
-                            backgroundColor: isSkipped
-                              ? (isDark ? '#141416' : '#F3F4F6')
-                              : isDark ? '#1C1C22' : '#FFFFFF', 
-                            borderColor: isSkipped
-                              ? (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)')
-                              : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-                            opacity: isSkipped ? 0.75 : 1
-                          }, 
-                          isSmallScreen && { padding: S.sm }
-                        ]}>
-                          <View style={styles.habitRow}>
-                            {/* Emoji + name + streak */}
-                            <View style={styles.habitLeft}>
-                              <View style={[styles.habitIcon, { backgroundColor: isSkipped ? 'rgba(0,0,0,0.05)' : safeColor + '22' }]}>
-                                {renderModeEmojiIcon(habit.emoji ?? '📌', 20, isSkipped ? '#71717a' : safeColor)}
-                              </View>
-                              <View style={{ flex: 1 }}>
-                                <Text 
-                                  style={[
-                                    styles.habitName, 
-                                    { 
-                                      color: isSkipped ? theme.onSurfaceVariant : theme.onSurface,
-                                      textDecorationLine: isSkipped ? 'line-through' : 'none'
-                                    }
-                                  ]} 
-                                  numberOfLines={expandedHabitIds.has(habit.id) ? undefined : 1}
-                                >
-                                  {habit.name}
-                                </Text>
-                                <View style={styles.streakRow}>
-                                  <Flame
-                                    size={11}
-                                    color={isSkipped ? '#71717a' : streak > 0 ? theme.streak : theme.onSurfaceVariant}
-                                  />
-                                  <Text style={[
-                                    styles.streakText,
-                                    { color: isSkipped ? '#71717a' : streak > 0 ? theme.streak : theme.onSurfaceVariant },
-                                  ]}>
-                                    {streak} {tr ? 'gün' : 'days'}
-                                  </Text>
-                                </View>
-                              </View>
-                            </View>
-
-                            {/* Heatmap 4×7 */}
-                            <View style={styles.heatmapGrid}>
-                              {Array.from({ length: 4 }, (_, row) => (
-                                <View key={row} style={styles.heatmapRow}>
-                                  {Array.from({ length: 7 }, (_, col) => {
-                                    const d = last28[row * 7 + col];
-                                    if (!d) return <View key={col} style={styles.heatCell} />;
-                                    const k = fmtDateKey(d);
-                                    const done = safeDates.includes(k);
-                                    const skippedDate = safeSkipped.includes(k);
-                                    const isToday = k === todayKey;
-                                    return (
-                                      <View
-                                        key={k}
-                                        style={[
-                                          styles.heatCell,
-                                          {
-                                            backgroundColor: done
-                                              ? safeColor
-                                              : skippedDate
-                                              ? '#d97706'
-                                              : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)',
-                                            borderWidth: isToday ? 1.5 : 0,
-                                            borderColor: skippedDate ? '#d97706' : safeColor,
-                                          },
-                                        ]}
-                                      />
-                                    );
-                                  })}
-                                </View>
-                              ))}
-                            </View>
-
-                            {/* Check/Skip status button */}
-                            <Touchable
-                              onPress={() => handleToggleHabit(habit.id)}
-                              onLongPress={() => {
-                                haptic.success();
-                                toggleSkipDate(habit.id, todayKey);
-                              }}
-                              style={[
-                                styles.checkBtn,
-                                {
-                                  backgroundColor: doneToday 
-                                    ? safeColor 
-                                    : isSkipped 
-                                    ? '#d97706' 
-                                    : 'transparent',
-                                  borderColor: doneToday
-                                    ? safeColor
-                                    : isSkipped
-                                    ? '#d97706'
-                                    : isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)',
-                                },
-                              ]}
-                              accessibilityLabel={tr ? 'Bugün tamamlandı olarak işaretle' : 'Mark done today'}
-                            >
-                              <MotiView
-                                animate={{ scale: (doneToday || isSkipped) ? 1 : 0.6, opacity: (doneToday || isSkipped) ? 1 : 0.45 }}
-                                transition={{ type: 'spring', damping: 14 }}
-                              >
-                                {isSkipped ? (
-                                  <Coffee
-                                    size={14}
-                                    color="#fff"
-                                  />
-                                ) : (
-                                  <Check
-                                    size={15}
-                                    color={doneToday ? '#fff' : (isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.3)')}
-                                    strokeWidth={3}
-                                  />
-                                )}
-                              </MotiView>
-                            </Touchable>
-                          </View>
-                        </View>
-                      </Touchable>
-                    </SwipeableHabitItem>
-                  </Animated.View>
-                );
-              })}
-
-              <Touchable
-                onPress={() => { prepareAdd(); setAddVisible(true); }}
-                style={[styles.addHabitRow, { borderColor: theme.outline }]}
-              >
-                <Plus size={ICON.sm} color={theme.onSurfaceVariant} />
-                <Text style={[styles.addHabitText, { color: theme.onSurfaceVariant }]}>
-                  {tr ? 'Alışkanlık Ekle' : 'Add Habit'}
-                </Text>
-              </Touchable>
-
-              {/* Tamamlananlar EN ALTTA (iOS Reminders gibi): bekleyenler üstte kalır, tamamlanan
-                  aşağı kayıp buraya oturur → çıkış animasyonu (aşağı) mantıkla aynı yönde. */}
-              {(() => {
-                const doneHabits = personalHabits.filter(h => {
-                  const dates = Array.isArray(h.completedDates) ? h.completedDates : [];
-                  return dates.includes(todayKey) && !completingHabitIds.has(h.id);
-                });
-                if (doneHabits.length === 0) return null;
-                return (
-                  <View style={{ gap: S.xs, marginTop: S.xs }}>
-                    <Text style={{ fontSize: 10, fontWeight: '600', color: theme.success, letterSpacing: 1, paddingHorizontal: S.sm }}>
-                      {tr ? `✓ BUGÜN TAMAMLANDI (${doneHabits.length})` : `✓ DONE TODAY (${doneHabits.length})`}
-                    </Text>
-                    {doneHabits.map(habit => (
-                      <View
-                        key={habit.id}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingHorizontal: S.md, paddingVertical: S.smd, borderRadius: R.lg,
-                          backgroundColor: theme.success + (isDark ? '12' : '0D'),
-                          borderWidth: B.thin, borderColor: theme.success + '18' }}
-                      >
-                        <Touchable
-                          onPress={() => toggleHabitExpand(habit.id)}
-                          onLongPress={() => handleLongPressHabit(habit.id, habit.name)}
-                          style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.md }}
-                          activeOpacity={0.8}
-                        >
-                          <View style={{ width: 32, height: 32, borderRadius: R.full, backgroundColor: (habit.color ?? theme.success) + '22', alignItems: 'center', justifyContent: 'center' }}>
-                            {renderModeEmojiIcon(habit.emoji ?? '📌', 16, habit.color ?? theme.success)}
-                          </View>
-                          <Text style={{ flex: 1, fontSize: F.body, fontWeight: '500', color: theme.onSurfaceMuted, textDecorationLine: 'line-through' }} numberOfLines={expandedHabitIds.has(habit.id) ? undefined : 1}>
-                            {habit.name}
-                          </Text>
-                        </Touchable>
-                        <Touchable
-                          accessibilityRole="checkbox"
-                          accessibilityState={{ checked: true }}
-                          accessibilityLabel={tr ? `${habit.name} — tamamlandı, geri al` : `${habit.name} — done, undo`}
-                          onPress={() => handleToggleHabit(habit.id)}
-                          style={{ padding: S.xs }}
-                          activeOpacity={0.7}
-                        >
-                          <Check size={ICON.sm} color={theme.success} strokeWidth={3} />
-                        </Touchable>
-                      </View>
-                    ))}
-                  </View>
-                );
-              })()}
-            </View>
-          )}
-
-          </WideCol>
-
+            "Bu Hafta" kartı telefonda en altta kalıyordu: dört-beş alışkanlığı olan
+            kullanıcı ekranın adını taşıyan sayıları hiç görmeden çıkıyordu. Şerit →
+            seçili gün → HAFTANIN ÖZETİ → alışkanlıklar sırası, ekranın vaadiyle
+            okunma sırasını aynı hizaya getiriyor.
+          */}
           <WideCol>
           {/* ── BU HAFTA ──────────────────────────────────────────────────────
               Ad değişti: bu ekran "şimdi"yi anlatır, geri bakış ayrı ekranda
@@ -1215,6 +1041,306 @@ export default function CockpitScreen() {
             </Touchable>
           </BentoCard>
           </TourTarget>
+          </WideCol>
+
+          <WideCol col="right">
+          {/* ── HABITS ── */}
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>
+                {tr ? 'ALIŞKANLIKLAR' : 'HABITS'}
+              </Text>
+              {/*
+                İPUCU TEMEL JESTİ ANLATIR. Eskiden burada yalnız "mola için basılı tut"
+                yazıyordu: ileri bir jest, temel olanı (işaretlemek) öğretmeden.
+                Seçili gün bugün değilse ne yaptığın da burada yazar — yoksa kullanıcı
+                başka bir günü işaretlediğini fark etmez.
+              */}
+              <Text style={{ fontSize: F.caption, color: isSelectedToday ? theme.onSurfaceMuted : theme.primary, marginTop: S.xxs }}>
+                {isSelectedToday ? dc.hint : dc.markingFor(selectedDayLabel)}
+              </Text>
+            </View>
+            <Text style={[styles.sectionSub, { color: theme.onSurfaceVariant }]}>
+              {tr ? 'Son 28 gün' : 'Last 28 days'}
+            </Text>
+          </View>
+
+          {personalHabits.length === 0 ? (
+            <BentoCard index={1} style={{ alignItems: 'center', paddingVertical: S.xl, marginBottom: S.md }}>
+              <MotiView
+                animate={{ scale: [1, 1.1, 1] }}
+                transition={{ loop: true, duration: 2800 }}
+                style={{ marginBottom: S.md, opacity: 0.35 }}
+              >
+                <Flame size={ICON.xxl} color={theme.primary} />
+              </MotiView>
+              {(
+                <>
+                  <Text style={[styles.emptyTitle, { color: theme.onSurface }]}>
+                    {tr ? 'İlk alışkanlığını ekle' : 'Add your first habit'}
+                  </Text>
+                  <Text style={[styles.emptySub, { color: theme.onSurfaceVariant }]}>
+                    {hasActiveSeasonalMode
+                      ? (tr ? 'Manuel ekle veya ana ekrandan mod planını uygula.' : 'Add manually or apply your mode plan from Home.')
+                      : (tr ? 'Küçük alışkanlıklar büyük dönüşümler yaratır.' : 'Small habits create big transformations.')}
+                  </Text>
+                  <Touchable
+                    onPress={() => { prepareAdd(); setAddVisible(true); }}
+                    style={[styles.emptyAddBtn, { backgroundColor: theme.primary }]}
+                  >
+                    <Plus size={ICON.sm} color={theme.onPrimary} />
+                    <Text style={[styles.emptyAddText, { color: theme.onPrimary }]}>
+                      {tr ? 'Alışkanlık Ekle' : 'Add Habit'}
+                    </Text>
+                  </Touchable>
+                </>
+              )}
+            </BentoCard>
+          ) : (
+            <View style={{ gap: S.sm, marginBottom: S.md }}>
+              {[...personalHabits]
+                .filter((h) => {
+                  /*
+                    BUGÜN: yapılan alışkanlık listeden çıkar (ekran sadeleşir).
+                    BAŞKA GÜN: hepsi kalır — kullanıcı o günü DÜZELTMEYE gelmiştir;
+                    yaptığını görmeden yanlışı düzeltemez.
+                  */
+                  if (!isSelectedToday) return true;
+                  const safeDates = Array.isArray(h.completedDates) ? h.completedDates : [];
+                  return !safeDates.includes(selectedDay) || completingHabitIds.has(h.id);
+                })
+                .sort((a, b) => getStreak(b) - getStreak(a))
+                .map((habit, hIdx) => {
+                const safeColor = habit.color ?? '#6366F1';
+                const safeDates = Array.isArray(habit.completedDates) ? habit.completedDates : [];
+                const safeSkipped = Array.isArray(habit.skippedDates) ? habit.skippedDates : [];
+                const isSkipped = safeSkipped.includes(selectedDay);
+                const streak = getStreak({ ...habit, completedDates: safeDates, skippedDates: safeSkipped });
+                const doneToday = safeDates.includes(selectedDay);
+                const habitExitAnim = habitExitAnimMap.current.get(habit.id);
+                return (
+                  <Animated.View key={habit.id} style={habitExitAnim ? { opacity: habitExitAnim.opacity, transform: [{ translateY: habitExitAnim.translateY }] } : undefined}>
+                    <SwipeableHabitItem
+                      onDelete={() => handleDeleteHabit(habit.id, habit.name)}
+                      onSkip={() => {
+                        haptic.commit();
+                        toggleSkipDate(habit.id, selectedDay);
+                      }}
+                      isSkipped={isSkipped}
+                      showPeekHint={showSwipeHint && hIdx === 0}
+                    >
+                      {/* Sesli ad: durum + seri (ekranda bunları yalnız renk ve rozet söylüyor). */}
+                      <Touchable
+                        accessibilityRole="button"
+                        accessibilityLabel={describeHabit({ doneToday, skipped: isSkipped, streak }, habit.name, language)}
+                        accessibilityState={{ checked: doneToday }}
+                        accessibilityHint={rowHint(language)}
+                        /*
+                          SATIRA DOKUNMAK ARTIK BİR ŞEY YAPIYOR. Eskiden yalnız uzun adı
+                          açıyordu — çoğu satırda görünür hiçbir sonucu yoktu, yani
+                          kullanıcı dokunuyor ve "bozuk mu?" diye düşünüyordu. Silme ise
+                          yalnız basılı tutmada gizliydi. İkisi tek menüde birleşti.
+                        */
+                        onPress={() => handleLongPressHabit(habit.id, habit.name)}
+                        onLongPress={() => handleLongPressHabit(habit.id, habit.name)}
+                        activeOpacity={0.9}
+                      >
+                        <View style={[
+                          styles.habitCard, 
+                          { 
+                            backgroundColor: isSkipped
+                              ? (isDark ? '#141416' : '#F3F4F6')
+                              : isDark ? '#1C1C22' : '#FFFFFF', 
+                            borderColor: isSkipped
+                              ? (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)')
+                              : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                            opacity: isSkipped ? 0.75 : 1
+                          }, 
+                          isSmallScreen && { padding: S.sm }
+                        ]}>
+                          <View style={styles.habitRow}>
+                            {/* Emoji + name + streak */}
+                            <View style={styles.habitLeft}>
+                              <View style={[styles.habitIcon, { backgroundColor: isSkipped ? 'rgba(0,0,0,0.05)' : safeColor + '22' }]}>
+                                {renderModeEmojiIcon(habit.emoji ?? '📌', 20, isSkipped ? '#71717a' : safeColor)}
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text 
+                                  style={[
+                                    styles.habitName, 
+                                    { 
+                                      color: isSkipped ? theme.onSurfaceVariant : theme.onSurface,
+                                      textDecorationLine: isSkipped ? 'line-through' : 'none'
+                                    }
+                                  ]} 
+                                  numberOfLines={2}
+                                >
+                                  {habit.name}
+                                </Text>
+                                <View style={styles.streakRow}>
+                                  <Flame
+                                    size={11}
+                                    color={isSkipped ? '#71717a' : streak > 0 ? theme.streak : theme.onSurfaceVariant}
+                                  />
+                                  <Text style={[
+                                    styles.streakText,
+                                    { color: isSkipped ? '#71717a' : streak > 0 ? theme.streak : theme.onSurfaceVariant },
+                                  ]}>
+                                    {streak} {tr ? 'gün' : 'days'}
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+
+                            {/* Heatmap 4×7 */}
+                            <View style={styles.heatmapGrid}>
+                              {Array.from({ length: 4 }, (_, row) => (
+                                <View key={row} style={styles.heatmapRow}>
+                                  {Array.from({ length: 7 }, (_, col) => {
+                                    const d = last28[row * 7 + col];
+                                    if (!d) return <View key={col} style={styles.heatCell} />;
+                                    const k = fmtDateKey(d);
+                                    const done = safeDates.includes(k);
+                                    const skippedDate = safeSkipped.includes(k);
+                                    // Halka SEÇİLİ günü işaretler (varsayılan: bugün).
+                                    const isToday = k === selectedDay;
+                                    return (
+                                      <View
+                                        key={k}
+                                        style={[
+                                          styles.heatCell,
+                                          {
+                                            backgroundColor: done
+                                              ? safeColor
+                                              : skippedDate
+                                              ? '#d97706'
+                                              : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)',
+                                            borderWidth: isToday ? 1.5 : 0,
+                                            borderColor: skippedDate ? '#d97706' : safeColor,
+                                          },
+                                        ]}
+                                      />
+                                    );
+                                  })}
+                                </View>
+                              ))}
+                            </View>
+
+                            {/* Check/Skip status button */}
+                            {/*
+                              Uzun basış (mola) BURADAN KALKTI: pas geçmenin zaten iki
+                              yolu vardı (kaydırma ve satır menüsü). Aynı sonucu veren
+                              üçüncü gizli jest, öğrenilecek şeyi çoğaltmaktan başka işe
+                              yaramıyordu.
+                            */}
+                            <Touchable
+                              onPress={() => handleToggleHabit(habit.id)}
+                              style={[
+                                styles.checkBtn,
+                                {
+                                  backgroundColor: doneToday 
+                                    ? safeColor 
+                                    : isSkipped 
+                                    ? '#d97706' 
+                                    : 'transparent',
+                                  borderColor: doneToday
+                                    ? safeColor
+                                    : isSkipped
+                                    ? '#d97706'
+                                    : isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)',
+                                },
+                              ]}
+                              accessibilityLabel={isSelectedToday ? dc.markToday : dc.markDay(selectedDayLabel)}
+                            >
+                              <MotiView
+                                animate={{ scale: (doneToday || isSkipped) ? 1 : 0.6, opacity: (doneToday || isSkipped) ? 1 : 0.45 }}
+                                transition={{ type: 'spring', damping: 14 }}
+                              >
+                                {isSkipped ? (
+                                  <Coffee
+                                    size={14}
+                                    color="#fff"
+                                  />
+                                ) : (
+                                  <Check
+                                    size={15}
+                                    color={doneToday ? '#fff' : (isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.3)')}
+                                    strokeWidth={3}
+                                  />
+                                )}
+                              </MotiView>
+                            </Touchable>
+                          </View>
+                        </View>
+                      </Touchable>
+                    </SwipeableHabitItem>
+                  </Animated.View>
+                );
+              })}
+
+              <Touchable
+                onPress={() => { prepareAdd(); setAddVisible(true); }}
+                style={[styles.addHabitRow, { borderColor: theme.outline }]}
+              >
+                <Plus size={ICON.sm} color={theme.onSurfaceVariant} />
+                <Text style={[styles.addHabitText, { color: theme.onSurfaceVariant }]}>
+                  {tr ? 'Alışkanlık Ekle' : 'Add Habit'}
+                </Text>
+              </Touchable>
+
+              {/* Tamamlananlar EN ALTTA (iOS Reminders gibi): bekleyenler üstte kalır, tamamlanan
+                  aşağı kayıp buraya oturur → çıkış animasyonu (aşağı) mantıkla aynı yönde. */}
+              {(() => {
+                // Bugün dışında zaten hepsi yukarıdaki listede duruyor (düzeltilebilsin diye).
+                if (!isSelectedToday) return null;
+                const doneHabits = personalHabits.filter(h => {
+                  const dates = Array.isArray(h.completedDates) ? h.completedDates : [];
+                  return dates.includes(selectedDay) && !completingHabitIds.has(h.id);
+                });
+                if (doneHabits.length === 0) return null;
+                return (
+                  <View style={{ gap: S.xs, marginTop: S.xs }}>
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: theme.success, letterSpacing: 1, paddingHorizontal: S.sm }}>
+                      {tr ? `✓ BUGÜN TAMAMLANDI (${doneHabits.length})` : `✓ DONE TODAY (${doneHabits.length})`}
+                    </Text>
+                    {doneHabits.map(habit => (
+                      <View
+                        key={habit.id}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingHorizontal: S.md, paddingVertical: S.smd, borderRadius: R.lg,
+                          backgroundColor: theme.success + (isDark ? '12' : '0D'),
+                          borderWidth: B.thin, borderColor: theme.success + '18' }}
+                      >
+                        <Touchable
+                          onPress={() => handleLongPressHabit(habit.id, habit.name)}
+                          onLongPress={() => handleLongPressHabit(habit.id, habit.name)}
+                          style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.md }}
+                          activeOpacity={0.8}
+                        >
+                          <View style={{ width: 32, height: 32, borderRadius: R.full, backgroundColor: (habit.color ?? theme.success) + '22', alignItems: 'center', justifyContent: 'center' }}>
+                            {renderModeEmojiIcon(habit.emoji ?? '📌', 16, habit.color ?? theme.success)}
+                          </View>
+                          <Text style={{ flex: 1, fontSize: F.body, fontWeight: '500', color: theme.onSurfaceMuted, textDecorationLine: 'line-through' }} numberOfLines={2}>
+                            {habit.name}
+                          </Text>
+                        </Touchable>
+                        <Touchable
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: true }}
+                          accessibilityLabel={tr ? `${habit.name} — tamamlandı, geri al` : `${habit.name} — done, undo`}
+                          onPress={() => handleToggleHabit(habit.id)}
+                          style={{ padding: S.xs }}
+                          activeOpacity={0.7}
+                        >
+                          <Check size={ICON.sm} color={theme.success} strokeWidth={3} />
+                        </Touchable>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })()}
+            </View>
+          )}
+
           </WideCol>
 
           </WideSplit>

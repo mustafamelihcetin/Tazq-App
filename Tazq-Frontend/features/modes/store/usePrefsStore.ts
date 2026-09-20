@@ -192,7 +192,17 @@ interface PrefsState {
   tasarrufPlanTaskIds: number[];
   birakmaPlanHabitIds: string[];
   birakmaPlanTaskIds: number[];
+  /**
+   * "Hedef tarihi geçti, nasıl geçti?" ritüeli bu modda soruldu mu?
+   * Dört mod için ayrı bayrak: biri sorulduğunda öteki susmamalı.
+   */
   examReviewShown: boolean;
+  tezReviewShown: boolean;
+  setTezReviewShown: (v: boolean) => void;
+  mulakatReviewShown: boolean;
+  setMulakatReviewShown: (v: boolean) => void;
+  sporReviewShown: boolean;
+  setSporReviewShown: (v: boolean) => void;
   setExamReviewShown: (v: boolean) => void;
   dismissedBannerKey: string;
   setDismissedBannerKey: (key: string) => void;
@@ -454,6 +464,12 @@ export const usePrefsStore = create<PrefsState>()(
       birakmaPlanTaskIds: [],
       examReviewShown: false,
       setExamReviewShown: (v) => set({ examReviewShown: v }),
+      tezReviewShown: false,
+      setTezReviewShown: (v) => set({ tezReviewShown: v }),
+      mulakatReviewShown: false,
+      setMulakatReviewShown: (v) => set({ mulakatReviewShown: v }),
+      sporReviewShown: false,
+      setSporReviewShown: (v) => set({ sporReviewShown: v }),
       dismissedBannerKey: '',
       setDismissedBannerKey: (key) => set({ dismissedBannerKey: key }),
       motto: '',
@@ -532,6 +548,9 @@ export const usePrefsStore = create<PrefsState>()(
         },
         planSpecs: {},
         examReviewShown: false,
+        tezReviewShown: false,
+        mulakatReviewShown: false,
+        sporReviewShown: false,
         helpTourShown: false,
         notifPrimerSeen: false,
         completedTours: {},

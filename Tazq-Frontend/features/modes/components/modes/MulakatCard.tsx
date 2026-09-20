@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { View, Text, Switch, TextInput, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { ChevronRight, CalendarDays, BookOpen, X, Briefcase, Calendar } from 'lucide-react-native';
+import { ChevronRight, CalendarDays, BookOpen, X, Briefcase } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '../../store/usePrefsStore';
@@ -19,9 +19,11 @@ import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
-import { ProgressRail } from '@/shared/components/ProgressRail';
+import { ModePlanSummary } from '@/features/modes/components/ModePlanSummary';
 import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
+import { useModeCompletionReview } from '@/features/modes/hooks/useModeCompletionReview';
+import { completionCopy } from '@/features/modes/utils/modeCompletion';
 import { toDateKey } from '@/shared/utils/dateKey';
 
 // Vurgu merkezi paletten (bkz. Colors.ModeAccents) — tema-duyarlı + kontrast güvenli.
@@ -141,6 +143,14 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
   const seasonal = usePrefsStore(s => s.seasonal);
   const setSeasonalPref = usePrefsStore(s => s.setSeasonalPref);
   const clearPlanIds = usePrefsStore(s => s.clearPlanIds);
+  const mulakatPlanHabitIds = usePrefsStore(s => s.mulakatPlanHabitIds);
+  const mulakatPlanTaskIds = usePrefsStore(s => s.mulakatPlanTaskIds);
+  const mulakat2PlanHabitIds = usePrefsStore(s => s.mulakat2PlanHabitIds);
+  const mulakat2PlanTaskIds = usePrefsStore(s => s.mulakat2PlanTaskIds);
+  const mulakat3PlanHabitIds = usePrefsStore(s => s.mulakat3PlanHabitIds);
+  const mulakat3PlanTaskIds = usePrefsStore(s => s.mulakat3PlanTaskIds);
+  const mulakatReviewShown = usePrefsStore(s => s.mulakatReviewShown);
+  const setMulakatReviewShown = usePrefsStore(s => s.setMulakatReviewShown);
   const planHabitIds = usePrefsStore(s => s.mulakatPlanHabitIds);
   const planTaskIds = usePrefsStore(s => s.mulakatPlanTaskIds);
   const habits = useHabitStore(s => s.habits);
@@ -169,9 +179,34 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
   const wkTasks = tasks.filter(t => planTaskIds.includes(t.id) && (isToday(t.dueDate) || (t.isCompleted && isToday(t.completedAt))));
   const progTotal = planHabits.length + wkTasks.length;
   const progDone = planHabits.filter(h => (h.completedDates ?? []).includes(todayKey)).length + wkTasks.filter(t => t.isCompleted).length;
-  const progPct = progTotal > 0 ? Math.round((progDone / progTotal) * 100) : 0;
 
   const mulakat2Complete = (seasonal.mulakat2Name || '').trim() !== '' && !!seasonal.mulakat2Date;
+
+  /*
+    MÜLAKAT GÜNÜ GEÇTİ — "nasıl geçti?" (bkz. useModeCompletionReview).
+    Hazırlık planı, mülakat olup bittikten sonra da her sabah görev üretmeye
+    çalışıyor ve alışkanlıkları listede tutuyordu.
+  */
+  /*
+    RİTÜEL YALNIZ TEK HEDEF VARKEN ÇALIŞIR.
+
+    `closePlan` birinci slotu temizler ama modu TÜMÜYLE kapatır. İkinci/üçüncü hedefi
+    olan kullanıcıda otomatik kapanış, hâlâ süren o planları sahipsiz bırakırdı
+    (alışkanlıkları listede kalır, modu kapalı görünür). Birden çok hedefi olan
+    kullanıcı kapatmayı kendisi yapar; otomatik soru sorulmaz.
+  */
+  const otherMulakatSlotsEmpty =
+    mulakat2PlanHabitIds.length === 0 && mulakat2PlanTaskIds.length === 0 &&
+    mulakat3PlanHabitIds.length === 0 && mulakat3PlanTaskIds.length === 0;
+  useModeCompletionReview({
+    enabled: !!seasonal.mulakatMode && otherMulakatSlotsEmpty && (mulakatPlanHabitIds.length > 0 || mulakatPlanTaskIds.length > 0),
+    dateStr: seasonal.mulakatDate,
+    shown: mulakatReviewShown,
+    setShown: setMulakatReviewShown,
+    planMode: 'mulakat',
+    closePlan: () => closePlan(),
+    copy: completionCopy('mulakat', tr, seasonal.mulakatName),
+  });
 
   const closePlan = () => {
     planHabitIds.forEach(id => removeHabit(id));
@@ -242,34 +277,18 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
                       <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Düzenle' : 'Edit'}</Text>
                     </Touchable>
                   </View>
-                  {past ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                      {<Calendar size={ICON.sm} color={theme.error} />}
-                      <Text style={{ color: theme.error, fontWeight: '500' }}>{tr ? 'Mülakat tarihi geçti' : 'Interview date passed'} · {formatPlanDate(date, tr)}</Text>
-                    </View>
-                  ) : (
-                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: S.lg }}>
-                      <View style={{ alignItems: 'center', minWidth: 52 }}>
-                        <Text style={{ color: ACCENT, fontWeight: '600', fontSize: 40, lineHeight: 42, letterSpacing: -1 }}>{daysLeft}</Text>
-                        <Text style={{ color: ACCENT, fontSize: 10, fontWeight: '600', opacity: 0.7, letterSpacing: 1 }}>{tr ? 'GÜN' : 'DAYS'}</Text>
-                      </View>
-                      <View style={{ flex: 1, paddingTop: S.xxs }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
-                          {<Calendar size={ICON.sm} color={theme.onSurfaceVariant} />}
-                          <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{formatPlanDate(date, tr)}</Text>
-                        </View>
-                        {progTotal > 0 && (
-                          <View style={{ marginTop: S.sm, gap: S.xs }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bugün' : 'Today'}</Text>
-                              <Text style={{ color: ACCENT_TX, fontSize: F.caption, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text>
-                            </View>
-                            <ProgressRail variant="segments" value={progDone} total={progTotal} color={ACCENT} />
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                  )}
+                  {/* Yaşayan planın ortak özeti (bkz. ModePlanSummary). */}
+                  <ModePlanSummary
+                    language={tr ? 'tr' : 'en'}
+                    accent={ACCENT}
+                    accentText={ACCENT_TX}
+                    goalName={seasonal.mulakatName || (tr ? 'Mülakat' : 'Interview')}
+                    daysLeft={date ? daysLeft : null}
+                    past={past}
+                    dateLabel={date ? formatPlanDate(date, tr) : ''}
+                    todayDone={progDone}
+                    todayTotal={progTotal}
+                  />
                 </View>
               </View>
 

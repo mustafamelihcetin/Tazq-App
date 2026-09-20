@@ -70,6 +70,7 @@ const COPY = {
     closeBtn: 'Haftayı kapat',
     closed: 'Bu haftayı kapattın ✦',
     goalPick: (m: number) => `${m} dk`,
+    legacy: 'Geçmiş haftaların odak kaydı sunucu güncellendiğinde görünecek.',
   },
   en: {
     title: 'Weekly Review',
@@ -92,6 +93,7 @@ const COPY = {
     closeBtn: 'Close the week',
     closed: 'You closed this week ✦',
     goalPick: (m: number) => `${m} min`,
+    legacy: 'Focus history for past weeks appears once the server is updated.',
   },
 };
 
@@ -125,6 +127,7 @@ export default function ReportScreen() {
 
   const sessions = useFocusHistoryStore(s => s.sessions);
   const neverLoaded = useFocusHistoryStore(s => s.neverLoaded);
+  const usingLegacyFallback = useFocusHistoryStore(s => s.usingLegacyFallback);
   const refreshHistory = useFocusHistoryStore(s => s.refresh);
 
   /** 0 bu hafta, -1 geçen hafta … Geçmiş, indirilen pencere kadar geriye gider. */
@@ -231,6 +234,14 @@ export default function ReportScreen() {
             </Text>
           )}
         </View>
+
+        {/* Eski sunucuda yalnız içinde bulunulan hafta dolu gelir (bkz. useFocusHistoryStore). */}
+        {usingLegacyFallback && !isCurrentWeek && (
+          <View style={{ flexDirection: 'row', gap: S.sm, alignItems: 'center', borderRadius: R.md, padding: S.md, backgroundColor: theme.surfaceContainerHigh }}>
+            <CloudOff size={ICON.sm} color={theme.onSurfaceVariant} />
+            <Text style={{ flex: 1, color: theme.onSurfaceVariant, fontSize: F.caption, lineHeight: 18 }}>{c.legacy}</Text>
+          </View>
+        )}
 
         {neverLoaded && (
           <View style={{ flexDirection: 'row', gap: S.sm, alignItems: 'center', borderRadius: R.md, padding: S.md, backgroundColor: theme.surfaceContainerHigh }}>

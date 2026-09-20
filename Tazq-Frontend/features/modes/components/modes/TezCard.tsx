@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { View, Text, Switch, TextInput, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { ChevronRight, CalendarDays, GraduationCap, Calendar, Sparkles } from 'lucide-react-native';
+import { ChevronRight, CalendarDays, GraduationCap, Sparkles } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '../../store/usePrefsStore';
@@ -21,9 +21,11 @@ import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
-import { ProgressRail } from '@/shared/components/ProgressRail';
+import { ModePlanSummary } from '@/features/modes/components/ModePlanSummary';
 import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
+import { useModeCompletionReview } from '@/features/modes/hooks/useModeCompletionReview';
+import { completionCopy } from '@/features/modes/utils/modeCompletion';
 import { toDateKey } from '@/shared/utils/dateKey';
 
 // Vurgu merkezi paletten (bkz. Colors.ModeAccents) — tema-duyarlı + kontrast güvenli.
@@ -42,6 +44,8 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   const clearPlanIds = usePrefsStore(s => s.clearPlanIds);
   const tezPlanHabitIds = usePrefsStore(s => s.tezPlanHabitIds);
   const tezPlanTaskIds = usePrefsStore(s => s.tezPlanTaskIds);
+  const tezReviewShown = usePrefsStore(s => s.tezReviewShown);
+  const setTezReviewShown = usePrefsStore(s => s.setTezReviewShown);
   const habits = useHabitStore(s => s.habits);
   const removeHabit = useHabitStore(s => s.removeHabit);
   const tasks = useTaskStore(s => s.tasks);
@@ -69,9 +73,23 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   const wkTasks = tasks.filter(t => tezPlanTaskIds.includes(t.id) && (isToday(t.dueDate) || (t.isCompleted && isToday(t.completedAt))));
   const progTotal = planHabits.length + wkTasks.length;
   const progDone = planHabits.filter(h => (h.completedDates ?? []).includes(todayKey)).length + wkTasks.filter(t => t.isCompleted).length;
-  const progPct = progTotal > 0 ? Math.round((progDone / progTotal) * 100) : 0;
 
   const hasPlan = tezPlanHabitIds.length > 0 || tezPlanTaskIds.length > 0;
+
+  /*
+    TESLİM TARİHİ GEÇTİ — "nasıl geçti?" (bkz. useModeCompletionReview).
+    Eskiden yalnız sınav modu bittiğini biliyordu; tez teslim edildikten sonra plan
+    sessizce hayalete dönüyor, alışkanlıklar gelmeye devam ediyordu.
+  */
+  useModeCompletionReview({
+    enabled: !!seasonal.tezMode && (tezPlanHabitIds.length > 0 || tezPlanTaskIds.length > 0),
+    dateStr: seasonal.tezDate,
+    shown: tezReviewShown,
+    setShown: setTezReviewShown,
+    planMode: 'tez',
+    closePlan: () => closePlan(),
+    copy: completionCopy('tez', tr, seasonal.tezName),
+  });
 
   const closePlan = () => {
     tezPlanHabitIds.forEach(id => removeHabit(id));
@@ -143,34 +161,18 @@ clearPlanIds('tez');
                     <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Düzenle' : 'Edit'}</Text>
                   </Touchable>
                 </View>
-                {past ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                    {<Calendar size={ICON.sm} color={theme.error} />}
-                    <Text style={{ color: theme.error, fontWeight: '500' }}>{tr ? 'Teslim tarihi geçti' : 'Deadline passed'} · {formatPlanDate(date, tr)}</Text>
-                  </View>
-                ) : (
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: S.lg }}>
-                    <View style={{ alignItems: 'center', minWidth: 52 }}>
-                      <Text style={{ color: accent, fontWeight: '600', fontSize: 40, lineHeight: 42, letterSpacing: -1 }}>{daysLeft}</Text>
-                      <Text style={{ color: accent, fontSize: 10, fontWeight: '600', opacity: 0.7, letterSpacing: 1 }}>{tr ? 'GÜN' : 'DAYS'}</Text>
-                    </View>
-                    <View style={{ flex: 1, paddingTop: S.xxs }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
-                        {<Calendar size={ICON.sm} color={theme.onSurfaceVariant} />}
-                        <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{formatPlanDate(date, tr)}</Text>
-                      </View>
-                      {progTotal > 0 && (
-                        <View style={{ marginTop: S.sm, gap: S.xs }}>
-                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bugün' : 'Today'}</Text>
-                            <Text style={{ color: TEZ_TX, fontSize: F.caption, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text>
-                          </View>
-                          <ProgressRail variant="segments" value={progDone} total={progTotal} color={accent} />
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                )}
+                {/* Yaşayan planın ortak özeti — dört kart aynı dili konuşur (bkz. ModePlanSummary). */}
+                <ModePlanSummary
+                  language={tr ? 'tr' : 'en'}
+                  accent={accent}
+                  accentText={TEZ_TX}
+                  goalName={seasonal.tezName || (tr ? 'Tez' : 'Thesis')}
+                  daysLeft={date ? daysLeft : null}
+                  past={past}
+                  dateLabel={date ? formatPlanDate(date, tr) : ''}
+                  todayDone={progDone}
+                  todayTotal={progTotal}
+                />
                 {!hasPlan && (
                   <Touchable
                     onPress={() => { haptic.surface(); onOpenPreview(); }}

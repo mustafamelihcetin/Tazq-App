@@ -191,3 +191,111 @@ describe('mod planı ilerlemesi', () => {
     expect(PLAN_MODE_TAGS).toContain('birakma');
   });
 });
+
+describe('haftalık yüzeylerin ROL AYRIMI', () => {
+  /*
+    İki ekran da "haftalık" adını taşıyor ve aynı haftayı anlatıyordu; kullanıcı
+    hangisine bakacağını bilemiyordu. Kokpit = bu hafta (şimdi), Geri Bakış = geçmiş
+    ve kıyas. Kokpit başlığındaki "+" ise alışkanlık ekliyordu — aynı iş ekranın
+    içinde iki yerde daha duruyordu, yani çubukta yeni bir şey sunmuyordu.
+  */
+  const fs = require('fs') as typeof import('fs');
+  const path = require('path') as typeof import('path');
+  const read = (rel: string) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
+  const COCKPIT = read('app/cockpit.tsx');
+  const REPORT = read('app/report.tsx');
+
+  it('Kokpit başlığındaki eylem Geri Bakış; fazlalık ekle düğmesi yok', () => {
+    /*
+      Sağdaki düğme alışkanlık ekliyordu — aynı iş ekranın içinde iki yerde daha vardı.
+      Sol yuvaya konan "Bugün" kısayolu da geri alındı: o ekran yalnız BUGÜNÜ açıyor,
+      oysa burada kullanıcı gün seçiyor; seçimi yok sayan bir düğme yanıltıcıydı.
+    */
+    const header = COCKPIT.slice(COCKPIT.indexOf('<ScreenHeader'), COCKPIT.indexOf('<View style={{ flex: 1 }}>'));
+    expect(header).toContain("router.push('/report')");  // sağ: geçmişe uzaklaş
+    expect(header).not.toContain('setAddVisible(true)'); // fazlalık "+" kalktı
+  });
+
+  it('alışkanlık ekleme ekranın İÇİNDE hâlâ var — kaldırılan şey yalnız tekrardı', () => {
+    expect((COCKPIT.match(/setAddVisible\(true\)/g) ?? []).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('iki ekran aynı hesap motorunu kullanır', () => {
+    for (const src of [COCKPIT, REPORT]) {
+      expect(src).toContain("from '@/features/report/weeklyReport'");
+      expect(src).toContain('summarizeWeek(');
+    }
+  });
+
+  it('Kokpit haftalık sayıları artık sunucunun kendi kırılımından almıyor', () => {
+    // Eski yol: /stats → weeklyFocus (UTC günleri). Geri Bakış ile çelişiyordu.
+    expect(COCKPIT).not.toContain('FocusService.getStats()');
+  });
+});
+
+describe('Haftalık Merkez — gün seçimi EKRANIN TAMAMINI kapsar', () => {
+  /*
+    ── ÖLÇÜLEN SORUNLAR ──────────────────────────────────────────────────────
+     1. Ekranın ana jesti gün seçmekti ama alışkanlıklar hep BUGÜNE yazılıyordu:
+        çarşambaya dokununca görevler değişiyor, alışkanlıklar değişmiyordu. "Dün
+        yaptım, işaretlemeyi unuttum" hiçbir şekilde düzeltilemiyordu.
+     2. Alışkanlık satırında dört jest vardı, biri açıklanmıştı: satıra dokunmak
+        görünür hiçbir şey yapmıyor, silmek yalnız basılı tutmada gizli duruyordu.
+     3. Haftanın sayıları telefonda en alttaydı (ekranın adını taşıdıkları hâlde).
+     4. Şeritteki nokta yalnız görevleri sayıyordu; alışkanlık takip eden kullanıcının
+        haftası boş görünüyordu.
+  */
+  const fs = require('fs') as typeof import('fs');
+  const path = require('path') as typeof import('path');
+  const COCKPIT = fs.readFileSync(path.join(__dirname, '..', 'app/cockpit.tsx'), 'utf8');
+
+  it('alışkanlık işaretleme SEÇİLİ güne yazılır — bugüne değil', () => {
+    expect(COCKPIT).toContain('toggleDate(id, selectedDay)');
+    expect(COCKPIT).not.toContain('toggleDate(id, todayKey)');
+    expect(COCKPIT).toContain('toggleSkipDate(id, selectedDay)');
+  });
+
+  it('GELECEK bir gün işaretlenemez', () => {
+    expect(COCKPIT).toMatch(/if \(isFutureDay\)[\s\S]{0,200}return;/);
+  });
+
+  it('bugün dışında tamamlananlar da listede kalır — düzeltilebilsin', () => {
+    expect(COCKPIT).toContain('if (!isSelectedToday) return true;');
+  });
+
+  it('satıra dokunmak artık menü açar; onay düğmesinde gizli jest yok', () => {
+    const row = COCKPIT.slice(COCKPIT.indexOf('<SwipeableHabitItem'), COCKPIT.indexOf('</SwipeableHabitItem>'));
+    expect(row).toContain('onPress={() => handleLongPressHabit(habit.id, habit.name)}');
+    expect(row).not.toContain('toggleHabitExpand');
+    // Onay düğmesinin uzun basışı (mola) kalktı: kaydırma ve menü zaten yapıyor.
+    expect(row).not.toMatch(/onPress=\{\(\) => handleToggleHabit\(habit\.id\)\}\s*onLongPress/);
+  });
+
+  it('haftanın özeti alışkanlıkların ÜSTÜNDE', () => {
+    expect(COCKPIT.indexOf('── BU HAFTA')).toBeLessThan(COCKPIT.indexOf('── HABITS ──'));
+  });
+
+  it('şerit noktası görevi DE alışkanlığı DA sayar', () => {
+    expect(COCKPIT).toContain('habitsExpected');
+    expect(COCKPIT).toMatch(/total: taskTotal \+ habitsExpected/);
+    expect(COCKPIT).toMatch(/completed: taskDone \+ habitsDone/);
+  });
+
+  it('başlıkta iki KALICI hedef: solda Bugün ekranı, sağda geri bakış', () => {
+    /*
+      Sol yuvada önce "bugüne dön" vardı ve bugün seçiliyken soluk duruyordu; ekrana her
+      girişte seçim bugüne döndüğü için pratikte HEP soluk görünüyordu — kullanıcı onu
+      bozuk sandı. Kalıcı yuva kalıcı bir işe ait olmalı.
+    */
+    const header = COCKPIT.slice(COCKPIT.indexOf('<ScreenHeader'), COCKPIT.indexOf('<View style={{ flex: 1 }}>'));
+    expect(header).toContain("router.push('/gun')");
+    expect(header).toContain("router.push('/report')");
+    expect(header).not.toContain('disabled={isSelectedToday}');
+  });
+
+  it('"bugüne dön" gün seçiminin yapıldığı yerde ve yalnız gerektiğinde', () => {
+    const strip = COCKPIT.slice(COCKPIT.indexOf("'BU HAFTA'"), COCKPIT.indexOf('styles.weekRow'));
+    expect(strip).toContain('{!isSelectedToday && (');
+    expect(strip).toContain('setSelectedDay(todayKey)');
+  });
+});

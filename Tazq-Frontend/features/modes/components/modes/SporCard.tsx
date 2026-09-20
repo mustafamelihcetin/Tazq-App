@@ -30,8 +30,11 @@ import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { ProgressRail } from '@/shared/components/ProgressRail';
+import { ModePlanSummary } from '@/features/modes/components/ModePlanSummary';
 import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
+import { useModeCompletionReview } from '@/features/modes/hooks/useModeCompletionReview';
+import { completionCopy } from '@/features/modes/utils/modeCompletion';
 import { toDateKey, dateKeyFromNow } from '@/shared/utils/dateKey';
 
 // Vurgu MERKEZİ PALETTEN, tema-duyarlı. Ham '#F97316' iki temada aynıydı ve açık
@@ -191,6 +194,12 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
   const seasonal = usePrefsStore(s => s.seasonal);
   const setSeasonalPref = usePrefsStore(s => s.setSeasonalPref);
   const clearPlanIds = usePrefsStore(s => s.clearPlanIds);
+  const spor2PlanHabitIds = usePrefsStore(s => s.spor2PlanHabitIds);
+  const spor2PlanTaskIds = usePrefsStore(s => s.spor2PlanTaskIds);
+  const spor3PlanHabitIds = usePrefsStore(s => s.spor3PlanHabitIds);
+  const spor3PlanTaskIds = usePrefsStore(s => s.spor3PlanTaskIds);
+  const sporReviewShown = usePrefsStore(s => s.sporReviewShown);
+  const setSporReviewShown = usePrefsStore(s => s.setSporReviewShown);
   const sporPlanHabitIds = usePrefsStore(s => s.sporPlanHabitIds);
   const sporPlanTaskIds = usePrefsStore(s => s.sporPlanTaskIds);
   const habits = useHabitStore(s => s.habits);
@@ -270,6 +279,32 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
   const progTotal = planHabits.length + wkTasks.length;
   const progDone = planHabits.filter(h => (h.completedDates ?? []).includes(todayKey)).length + wkTasks.filter(t => t.isCompleted).length;
   const progPct = progTotal > 0 ? Math.round((progDone / progTotal) * 100) : 0;
+
+  /*
+    HEDEF TARİHİ GEÇTİ — "nasıl gitti?" (bkz. useModeCompletionReview).
+    Maraton koşulduktan ya da hedef tarihi geçtikten sonra plan kendiliğinden
+    kapanmıyor, antrenman alışkanlıkları listede kalmaya devam ediyordu.
+  */
+  /*
+    RİTÜEL YALNIZ TEK HEDEF VARKEN ÇALIŞIR.
+
+    `closePlan` birinci slotu temizler ama modu TÜMÜYLE kapatır. İkinci/üçüncü hedefi
+    olan kullanıcıda otomatik kapanış, hâlâ süren o planları sahipsiz bırakırdı
+    (alışkanlıkları listede kalır, modu kapalı görünür). Birden çok hedefi olan
+    kullanıcı kapatmayı kendisi yapar; otomatik soru sorulmaz.
+  */
+  const otherSporSlotsEmpty =
+    spor2PlanHabitIds.length === 0 && spor2PlanTaskIds.length === 0 &&
+    spor3PlanHabitIds.length === 0 && spor3PlanTaskIds.length === 0;
+  useModeCompletionReview({
+    enabled: !!seasonal.sporMode && otherSporSlotsEmpty && (sporPlanHabitIds.length > 0 || sporPlanTaskIds.length > 0),
+    dateStr: seasonal.sporDate,
+    shown: sporReviewShown,
+    setShown: setSporReviewShown,
+    planMode: 'spor',
+    closePlan: () => closePlan(),
+    copy: completionCopy('spor', tr),
+  });
 
   const closePlan = () => {
     // ETIKET TABANLI SUPURME — id listesine bakmadan moda ait HER seyi kaldirir.
@@ -378,41 +413,39 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                       <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Düzenle' : 'Edit'}</Text>
                     </Touchable>
                   </View>
-                  {past ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                      {<Calendar size={ICON.sm} color={theme.error} />}
-                      <Text style={{ color: theme.error, fontWeight: '500' }}>{tr ? 'Hedef tarihi geçti' : 'Goal date passed'} · {formatPlanDate(effectiveSporDate, tr)}</Text>
-                    </View>
-                  ) : (
-                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: S.lg }}>
-                      <View style={{ alignItems: 'center', minWidth: 52 }}>
-                        <Text style={{ color: SPOR_TX, fontWeight: '700', fontSize: F.hero, lineHeight: F.hero + 2, letterSpacing: -1 }}>{daysLeft}</Text>
-                        <Text style={{ color: SPOR_TX, fontSize: F.caption2, fontWeight: '600', letterSpacing: 1 }}>{tr ? 'GÜN' : 'DAYS'}</Text>
-                      </View>
-                      <View style={{ flex: 1, paddingTop: S.xxs }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
-                          {<Calendar size={ICON.sm} color={theme.onSurfaceVariant} />}
-                          <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{formatPlanDate(effectiveSporDate, tr)}</Text>
-                        </View>
-                        {sporType === 'kilo' && kiloGoalKg > 0 ? (
-                          <View style={{ marginTop: S.sm, gap: S.xs }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Hedefe ilerleme' : 'Goal progress'}</Text><Text style={{ color: SPOR_TX, fontSize: F.caption, fontWeight: '600' }}>{kiloDoneKg.toFixed(1)}/{kiloGoalKg.toFixed(1)} kg · {kiloPct}%</Text></View>
-                            <ProgressRail variant="bar" value={kiloPct} color={SPOR} />
-                          </View>
-                        ) : (sporType === 'maraton' || sporType === 'guc' || sporType === 'genel') ? (
-                          <View style={{ marginTop: S.sm, gap: S.xs }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? (sporType === 'maraton' ? 'Bu hafta koşu' : 'Bu hafta antrenman') : (sporType === 'maraton' ? 'Runs this week' : 'Workouts this week')}</Text><Text style={{ color: SPOR_TX, fontSize: F.caption, fontWeight: '600' }}>{sporWeekDays}/{sporTrainTarget} · {sporTrainPct}%</Text></View>
-                            <ProgressRail variant="segments" value={sporWeekDays} total={sporTrainTarget} color={SPOR} />
-                          </View>
-                        ) : progTotal > 0 ? (
-                          <View style={{ marginTop: S.sm, gap: S.xs }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bugün' : 'Today'}</Text><Text style={{ color: SPOR_TX, fontSize: F.caption, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text></View>
-                            <ProgressRail variant="segments" value={progDone} total={progTotal} color={SPOR} />
-                          </View>
-                        ) : null}
-                      </View>
-                    </View>
-                  )}
+                  {/*
+                    Yaşayan planın ortak kabuğu; ÖLÇÜ spor moduna özel kalıyor
+                    (kilodaki yol ya da haftalık antrenman) — bkz. ModePlanSummary.progress.
+                  */}
+                  <ModePlanSummary
+                    language={tr ? 'tr' : 'en'}
+                    accent={SPOR}
+                    accentText={SPOR_TX}
+                    goalName={seasonal.sporGoal || (tr ? 'Spor hedefi' : 'Fitness goal')}
+                    daysLeft={effectiveSporDate ? daysLeft : null}
+                    past={past}
+                    dateLabel={effectiveSporDate ? formatPlanDate(effectiveSporDate, tr) : ''}
+                    todayDone={progDone}
+                    todayTotal={progTotal}
+                    progress={
+                  sporType === 'kilo' && kiloGoalKg > 0 ? (
+                                            <View style={{ marginTop: S.sm, gap: S.xs }}>
+                                              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Hedefe ilerleme' : 'Goal progress'}</Text><Text style={{ color: SPOR_TX, fontSize: F.caption, fontWeight: '600' }}>{kiloDoneKg.toFixed(1)}/{kiloGoalKg.toFixed(1)} kg · {kiloPct}%</Text></View>
+                                              <ProgressRail variant="bar" value={kiloPct} color={SPOR} />
+                                            </View>
+                                          ) : (sporType === 'maraton' || sporType === 'guc' || sporType === 'genel') ? (
+                                            <View style={{ marginTop: S.sm, gap: S.xs }}>
+                                              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? (sporType === 'maraton' ? 'Bu hafta koşu' : 'Bu hafta antrenman') : (sporType === 'maraton' ? 'Runs this week' : 'Workouts this week')}</Text><Text style={{ color: SPOR_TX, fontSize: F.caption, fontWeight: '600' }}>{sporWeekDays}/{sporTrainTarget} · {sporTrainPct}%</Text></View>
+                                              <ProgressRail variant="segments" value={sporWeekDays} total={sporTrainTarget} color={SPOR} />
+                                            </View>
+                                          ) : progTotal > 0 ? (
+                                            <View style={{ marginTop: S.sm, gap: S.xs }}>
+                                              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bugün' : 'Today'}</Text><Text style={{ color: SPOR_TX, fontSize: F.caption, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text></View>
+                                              <ProgressRail variant="segments" value={progDone} total={progTotal} color={SPOR} />
+                                            </View>
+                                          ) : null
+                    }
+                  />
                 </View>
               </View>
 
