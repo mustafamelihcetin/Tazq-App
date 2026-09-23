@@ -27,6 +27,17 @@ nav.top{display:flex;align-items:center;justify-content:space-between;gap:1rem;p
 nav.top a.brand{display:flex;align-items:center;gap:.55rem;text-decoration:none;color:var(--ink);font-weight:800}
 nav.top img{display:block}
 nav.top a.back{font-size:.92rem;font-weight:700;text-decoration:none}
+/*
+  DİL DÜĞMESİ — altı rehber sayfası tek dil sistemini paylaşıyor (bkz. sayfa
+  sonundaki I18N betiği). `.nav-right` ile `.back` ve `.lang` aynı sağ grupta
+  kalır; yoksa üç öğeli bir `space-between` iki uçtaki boşluğu bozardı.
+*/
+.nav-right{display:flex;align-items:center;gap:1rem}
+.lang{display:flex;background:rgba(24,24,27,.06);border-radius:999px;padding:3px}
+@media (prefers-color-scheme: dark){ .lang{background:rgba(255,255,255,.08)} }
+.lang button{border:0;background:transparent;color:var(--ink-2);font-weight:800;font-size:.72rem;
+  padding:.3rem .6rem;border-radius:999px;cursor:pointer;font-family:inherit}
+.lang button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 header.hero{padding-block:clamp(1.5rem,5vw,3rem) 1rem}
 .eyebrow{font-size:.78rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0 0 .6rem}
 h1{font-size:clamp(1.9rem,5.4vw,2.9rem);line-height:1.08;letter-spacing:-.035em;font-weight:800;margin:0;text-wrap:balance}

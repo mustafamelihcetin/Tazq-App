@@ -686,7 +686,8 @@ var I18N = {
     "cta.title":"Odaklan. İlerle. Dengede kal.","cta.sub":"Bugün TAZQ ile başla — üretkenliğini ve huzurunu aynı yerde topla.",
     "foot.tag":"Odaklan. İlerle. Dengede kal. Üretkenlik ve huzur bir arada.",
     "foot.product":"Ürün",
-    "foot.guides":"Rehberler","foot.legal":"Yasal","foot.contact":"İletişim",
+    "meta.title":"TAZQ — Sınav ve Hedef Planlayıcı: Günlük Programını Kurar",
+    "foot.guides":"Rehberler","foot.legal":"Yasal","foot.contact":"İletişim","support.title":"Destek Merkezi",
     "guide.yks":"YKS çalışma programı","guide.kpss":"KPSS çalışma planı","guide.tez":"Tez takibi",
     "guide.quit":"Sigara bırakma takibi","guide.save":"Tasarruf hedefi","guide.fit":"Spor ve kilo takibi",
     "foot.privacy":"Gizlilik Politikası","foot.terms":"Kullanıcı Sözleşmesi","foot.kvkk":"KVKK Aydınlatma","foot.consent":"Açık Rıza",
@@ -736,7 +737,8 @@ var I18N = {
     "cta.title":"Focus. Progress. Stay balanced.","cta.sub":"Start with TAZQ today — bring your productivity and calm together.",
     "foot.tag":"Focus. Progress. Stay balanced. Productivity and calm, together.",
     "foot.product":"Product",
-    "foot.guides":"Guides (TR)","foot.legal":"Legal","foot.contact":"Contact",
+    "meta.title":"TAZQ — Exam & Goal Planner: Builds Your Daily Program",
+    "foot.guides":"Guides (TR)","foot.legal":"Legal","foot.contact":"Contact","support.title":"Support Center",
     "guide.yks":"YKS study plan","guide.kpss":"KPSS study plan","guide.tez":"Thesis tracking",
     "guide.quit":"Quit smoking tracker","guide.save":"Savings goal","guide.fit":"Fitness & weight tracking",
     "foot.privacy":"Privacy Policy","foot.terms":"Terms of Service","foot.kvkk":"Data Protection (KVKK)","foot.consent":"Explicit Consent",
@@ -748,6 +750,10 @@ var DAYS = { tr:["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"], en:["Mon","Tue","W
 function applyLang(lang){
   var dict = I18N[lang] || I18N.tr;
   document.documentElement.lang = lang;
+  // Sekme başlığı (document.title) `[data-i18n]` taramasına GİRMEZ — <title> öğesi
+  // DOM'da görünür değil, querySelectorAll onu es geçer. Ayrı yazılmazsa dil
+  // değiştiren İngilizce ziyaretçi sekmede hâlâ Türkçe başlığı görürdü.
+  if (dict['meta.title']) document.title = dict['meta.title'];
   document.querySelectorAll('[data-i18n]').forEach(function(el){ var k=el.getAttribute('data-i18n'); if(dict[k]!=null) el.textContent=dict[k]; });
   document.querySelectorAll('[data-i18n-html]').forEach(function(el){ var k=el.getAttribute('data-i18n-html'); if(dict[k]!=null) el.innerHTML=dict[k]; });
   var bd=document.getElementById('barday'); if(bd) bd.innerHTML = DAYS[lang].map(function(d){return '<span>'+d+'</span>';}).join('');

@@ -274,7 +274,7 @@
   </nav>
   <section class="wrap" style="padding-top:60px; padding-bottom:80px; min-height:60vh;">
     <div style="max-width:640px; margin:0 auto; text-align:center;">
-      <h1 style="font-size:32px; font-weight:800; letter-spacing:-1px; margin-bottom:12px;" data-i18n="support.title">Destek Merkezi / Support Center</h1>
+      <h1 style="font-size:32px; font-weight:800; letter-spacing:-1px; margin-bottom:12px;" data-i18n="support.title">Destek Merkezi</h1>
       <p style="color:var(--muted); font-size:16px; margin-bottom:32px;" data-i18n="support.desc">TAZQ ile ilgili yaşadığınız sorunlar veya önerileriniz için bizimle iletişime geçin.</p>
       
       <div style="background:var(--card); border:1px solid var(--line); border-radius:18px; padding:32px; box-shadow:0 6px 20px rgba(24,24,27,.04); text-align:left;">
@@ -327,6 +327,8 @@
 <script>
 var I18N = {
   tr: {
+    "meta.title":"Destek Merkezi — TAZQ",
+    "support.title":"Destek Merkezi","support.desc":"TAZQ ile ilgili yaşadığınız sorunlar veya önerileriniz için bizimle iletişime geçin.","support.email_title":"Bize E-posta Gönderin","support.email_desc":"Her türlü soru, görüş ve destek talebiniz için aşağıdaki e-posta adresinden bize 7/24 ulaşabilirsiniz. Ekibimiz size en kısa sürede dönüş yapacaktır.","support.faq_title":"Sıkça Sorulan Sorular","support.faq_desc":"Uygulamanın genel kullanımı hakkında bilgi almak için ana sayfamızdaki <a href='/#sss' style='color:var(--primary); font-weight:600;'>SSS bölümüne</a> göz atabilirsiniz.",
     "nav.features":"Özellikler","nav.how":"Nasıl çalışır","nav.faq":"SSS","soon":"YAKINDA",
     "hero.eyebrow":"Üretkenlik & huzur",
     "hero.title":"Odağını topla,<br><span class='g'>hayatını dengele</span>",
@@ -337,7 +339,7 @@ var I18N = {
     "ph.habits":"Alışkanlıklar","ph.h1":"Kitap","ph.h2":"Su İç","ph.h3":"Yürüyüş",
     "ph.deepfocus":"Derin Odak","ph.session":"Pomodoro · 1 / 4 seans","ph.ambient":"Ambiyans",
     "ph.modes":"Dönemsel Modlar","ph.modesSub":"Dönemine özel günlük planın",
-    "ph.modeExam":"Sınav Modu<small>Günlük çalışma bloğu</small>","ph.modeFit":"Spor Modu<small>Antrenman & alışkanlık</small>","ph.modeCareer":"Kariyer Modu<small>Hedef odaklı görevler</small>",
+    "ph.modeExam":"YKS 2027<small>Günlük çalışma bloğu</small>","ph.modeFit":"Kilo Hedefi<small>Antrenman & alışkanlık</small>","ph.modeCareer":"Acil Fon<small>Haftalık bakiye takibi</small>",
     "ph.momScore":"Momentum skoru","ph.momSub":"Bu hafta 6.5 sa odak · 🔥 12 gün seri","ph.weekly":"Haftalık Odak",
     "v1.t":"Pomodoro Odak","v1.d":"Derin odak sayacı, ambiyans ve zen modu.",
     "v2.t":"Dönemsel Plan","v2.d":"Sınav, spor, kariyer — her gün otomatik.",
@@ -369,6 +371,7 @@ var I18N = {
     "foot.made":"Türkiye'de tasarlandı ♥"
   },
   en: {
+    "meta.title":"Support Center — TAZQ",
     "nav.features":"Features","nav.how":"How it works","nav.faq":"FAQ","soon":"SOON",
     "hero.eyebrow":"Productivity & calm",
     "hero.title":"Focus deeply,<br><span class='g'>live in balance</span>",
@@ -379,7 +382,7 @@ var I18N = {
     "ph.habits":"Habits","ph.h1":"Read","ph.h2":"Hydrate","ph.h3":"Walk",
     "ph.deepfocus":"Deep Focus","ph.session":"Pomodoro · 1 / 4 sessions","ph.ambient":"Ambient",
     "ph.modes":"Life Modes","ph.modesSub":"Your daily plan for the season",
-    "ph.modeExam":"Exam Mode<small>Daily study block</small>","ph.modeFit":"Fitness Mode<small>Workout & habit</small>","ph.modeCareer":"Career Mode<small>Goal-focused tasks</small>",
+    "ph.modeExam":"Final Exams<small>Daily study block</small>","ph.modeFit":"Weight Goal<small>Workout & habit</small>","ph.modeCareer":"Emergency Fund<small>Weekly balance tracking</small>",
     "ph.momScore":"Momentum score","ph.momSub":"6.5 h focused this week · 🔥 12-day streak","ph.weekly":"Weekly Focus",
     "v1.t":"Pomodoro Focus","v1.d":"Deep focus timer, ambient sounds & zen mode.",
     "v2.t":"Life Plans","v2.d":"Exam, fitness, career — ready daily, automatically.",
@@ -416,6 +419,9 @@ var DAYS = { tr:["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"], en:["Mon","Tue","W
 function applyLang(lang){
   var dict = I18N[lang] || I18N.tr;
   document.documentElement.lang = lang;
+  // <title> [data-i18n] taramasına girmez (DOM'da görünür değil) — ayrı yazılmazsa
+  // dil değiştiren ziyaretçi sekmede eski dilin başlığını görmeye devam ederdi.
+  if (dict['meta.title']) document.title = dict['meta.title'];
   document.querySelectorAll('[data-i18n]').forEach(function(el){ var k=el.getAttribute('data-i18n'); if(dict[k]!=null) el.textContent=dict[k]; });
   document.querySelectorAll('[data-i18n-html]').forEach(function(el){ var k=el.getAttribute('data-i18n-html'); if(dict[k]!=null) el.innerHTML=dict[k]; });
   var bd=document.getElementById('barday'); if(bd) bd.innerHTML = DAYS[lang].map(function(d){return '<span>'+d+'</span>';}).join('');

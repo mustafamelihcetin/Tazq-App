@@ -969,6 +969,9 @@ let curDoc = "privacy", curLang = "tr";
 
 function render(){
   document.documentElement.lang = curLang;
+  // <title> DOM'da görünür değil; querySelectorAll'lu genel çeviri onu es geçer.
+  // Ayrı yazılmazsa EN'e geçen ziyaretçi sekmede hâlâ Türkçe belge adını görürdü.
+  document.title = DOCS[curDoc].title[curLang] + ' — TAZQ';
   document.querySelectorAll("#tabs .tab").forEach(b=>{
     b.textContent = TABS[curLang][b.dataset.doc];
     b.classList.toggle("active", b.dataset.doc===curDoc);

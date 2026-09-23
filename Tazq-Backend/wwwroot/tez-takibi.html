@@ -8,6 +8,9 @@
 <meta name="description" content="Tez takibi: teslim tarihine geri sayım, yazma ve okuma rutinleri, bölüm bölüm ilerleme ve odak zamanlayıcısı. Ücretsiz." />
 <meta name="keywords" content="tez takibi, tez yazma planı, tez teslim geri sayım, akademik çalışma programı, yüksek lisans tez planı" />
 <link rel="canonical" href="https://tazqapp.com/tez-takibi.html" />
+<link rel="alternate" hreflang="tr" href="https://tazqapp.com/tez-takibi.html" />
+<link rel="alternate" hreflang="en" href="https://tazqapp.com/tez-takibi.html?lang=en" />
+<link rel="alternate" hreflang="x-default" href="https://tazqapp.com/tez-takibi.html" />
 <meta name="robots" content="index,follow" />
 <meta property="og:type" content="article" />
 <meta property="og:site_name" content="TAZQ" />
@@ -55,64 +58,99 @@
       <img src="/images/icon.png" alt="" width="32" height="32" />
       <span>TAZQ</span>
     </a>
-    <a class="back" href="/">Ana sayfa</a>
+    <div class="nav-right">
+      <a class="back" href="/" data-i18n="nav.home">Ana sayfa</a>
+      <div class="lang" id="lang">
+        <button data-lang="tr" class="on">TR</button>
+        <button data-lang="en">EN</button>
+      </div>
+    </div>
   </nav>
 
   <header class="hero">
-    <p class="eyebrow">Tez modu</p>
-    <h1>Tez takibi</h1>
-    <p class="lead">Teslim tarihini gir; yazma, okuma ve düzeltme görevlerin gün gün kurulsun.</p>
+    <p class="eyebrow" data-i18n="eyebrow">Tez modu</p>
+    <h1 data-i18n="h1">Tez takibi</h1>
+    <p class="lead" data-i18n="lead">Teslim tarihini gir; yazma, okuma ve düzeltme görevlerin gün gün kurulsun.</p>
     <div class="cta">
-      <a class="btn" href="https://apps.apple.com/app/tazq/id6748417336">App Store'dan indir</a>
-      <span class="note">Ücretsiz · Reklamsız · Android yakında</span>
+      <a class="btn" href="https://apps.apple.com/app/tazq/id6748417336" data-i18n="cta.btn">App Store'dan indir</a>
+      <span class="note" data-i18n="cta.note">Ücretsiz · Reklamsız · Android yakında</span>
     </div>
   </header>
 
   <section>
-    <h2>Nasıl çalışır?</h2>
+    <h2 data-i18n="how.title">Nasıl çalışır?</h2>
     <ol class="steps">
-      <li><h3>Teslim tarihini gir</h3><p>Kalan süre görünür hale gelir; belirsizlik yerine sayı olur.</p></li>
-      <li><h3>Çalışma biçimini seç</h3><p>Düzenli yazma, dönüm noktası odaklı ilerleme ya da sprint — hangisi sana uyuyorsa.</p></li>
-      <li><h3>Her gün küçük bir adım</h3><p>Günlük yazma ve okuma görevleri otomatik çıkar; tez bir gecede değil, günlerle biter.</p></li>
+      <li><h3 data-i18n="step1.t">Teslim tarihini gir</h3><p data-i18n="step1.d">Kalan süre görünür hale gelir; belirsizlik yerine sayı olur.</p></li>
+      <li><h3 data-i18n="step2.t">Çalışma biçimini seç</h3><p data-i18n="step2.d">Düzenli yazma, dönüm noktası odaklı ilerleme ya da sprint — hangisi sana uyuyorsa.</p></li>
+      <li><h3 data-i18n="step3.t">Her gün küçük bir adım</h3><p data-i18n="step3.d">Günlük yazma ve okuma görevleri otomatik çıkar; tez bir gecede değil, günlerle biter.</p></li>
     </ol>
   </section>
 
   <section>
-    <h2>Bu modda ne var?</h2>
+    <h2 data-i18n="feat.title">Bu modda ne var?</h2>
     <ul class="feat">
-      <li><b>Teslim geri sayımı</b><span>Kalan gün her ekranda.</span></li>
-      <li><b>Yazma rutini</b><span>Günlük yazma ve kaynak okuma alışkanlıkları seriyle takip edilir.</span></li>
-      <li><b>Derin odak</b><span>Uzun odak seansları için zamanlayıcı, ambiyans sesleri ve katı odak modu.</span></li>
-      <li><b>Haftalık karne</b><span>Hangi gün ne kadar ilerlediğini görürsün.</span></li>
+      <li><b data-i18n="feat1.t">Teslim geri sayımı</b><span data-i18n="feat1.d">Kalan gün her ekranda.</span></li>
+      <li><b data-i18n="feat2.t">Yazma rutini</b><span data-i18n="feat2.d">Günlük yazma ve kaynak okuma alışkanlıkları seriyle takip edilir.</span></li>
+      <li><b data-i18n="feat3.t">Derin odak</b><span data-i18n="feat3.d">Uzun odak seansları için zamanlayıcı, ambiyans sesleri ve katı odak modu.</span></li>
+      <li><b data-i18n="feat4.t">Haftalık karne</b><span data-i18n="feat4.d">Hangi gün ne kadar ilerlediğini görürsün.</span></li>
     </ul>
   </section>
 
   <section>
-    <h2>Sık sorulanlar</h2>
-      <details><summary>Bölümleri tek tek girmek gerekiyor mu?</summary><p>Gerekmiyor; temel plan otomatik kurulur. İstersen kendi bölüm görevlerini ekleyebilirsin.</p></details>
-      <details><summary>Teslim tarihi uzarsa?</summary><p>Tarihi güncellediğinde plan kalan süreye göre yeniden düzenlenir.</p></details>
-      <details><summary>Ücretsiz mi?</summary><p>Evet, ücretsiz ve reklamsız.</p></details>
-      <details><summary>Verilerim nerede duruyor?</summary><p>Cihazında; hesap açarsan sunucuyla eşitlenir. Görev metinleri şifreli saklanır.</p></details>
+    <h2 data-i18n="faq.title">Sık sorulanlar</h2>
+      <details><summary data-i18n="faq1.q">Bölümleri tek tek girmek gerekiyor mu?</summary><p data-i18n="faq1.a">Gerekmiyor; temel plan otomatik kurulur. İstersen kendi bölüm görevlerini ekleyebilirsin.</p></details>
+      <details><summary data-i18n="faq2.q">Teslim tarihi uzarsa?</summary><p data-i18n="faq2.a">Tarihi güncellediğinde plan kalan süreye göre yeniden düzenlenir.</p></details>
+      <details><summary data-i18n="faq3.q">Ücretsiz mi?</summary><p data-i18n="faq3.a">Evet, ücretsiz ve reklamsız.</p></details>
+      <details><summary data-i18n="faq4.q">Verilerim nerede duruyor?</summary><p data-i18n="faq4.a">Cihazında; hesap açarsan sunucuyla eşitlenir. Görev metinleri şifreli saklanır.</p></details>
   </section>
 
   <section>
-    <h2>Diğer modlar</h2>
+    <h2 data-i18n="other.title">Diğer modlar</h2>
     <div class="links">
-        <a href="/yks-calisma-programi.html">YKS çalışma programı</a>
-        <a href="/kpss-calisma-plani.html">KPSS çalışma planı</a>
-        <a href="/sigara-birakma-takibi.html">Sigara bırakma takibi</a>
-        <a href="/tasarruf-hedefi.html">Tasarruf hedefi takibi</a>
-        <a href="/spor-ve-kilo-takibi.html">Spor ve kilo takibi</a>
+        <a href="/yks-calisma-programi.html" data-i18n="link.yks">YKS çalışma programı</a>
+        <a href="/kpss-calisma-plani.html" data-i18n="link.kpss">KPSS çalışma planı</a>
+        <a href="/sigara-birakma-takibi.html" data-i18n="link.quit">Sigara bırakma takibi</a>
+        <a href="/tasarruf-hedefi.html" data-i18n="link.save">Tasarruf hedefi takibi</a>
+        <a href="/spor-ve-kilo-takibi.html" data-i18n="link.fit">Spor ve kilo takibi</a>
     </div>
   </section>
 
   <footer>
-    <p>TAZQ — odak, görev ve alışkanlıklar tek uygulamada.
-    <a href="/gizlilik.html#privacy">Gizlilik</a> ·
-    <a href="/support">Destek</a> ·
+    <p><span data-i18n="foot.tag">TAZQ — odak, görev ve alışkanlıklar tek uygulamada.</span>
+    <a href="/gizlilik.html#privacy" data-i18n="foot.privacy">Gizlilik</a> ·
+    <a href="/support" data-i18n="foot.support">Destek</a> ·
     <a href="/">tazqapp.com</a></p>
   </footer>
 
 </div>
+
+<script>
+var I18N = {
+  tr: {"nav.home":"Ana sayfa","cta.btn":"App Store'dan indir","cta.note":"Ücretsiz · Reklamsız · Android yakında","how.title":"Nasıl çalışır?","feat.title":"Bu modda ne var?","faq.title":"Sık sorulanlar","other.title":"Diğer modlar","foot.tag":"TAZQ — odak, görev ve alışkanlıklar tek uygulamada.","foot.privacy":"Gizlilik","foot.support":"Destek","meta.title":"Tez Takibi ve Yazma Planı — Teslim Tarihine Göre | TAZQ","eyebrow":"Tez modu","h1":"Tez takibi","lead":"Teslim tarihini gir; yazma, okuma ve düzeltme görevlerin gün gün kurulsun.","step1.t":"Teslim tarihini gir","step1.d":"Kalan süre görünür hale gelir; belirsizlik yerine sayı olur.","step2.t":"Çalışma biçimini seç","step2.d":"Düzenli yazma, dönüm noktası odaklı ilerleme ya da sprint — hangisi sana uyuyorsa.","step3.t":"Her gün küçük bir adım","step3.d":"Günlük yazma ve okuma görevleri otomatik çıkar; tez bir gecede değil, günlerle biter.","feat1.t":"Teslim geri sayımı","feat1.d":"Kalan gün her ekranda.","feat2.t":"Yazma rutini","feat2.d":"Günlük yazma ve kaynak okuma alışkanlıkları seriyle takip edilir.","feat3.t":"Derin odak","feat3.d":"Uzun odak seansları için zamanlayıcı, ambiyans sesleri ve katı odak modu.","feat4.t":"Haftalık karne","feat4.d":"Hangi gün ne kadar ilerlediğini görürsün.","faq1.q":"Bölümleri tek tek girmek gerekiyor mu?","faq1.a":"Gerekmiyor; temel plan otomatik kurulur. İstersen kendi bölüm görevlerini ekleyebilirsin.","faq2.q":"Teslim tarihi uzarsa?","faq2.a":"Tarihi güncellediğinde plan kalan süreye göre yeniden düzenlenir.","faq3.q":"Ücretsiz mi?","faq3.a":"Evet, ücretsiz ve reklamsız.","faq4.q":"Verilerim nerede duruyor?","faq4.a":"Cihazında; hesap açarsan sunucuyla eşitlenir. Görev metinleri şifreli saklanır.","link.yks":"YKS çalışma programı","link.kpss":"KPSS çalışma planı","link.quit":"Sigara bırakma takibi","link.save":"Tasarruf hedefi takibi","link.fit":"Spor ve kilo takibi"},
+  en: {"nav.home":"Home","cta.btn":"Download on the App Store","cta.note":"Free · No ads · Android coming soon","how.title":"How it works","feat.title":"What's in this mode?","faq.title":"FAQ","other.title":"Other modes","foot.tag":"TAZQ — focus, tasks and habits in one app.","foot.privacy":"Privacy","foot.support":"Support","meta.title":"Thesis Tracking & Writing Plan — By Your Deadline | TAZQ","eyebrow":"Thesis mode","h1":"Thesis tracking","lead":"Set your deadline — your writing, reading and editing tasks build themselves, day by day.","step1.t":"Enter your deadline","step1.d":"The time you have left becomes visible — a number instead of uncertainty.","step2.t":"Choose how you work","step2.d":"Steady writing, milestone-driven progress, or a sprint — whichever fits you.","step3.t":"A small step every day","step3.d":"Daily writing and reading tasks appear automatically — a thesis gets finished over days, not overnight.","feat1.t":"Deadline countdown","feat1.d":"Days left, on every screen.","feat2.t":"Writing routine","feat2.d":"Daily writing and source-reading habits are tracked as a streak.","feat3.t":"Deep focus","feat3.d":"A timer, ambient sounds and strict focus mode for long sessions.","feat4.t":"Weekly report","feat4.d":"See how much progress you made each day.","faq1.q":"Do I need to enter each chapter myself?","faq1.a":"No — the base plan is built automatically. You can add your own chapter tasks if you want.","faq2.q":"What if my deadline gets pushed back?","faq2.a":"Update the date and the plan reorganizes around the time you have left.","faq3.q":"Is it free?","faq3.a":"Yes, free and ad-free.","faq4.q":"Where is my data stored?","faq4.a":"On your device; it syncs with the server if you create an account. Task text is stored encrypted.","link.yks":"YKS study plan","link.kpss":"KPSS study plan","link.quit":"Quit smoking tracker","link.save":"Savings goal tracker","link.fit":"Fitness & weight tracking"}
+};
+function applyLang(lang){
+  var dict = I18N[lang] || I18N.tr;
+  document.documentElement.lang = lang;
+  if (dict['meta.title']) document.title = dict['meta.title'];
+  document.querySelectorAll('[data-i18n]').forEach(function(el){ var k=el.getAttribute('data-i18n'); if(dict[k]!=null) el.textContent=dict[k]; });
+  document.querySelectorAll('[data-i18n-html]').forEach(function(el){ var k=el.getAttribute('data-i18n-html'); if(dict[k]!=null) el.innerHTML=dict[k]; });
+  document.querySelectorAll('#lang button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-lang')===lang); });
+  try{ localStorage.setItem('tazq-lang', lang); }catch(e){}
+}
+(function(){
+  var saved; try{ saved=localStorage.getItem('tazq-lang'); }catch(e){}
+  var urlLang = (location.search.match(/[?&]lang=(tr|en)/)||[])[1];
+  function detectLang(){
+    try{ if((Intl.DateTimeFormat().resolvedOptions().timeZone||'')==='Europe/Istanbul') return 'tr'; }catch(e){}
+    var l=((navigator.language||(navigator.languages&&navigator.languages[0])||'')+'').toLowerCase();
+    return l.indexOf('tr')===0 ? 'tr' : 'en';
+  }
+  var lang = urlLang || saved || detectLang();
+  applyLang(lang);
+  var langEl = document.getElementById('lang');
+  if (langEl) langEl.addEventListener('click', function(e){ var b=e.target.closest('button'); if(!b) return; applyLang(b.getAttribute('data-lang')); });
+})();
+</script>
 </body>
 </html>
