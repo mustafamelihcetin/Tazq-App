@@ -29,7 +29,7 @@ initSentry();
 import '../global.css';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useColorScheme, View, LogBox, AppState, Text, TextInput, Animated, StyleSheet } from 'react-native';
 import { uiDepth } from '@/shared/constants/uiDepth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -374,12 +374,37 @@ export default function RootLayout() {
   }, [isLoggedIn, notifPermission, language, notifSig]);
 
 
+  /*
+    SOĞUK BAŞLATMADA KAÇAN EYLEM.
+
+    ── ÖLÇÜLEN SORUN ───────────────────────────────────────────────────────────
+    Kullanıcı bir görev hatırlatmasında kilit ekranından "Tamamla"ya bastı
+    (`opensAppToForeground: false` — uygulama öne gelmez). Uygulama o an kapalıysa
+    iOS süreci ARKA PLANDA kısa süreliğine ayağa kaldırır; ama `addNotificationResponseReceivedListener`
+    yalnız DİNLEYİCİ ABONE OLDUKTAN SONRA gelen yanıtları yakalar. Süreci başlatan
+    yanıtın kendisi — ki tam olarak buydu — bu akışa hiç girmez; Expo'nun kendi
+    belgelediği davranış budur. Sonuç: bildirim "işlendi" gibi kapanıyor ama
+    `completeTask` hiç çalışmıyor, uygulamayı açtığında görev hâlâ açık duruyor.
+
+    Çözüm: `getLastNotificationResponseAsync()` — süreci başlatan yanıtı AYRICA
+    sorar. Aynı yanıtın dinleyiciden de gelme ihtimaline karşı (arka planda hâlâ
+    açıkken tetiklenen bir eylem gibi) `handledRef` ile kimliğe göre tekilleştirilir;
+    `completeTask` zaten idempotent olsa da (`isCompleted` ise `'skipped'` döner)
+    yönlendirme eylemlerinin (`router.push`) iki kez tetiklenmesini önler.
+  */
+  const handledNotifIds = useRef<Set<string>>(new Set());
+
   // Notification response handler — covers tap, Watch action buttons, and Lock Screen actions
   useEffect(() => {
     let sub: any;
     try {
       const Notifs = require('expo-notifications');
-      sub = Notifs.addNotificationResponseReceivedListener((response: any) => {
+      const handleResponse = (response: any) => {
+        const reqId = response?.notification?.request?.identifier;
+        if (reqId) {
+          if (handledNotifIds.current.has(reqId)) return;
+          handledNotifIds.current.add(reqId);
+        }
         const action = response?.actionIdentifier;
         const data = response?.notification?.request?.content?.data ?? {};
 
@@ -489,7 +514,12 @@ export default function RootLayout() {
         } else {
           router.push('/tasks');
         }
-      });
+      };
+      // Süreci BAŞLATAN yanıt — yalnız bir kez, bu akışın dışında sorulmazsa kaybolur.
+      Notifs.getLastNotificationResponseAsync?.()
+        ?.then((r: any) => { if (r) handleResponse(r); })
+        .catch((e: unknown) => swallow('layout.notifLastResponse', e));
+      sub = Notifs.addNotificationResponseReceivedListener(handleResponse);
     } catch (e) { swallow('layout.notificationResponseHandler', e); }
     return () => { try { sub?.remove?.(); } catch (e) { swallow('layout.notificationSubscriptionRemove', e); } };
   }, [isLoggedIn]);
