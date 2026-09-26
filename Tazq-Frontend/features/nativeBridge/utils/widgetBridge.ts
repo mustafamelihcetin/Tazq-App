@@ -1,26 +1,22 @@
-import { Platform } from 'react-native';
 import { useHabitStore } from '@/features/habits';
 import { useFocusStore } from '@/features/focus/store/useFocusStore';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { fmtDateKey } from '@/features/habits';
 import { completeTask } from '@/features/tasks/utils/taskActions';
 import { swallow } from '@/shared/utils/swallow';
+import TazqWidgetBridge from '@/modules/tazq-widget-bridge/src/TazqWidgetBridgeModule';
 
 /**
  * Telefon → Ana Ekran Widget'ı ve Apple Watch köprüsü.
  *
- * Yalnız iOS'ta gerçek bir native modül var (bkz. modules/tazq-widget-bridge);
- * Android'de ve Expo Go'da modül hiç bağlı değil, o yüzden her çağrı sessizce
- * no-op olmalı — bu dosyanın dışına "Platform.OS === 'ios'" kontrolü sızdırmamak
- * için burada tek noktadan yapılıyor.
+ * `TazqWidgetBridge` yalnız iOS'ta, native kodu derlenmiş bir build'de dolu
+ * gelir — Android'de, Expo Go'da ya da native kodu henüz içermeyen ESKİ bir
+ * dev client'ta `null`dur (bkz. modül dosyasındaki `requireOptionalNativeModule`
+ * notu). Her çağıran bu tek fonksiyondan geçtiği için platform/derleme
+ * kontrolü tek yerde kalıyor.
  */
-function getBridge(): typeof import('@/modules/tazq-widget-bridge/src/TazqWidgetBridgeModule').default | null {
-  if (Platform.OS !== 'ios') return null;
-  try {
-    return require('@/modules/tazq-widget-bridge/src/TazqWidgetBridgeModule').default;
-  } catch {
-    return null;
-  }
+function getBridge(): typeof TazqWidgetBridge {
+  return TazqWidgetBridge;
 }
 
 let lastPushedJson = '';
