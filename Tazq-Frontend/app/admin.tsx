@@ -57,6 +57,46 @@ const LOG_PAGE_SIZE = 50;
 const CRASH_PAGE_SIZE = 20;
 const AUDIT_PAGE_SIZE = 40;
 
+/**
+ * Dönemsel mod ailesi → emoji/renk/ad — backend'in `ModeAdoption.Mode` alanıyla
+ * birebir eşleşir (bkz. AdminService.cs `ModeFamilies`). Satır içi `tr ? :` yerine
+ * sözlük (bkz. i18nRatchet testi).
+ */
+const MODE_META: Record<string, { emoji: string; color: string; labelTr: string; labelEn: string }> = {
+  exam: { emoji: '🎯', color: '#0B6BCB', labelTr: 'Sınav', labelEn: 'Exam' },
+  tez: { emoji: '📚', color: '#8B5CF6', labelTr: 'Tez', labelEn: 'Thesis' },
+  mulakat: { emoji: '💼', color: '#10B981', labelTr: 'Mülakat', labelEn: 'Interview' },
+  spor: { emoji: '💪', color: '#F59E0B', labelTr: 'Spor', labelEn: 'Fitness' },
+  ramazan: { emoji: '🌙', color: '#6366F1', labelTr: 'Ramazan', labelEn: 'Ramadan' },
+  tasarruf: { emoji: '💰', color: '#06B6D4', labelTr: 'Tasarruf', labelEn: 'Savings' },
+  birakma: { emoji: '🚫', color: '#F43F5E', labelTr: 'Bırakma', labelEn: 'Quitting' },
+  default: { emoji: '❔', color: '#6B7280', labelTr: 'Diğer', labelEn: 'Other' },
+};
+
+/** Ürün İçgörüleri bölümünün metinleri — sözlük (bkz. i18nRatchet, MODE_META üstü). */
+const INSIGHTS_COPY = {
+  modesTitle: { tr: 'DÖNEMSEL MOD BENİMSENMESİ', en: 'SEASONAL MODE ADOPTION' },
+  noData: { tr: 'Henüz veri yok.', en: 'No data yet.' },
+  retentionTitle: { tr: 'HAFTALIK ELDE TUTMA (7 GÜN SONRA)', en: 'WEEKLY RETENTION (AFTER 7 DAYS)' },
+  versionsTitle: { tr: 'SÜRÜM DAĞILIMI', en: 'VERSION DISTRIBUTION' },
+};
+
+const MODE_SUMMARY_WORDS = {
+  active: { tr: 'aktif', en: 'active' },
+  closed: { tr: 'kapanmış', en: 'closed' },
+  avgPrefix: { tr: 'ort.', en: 'avg' },
+  daySuffix: { tr: ' gün', en: 'd' },
+};
+
+function modeSummaryLine(tr: boolean, m: AdminModeAdoption): string {
+  const w = MODE_SUMMARY_WORDS;
+  const lang = tr ? 'tr' : 'en';
+  const active = `${m.activeUsers} ${w.active[lang]}`;
+  const closed = `${m.closedGoals} ${w.closed[lang]}`;
+  const avg = m.avgDurationDays == null ? '' : ` · ${w.avgPrefix[lang]} ${m.avgDurationDays}${w.daySuffix[lang]}`;
+  return `${active} · ${closed}${avg}`;
+}
+
 export default function AdminScreen() {
   const { theme, colorScheme } = useAppTheme();
   const { language } = useLanguageStore();
@@ -633,6 +673,89 @@ export default function AdminScreen() {
                     ))}
                   </View>
                 </View>
+              )}
+
+              {/* ── Ürün İçgörüleri: dönemsel mod benimsenmesi, elde tutma, sürüm ── */}
+              {insights && (
+                <>
+                  <View style={{ backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
+                    <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant }}>
+                      {tr ? INSIGHTS_COPY.modesTitle.tr : INSIGHTS_COPY.modesTitle.en}
+                    </Text>
+                    {insights.modes.every(m => m.activeUsers === 0 && m.closedGoals === 0) ? (
+                      <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted }}>
+                        {tr ? INSIGHTS_COPY.noData.tr : INSIGHTS_COPY.noData.en}
+                      </Text>
+                    ) : (
+                      insights.modes
+                        .filter(m => m.activeUsers > 0 || m.closedGoals > 0)
+                        .sort((a, b) => (b.activeUsers + b.closedGoals) - (a.activeUsers + a.closedGoals))
+                        .map(m => {
+                          const meta = MODE_META[m.mode] ?? MODE_META.default;
+                          return (
+                            <View key={m.mode} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: S.xs }}>
+                              <View style={{ width: 30, height: 30, borderRadius: R.sm, backgroundColor: meta.color + '20', alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ fontSize: 15 }}>{meta.emoji}</Text>
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurface }}>
+                                  {tr ? meta.labelTr : meta.labelEn}
+                                </Text>
+                                <Text style={{ fontSize: 10, color: theme.onSurfaceMuted }}>
+                                  {modeSummaryLine(tr, m)}
+                                </Text>
+                              </View>
+                              <Text style={{ fontSize: F.title3, fontWeight: '700', color: meta.color }}>{m.activeUsers}</Text>
+                            </View>
+                          );
+                        })
+                    )}
+                  </View>
+
+                  {insights.retention.length > 0 && (
+                    <View style={{ backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.md }}>
+                      <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, marginBottom: S.md }}>
+                        {tr ? INSIGHTS_COPY.retentionTitle.tr : INSIGHTS_COPY.retentionTitle.en}
+                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: S.xs, height: 60 }}>
+                        {insights.retention.map((c, i) => {
+                          const pct = c.newUsers > 0 ? Math.round((c.stillActiveAfter7d / c.newUsers) * 100) : 0;
+                          return (
+                            <View key={i} style={{ flex: 1, alignItems: 'center', gap: S.xs }}>
+                              <MotiView
+                                from={{ height: 2 }}
+                                animate={{ height: Math.max(4, (pct / 100) * 48) }}
+                                transition={{ type: 'timing', duration: 600, delay: i * 60 }}
+                                style={{ width: '100%', backgroundColor: pct >= 40 ? '#10B981' : pct > 0 ? '#F59E0B' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'), borderRadius: R.xs }}
+                              />
+                              <Text style={{ fontSize: 9, fontWeight: '600', color: theme.onSurfaceMuted }}>{c.weekLabel}</Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
+
+                  {insights.versions.length > 0 && (
+                    <View style={{ backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.xs }}>
+                      <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, marginBottom: S.xs }}>
+                        {tr ? INSIGHTS_COPY.versionsTitle.tr : INSIGHTS_COPY.versionsTitle.en}
+                      </Text>
+                      {insights.versions.slice(0, 6).map(v => {
+                        const pct = insights.usersWithKnownVersion > 0 ? Math.round((v.users / insights.usersWithKnownVersion) * 100) : 0;
+                        return (
+                          <View key={v.version} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+                            <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurface, width: 64 }}>{v.version}</Text>
+                            <View style={{ flex: 1, height: 6, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)', borderRadius: R.full, overflow: 'hidden' }}>
+                              <View style={{ width: `${pct}%`, height: '100%', backgroundColor: theme.primary, borderRadius: R.full }} />
+                            </View>
+                            <Text style={{ fontSize: 10, color: theme.onSurfaceMuted, width: 30, textAlign: 'right' }}>{pct}%</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+                </>
               )}
             </>
           )}
