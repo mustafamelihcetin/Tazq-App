@@ -25,10 +25,33 @@ namespace Tazq_App.Services
 
     public enum AdminActionResult { Success, NotFound, SelfActionForbidden }
 
+    /// <summary>
+    /// Bir dönemsel modun (sınav, tez, spor…) benimsenme özeti.
+    /// `ActiveUsers`: şu an o modu açık tutan kullanıcı sayısı (User.Preferences → seasonal).
+    /// `ClosedGoals`/`AvgDurationDays`/`AvgEffortDays`: KAPANMIŞ hedeflerin geçmişinden
+    /// (goalHistory) — "insanlar bu modda ne kadar kalıyor, kaç gününde gerçekten çalışıyor".
+    /// </summary>
+    public record ModeAdoption(string Mode, int ActiveUsers, int ClosedGoals, double? AvgDurationDays, double? AvgEffortDays);
+
+    /// <summary>
+    /// Haftalık kayıt kohortu — o hafta kaydolanların kaçı 7 gün sonra hâlâ görünüyordu.
+    /// Kohort, kaydolduktan en az 7 gün geçmiş kullanıcılarla sınırlı (aksi halde "henüz
+    /// 7 günü dolmamış" biri yanlışlıkla "kaybedilmiş" sayılır).
+    /// </summary>
+    public record RetentionCohort(string WeekLabel, int NewUsers, int StillActiveAfter7d);
+
+    public record VersionShare(string Version, int Users);
+
+    public record ProductInsights(
+        List<ModeAdoption> Modes, int UsersWithPreferences,
+        List<RetentionCohort> Retention,
+        List<VersionShare> Versions, int UsersWithKnownVersion, int TotalUsers);
+
     public interface IAdminService
     {
         Task<UserListResult> GetUsersAsync(int page, int pageSize, string? search, string? sort, bool asc);
         Task<AdminStats> GetStatsAsync();
+        Task<ProductInsights> GetProductInsightsAsync();
         Task<AdminActionResult> DeleteUserAsync(int id, AdminIdentity admin);
         Task<AdminActionResult> SetRoleAsync(int id, string role, AdminIdentity admin);
         Task<(AdminActionResult Result, User? User)> SetBanAsync(int id, bool banned, int? durationDays, string? reason, AdminIdentity admin);

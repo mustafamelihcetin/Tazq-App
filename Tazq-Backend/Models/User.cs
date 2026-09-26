@@ -70,6 +70,12 @@ namespace Tazq_App.Models
         // Bkz. Program.cs'teki throttled last-active middleware.
         public DateTime? LastActiveAt { get; set; }
 
+        // İstemcinin kendi bildirdiği sürüm (X-App-Version başlığı) — aynı throttled
+        // middleware'de LastActiveAt ile birlikte yazılır. Admin panelinin "kim hangi
+        // sürümde" sorusuna cevap vermesi için; başlık göndermeyen eski istemcilerde null.
+        [MaxLength(20)]
+        public string? LastKnownAppVersion { get; set; }
+
         // Soft-delete: hesap silindiğinde işaretlenir. Grace period içinde tekrar giriş = reaktivasyon;
         // süre dolunca arka plan servisi kalıcı olarak siler. null = aktif hesap.
         public DateTime? DeletedAt { get; set; }

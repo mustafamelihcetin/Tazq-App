@@ -649,8 +649,22 @@ app.Use(async (context, next) =>
             lastActiveWrites[uid] = now;
             using var scope = context.RequestServices.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<Tazq_App.Data.AppDbContext>();
-            await db.Database.ExecuteSqlInterpolatedAsync(
-                $"UPDATE \"Users\" SET \"LastActiveAt\" = {now} WHERE \"Id\" = {uid}");
+
+            // Sürümü göndermeyen (eski) istemcide sütun DOKUNULMADAN kalır — göndermedi
+            // diye "bilinmiyor"a geri düşürmek, panelde bir dakika önce görülen sürümü
+            // siler gibi yanıltıcı olurdu.
+            var version = context.Request.Headers["X-App-Version"].ToString();
+            if (!string.IsNullOrWhiteSpace(version))
+            {
+                if (version.Length > 20) version = version[..20];
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE \"Users\" SET \"LastActiveAt\" = {now}, \"LastKnownAppVersion\" = {version} WHERE \"Id\" = {uid}");
+            }
+            else
+            {
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE \"Users\" SET \"LastActiveAt\" = {now} WHERE \"Id\" = {uid}");
+            }
         }
     }
 });
