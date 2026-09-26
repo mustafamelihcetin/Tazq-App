@@ -3,6 +3,7 @@ import { View, Text, ScrollView, StyleSheet, Modal, useWindowDimensions } from '
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppBlur } from '@/shared/components/AppBlur';
 import { MotiView } from 'moti';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { X } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -98,7 +99,7 @@ export default function AchievementsScreen() {
         style={[
           {
             width: size, height: size, borderRadius: R.full,
-            alignItems: 'center', justifyContent: 'center',
+            alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
             backgroundColor: earned ? color : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.035)'),
             borderWidth: earned ? 0 : B.thin,
             borderColor: theme.separator,
@@ -108,6 +109,7 @@ export default function AchievementsScreen() {
           },
         ]}
       >
+        {earned && <MedalShine />}
         {renderAchievementIcon(id, Math.round(size * 0.42), !earned)}
       </View>
     );
@@ -210,8 +212,15 @@ export default function AchievementsScreen() {
         </ScrollView>
       </SafeAreaView>
 
-      {/* ── Tam-ekran madalya detayı (Alert değil — hayran olunacak an) ── */}
-      <Modal visible={!!detail} transparent animationType="fade" onRequestClose={() => setDetail(null)}>
+      {/*
+        ── Tam-ekran madalya detayı (Alert değil — hayran olunacak an) ──
+        `animationType="none"` BİLEREK: "fade" RN Modal'ın TÜM içeriğinin
+        (blur dahil) opaklığını native tarafta animasyonluyor — gerçek zamanlı
+        hesaplanan blur bu sırada titriyor/yırtılıyor (bkz. CelebrationOverlay'deki
+        aynı düzeltme). Blur burada anında belirir; kart yine de MotiView ile
+        yumuşak giriyor, göz "ani"yi fark etmiyor.
+      */}
+      <Modal visible={!!detail} transparent animationType="none" onRequestClose={() => setDetail(null)}>
         {detail && (() => {
           const color = ACHIEVEMENT_ICONS[detail.id]?.color || theme.primary;
           const p = !detail.earned ? progressOf(detail.id) : null;
