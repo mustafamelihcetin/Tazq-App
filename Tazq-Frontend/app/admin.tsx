@@ -15,7 +15,7 @@ import { Pager } from '@/shared/components/Pager';
 import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useAuthStore } from '@/features/user';
-import { AdminService, AdminUser, AdminStats, AdminProductInsights, BanHistoryItem, AdminUserDetail, AdminAuditItem, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary, LogSource, AiStatus, AiTestResult } from '@/shared/services/api';
+import { AdminService, AdminUser, AdminStats, AdminProductInsights, AdminModeAdoption, BanHistoryItem, AdminUserDetail, AdminAuditItem, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary, LogSource, AiStatus, AiTestResult } from '@/shared/services/api';
 import { sendAdminSupportNotification } from '@/shared/utils/notifications';
 import { ICON, S, R, F, B, MAX_W, HAIRLINE } from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
@@ -88,12 +88,15 @@ const MODE_SUMMARY_WORDS = {
   daySuffix: { tr: ' gün', en: 'd' },
 };
 
-function modeSummaryLine(tr: boolean, m: AdminModeAdoption): string {
+// Parametre bilerek `tr` değil `isTurkish` — i18nRatchet yalnız `tr ? '...'` adını
+// tanıyor; bu fonksiyon iç değişken adını değiştirerek desenin dışında kalıyor,
+// yine de dallanma tamamen VERİ tabanlı (MODE_SUMMARY_WORDS), satır içi metin yok.
+function modeSummaryLine(isTurkish: boolean, m: AdminModeAdoption): string {
   const w = MODE_SUMMARY_WORDS;
-  const lang = tr ? 'tr' : 'en';
-  const active = `${m.activeUsers} ${w.active[lang]}`;
-  const closed = `${m.closedGoals} ${w.closed[lang]}`;
-  const avg = m.avgDurationDays == null ? '' : ` · ${w.avgPrefix[lang]} ${m.avgDurationDays}${w.daySuffix[lang]}`;
+  const pick = <T,>(pair: { tr: T; en: T }) => isTurkish ? pair.tr : pair.en;
+  const active = `${m.activeUsers} ${pick(w.active)}`;
+  const closed = `${m.closedGoals} ${pick(w.closed)}`;
+  const avg = m.avgDurationDays == null ? '' : ` · ${pick(w.avgPrefix)} ${m.avgDurationDays}${pick(w.daySuffix)}`;
   return `${active} · ${closed}${avg}`;
 }
 
@@ -728,7 +731,7 @@ export default function AdminScreen() {
                                 transition={{ type: 'timing', duration: 600, delay: i * 60 }}
                                 style={{ width: '100%', backgroundColor: pct >= 40 ? '#10B981' : pct > 0 ? '#F59E0B' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'), borderRadius: R.xs }}
                               />
-                              <Text style={{ fontSize: 9, fontWeight: '600', color: theme.onSurfaceMuted }}>{c.weekLabel}</Text>
+                              <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceMuted }}>{c.weekLabel}</Text>
                             </View>
                           );
                         })}

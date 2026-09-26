@@ -242,7 +242,9 @@ const KNOWN_LARGE: Record<string, number> = {
     sıkışıyordu. Eklenen şey iki satır (kanca çağrısı + gerekçesi) ve bir import;
     mantık değişmedi (bkz. useContentMaxWidth).
   */
-  'app/admin.tsx': 1680,
+  // 1680 → 1809: Ürün İçgörüleri bölümü (dönemsel mod benimsenmesi, haftalık
+  // elde tutma, sürüm dağılımı) — İstatistik sekmesine eklendi.
+  'app/admin.tsx': 1809,
   // 1690 → 1718: plan başlatılmadan ÖNCE mevcut yük söyleniyor (kaç aktif hedef,
   // bugün kaç plan işi). Kullanıcı toplamı ancak uyguladıktan SONRA öğreniyordu.
   'features/modes/components/TurkishModeBanner.tsx': 1718,
@@ -320,6 +322,10 @@ const KNOWN_LARGE: Record<string, number> = {
   // trophy ikonu tema token'larına bağlandı.
   'app/profile.tsx': 899, // +2: seri tek kaynaktan (sunucunun vade-günü sayısı profilde gösteriliyordu)
   'shared/constants/legal.ts': 893,
+  // İlk kez 800 satırı geçti: admin panelinin Ürün İçgörüleri tipleri
+  // (AdminModeAdoption/AdminRetentionCohort/AdminVersionShare) + X-App-Version
+  // başlığı eklendi. API katmanı doğası gereği büyür — her uç nokta bir satır.
+  'shared/services/api.ts': 831,
   // İlk kez 800 satırı geçti: duraklatma + geçmiş hedefler + bulut/yerel bozuk
   // veriye karşı tek nokta koruma (bkz. PLAN_ID_KEYS/sanitizePlanIds). Sözlük gibi
   // değil, bölünebilir — bir sonraki büyüme bu dosyayı gerçekten küçültmeli.
