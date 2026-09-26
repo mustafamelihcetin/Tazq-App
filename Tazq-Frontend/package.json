@@ -18,6 +18,7 @@
     "apk": "cd android && cross-env SENTRY_DISABLE_AUTO_UPLOAD=true gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a"
   },
   "dependencies": {
+    "@bacons/apple-targets": "^5.0.0",
     "@expo-google-fonts/cormorant-garamond": "^0.4.1",
     "@expo-google-fonts/manrope": "^0.4.2",
     "@expo-google-fonts/outfit": "^0.4.3",

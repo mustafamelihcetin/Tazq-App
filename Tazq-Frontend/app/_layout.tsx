@@ -76,6 +76,7 @@ import { openThrough, completedOn, nextAt, reminderTasks, notificationSignature 
 import { completeTask } from '@/features/tasks/utils/taskActions';
 import { toDateKey } from '@/shared/utils/dateKey';
 import { useFocusStore, FocusIsland } from '@/features/focus';
+import { pushWidgetSummary, initWatchBridge } from '@/features/nativeBridge/utils/widgetBridge';
 import { syncFocusAlarm, finalizeDueSession, onAppBackground, onAppForeground } from '@/features/focus/session';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
@@ -522,6 +523,17 @@ export default function RootLayout() {
       sub = Notifs.addNotificationResponseReceivedListener(handleResponse);
     } catch (e) { swallow('layout.notificationResponseHandler', e); }
     return () => { try { sub?.remove?.(); } catch (e) { swallow('layout.notificationSubscriptionRemove', e); } };
+  }, [isLoggedIn]);
+
+  // Ana Ekran Widget'ı ve Apple Watch köprüsü — yalnız iOS derlemesinde gerçek
+  // bir native modül var, diğer platformlarda no-op (bkz. shared/utils/nativeWidgetBridge).
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const unsubWatch = initWatchBridge();
+    pushWidgetSummary();
+    const unsubHabits = useHabitStore.subscribe(() => pushWidgetSummary());
+    const unsubFocus = useFocusStore.subscribe(() => pushWidgetSummary());
+    return () => { unsubWatch(); unsubHabits(); unsubFocus(); };
   }, [isLoggedIn]);
 
   // Auth Guard & Initialization
