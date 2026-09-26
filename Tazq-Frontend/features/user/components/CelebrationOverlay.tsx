@@ -218,8 +218,16 @@ export const CelebrationOverlay: React.FC = () => {
   // metni okunmaya devam eder.
   return (
     <TouchableWithoutFeedback accessible={false} onPress={dismiss}>
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: overlayOpacity, zIndex: 9999 }]}>
+      <View style={[StyleSheet.absoluteFill, { zIndex: 9999 }]}>
+        {/*
+          Blur BİLEREK animasyonlu opaklığın DIŞINDA — gerçek zamanlı hesaplanan
+          blur (Android `dimezisBlurViewSdk31Plus`, iOS native blur/cam) animasyonlu
+          alfayla aynı View'da olunca her karede yeniden hesaplanırken titreme/
+          yırtılma üretiyordu ("hareket edince bozuluyor" raporu buradan geliyordu).
+          Blur sabit render edilir; yalnızca altındaki koyu perde ve kart canlanır.
+        */}
         <AppBlur material="thick" />
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: overlayOpacity }]}>
         <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(0,0,0,0.48)' : 'rgba(0,0,0,0.22)' }]} />
 
         {/* Confetti particles */}
@@ -319,7 +327,8 @@ export const CelebrationOverlay: React.FC = () => {
             </View>
           </Animated.View>
         </View>
-      </Animated.View>
+        </Animated.View>
+      </View>
     </TouchableWithoutFeedback>
   );
 };
