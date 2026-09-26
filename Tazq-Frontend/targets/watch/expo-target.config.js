@@ -4,6 +4,9 @@ module.exports = config => ({
   name: 'TazqWatch',
   displayName: 'TAZQ',
   deploymentTarget: '9.4',
+  // İkonu unuttuğum için Watch'ta "Kullanılabilir Uygulamalar" listesinde
+  // logosuz görünüyordu — ana uygulamanın kendi ikonu (bkz. app.json ios.icon).
+  icon: '../../assets/brand/icon.png',
   // App Group, telefonun app.config.js'te tanımladığı grupla AYNI olmalı —
   // Watch, veriyi doğrudan bu gruptan değil WatchConnectivity üzerinden alır,
   // ama complication (ileride eklenirse) buradan okuyacak.
