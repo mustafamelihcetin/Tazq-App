@@ -230,6 +230,9 @@ const KNOWN_LARGE: Record<string, number> = {
   // 2311 → 2315: hızlı eklemede "… yarın için eklendi" (ana sayfa yalnız bugünü gösterir).
   // 2315 → 2318: hızlı eklemede görev oluşturma anahtarı (ikiz görev önlemi).
   'app/index.tsx': 2351, // +3 tur kapısı · +1 hızlı odak store yolu · +25 haftalık sayılar ortak motordan (yerel gün; sunucunun UTC kırılımı üç ekranda farklı sayı veriyordu)
+  // İlk kez 800'ü geçti: widget/Watch köprüsünün tek başlatma noktası (bildirim
+  // dinleyicisiyle aynı desen — [isLoggedIn] bağımlı, tek yerde kurulur).
+  'app/_layout.tsx': 810,
   // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.

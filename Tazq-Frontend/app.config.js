@@ -33,6 +33,13 @@ module.exports = {
     ios: {
       ...base.ios,
       bundleIdentifier: IS_DEV ? `${base.ios.bundleIdentifier}${DEV_SUFFIX}` : base.ios.bundleIdentifier,
+      // Widget/Watch hedefleriyle veri paylaşımı (App Group) ve @bacons/apple-targets
+      // imzalama otomasyonu bunu gerektiriyor. developer.apple.com/account → Membership.
+      appleTeamId: 'NTFR7D9VTD',
+      entitlements: {
+        ...(base.ios.entitlements || {}),
+        'com.apple.security.application-groups': ['group.com.tazqapp.tazq'],
+      },
       infoPlist: {
         ...(base.ios.infoPlist || {}),
         // iOS'ta ana ekranda görünen ad CFBundleName değil BUDUR.
@@ -70,6 +77,9 @@ module.exports = {
           organization: 'tazq',
         },
       ],
+      // targets/ altındaki her klasörü (widget, watch) ayrı bir native hedef
+      // olarak derlemeye ekler — bkz. targets/tazq-watch, targets/tazq-widget.
+      '@bacons/apple-targets',
     ],
   },
 };

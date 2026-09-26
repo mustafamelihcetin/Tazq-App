@@ -1,5 +1,6 @@
 import Foundation
 import WatchConnectivity
+import WatchKit
 import Combine
 
 struct WatchHabit: Codable, Identifiable, Equatable {
