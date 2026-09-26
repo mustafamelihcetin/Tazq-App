@@ -15,7 +15,7 @@ import { Pager } from '@/shared/components/Pager';
 import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useAuthStore } from '@/features/user';
-import { AdminService, AdminUser, AdminStats, BanHistoryItem, AdminUserDetail, AdminAuditItem, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary, LogSource, AiStatus, AiTestResult } from '@/shared/services/api';
+import { AdminService, AdminUser, AdminStats, AdminProductInsights, BanHistoryItem, AdminUserDetail, AdminAuditItem, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary, LogSource, AiStatus, AiTestResult } from '@/shared/services/api';
 import { sendAdminSupportNotification } from '@/shared/utils/notifications';
 import { ICON, S, R, F, B, MAX_W, HAIRLINE } from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
@@ -111,6 +111,7 @@ export default function AdminScreen() {
   const [expandedCrashes, setExpandedCrashes] = useState<Record<string, boolean>>({});
   const [unreadCount, setUnreadCount] = useState(0);
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [insights, setInsights] = useState<AdminProductInsights | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [total, setTotal] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -163,11 +164,13 @@ export default function AdminScreen() {
     if (!silent) setLoading(true);
     setError(false);
     try {
-      const [s, m] = await Promise.all([
+      const [s, m, pi] = await Promise.all([
         AdminService.getStats(),
         SupportService.getAllMessages().catch(() => ({ messages: [], unreadCount: 0 })),
+        AdminService.getProductInsights().catch(() => null),
       ]);
       setStats(s);
+      setInsights(pi);
       setMessages(m.messages);
       setUnreadCount(m.unreadCount);
       if (m.unreadCount > 0 && m.messages[0] && !m.messages[0].isRead) {

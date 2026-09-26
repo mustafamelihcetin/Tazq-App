@@ -32,12 +32,17 @@ const BASE_URL = 'https://api.tazqapp.com';
 const APP_VARIANT: string =
   (Constants.expoConfig?.extra as { appVariant?: string } | undefined)?.appVariant ?? 'unknown';
 
+// Admin panelinin "kim hangi sürümde" sorusu için — sunucu bunu kimlikli her
+// istekte User.LastKnownAppVersion'a yazar (bkz. Program.cs throttled middleware).
+const APP_VERSION: string = Constants.expoConfig?.version ?? 'unknown';
+
 export const api = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
   headers: {
     'X-App-Signature': 'tazq-expo-frontend',
     'X-App-Variant': APP_VARIANT,
+    'X-App-Version': APP_VERSION,
     'Content-Type': 'application/json',
   },
 });
@@ -527,6 +532,34 @@ export interface AdminAuditItem {
   createdAt: string;
 }
 
+export interface AdminModeAdoption {
+  mode: string;
+  activeUsers: number;
+  closedGoals: number;
+  avgDurationDays?: number | null;
+  avgEffortDays?: number | null;
+}
+
+export interface AdminRetentionCohort {
+  weekLabel: string;
+  newUsers: number;
+  stillActiveAfter7d: number;
+}
+
+export interface AdminVersionShare {
+  version: string;
+  users: number;
+}
+
+export interface AdminProductInsights {
+  modes: AdminModeAdoption[];
+  usersWithPreferences: number;
+  retention: AdminRetentionCohort[];
+  versions: AdminVersionShare[];
+  usersWithKnownVersion: number;
+  totalUsers: number;
+}
+
 export const AdminService = {
   getUsers: async (opts?: { page?: number; pageSize?: number; search?: string; sort?: string; asc?: boolean }): Promise<AdminUsersPage> => {
     const r = await api.get('/api/admin/users', { params: opts });
@@ -534,6 +567,10 @@ export const AdminService = {
   },
   getStats: async (): Promise<AdminStats> => {
     const r = await api.get('/api/admin/stats');
+    return r.data;
+  },
+  getProductInsights: async (): Promise<AdminProductInsights> => {
+    const r = await api.get('/api/admin/product-insights');
     return r.data;
   },
   deleteUser: async (id: number): Promise<void> => {

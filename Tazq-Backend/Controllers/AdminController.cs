@@ -35,6 +35,10 @@ namespace Tazq_App.Controllers
         [HttpGet("stats")]
         public async Task<IActionResult> GetStats() => Ok(await _admin.GetStatsAsync());
 
+        // Dönemsel mod benimsenmesi + elde tutma + sürüm dağılımı — ürüne özgü içgörüler.
+        [HttpGet("product-insights")]
+        public async Task<IActionResult> GetProductInsights() => Ok(await _admin.GetProductInsightsAsync());
+
         [HttpDelete("users/{id}")]
         public async Task<IActionResult> DeleteUser(int id)
             => await _admin.DeleteUserAsync(id, CurrentAdmin()) switch

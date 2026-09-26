@@ -133,6 +133,131 @@ namespace Tazq_App.Services
                 activeToday, activeThisWeek, sessionsToday, dailyTrend);
         }
 
+        // Dönemsel mod ailesi → `seasonal` içindeki AÇIK BAYRAK alanı. Ramazan'ın adı
+        // "ramazanMode" değil "ramazan" — istisna elle burada, JSON'un kendi biçimi bu.
+        private static readonly (string Family, string SeasonalFlag)[] ModeFamilies =
+        {
+            ("exam", "examMode"), ("tez", "tezMode"), ("mulakat", "mulakatMode"),
+            ("spor", "sporMode"), ("ramazan", "ramazan"),
+            ("tasarruf", "tasarrufMode"), ("birakma", "birakmaMode"),
+        };
+
+        // goalHistory'deki yuva adları ikinci/üçüncü slotlu olabilir (exam2, spor3…);
+        // aile bazında toplamak için sondaki rakam atılır.
+        private static string FamilyOf(string slotKey) => slotKey.TrimEnd('2', '3');
+
+        /// <summary>
+        /// Ürün içgörüleri — dönemsel mod benimsenmesi, elde tutma (retention), sürüm dağılımı.
+        ///
+        /// Mod verisi `User.Preferences` (bulut senkronu, düz JSON) içinde yaşıyor — ayrı
+        /// bir tablo yok. Bu yüzden burada satır satır JSON ayrıştırılıyor; TEK bozuk kayıt
+        /// tüm sorguyu düşürmesin diye her kullanıcı kendi try/catch'inde.
+        /// </summary>
+        public async Task<ProductInsights> GetProductInsightsAsync()
+        {
+            var totalUsers = await _context.Users.CountAsync();
+
+            // ── Mod benimsenmesi ────────────────────────────────────────────────
+            var prefsBlobs = await _context.Users
+                .Where(u => u.Preferences != null)
+                .Select(u => u.Preferences!)
+                .ToListAsync();
+
+            var activeCounts = ModeFamilies.ToDictionary(m => m.Family, _ => 0);
+            var closedCounts = ModeFamilies.ToDictionary(m => m.Family, _ => 0);
+            var durationSums = ModeFamilies.ToDictionary(m => m.Family, _ => (Sum: 0.0, Count: 0));
+            var effortSums = ModeFamilies.ToDictionary(m => m.Family, _ => (Sum: 0.0, Count: 0));
+
+            foreach (var blob in prefsBlobs)
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(blob);
+                    var root = doc.RootElement;
+
+                    if (root.TryGetProperty("seasonal", out var seasonal) && seasonal.ValueKind == JsonValueKind.Object)
+                    {
+                        foreach (var (family, flag) in ModeFamilies)
+                        {
+                            if (seasonal.TryGetProperty(flag, out var v) && v.ValueKind == JsonValueKind.True)
+                                activeCounts[family]++;
+                        }
+                    }
+
+                    if (root.TryGetProperty("goalHistory", out var history) && history.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var rec in history.EnumerateArray())
+                        {
+                            if (!rec.TryGetProperty("mode", out var modeEl) || modeEl.ValueKind != JsonValueKind.String) continue;
+                            var family = FamilyOf(modeEl.GetString() ?? "");
+                            if (!closedCounts.ContainsKey(family)) continue;
+
+                            closedCounts[family]++;
+                            if (rec.TryGetProperty("days", out var daysEl) && daysEl.ValueKind == JsonValueKind.Number)
+                            {
+                                var (sum, count) = durationSums[family];
+                                durationSums[family] = (sum + daysEl.GetDouble(), count + 1);
+                            }
+                            if (rec.TryGetProperty("effortDays", out var effEl) && effEl.ValueKind == JsonValueKind.Number)
+                            {
+                                var (sum, count) = effortSums[family];
+                                effortSums[family] = (sum + effEl.GetDouble(), count + 1);
+                            }
+                        }
+                    }
+                }
+                catch (JsonException)
+                {
+                    // Bozuk/eski biçim tek satırı etkiler, sorguyu düşürmez.
+                }
+            }
+
+            var modes = ModeFamilies.Select(m =>
+            {
+                var (durSum, durCount) = durationSums[m.Family];
+                var (effSum, effCount) = effortSums[m.Family];
+                return new ModeAdoption(
+                    m.Family,
+                    activeCounts[m.Family],
+                    closedCounts[m.Family],
+                    durCount > 0 ? Math.Round(durSum / durCount, 1) : null,
+                    effCount > 0 ? Math.Round(effSum / effCount, 1) : null);
+            }).ToList();
+
+            // ── Elde tutma (retention) — son 8 kayıt haftası ────────────────────
+            var now = DateTime.UtcNow;
+            var cohortRows = await _context.Users
+                .Select(u => new { u.CreatedAt, u.LastActiveAt })
+                .ToListAsync();
+
+            var retention = new List<RetentionCohort>();
+            for (var i = 7; i >= 0; i--)
+            {
+                var weekStart = now.Date.AddDays(-7 * (i + 1));
+                var weekEnd = now.Date.AddDays(-7 * i);
+                // Kohort yalnız kayıttan en az 7 gün geçmişse anlamlı — yoksa "henüz aktif
+                // olma şansı bile olmayan" biri "kaybedildi" sayılır.
+                if (weekEnd.AddDays(7) > now) continue;
+
+                var cohort = cohortRows.Where(u => u.CreatedAt >= weekStart && u.CreatedAt < weekEnd).ToList();
+                if (cohort.Count == 0) continue;
+
+                var stillActive = cohort.Count(u => u.LastActiveAt.HasValue && u.LastActiveAt.Value >= u.CreatedAt.AddDays(7));
+                retention.Add(new RetentionCohort(weekStart.ToString("dd MMM"), cohort.Count, stillActive));
+            }
+
+            // ── Sürüm dağılımı ───────────────────────────────────────────────────
+            var versions = await _context.Users
+                .Where(u => u.LastKnownAppVersion != null)
+                .GroupBy(u => u.LastKnownAppVersion)
+                .Select(g => new VersionShare(g.Key!, g.Count()))
+                .OrderByDescending(v => v.Users)
+                .ToListAsync();
+            var usersWithKnownVersion = versions.Sum(v => v.Users);
+
+            return new ProductInsights(modes, prefsBlobs.Count, retention, versions, usersWithKnownVersion, totalUsers);
+        }
+
         public async Task<AdminActionResult> DeleteUserAsync(int id, AdminIdentity admin)
         {
             if (id == admin.AdminId) return AdminActionResult.SelfActionForbidden;
