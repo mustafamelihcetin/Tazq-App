@@ -6,7 +6,7 @@ import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { fmtDateKey } from '@/features/habits';
 import { wasCompletedOn, todayKey as productTodayKey } from '@/features/dashboard/utils/streakDay';
 import { completeTask } from '@/features/tasks/utils/taskActions';
-import { modeAccent, modeAccentText } from '@/shared/constants/Colors';
+import { Colors, modeAccent, modeAccentText } from '@/shared/constants/Colors';
 import { localizeSporGoal } from '@/features/modes/utils/turkishModes';
 import { swallow } from '@/shared/utils/swallow';
 import TazqWidgetBridge from '@/modules/tazq-widget-bridge/src/TazqWidgetBridgeModule';
@@ -143,6 +143,13 @@ export function pushWidgetSummary(): void {
     countdownColor: countdown?.color ?? null,
     countdownTextColor: countdown?.textColor ?? null,
     countdownEmoji: countdown?.emoji ?? null,
+    // Widget kendi renklerini UYDURMASIN — uygulamanın gerçek koyu tema paletinden
+    // (bkz. shared/constants/Colors.ts `dark`). Palet değişirse widget de kendiliğinden
+    // izler; Swift tarafında ayrı bir kopya tutmak zamanla sessizce ayrışırdı.
+    bgColor: Colors.dark.background,
+    taskColor: Colors.dark.primary,
+    habitColor: Colors.dark.success,
+    streakColor: Colors.dark.streak,
   };
 
   const json = JSON.stringify(payload);
