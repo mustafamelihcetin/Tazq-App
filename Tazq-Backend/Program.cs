@@ -630,6 +630,31 @@ app.MapHealthChecks("/health");
 app.UseCors("TazqCorsPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
+
+// "Son görülme" damgası — WhatsApp'taki gibi gerçek kullanım anını yansıtsın diye
+// kimlikli her istekte güncellenir. DB'ye istek başına yazmamak için bellekte
+// kullanıcı başına son yazma anı tutulur; 5 dakikadan tazeyse atlanır.
+var lastActiveWrites = new System.Collections.Concurrent.ConcurrentDictionary<int, DateTime>();
+app.Use(async (context, next) =>
+{
+    await next();
+
+    if (context.User?.Identity?.IsAuthenticated == true &&
+        int.TryParse(context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var uid))
+    {
+        var now = DateTime.UtcNow;
+        var isFresh = lastActiveWrites.TryGetValue(uid, out var last) && now - last < TimeSpan.FromMinutes(5);
+        if (!isFresh)
+        {
+            lastActiveWrites[uid] = now;
+            using var scope = context.RequestServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<Tazq_App.Data.AppDbContext>();
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE \"Users\" SET \"LastActiveAt\" = {now} WHERE \"Id\" = {uid}");
+        }
+    }
+});
+
 app.MapControllers();
 
 // Legal pages are served as static files from wwwroot: /gizlilik.html

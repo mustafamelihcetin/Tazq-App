@@ -65,6 +65,11 @@ namespace Tazq_App.Models
 		public List<TaskItem> Tasks { get; set; } = new List<TaskItem>();
         public string? LastLoginIp { get; set; }
 
+        // Gerçek "son görülme" damgası — kimlikli her istekte (throttle'lı) güncellenir,
+        // yalnız odak oturumu başlatanları değil, uygulamayı kullanan herkesi yansıtır.
+        // Bkz. Program.cs'teki throttled last-active middleware.
+        public DateTime? LastActiveAt { get; set; }
+
         // Soft-delete: hesap silindiğinde işaretlenir. Grace period içinde tekrar giriş = reaktivasyon;
         // süre dolunca arka plan servisi kalıcı olarak siler. null = aktif hesap.
         public DateTime? DeletedAt { get; set; }

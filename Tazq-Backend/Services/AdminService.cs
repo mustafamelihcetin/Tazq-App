@@ -67,10 +67,10 @@ namespace Tazq_App.Services
                 "focus" => asc
                     ? q.OrderBy(u => _context.FocusSessions.Where(f => f.UserId == u.Id && f.Completed).Sum(f => (int?)f.DurationMinutes) ?? 0)
                     : q.OrderByDescending(u => _context.FocusSessions.Where(f => f.UserId == u.Id && f.Completed).Sum(f => (int?)f.DurationMinutes) ?? 0),
-                // recent — son odak aktivitesi
+                // recent — gerçek son görülme (LastActiveAt), yalnız odak oturumu değil
                 _ => asc
-                    ? q.OrderBy(u => _context.FocusSessions.Where(f => f.UserId == u.Id).Max(f => (DateTime?)f.StartedAt))
-                    : q.OrderByDescending(u => _context.FocusSessions.Where(f => f.UserId == u.Id).Max(f => (DateTime?)f.StartedAt)),
+                    ? q.OrderBy(u => u.LastActiveAt)
+                    : q.OrderByDescending(u => u.LastActiveAt),
             };
             q = ordered.ThenBy(u => u.Id);
 
@@ -91,11 +91,7 @@ namespace Tazq_App.Services
                     _context.Tasks.Count(t => t.UserId == u.Id),
                     _context.Tasks.Count(t => t.UserId == u.Id && t.IsCompleted),
                     _context.FocusSessions.Where(f => f.UserId == u.Id && f.Completed).Sum(f => (int?)f.DurationMinutes) ?? 0,
-                    _context.FocusSessions
-                        .Where(f => f.UserId == u.Id)
-                        .OrderByDescending(f => f.StartedAt)
-                        .Select(f => (DateTime?)f.StartedAt)
-                        .FirstOrDefault()))
+                    u.LastActiveAt))
                 .ToListAsync();
 
             return new UserListResult(users, total);
