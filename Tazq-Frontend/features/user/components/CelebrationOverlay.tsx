@@ -11,6 +11,7 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableWithoutFeedback, useWindowDimensions, Platform, BackHandler } from 'react-native';
 import { AppBlur } from '@/shared/components/AppBlur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAchievementStore } from '@/features/user/store/useAchievementStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -298,6 +299,7 @@ export const CelebrationOverlay: React.FC = () => {
               width: 120,
               height: 120,
               borderRadius: R.full,
+              overflow: 'hidden',
               borderWidth: B.medium,
               borderColor: (ACHIEVEMENT_ICONS[pending.id]?.color || theme.primary) + '30', // 19% opacity colored border
               backgroundColor: ACHIEVEMENT_ICONS[pending.id]?.color || theme.primary,
@@ -312,6 +314,14 @@ export const CelebrationOverlay: React.FC = () => {
               elevation: 6,
               zIndex: 1,
             }}>
+              {/* Kupa ışıltısı — en gururlu anda madalyanın kendisi de bunu hak ediyor. */}
+              <LinearGradient
+                pointerEvents="none"
+                colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']}
+                start={{ x: 0.15, y: 0 }}
+                end={{ x: 0.75, y: 0.9 }}
+                style={StyleSheet.absoluteFill}
+              />
               {renderAchievementIcon(pending.id, 56)}
             </Animated.View>
             <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.title, { color: theme.onSurface }]}>

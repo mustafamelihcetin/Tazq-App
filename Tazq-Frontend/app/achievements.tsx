@@ -32,6 +32,9 @@ const CATEGORIES = [
   { key: 'milestone', titleTr: 'Kilometre Taşları', titleEn: 'Milestones', ids: ['first_task', 'daily_perfect'] },
 ];
 
+/** Sözlük — satır içi `tr ? '...' : '...'` yerine (bkz. i18nRatchet). */
+const NEXT_UP_LABEL = { tr: 'Sıradaki', en: 'Next up' };
+
 // "Nasıl açılır" ipucu — eşiği id kodluyor.
 function hint(id: string, tr: boolean): string {
   if (id.startsWith('streak_')) { const n = id.split('_')[1]; return tr ? `${n} günlük seri yakala` : `Reach a ${n}-day streak`; }
@@ -42,6 +45,26 @@ function hint(id: string, tr: boolean): string {
   if (id === 'first_task') return tr ? 'İlk görevini tamamla' : 'Complete your first task';
   if (id === 'daily_perfect') return tr ? "Bir günün tüm görevlerini bitir" : "Complete all of a day's tasks";
   return '';
+}
+
+/**
+ * KAZANILMIŞ MADALYAYA "KUPA" HİSSİ — köşeden çapraz geçen ince bir parlaklık.
+ *
+ * Önceden dolgu rengi + gölgeden ibaretti; renkli bir daireydi, kazanılmış bir
+ * ödülden çok bir rozet-ikonundan farksızdı. Bu, ışığın metalden yansıması gibi
+ * okunuyor — gerçek bir madalyanın vaat ettiği "değerli nesne" hissini taşıyor.
+ * Yalnız KAZANILMIŞ madalyalarda: kilitli olan parlamaz, parlamak bir ÖDÜL.
+ */
+function MedalShine() {
+  return (
+    <LinearGradient
+      pointerEvents="none"
+      colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']}
+      start={{ x: 0.15, y: 0 }}
+      end={{ x: 0.75, y: 0.9 }}
+      style={StyleSheet.absoluteFill}
+    />
+  );
 }
 
 export default function AchievementsScreen() {
@@ -86,6 +109,18 @@ export default function AchievementsScreen() {
     if (id === 'focus_25h') return { cur: Math.min(Math.round(focusHours), 25), target: 25 };
     return null;
   };
+
+  /*
+    SIRADAKİ HEDEF — kahraman bölümü eskiden yalnız "%X dolu" diyordu, somut bir
+    davet yoktu. En yakın (yüzdece en ileri) kilitli başarım burada bulunuyor;
+    ikili (evet/hayır) başarımlar (progressOf null döner) sayılmıyor çünkü
+    "%kaç kaldı" sorusuna cevapları yok.
+  */
+  const nearestIncomplete = allIds
+    .filter(id => !unlocked.includes(id))
+    .map(id => ({ id, p: progressOf(id) }))
+    .filter((x): x is { id: string; p: { cur: number; target: number; unit?: string } } => x.p !== null)
+    .sort((a, b) => (b.p.cur / b.p.target) - (a.p.cur / a.p.target))[0] ?? null;
 
   const colGap = S.md;
   const tileW = (width - S.lg * 2 - colGap) / 2;
@@ -145,6 +180,35 @@ export default function AchievementsScreen() {
                   ? (tr ? 'Koleksiyon tamamlandı. Efsane.' : 'Collection complete. Legendary.')
                   : (tr ? `Koleksiyonun %${pctAll} dolu — devam et.` : `Your collection is ${pctAll}% full — keep going.`)}
             </Text>
+
+            {/* Sıradaki hedef — soyut yüzdeye somut bir davet ekliyor. */}
+            {nearestIncomplete && (() => {
+              const a = ACHIEVEMENTS[nearestIncomplete.id];
+              if (!a) return null;
+              const color = ACHIEVEMENT_ICONS[nearestIncomplete.id]?.color || theme.primary;
+              const { cur, target, unit } = nearestIncomplete.p;
+              const nextUpLabel = tr ? NEXT_UP_LABEL.tr : NEXT_UP_LABEL.en;
+              return (
+                <Touchable
+                  activeOpacity={0.8}
+                  onPress={() => open(a, false)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${nextUpLabel}: ${tr ? a.titleTr : a.titleEn}`}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: S.xs,
+                    marginTop: S.md, paddingHorizontal: S.md, paddingVertical: S.xs,
+                    borderRadius: R.full, backgroundColor: color + (isDark ? '1C' : '14'),
+                  }}
+                >
+                  <Text style={{ fontSize: F.caption, fontWeight: '700', color }}>
+                    {nextUpLabel}
+                  </Text>
+                  <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant }}>
+                    {tr ? a.titleTr : a.titleEn} · {cur}/{target}{unit ?? ''}
+                  </Text>
+                </Touchable>
+              );
+            })()}
           </View>
 
           {/* ── Kategoriler ── */}
@@ -244,12 +308,13 @@ export default function AchievementsScreen() {
                   <GlassSurface radius={R.sheet} />
                   <View
                     style={{
-                      width: 112, height: 112, borderRadius: R.full, alignItems: 'center', justifyContent: 'center',
+                      width: 112, height: 112, borderRadius: R.full, alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
                       backgroundColor: detail.earned ? color : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
                       borderWidth: detail.earned ? 0 : B.thin, borderColor: theme.separator,
                       shadowColor: color, shadowOffset: { width: 0, height: 10 }, shadowOpacity: detail.earned ? 0.35 : 0, shadowRadius: 18, elevation: detail.earned ? 8 : 0,
                     }}
                   >
+                    {detail.earned && <MedalShine />}
                     {renderAchievementIcon(detail.id, 52, !detail.earned)}
                   </View>
 

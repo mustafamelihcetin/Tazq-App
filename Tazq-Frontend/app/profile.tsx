@@ -30,6 +30,7 @@ import { useSporStore } from '@/features/modes/store/useSporStore';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { useActiveTasks } from '@/features/tasks';
 import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '@/shared/utils/achievementIcons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { BackButton } from '@/shared/components/BackButton';
@@ -87,7 +88,7 @@ export default function ProfileScreen() {
     }
   };
   const cycleSleepGoal = () => { haptic.select(); setSleepGoalHours(sleepGoalHours >= 9 ? 6 : sleepGoalHours + 1); };
-  const { unlocked: unlockedAchievements } = useAchievementStore();
+  const { unlocked: unlockedAchievements, unlockedAt: achievementsUnlockedAt } = useAchievementStore();
 
   const [editModalVisible, setEditModalVisible] = useState(false);
   useUiDepth(editModalVisible);
@@ -436,7 +437,16 @@ export default function ProfileScreen() {
             const earned = allIds.filter(id => unlockedAchievements.includes(id));
             const total = allIds.length;
             // Önizleme: kazanılan varsa gurur için onları göster; yoksa ilk hedefleri (davet).
-            const preview = (earned.length ? earned : allIds).slice(0, 5);
+            /*
+              EN SON KAZANILAN ÖNDE — eskiden `earned` listesi ID'lerin sabit tanım
+              sırasıyla geliyordu (ör. hep "İlk Seri" başta), az önce kazanılan yeni
+              madalya beşinci sıraya düşüp görünmeyebiliyordu. Gururlanacağın şey
+              o AN kazandığın, üç ay önce kazandığın değil.
+            */
+            const earnedByRecency = [...earned].sort(
+              (a, b) => (achievementsUnlockedAt[b] ?? 0) - (achievementsUnlockedAt[a] ?? 0)
+            );
+            const preview = (earnedByRecency.length ? earnedByRecency : allIds).slice(0, 5);
             const goShowcase = () => {
               router.push({ pathname: '/achievements', params: { streak: String(currentStreak), focusHours: String(Math.round(stats.totalFocusHours)) } });
             };
@@ -479,12 +489,22 @@ export default function ProfileScreen() {
                         <View
                           key={id}
                           style={{
-                            width: 42, height: 42, borderRadius: R.full,
+                            width: 42, height: 42, borderRadius: R.full, overflow: 'hidden',
                             alignItems: 'center', justifyContent: 'center',
                             backgroundColor: isEarned ? color : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
                             borderWidth: isEarned ? 0 : B.thin, borderColor: theme.separator,
                           }}
                         >
+                          {/* Kazanılmış madalyada ince bir ışıltı — kupa hissi (bkz. app/achievements.tsx MedalShine). */}
+                          {isEarned && (
+                            <LinearGradient
+                              pointerEvents="none"
+                              colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']}
+                              start={{ x: 0.15, y: 0 }}
+                              end={{ x: 0.75, y: 0.9 }}
+                              style={StyleSheet.absoluteFill}
+                            />
+                          )}
                           {renderAchievementIcon(id, 20, !isEarned)}
                         </View>
                       );

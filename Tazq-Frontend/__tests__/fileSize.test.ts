@@ -320,7 +320,9 @@ const KNOWN_LARGE: Record<string, number> = {
   // 888 → 892: profil kaydı seçilmemiş avatarı artık "Atlas" (erkek) diye yazmıyor.
   // 894 → 899: koyu temada okunmayan 'Kaydet' butonu (sabit beyaz yazı) + ham hex
   // trophy ikonu tema token'larına bağlandı.
-  'app/profile.tsx': 899, // +2: seri tek kaynaktan (sunucunun vade-günü sayısı profilde gösteriliyordu)
+  // 899 → 919: başarım önizlemesi en son kazanılana göre sıralanıyor (recency),
+  // kazanılmış madalyada kupa ışıltısı (MedalShine deseni).
+  'app/profile.tsx': 919,
   'shared/constants/legal.ts': 893,
   // İlk kez 800 satırı geçti: admin panelinin Ürün İçgörüleri tipleri
   // (AdminModeAdoption/AdminRetentionCohort/AdminVersionShare) + X-App-Version
