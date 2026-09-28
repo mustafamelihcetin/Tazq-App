@@ -232,7 +232,9 @@ const KNOWN_LARGE: Record<string, number> = {
   'app/index.tsx': 2351, // +3 tur kapısı · +1 hızlı odak store yolu · +25 haftalık sayılar ortak motordan (yerel gün; sunucunun UTC kırılımı üç ekranda farklı sayı veriyordu)
   // İlk kez 800'ü geçti: widget/Watch köprüsünün tek başlatma noktası (bildirim
   // dinleyicisiyle aynı desen — [isLoggedIn] bağımlı, tek yerde kurulur).
-  'app/_layout.tsx': 810,
+  // 810 → 816: widget köprüsü artık gorev/mod store'larını da dinliyor (bkz.
+  // widgetBridge bug düzeltmesi — görev/mod değişince widget hiç güncellenmiyordu).
+  'app/_layout.tsx': 816,
   // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.

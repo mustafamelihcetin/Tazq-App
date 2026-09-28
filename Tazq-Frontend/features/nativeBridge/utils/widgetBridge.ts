@@ -4,6 +4,7 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useTaskStore } from '@/features/tasks/store/useTaskStore';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { fmtDateKey } from '@/features/habits';
+import { parseDateKey } from '@/shared/utils/dateKey';
 import { wasCompletedOn, todayKey as productTodayKey } from '@/features/dashboard/utils/streakDay';
 import { completeTask } from '@/features/tasks/utils/taskActions';
 import { Colors, modeAccent, modeAccentText } from '@/shared/constants/Colors';
@@ -42,7 +43,10 @@ const WIDGET_TASK_TITLE_MAX_CHARS = 40;
  * zamanla ayrışması demekti — sırayı olduğu gibi devralıp yalnız FİLTRELİYORUZ.
  */
 function todayTasks(): { done: number; total: number; titles: string[] } {
-  const tasks = useTaskStore.getState().tasks;
+  // `tasks` HAM dizi arşivlenmişleri de içerir (arşiv ayrı bir sütun değil,
+  // `isArchived` bayrağıyla yaşıyor — bkz. useTaskStore.useActiveTasks). Süzülmeseydi
+  // arşivlenmiş ama tarihi geçmemiş bir görev widget'ta yanlışlıkla görünürdü.
+  const tasks = useTaskStore.getState().tasks.filter(t => !t.isArchived);
   const todayEndMs = new Date().setHours(23, 59, 59, 999);
   const today = productTodayKey();
 
@@ -95,7 +99,10 @@ function nearestModeCountdowns(tr: boolean): ModeCountdownEntry[] {
 
   const daysLeftOf = (dateStr: string | null | undefined): number | null => {
     if (!dateStr) return null;
-    const end = new Date(dateStr).setHours(23, 59, 59, 999);
+    // `new Date(dateStr)` DEĞİL — negatif ofsetli saat dilimlerinde (ör. ABD) bir
+    // gün geri kayar, bkz. shared/utils/dateKey.ts'teki parseDateKey belgelemesi.
+    // Aynı hatayı burada tekrar açmamak için o yardımcıyı kullanıyoruz.
+    const end = parseDateKey(dateStr).setHours(23, 59, 59, 999);
     if (Number.isNaN(end) || end < Date.now()) return null;
     return Math.max(0, Math.ceil((end - Date.now()) / 86400000));
   };

@@ -527,13 +527,19 @@ export default function RootLayout() {
 
   // Ana Ekran Widget'ı ve Apple Watch köprüsü — yalnız iOS derlemesinde gerçek
   // bir native modül var, diğer platformlarda no-op (bkz. shared/utils/nativeWidgetBridge).
+  //
+  // DÖRT store'un hepsi dinleniyor — yalnız habit/focus dinlenirken görev
+  // tamamlama/ekleme ("Bugün" widget'ının listesi) ve mod başlatma/kapatma
+  // ("Geri Sayım" widget'ının tek veri kaynağı) widget'ı HİÇ tetiklemiyordu.
   useEffect(() => {
     if (!isLoggedIn) return;
     const unsubWatch = initWatchBridge();
     pushWidgetSummary();
     const unsubHabits = useHabitStore.subscribe(() => pushWidgetSummary());
     const unsubFocus = useFocusStore.subscribe(() => pushWidgetSummary());
-    return () => { unsubWatch(); unsubHabits(); unsubFocus(); };
+    const unsubTasks = useTaskStore.subscribe(() => pushWidgetSummary());
+    const unsubPrefs = usePrefsStore.subscribe(() => pushWidgetSummary());
+    return () => { unsubWatch(); unsubHabits(); unsubFocus(); unsubTasks(); unsubPrefs(); };
   }, [isLoggedIn]);
 
   // Auth Guard & Initialization

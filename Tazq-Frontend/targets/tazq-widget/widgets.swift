@@ -185,6 +185,35 @@ private struct EmptyTodayNote: View {
   }
 }
 
+/// Görev listesi boşken (yalnız alışkanlık kullanan kullanıcı) — köprü alışkanlık
+/// ADI taşımıyor, o yüzden isim listesi yerine ilerleme gösteriliyor; ama en azından
+/// "bugün için bir şey yok" gibi YANLIŞ bir şey söylemiyor.
+private struct HabitsOnlyNote: View {
+  let entry: TazqEntry
+  let color: Color
+  private var pct: Double { entry.habitsTotal > 0 ? Double(entry.habitsCompleted) / Double(entry.habitsTotal) : 0 }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      Text(entry.tr ? "Bugünkü alışkanlıklar" : "Today's habits")
+        .font(.system(size: 12, weight: .medium))
+        .foregroundColor(.white.opacity(0.75))
+      HStack(spacing: 6) {
+        GeometryReader { geo in
+          ZStack(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 2.5).fill(Color.white.opacity(0.12))
+            RoundedRectangle(cornerRadius: 2.5).fill(color).frame(width: geo.size.width * pct)
+          }
+        }
+        .frame(height: 5)
+        Text("\(entry.habitsCompleted)/\(entry.habitsTotal)")
+          .font(.system(size: 11, weight: .bold))
+          .foregroundColor(.white.opacity(0.7))
+      }
+    }
+  }
+}
+
 // MARK: - Widget 1: Bugün (küçük: halka · orta/büyük: gerçek görev listesi)
 
 struct TazqTodayView: View {
@@ -257,12 +286,16 @@ struct TazqTodayView: View {
         Text(entry.tr ? "BUGÜN" : "TODAY")
           .font(.system(size: 10, weight: .black))
           .foregroundColor(.white.opacity(0.4))
-        if entry.taskTitles.isEmpty {
-          EmptyTodayNote(tr: entry.tr)
-        } else {
+        if !entry.taskTitles.isEmpty {
           ForEach(entry.taskTitles.prefix(3), id: \.self) { title in
             TaskRow(title: title, color: taskColor)
           }
+        } else if entry.habitsTotal > 0 {
+          // Görev yok ama alışkanlık VAR — "bugün için bir şey yok" demek burada
+          // YANLIŞ olurdu (bkz. aşağıdaki not, largeBody ile aynı düzeltme).
+          HabitsOnlyNote(entry: entry, color: habitColor)
+        } else {
+          EmptyTodayNote(tr: entry.tr)
         }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
@@ -274,16 +307,27 @@ struct TazqTodayView: View {
     VStack(alignment: .leading, spacing: 10) {
       header
 
-      if entry.taskTitles.isEmpty {
-        Spacer(minLength: 0)
-        EmptyTodayNote(tr: entry.tr)
-        Spacer(minLength: 0)
-      } else {
+      if !entry.taskTitles.isEmpty {
         VStack(alignment: .leading, spacing: 9) {
           ForEach(entry.taskTitles.prefix(6), id: \.self) { title in
             TaskRow(title: title, color: taskColor)
           }
         }
+        Spacer(minLength: 0)
+      } else if entry.habitsTotal > 0 {
+        /*
+          YALNIZ ALIŞKANLIK KULLANAN kullanıcı için gerçek bug: bu dal eskiden
+          `entry.taskTitles.isEmpty` tek başına "bugün için bir şey yok" diyordu —
+          alışkanlıkları olan ama hiç görevi olmayan biri widget'ında yanlışlıkla
+          boş bir gün görüyordu. Görev başlığı yok (köprü yalnız görev adı taşıyor)
+          ama en azından alışkanlık ilerlemesi doğru gösterilsin.
+        */
+        Spacer(minLength: 0)
+        HabitsOnlyNote(entry: entry, color: habitColor)
+        Spacer(minLength: 0)
+      } else {
+        Spacer(minLength: 0)
+        EmptyTodayNote(tr: entry.tr)
         Spacer(minLength: 0)
       }
 

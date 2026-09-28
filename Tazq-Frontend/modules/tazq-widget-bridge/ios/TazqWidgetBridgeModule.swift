@@ -42,8 +42,19 @@ public class TazqWidgetBridgeModule: Module {
             let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
       else { return }
 
+      /*
+        `null` alanlar (ör. aktif mod kalmayınca countdownLabel) JSONSerialization'da
+        NSNull olarak gelir. `UserDefaults.set(NSNull(), forKey:)` GEÇERLİ bir
+        property-list tipi değildir ve SESSİZCE başarısız olur — eski değer silinmeden
+        kalır. Sonuç: kullanıcı son aktif modunu kapatsa bile widget eski geri sayımı
+        göstermeye devam ederdi. `removeObject` ile açıkça temizleniyor.
+      */
       for (key, value) in dict {
-        defaults.set(value, forKey: key)
+        if value is NSNull {
+          defaults.removeObject(forKey: key)
+        } else {
+          defaults.set(value, forKey: key)
+        }
       }
 
       if #available(iOS 14.0, *) {

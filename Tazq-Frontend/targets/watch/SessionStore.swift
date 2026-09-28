@@ -18,17 +18,29 @@ struct WatchCountdown: Codable {
   let color: String
 }
 
+/*
+  ÇOĞU ALAN OPSİYONEL — bilerek.
+
+  Bu struct'ın ilk hâlinde hepsi ZORUNLUYDU. Telefon köprüsü (bkz.
+  features/nativeBridge/utils/widgetBridge.ts) widget odaklı yeniden yazılırken
+  `habits`/`bestStreak`/`focusActive`/`focusElapsedSeconds`/`focusTotalSeconds`
+  hiç gönderilmez oldu — ama JSONDecoder ZORUNLU bir alan eksikse TÜM decode'u
+  reddediyor. Sonuç: Watch, köprüden gelen HİÇBİR güncellemeyi kabul etmiyordu,
+  sessizce (applyData'daki `try?` hatayı yutuyordu). Opsiyonel yapmak, telefonun
+  ŞU AN gönderdiği alanları (streak/habitsCompletedToday/habitsTotal/language)
+  geçirirken göndermediklerini mevcut değerde bırakıyor.
+*/
 struct WatchData: Codable {
-  var habits: [WatchHabit]
-  var streak: Int
-  var bestStreak: Int
-  var focusActive: Bool
-  var focusElapsedSeconds: Int
-  var focusTotalSeconds: Int
+  var habits: [WatchHabit]?
+  var streak: Int?
+  var bestStreak: Int?
+  var focusActive: Bool?
+  var focusElapsedSeconds: Int?
+  var focusTotalSeconds: Int?
   var countdown: WatchCountdown?
-  var habitsCompletedToday: Int
-  var habitsTotal: Int
-  var language: String
+  var habitsCompletedToday: Int?
+  var habitsTotal: Int?
+  var language: String?
 }
 
 class SessionStore: NSObject, ObservableObject, WCSessionDelegate {
@@ -127,19 +139,23 @@ class SessionStore: NSObject, ObservableObject, WCSessionDelegate {
     guard let jsonData = try? JSONSerialization.data(withJSONObject: dict),
           let data = try? JSONDecoder().decode(WatchData.self, from: jsonData) else { return }
     DispatchQueue.main.async {
-      self.habits = data.habits
-      self.streak = data.streak
-      self.bestStreak = data.bestStreak
-      self.focusTotalSeconds = data.focusTotalSeconds
+      // Gelmeyen alan mevcut değerde KALIR, sıfırlanmaz — telefon şu an habit
+      // listesi/odak durumu göndermiyor diye Watch'ın elindeki son bilgi silinmesin.
+      if let habits = data.habits { self.habits = habits }
+      if let streak = data.streak { self.streak = streak }
+      if let bestStreak = data.bestStreak { self.bestStreak = bestStreak }
+      if let focusTotalSeconds = data.focusTotalSeconds { self.focusTotalSeconds = focusTotalSeconds }
       self.countdown = data.countdown
-      self.habitsCompletedToday = data.habitsCompletedToday
-      self.habitsTotal = data.habitsTotal
-      self.language = data.language
-      if data.focusActive && !self.focusActive {
-        self.startFocusLocal(durationMinutes: data.focusTotalSeconds / 60)
-        self.focusElapsedSeconds = data.focusElapsedSeconds
-      } else if !data.focusActive && self.focusActive {
-        self.stopFocusLocal()
+      if let habitsCompletedToday = data.habitsCompletedToday { self.habitsCompletedToday = habitsCompletedToday }
+      if let habitsTotal = data.habitsTotal { self.habitsTotal = habitsTotal }
+      if let language = data.language { self.language = language }
+      if let focusActive = data.focusActive {
+        if focusActive && !self.focusActive {
+          self.startFocusLocal(durationMinutes: (data.focusTotalSeconds ?? self.focusTotalSeconds) / 60)
+          self.focusElapsedSeconds = data.focusElapsedSeconds ?? 0
+        } else if !focusActive && self.focusActive {
+          self.stopFocusLocal()
+        }
       }
     }
   }
