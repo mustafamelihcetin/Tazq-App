@@ -525,22 +525,25 @@ export default function RootLayout() {
     return () => { try { sub?.remove?.(); } catch (e) { swallow('layout.notificationSubscriptionRemove', e); } };
   }, [isLoggedIn]);
 
-  // Ana Ekran Widget'ı ve Apple Watch köprüsü — yalnız iOS derlemesinde gerçek
-  // bir native modül var, diğer platformlarda no-op (bkz. shared/utils/nativeWidgetBridge).
+  // Ana Ekran Widget'ı ve Apple Watch köprüsü — GEÇİCİ OLARAK KAPALI.
   //
-  // DÖRT store'un hepsi dinleniyor — yalnız habit/focus dinlenirken görev
-  // tamamlama/ekleme ("Bugün" widget'ının listesi) ve mod başlatma/kapatma
-  // ("Geri Sayım" widget'ının tek veri kaynağı) widget'ı HİÇ tetiklemiyordu.
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    const unsubWatch = initWatchBridge();
-    pushWidgetSummary();
-    const unsubHabits = useHabitStore.subscribe(() => pushWidgetSummary());
-    const unsubFocus = useFocusStore.subscribe(() => pushWidgetSummary());
-    const unsubTasks = useTaskStore.subscribe(() => pushWidgetSummary());
-    const unsubPrefs = usePrefsStore.subscribe(() => pushWidgetSummary());
-    return () => { unsubWatch(); unsubHabits(); unsubFocus(); unsubTasks(); unsubPrefs(); };
-  }, [isLoggedIn]);
+  // Bu blok splash ekranında çökmeye yol açıyordu; ikiye bölme testinde
+  // (bkz. proje geçmişi) yalnız native modülü İSTEMEK (getTazqWidgetBridge)
+  // sorunsuzdu, initWatchBridge()'in kendisi test edilirken kullanıcı geniş
+  // kapsamlı taramaya geçti — initWatchBridge/pushWidgetSummary ayrımı HENÜZ
+  // KESİNLEŞMEDİ. Kesin sebep bulunup doğrulanana kadar ikisi de kapalı;
+  // yarım bir düzeltmeyle "çökmüyor gibi" görünüp tekrar açmak riskli.
+  //
+  // useEffect(() => {
+  //   if (!isLoggedIn) return;
+  //   const unsubWatch = initWatchBridge();
+  //   pushWidgetSummary();
+  //   const unsubHabits = useHabitStore.subscribe(() => pushWidgetSummary());
+  //   const unsubFocus = useFocusStore.subscribe(() => pushWidgetSummary());
+  //   const unsubTasks = useTaskStore.subscribe(() => pushWidgetSummary());
+  //   const unsubPrefs = usePrefsStore.subscribe(() => pushWidgetSummary());
+  //   return () => { unsubWatch(); unsubHabits(); unsubFocus(); unsubTasks(); unsubPrefs(); };
+  // }, [isLoggedIn]);
 
   // Auth Guard & Initialization
   useEffect(() => {

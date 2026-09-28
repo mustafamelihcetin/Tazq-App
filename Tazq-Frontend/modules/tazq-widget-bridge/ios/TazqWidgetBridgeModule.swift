@@ -61,8 +61,16 @@ public class TazqWidgetBridgeModule: Module {
         WidgetCenter.shared.reloadAllTimelines()
       }
 
+      /*
+        Watch'a giden `dict` AYNI kaynak — NSNull hâlâ içinde. WCSession de property
+        list dışı tipleri kabul etmiyor; en az bir alan `null` olduğunda (ör. aktif
+        mod yokken, ki bu SIK bir durum) `updateApplicationContext` `try?` içinde
+        SESSİZCE başarısız olur ve o turdaki TÜM Watch güncellemesi kaybolurdu —
+        yalnız o bir alan değil. NSNull anahtarları göndermeden önce ayıklanıyor.
+      */
       if WCSession.isSupported() && WCSession.default.activationState == .activated {
-        try? WCSession.default.updateApplicationContext(dict)
+        let watchSafeDict = dict.filter { !($0.value is NSNull) }
+        try? WCSession.default.updateApplicationContext(watchSafeDict)
       }
     }
   }

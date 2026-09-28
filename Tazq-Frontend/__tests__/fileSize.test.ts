@@ -234,7 +234,9 @@ const KNOWN_LARGE: Record<string, number> = {
   // dinleyicisiyle aynı desen — [isLoggedIn] bağımlı, tek yerde kurulur).
   // 810 → 816: widget köprüsü artık gorev/mod store'larını da dinliyor (bkz.
   // widgetBridge bug düzeltmesi — görev/mod değişince widget hiç güncellenmiyordu).
-  'app/_layout.tsx': 816,
+  // 816 → 819: widget/Watch köprüsü splash'te çökmeye yol açtığı için geçici
+  // olarak yorum satırına alındı (kök sebep doğrulanana kadar).
+  'app/_layout.tsx': 819,
   // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.

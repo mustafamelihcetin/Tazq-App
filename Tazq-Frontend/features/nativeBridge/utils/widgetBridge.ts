@@ -10,19 +10,20 @@ import { completeTask } from '@/features/tasks/utils/taskActions';
 import { Colors, modeAccent, modeAccentText } from '@/shared/constants/Colors';
 import { localizeSporGoal } from '@/features/modes/utils/turkishModes';
 import { swallow } from '@/shared/utils/swallow';
-import TazqWidgetBridge from '@/modules/tazq-widget-bridge/src/TazqWidgetBridgeModule';
+import { getTazqWidgetBridge } from '@/modules/tazq-widget-bridge/src/TazqWidgetBridgeModule';
 
 /**
  * Telefon → Ana Ekran Widget'ı ve Apple Watch köprüsü.
  *
- * `TazqWidgetBridge` yalnız iOS'ta, native kodu derlenmiş bir build'de dolu
- * gelir — Android'de, Expo Go'da ya da native kodu henüz içermeyen ESKİ bir
- * dev client'ta `null`dur (bkz. modül dosyasındaki `requireOptionalNativeModule`
- * notu). Her çağıran bu tek fonksiyondan geçtiği için platform/derleme
- * kontrolü tek yerde kalıyor.
+ * `getTazqWidgetBridge()` yalnız iOS'ta, native kodu derlenmiş bir build'de dolu
+ * döner — Android'de, Expo Go'da ya da native kodu henüz içermeyen ESKİ bir
+ * dev client'ta `null`dur. BİLEREK burada, ÇAĞRILDIĞI AN'da (bu fonksiyon
+ * `pushWidgetSummary`/`initWatchBridge` içinden, yalnız giriş yapılmışken
+ * çağrılır) çözülüyor — modül dosyasındaki notta anlatılan tepe-seviye çağrı
+ * uygulamayı splash'te çökertiyordu.
  */
-function getBridge(): typeof TazqWidgetBridge {
-  return TazqWidgetBridge;
+function getBridge() {
+  return getTazqWidgetBridge();
 }
 
 const WIDGET_MAX_TASK_TITLES = 6;

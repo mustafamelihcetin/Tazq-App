@@ -459,6 +459,27 @@ namespace Tazq_App.Services
             return true;
         }
 
+        /*
+          ŞİFRE DEĞİŞİNCE/SIFIRLANINCA ÇALINMIŞ OTURUMLAR KAPANMIYORDU.
+
+          `SetBanAsync` (AdminService) ve `DeleteUserAsync` kullanıcının tüm refresh
+          token'larını iptal ediyor ama `ChangePasswordAsync`/`ResetPasswordAsync`
+          etmiyordu. Oysa "şifremi değiştiriyorum" kullanıcının en sık başvurduğu
+          senaryolardan biri TAM OLARAK "birinin hesabıma eriştiğini düşünüyorum" —
+          ve o kişinin elinde zaten geçerli bir refresh token'ı varsa (çalıntı cihaz,
+          sızmış token), şifre değişse de 60 gün boyunca erişimini sürdürebiliyordu.
+        */
+        private async Task RevokeAllRefreshTokensAsync(int userId)
+        {
+            var tokens = await _context.RefreshTokens
+                .Where(t => t.UserId == userId && t.RevokedAt == null)
+                .ToListAsync();
+            if (tokens.Count == 0) return;
+            var now = DateTime.UtcNow;
+            foreach (var t in tokens) t.RevokedAt = now;
+            _context.RefreshTokens.UpdateRange(tokens);
+        }
+
         public async Task<bool> ResetPasswordAsync(string token, string newPassword)
         {
             using var sha256 = System.Security.Cryptography.SHA256.Create();
@@ -473,6 +494,7 @@ namespace Tazq_App.Services
 
             _context.Users.Update(tokenEntry.User);
             _context.PasswordResetTokens.Remove(tokenEntry);
+            await RevokeAllRefreshTokensAsync(tokenEntry.User.Id);
             return await _context.SaveChangesAsync() > 0;
         }
 
@@ -621,6 +643,12 @@ namespace Tazq_App.Services
             user.PasswordIterations = hashed.Iterations;
 
             _context.Users.Update(user);
+            // Bu uç isteğin HANGİ refresh token'a ait olduğunu bilmiyor (yalnız parola
+            // alıyor) — o yüzden hepsini kapatıyoruz, ResetPasswordAsync ile aynı gerekçe.
+            // Mevcut oturum kesilmez: 30 dakikalık access token hâlâ geçerli, yalnız bir
+            // sonraki yenilemede (refresh) tekrar giriş istenir — ban/hesap silme akışıyla
+            // aynı, alışılmış davranış.
+            await RevokeAllRefreshTokensAsync(userId);
             await _context.SaveChangesAsync();
             return 0;
         }
