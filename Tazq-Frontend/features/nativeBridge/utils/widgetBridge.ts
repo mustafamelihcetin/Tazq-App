@@ -24,15 +24,24 @@ function getBridge(): typeof TazqWidgetBridge {
   return TazqWidgetBridge;
 }
 
+const WIDGET_MAX_TASK_TITLES = 6;
+const WIDGET_TASK_TITLE_MAX_CHARS = 40;
+
 /**
- * Bugünün görev sayısı — `app/index.tsx`'teki `dayScope`ün SADELEŞTİRİLMİŞ hâli.
+ * Bugünün görev sayısı VE ilk birkaç başlığı — `app/index.tsx`'teki `dayScope`ün
+ * SADELEŞTİRİLMİŞ hâli.
  *
  * Widget bir bakış (glance) yüzeyi; "belki bir gün" ayrımı gibi ince kurallar
  * burada YOK — yalnız "vadesi bugüne kadar gelmiş, açık" ve "bugün bitmiş" sayılıyor.
  * Tam listeyle küçük bir fark olması widget için kabul edilebilir; asıl önemli olan
  * TEK bir sayının değil, "görev + alışkanlık" ikisinin birden görünmesiydi.
+ *
+ * BAŞLIKLAR: `tasks` dizisi zaten store'un kendi sıralamasıyla geliyor (tamamlanmamış
+ * önce, öncelik yüksekten düşüğe, sonra en yakın tarih — bkz. useTaskStore.setTasks).
+ * Widget'ın kendi sıralama mantığı YOK; aynı kuralı burada tekrarlamak, ikisinin
+ * zamanla ayrışması demekti — sırayı olduğu gibi devralıp yalnız FİLTRELİYORUZ.
  */
-function todayTaskCounts(): { done: number; total: number } {
+function todayTasks(): { done: number; total: number; titles: string[] } {
   const tasks = useTaskStore.getState().tasks;
   const todayEndMs = new Date().setHours(23, 59, 59, 999);
   const today = productTodayKey();
@@ -43,9 +52,12 @@ function todayTaskCounts(): { done: number; total: number } {
     return Number.isNaN(ms) ? null : ms;
   };
 
-  const openToday = tasks.filter(t => !t.isCompleted && dueAt(t) !== null && dueAt(t)! <= todayEndMs).length;
+  const open = tasks.filter(t => !t.isCompleted && dueAt(t) !== null && dueAt(t)! <= todayEndMs);
   const doneToday = tasks.filter(t => t.isCompleted && wasCompletedOn(t, today)).length;
-  return { done: doneToday, total: openToday + doneToday };
+  const titles = open.slice(0, WIDGET_MAX_TASK_TITLES).map(t =>
+    t.title.length > WIDGET_TASK_TITLE_MAX_CHARS ? `${t.title.slice(0, WIDGET_TASK_TITLE_MAX_CHARS - 1)}…` : t.title
+  );
+  return { done: doneToday, total: open.length + doneToday, titles };
 }
 
 interface ModeCountdownEntry {
@@ -66,14 +78,18 @@ const FALLBACK_MODE_LABEL: Record<'exam' | 'tez' | 'mulakat' | 'spor' | 'tasarru
 };
 
 /**
- * En yakın tarihli aktif mod — Geri Sayım widget'ının tek veri kaynağı.
+ * En yakın tarihli aktif modlar — Geri Sayım widget'ının tek veri kaynağı.
+ *
+ * En fazla İKİ döner: küçük widget yalnız ilkini kullanır, orta boy widget
+ * ikisini yan yana gösterir (birden fazla aktif dönemi olan kullanıcı için —
+ * ör. hem sınav hem tez — tek geri sayımla diğerini hiç göstermemek eksikti).
  *
  * `useActiveModeSummary` hook'unun BİLEREK küçültülmüş hâli: o hook React içinde
  * (tema/dil hook'ları) çalışır, bu fonksiyon ise bir `useEffect` içinden düz
  * `getState()` ile çağrılır. Habit/task ilerleme yüzdesi widget'ta gösterilmiyor,
  * bu yüzden onun hesapları burada YOK — yalnız ad/gün/renk/emoji.
  */
-function nearestModeCountdown(tr: boolean): ModeCountdownEntry | null {
+function nearestModeCountdowns(tr: boolean): ModeCountdownEntry[] {
   const seasonal = usePrefsStore.getState().seasonal;
   const isDark = true; // widget zemini her zaman koyu (bkz. widgets.swift) — koyu tema tonları kullanılıyor.
 
@@ -98,15 +114,13 @@ function nearestModeCountdown(tr: boolean): ModeCountdownEntry | null {
     .filter((c): c is typeof c & { days: number } => c.days !== null)
     .sort((a, b) => a.days - b.days);
 
-  if (dated.length === 0) return null;
-  const nearest = dated[0];
-  return {
-    label: nearest.label,
-    days: nearest.days,
-    color: modeAccent(nearest.key, isDark),
-    textColor: modeAccentText(nearest.key, isDark),
-    emoji: nearest.emoji,
-  };
+  return dated.slice(0, 2).map(d => ({
+    label: d.label,
+    days: d.days,
+    color: modeAccent(d.key, isDark),
+    textColor: modeAccentText(d.key, isDark),
+    emoji: d.emoji,
+  }));
 }
 
 let lastPushedJson = '';
@@ -127,9 +141,9 @@ export function pushWidgetSummary(): void {
   const habitsTotal = habits.length;
   const habitsCompletedToday = habits.filter(h => h.completedDates.includes(todayKey)).length;
   const streak = useFocusStore.getState().localStreak;
-  const tasks = todayTaskCounts();
+  const tasks = todayTasks();
   const tr = useLanguageStore.getState().language === 'tr';
-  const countdown = nearestModeCountdown(tr);
+  const [countdown, countdown2] = nearestModeCountdowns(tr);
 
   const payload: Record<string, unknown> = {
     streak,
@@ -137,12 +151,20 @@ export function pushWidgetSummary(): void {
     habitsTotal,
     tasksCompletedToday: tasks.done,
     tasksTotal: tasks.total,
+    // Widget listeyi kendi biçiminde ister; JSON.stringify edilmiş dizi olarak
+    // yazılıyor (UserDefaults düz tipleri tercih eder), Swift tarafı çözüyor.
+    taskTitlesJson: JSON.stringify(tasks.titles),
     language: useLanguageStore.getState().language,
     countdownLabel: countdown?.label ?? null,
     countdownDays: countdown?.days ?? null,
     countdownColor: countdown?.color ?? null,
     countdownTextColor: countdown?.textColor ?? null,
     countdownEmoji: countdown?.emoji ?? null,
+    countdown2Label: countdown2?.label ?? null,
+    countdown2Days: countdown2?.days ?? null,
+    countdown2Color: countdown2?.color ?? null,
+    countdown2TextColor: countdown2?.textColor ?? null,
+    countdown2Emoji: countdown2?.emoji ?? null,
     // Widget kendi renklerini UYDURMASIN — uygulamanın gerçek koyu tema paletinden
     // (bkz. shared/constants/Colors.ts `dark`). Palet değişirse widget de kendiliğinden
     // izler; Swift tarafında ayrı bir kopya tutmak zamanla sessizce ayrışırdı.
