@@ -181,32 +181,28 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
     return Math.round(((totalFocusMins - lastWeekMinutes) / lastWeekMinutes) * 100);
   }, [totalFocusMins, lastWeekMinutes]);
 
-  // Helper to translate weekday abbreviations from API
+  /*
+    Haftanın günü metnini yerelleştirir. `dayStr` her zaman İngilizce ("Mon") gelmiyor —
+    `weeklyFocusData[].day` üstteki verinin kaynağına göre ZATEN `t.dayLabels`'tan
+    geliyor, yani Türkçe modda "Pzt/Sal/Çar/…" olarak ulaşıyor (bkz. app/index.tsx).
+    Eski kod yalnız İngilizce kısaltmaları arıyordu; Türkçe kullanıcıda hiç eşleşmiyor
+    ve "Pzt" olduğu gibi ekrana çıkıyordu ("EN VERİMLİ GÜN: Pzt" yerine "Pazartesi").
+    Artık her iki kaynak dizide de (İngilizce VE Türkçe kısa ad) arıyor, gün İNDEKSİNİ
+    bulup oradan doğru dile çeviriyor.
+  */
   const getLocalizedDayName = (dayStr: string, isFull = false) => {
-    const cleanDay = dayStr.trim().replace('.', '');
-    const enToTrShort: Record<string, string> = {
-      'Mon': 'Pt', 'Tue': 'Sa', 'Wed': 'Ça', 'Thu': 'Pe', 'Fri': 'Cu', 'Sat': 'Ct', 'Sun': 'Pa'
-    };
-    const enToTrFull: Record<string, string> = {
-      'Mon': 'Pazartesi', 'Tue': 'Salı', 'Wed': 'Çarşamba', 'Thu': 'Perşembe', 'Fri': 'Cuma', 'Sat': 'Cumartesi', 'Sun': 'Pazar'
-    };
-    const enToEnFull: Record<string, string> = {
-      'Mon': 'Monday', 'Tue': 'Tuesday', 'Wed': 'Wednesday', 'Thu': 'Thursday', 'Fri': 'Friday', 'Sat': 'Saturday', 'Sun': 'Sunday'
-    };
+    const cleanDay = dayStr.trim().replace('.', '').toLowerCase();
+    const enShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const trShort = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']; // i18n.ts dayLabels ile aynı
+    const trFull = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+    const enFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-    if (language === 'tr') {
-      const match = Object.keys(enToTrShort).find(k => cleanDay.toLowerCase().startsWith(k.toLowerCase()));
-      if (match) {
-        return isFull ? enToTrFull[match] : enToTrShort[match];
-      }
-      return cleanDay;
-    } else {
-      const match = Object.keys(enToEnFull).find(k => cleanDay.toLowerCase().startsWith(k.toLowerCase()));
-      if (match) {
-        return isFull ? enToEnFull[match] : cleanDay;
-      }
-      return cleanDay;
-    }
+    let idx = enShort.findIndex(k => cleanDay === k.toLowerCase() || cleanDay.startsWith(k.toLowerCase()));
+    if (idx < 0) idx = trShort.findIndex(k => cleanDay === k.toLocaleLowerCase('tr'));
+    if (idx < 0) return dayStr.trim().replace('.', '');
+
+    if (language === 'tr') return isFull ? trFull[idx] : trShort[idx];
+    return isFull ? enFull[idx] : enShort[idx];
   };
 
   return (

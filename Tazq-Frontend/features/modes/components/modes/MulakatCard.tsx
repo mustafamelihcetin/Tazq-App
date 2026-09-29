@@ -26,7 +26,7 @@ import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { useModeCompletionReview } from '@/features/modes/hooks/useModeCompletionReview';
 import { completionCopy } from '@/features/modes/utils/modeCompletion';
-import { toDateKey } from '@/shared/utils/dateKey';
+import { toDateKey, parseDateKey, calendarDayOf } from '@/shared/utils/dateKey';
 
 // Vurgu merkezi paletten (bkz. Colors.ModeAccents) — tema-duyarlı + kontrast güvenli.
 const BASE_CALENDAR_WIDTH = 340;
@@ -81,7 +81,7 @@ function SecondarySlot({ slot, nameKey, dateKey, placeholder, onOpenPreview }: {
   const complete = name.trim() !== '' && date !== '';
   const past = isDatePast(date);
   const daysLeft = daysLeftOf(date);
-  const dateObj = date ? new Date(date) : new Date(Date.now() + 21 * 86400000);
+  const dateObj = date ? parseDateKey(date) : new Date(Date.now() + 21 * 86400000);
 
   const del = () => {
     planHabitIds.forEach(id => removeHabit(id));
@@ -172,11 +172,14 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
   const isComplete = name.trim() !== '' && date !== '';
   const past = isDatePast(date);
   const daysLeft = daysLeftOf(date);
-  const dateObj = date ? new Date(date) : new Date(Date.now() + 21 * 86400000);
+  const dateObj = date ? parseDateKey(date) : new Date(Date.now() + 21 * 86400000);
   const hasPlan = planHabitIds.length > 0 || planTaskIds.length > 0;
 
   const todayKey = fmtDateKey();
-  const isToday = (d?: string | null) => !!d && !d.startsWith('0001') && fmtDateKey(new Date(d)) === todayKey;
+  // GÖREV GÜNÜ ≠ ALIŞKANLIK GÜNÜ — todayKey (fmtDateKey) gece-kuşu tamponu içerir,
+  // görev vade tarihi tamponsuz takvim günüyle karşılaştırılmalı (bkz. ExamCard'daki not).
+  const todayCalKey = toDateKey(new Date());
+  const isToday = (d?: string | null) => calendarDayOf(d) === todayCalKey;
   const planHabits = habits.filter(h => planHabitIds.includes(h.id));
   const wkTasks = tasks.filter(t => planTaskIds.includes(t.id) && (isToday(t.dueDate) || (t.isCompleted && isToday(t.completedAt))));
   const progTotal = planHabits.length + wkTasks.length;

@@ -300,7 +300,13 @@ export const TurkishModeBanner: React.FC<Props> = ({
     : 0;
 
   const [rating, setRating] = useState<number | null>(null);
-  const ratingKey = `tazq_eval_${mode.type}_${todayKey}`;
+  /*
+    YUVA DA ANAHTARIN İÇİNDE OLMALI. Bu bileşen exam/exam2/exam3 (ve mulakat/spor
+    ikizleri) için AYNI `mode.type` ile ayrı ayrı açılıyor — yuva farkı yalnız
+    `activeSlot`te. Anahtar bunu içermeyince iki sınavın günlük değerlendirmesi
+    aynı AsyncStorage kaydını paylaşıyor, biri diğerini sessizce eziyordu.
+  */
+  const ratingKey = `tazq_eval_${activeSlot ?? mode.type}_${todayKey}`;
 
   useEffect(() => {
     if (sheetVisible) {
@@ -487,8 +493,18 @@ export const TurkishModeBanner: React.FC<Props> = ({
     }
   }, [showSheetImmediately]);
 
+  const applyingRef = React.useRef(false);
   const applyAll = async () => {
-    if (applying || allDone) return;
+    /*
+      REF KİLİDİ — `applying` state'i tek başına yetmiyordu. React'ın `setApplying(true)`
+      güncellemesi commit edilmeden önce aynı tık/dokunuşun İKİ olayı JS thread'inde art
+      arda işlenirse, ikisi de hâlâ `applying === false` okuyup kapıdan geçebiliyordu
+      (hızlı çift dokunuş). Sonuç: alışkanlık/görev oluşturma döngüsü İKİ KEZ çalışıyordu.
+      Ref senkron ve anında güncellendiği için bu yarışı kapatır; state yine arayüzün
+      (buton devre dışı görünümü) kaynağı.
+    */
+    if (applyingRef.current || applying || allDone) return;
+    applyingRef.current = true;
     setApplying(true);
     haptic.success();
     
@@ -662,6 +678,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
       dailyMinutes: selectedTemplate?.dailyGoalMinutes,
     });
     setApplying(false);
+    applyingRef.current = false;
     appliedRef.current = true;
     setApplied(true);
   };

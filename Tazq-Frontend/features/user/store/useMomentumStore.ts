@@ -341,6 +341,21 @@ export const useMomentumStore = create<MomentumState>()(
       },
 
       triggerRocketFeedback: (title, isPerfect = false) => {
+        /*
+          LITE KAPISI — bu deponun HER diğer eylemi (addFocusMinutes, addCompletedTask,
+          undoCompletedTask, decayEngineHeat, getDecayedHeat) `uiMode === 'lite'`i kontrol
+          edip Sade modda susuyor; burası unutulmuştu. Bayrak Sade modda da `true`
+          yazılıyor, `RocketFeedback.tsx` yalnız GÖRSELİ kendi kontrolüyle gizliyordu —
+          bayrağın kendisi hiç temizlenmiyordu. Kullanıcı Sade modu KAPATTIĞINDA (aynı
+          ekrandan ayrılmadan), önceden biriken bu bayrak aniden patlıyor, bağlamsız ve
+          gecikmiş bir "roket" bildirimi/titreşimi gösteriyordu.
+        */
+        let isLite = false;
+        try {
+          const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
+          isLite = usePrefsStore.getState().uiMode === 'lite';
+        } catch (e) { swallow('useMomentumStore.triggerRocketFeedback', e); }
+        if (isLite) return;
         set({ lastCompletedTaskTitle: title, showRocketFeedback: true, isPerfectSync: isPerfect });
       },
 

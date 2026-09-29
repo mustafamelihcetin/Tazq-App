@@ -246,6 +246,9 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                     <Touchable
                       key={g.key}
                       onPress={() => {
+                        // Zaten seçiliyse dokunma — kullanıcının seçtiği avatarı aynı
+                        // cinsiyete yeniden dokununca sessizce sıfırlamasın (bkz. profile.tsx).
+                        if (isSelected) return;
                         haptic.select();
                         setGender(g.key);
                         if (g.key === 'male') {

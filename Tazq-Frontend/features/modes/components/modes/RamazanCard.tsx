@@ -16,6 +16,7 @@ import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '../../utils/modeIcons';
 import { retirePlanTask , retireModeTasksByTag} from '@/features/modes/utils/planTaskOps';
 import { getCurrentRamadanStatus, formatRamadanDate } from '@/shared/utils/ramadanDates';
+import { calendarDayOf, toDateKey } from '@/shared/utils/dateKey';
 import { RAMAZAN_HABIT_NAMES } from '../../utils/turkishModes';
 import { isTurkeySeasonalEnabled } from '../../utils/localeGate';
 import { scheduleRamadanStartNotification, cancelRamadanStartNotification } from '@/shared/utils/notifications';
@@ -71,7 +72,10 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
 
   // Bugünkü ilerleme.
   const todayKey = fmtDateKey();
-  const isToday = (d?: string | null) => !!d && !d.startsWith('0001') && fmtDateKey(new Date(d)) === todayKey;
+  // GÖREV GÜNÜ ≠ ALIŞKANLIK GÜNÜ — todayKey (fmtDateKey) gece-kuşu tamponu içerir,
+  // görev vade tarihi tamponsuz takvim günüyle karşılaştırılmalı (bkz. ExamCard'daki not).
+  const todayCalKey = toDateKey(new Date());
+  const isToday = (d?: string | null) => calendarDayOf(d) === todayCalKey;
   const planHabits = habits.filter(h => ramazanPlanHabitIds.includes(h.id));
   const wkTasks = tasks.filter(t => ramazanPlanTaskIds.includes(t.id) && (isToday(t.dueDate) || (t.isCompleted && isToday(t.completedAt))));
   const progTotal = planHabits.length + wkTasks.length;

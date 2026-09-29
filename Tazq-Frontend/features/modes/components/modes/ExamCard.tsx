@@ -30,7 +30,7 @@ import { ModePlanSummary } from '@/features/modes/components/ModePlanSummary';
 import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
-import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
+import { toDateKey, parseDateKey, calendarDayOf } from '@/shared/utils/dateKey';
 
 // Vurgu merkezi paletten (bkz. Colors.ModeAccents) — tema-duyarlı + kontrast güvenli.
 const BASE_CALENDAR_WIDTH = 340;
@@ -220,7 +220,7 @@ function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview
 
   const past = isDatePast(date);
   const daysLeft = daysLeftOf(date);
-  const dateObj = date ? new Date(date) : new Date(Date.now() + 60 * 86400000);
+  const dateObj = date ? parseDateKey(date) : new Date(Date.now() + 60 * 86400000);
 
   const [expanded, setExpanded] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
@@ -372,7 +372,7 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
 
   const past = isDatePast(date);
   const daysLeft = daysLeftOf(date);
-  const dateObj = date ? new Date(date) : new Date(Date.now() + 60 * 86400000);
+  const dateObj = date ? parseDateKey(date) : new Date(Date.now() + 60 * 86400000);
   const hasPlan = examPlanHabitIds.length > 0 || examPlanTaskIds.length > 0;
   // Ara verme + kat edilen yol — dört kart da aynı kaynaktan (bkz. usePlanLifecycle).
   const lifecycle = usePlanLifecycle('exam', date, examPlanHabitIds);
@@ -446,7 +446,15 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
 
   // Bugünkü ilerleme.
   const todayKey = fmtDateKey();
-  const isToday = (d?: string | null) => !!d && !d.startsWith('0001') && fmtDateKey(new Date(d)) === todayKey;
+  /*
+    GÖREV GÜNÜ ≠ ALIŞKANLIK GÜNÜ. `todayKey` (fmtDateKey) alışkanlıklar için 3 saatlik
+    gece-kuşu tamponu içerir ("gece 01:00 dün sayılır"); ama görev vade tarihi bir
+    TAKVİM taahhüdüdür, tamponsuz olmalı (bkz. dateKey.ts başlığındaki ayrım). Eskiden
+    ikisi de fmtDateKey ile karşılaştırılıyordu (tutarlıydı ama UTC-ayrıştırma hatası
+    taşıyordu); şimdi görev tarafı kendi takvim gününü kullanır.
+  */
+  const todayCalKey = toDateKey(new Date());
+  const isToday = (d?: string | null) => calendarDayOf(d) === todayCalKey;
   const planHabits = habits.filter(h => examPlanHabitIds.includes(h.id));
   const wkTasks = tasks.filter(t => examPlanTaskIds.includes(t.id) && (isToday(t.dueDate) || (t.isCompleted && isToday(t.completedAt))));
   const progTotal = planHabits.length + wkTasks.length;

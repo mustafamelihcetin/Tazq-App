@@ -62,7 +62,15 @@ export function normalize(text: string, lang: Lang): string {
 export function detectLang(text: string): Lang {
   if (/[ıİğĞüÜşŞöÖçÇ]/.test(text)) return 'tr';
   // "her" bilerek YOK: İngilizcede de kelime ("call her").
-  return /(^|[^\p{L}])(yarın|bugün|haftaya|için|ile|ve|saat|hatırlat\p{L}*)(?![\p{L}])/iu.test(text) ? 'tr' : 'en';
+  /*
+    `/i` bayrağı standart (Türkçe-farkında olmayan) katlama yapar: 'I' → 'i', ama
+    'ı' (noktasız) kendi başına katlanır — 'I' ile 'ı' asla eşleşmez. Yani büyük harfle
+    yazılmış "YARIN" (başka hiçbir Türkçe'ye özgü harf taşımıyorsa) `/yarın/iu` ile hiç
+    eşleşmiyor ve metin yanlışlıkla İngilizce sayılıyordu. `normalize()` ile aynı
+    Türkçe-farkında küçültme burada da uygulanıyor, sonra düz (bayraksız) eşleştiriliyor.
+  */
+  const trFolded = text.replace(/İ/g, 'i').replace(/I/g, 'ı').toLowerCase();
+  return /(^|[^\p{L}])(yarın|bugün|haftaya|için|ile|ve|saat|hatırlat\p{L}*)(?![\p{L}])/u.test(trFolded) ? 'tr' : 'en';
 }
 
 const W = '\\p{L}\\p{N}';
@@ -207,7 +215,16 @@ function dates(s: string, now: Date): Candidate<Date | null>[] {
   const c: Candidate<Date | null>[] = [];
   const add = (re: RegExp, f: (g: string[]) => Date | null) => scan(re, s).forEach((hit) => c.push({ hit, value: f(hit.g) }));
   add(rx('(\\d{4})-(\\d{2})-(\\d{2})'), (g) => calendarDate(now, +g[2], +g[1], +g[0]));
-  add(rx('(\\d{1,2})/(\\d{1,2})(?:/(\\d{2,4}))?'), (g) => calendarDate(now, +g[0], +g[1], g[2] ? +(g[2].length === 2 ? `20${g[2]}` : g[2]) : undefined));
+  add(rx('(\\d{1,2})/(\\d{1,2})(?:/(\\d{2,4}))?'), (g) => {
+    const year = g[2] ? +(g[2].length === 2 ? `20${g[2]}` : g[2]) : undefined;
+    /*
+      VARSAYILAN GG/AA (bu uygulamanın birincil pazarı Türkiye, '.' biçimiyle tutarlı —
+      bkz. bir alt satır). Ama "12/25" gibi bir girdide GG/AA imkansız (ay 25 olamaz);
+      tek geçerli okuma AA/GG'dir (25 Aralık). Birincil okuma geçersizse TERS çevrilip
+      denenir — belirsiz olmayan tek durumda sessizce tarihi düşürmek yerine.
+    */
+    return calendarDate(now, +g[0], +g[1], year) ?? calendarDate(now, +g[1], +g[0], year);
+  });
   add(rx('(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})'), (g) => calendarDate(now, +g[0], +g[1], +g[2]));
   add(rx(`(\\d{1,2})${ORD}\\s+(${MO})${DSFX}(?:\\s+(\\d{4}))?`), (g) => calendarDate(now, +g[0], MONTH[g[1]], g[2] ? +g[2] : undefined));
   add(rx(`(${MO})\\s+(\\d{1,2})${ORD}(?:,?\\s+(\\d{4}))?`), (g) => calendarDate(now, +g[1], MONTH[g[0]], g[2] ? +g[2] : undefined));

@@ -245,7 +245,7 @@ export const SleepHealth = {
    * dokumu". Ikisi ayni okuma mantigini paylasmali, yoksa biri duzeltilip oteki
    * eskir (bu dosyada tam olarak bu olmustu: Android evre filtresi yanlisti).
    */
-  async _readIntervals(from: Date, to: Date): Promise<(Interval | null)[] | null> {
+  async _readIntervals(from: Date, to: Date): Promise<{ asleep: (Interval | null)[]; inBed: (Interval | null)[] } | null> {
     if (Platform.OS === 'ios') {
       const hk = getHK();
       if (!hk || typeof hk.queryCategorySamples !== 'function') return null;
@@ -266,8 +266,16 @@ export const SleepHealth = {
           if (ASLEEP_VALUES.has(v)) asleep.push(iv);
           else if (v === IN_BED_VALUE) inBed.push(iv);
         }
-        // "Uykuda" kaydı varsa onu kullan; yoksa "yatakta"ya düş (eski/basit kaynaklar).
-        return asleep.length > 0 ? asleep : inBed;
+        /*
+          "Uykuda"/"yatakta" TERCİHİ ARTIK GÜN BAŞINA — eskiden bu fonksiyon TÜM pencere
+          için tek bir seçim yapıp (asleep.length > 0 ? asleep : inBed) birini TÜMÜYLE
+          atıyordu. Çok günlük bir okumada (bkz. getSleepMinutesByDay/getSleepSummary)
+          bu, Watch'ı bir gece çıkarıp yalnız telefonun "yatakta" kaydını bıraktığı bir
+          kullanıcıda O GECEYİ SIFIRA düşürüyordu — diğer geceler "uykuda" verisi
+          taşıdığı için tüm pencere "uykuda" moduna kilitleniyordu. Seçim artık her iki
+          diziyi de çağırana bırakarak günbegün yapılıyor (bkz. bucketByDayPreferAsleep).
+        */
+        return { asleep, inBed };
       } catch { return null; }
     }
 
@@ -296,7 +304,8 @@ export const SleepHealth = {
             intervals.push(toInterval(r.startTime, r.endTime));
           }
         }
-        return intervals;
+        // Health Connect'te "yatakta" ile "uykuda" ayrımı yok — hepsi "uykuda" sayılır.
+        return { asleep: intervals, inBed: [] };
       } catch { return null; }
     }
 
@@ -306,8 +315,11 @@ export const SleepHealth = {
   /** Son gece (en son oturum) kac dakika. */
   async getRecentSleepMinutes(): Promise<number | null> {
     const { from, to } = recentSleepWindow();
-    const intervals = await this._readIntervals(from, to);
-    return intervals ? lastSessionMinutes(intervals) : null;
+    const raw = await this._readIntervals(from, to);
+    if (!raw) return null;
+    // Tek (dar) pencere ~ tek gece: pencere-geneli tercih burada zararsız.
+    const intervals = raw.asleep.length > 0 ? raw.asleep : raw.inBed;
+    return lastSessionMinutes(intervals);
   },
 
   /**
@@ -325,7 +337,7 @@ export const SleepHealth = {
    */
   async getSleepMinutesByDay(daysBack: number): Promise<Record<string, number>> {
     const raw = await this._readIntervals(...byDayWindow(daysBack));
-    return raw ? bucketByDay(raw) : {};
+    return raw ? bucketByDayPreferAsleep(raw.asleep, raw.inBed) : {};
   },
 
   /**
@@ -347,11 +359,13 @@ export const SleepHealth = {
     if (!raw) return { lastSession: null, byDay: {} };
 
     // Son oturum YALNIZ dar pencereden hesaplanır — geniş pencerede "en son oturum"
-    // günler öncesine düşebilir ve "dün gece" sorusunun cevabı olmaz.
+    // günler öncesine düşebilir ve "dün gece" sorusunun cevabı olmaz. Dar pencere ~
+    // tek gece olduğundan pencere-geneli asleep/inBed tercihi burada zararsız.
     const { from: recentFrom } = recentSleepWindow();
-    const recentOnly = raw.filter(x => x != null && x.end >= recentFrom.getTime());
+    const merged = raw.asleep.length > 0 ? raw.asleep : raw.inBed;
+    const recentOnly = merged.filter(x => x != null && x.end >= recentFrom.getTime());
 
-    return { lastSession: lastSessionMinutes(recentOnly), byDay: bucketByDay(raw) };
+    return { lastSession: lastSessionMinutes(recentOnly), byDay: bucketByDayPreferAsleep(raw.asleep, raw.inBed) };
   },
 
   async getAvailability(): Promise<SleepAvailability> {
@@ -417,6 +431,20 @@ function bucketByDay(raw: (Interval | null)[]): Record<string, number> {
     flush();
 
     return out;
+}
+
+/**
+ * GÜNBEGÜN "uykuda" tercihi — asleep verisi olan gün kendi asleep toplamını alır,
+ * asleep hiç yoksa (yalnız o gece için) inBed'e düşer. Pencere-geneli bir seçimden
+ * farkı: Watch'ı bir gece çıkarıp yalnız telefon "yatakta" kaydı bırakan kullanıcıda
+ * DİĞER geceler asleep taşısa bile o TEK gece hâlâ inBed'den sayılır, sıfıra düşmez.
+ */
+function bucketByDayPreferAsleep(asleep: (Interval | null)[], inBed: (Interval | null)[]): Record<string, number> {
+  const asleepByDay = bucketByDay(asleep);
+  const inBedByDay = bucketByDay(inBed);
+  const out: Record<string, number> = { ...inBedByDay };
+  for (const [day, mins] of Object.entries(asleepByDay)) out[day] = mins;
+  return out;
 }
 
 /**

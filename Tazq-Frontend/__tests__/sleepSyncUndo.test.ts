@@ -93,7 +93,7 @@ describe('platform okuması', () => {
     const svc = read('shared/services/sleepHealth.ts');
     const fn = svc.slice(svc.indexOf('async getSleepSummary'), svc.indexOf('async getSleepSummary') + 900);
     expect(fn).toContain('lastSessionMinutes(');
-    expect(fn).toContain('bucketByDay(');
+    expect(fn).toContain('bucketByDayPreferAsleep(');
     // Dar pencere filtresi olmadan "en son oturum" günler öncesine düşerdi
     expect(fn).toContain('recentSleepWindow()');
   });

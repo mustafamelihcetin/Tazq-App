@@ -73,7 +73,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // 2817 → 2820: YKS/KPSS/Ramazan'ın DİL kapısı (İngilizce arayüzde takvimle
   // kendiliğinden açılmasınlar). Kapının kendisi ayrı dosyada — bu dosya uygulamanın
   // en büyüğü ve saf veri katmanı; bir store bağımlılığı buraya ait değil.
-  'features/modes/utils/turkishModes.ts': 2820,
+  'features/modes/utils/turkishModes.ts': 2822, // +2: Ramazan geri sayımı yerel-gün güvenli (asLocalDay)
   // 2488 → 2491: ERİŞİLEBİLİRLİK. Sayaç kürenin basılı-tutma alanı adsız bir kontrol
   // olarak odak alıyordu; o bir topraklanma JESTİ, düğme değil — ağacın dışına alındı.
   // 2491 → 2497: CAM SAYFALAR. Beş modalın (süre, mod, nefes, özet, pomodoro) elle
@@ -255,7 +255,7 @@ const KNOWN_LARGE: Record<string, number> = {
   'app/admin.tsx': 1809,
   // 1690 → 1718: plan başlatılmadan ÖNCE mevcut yük söyleniyor (kaç aktif hedef,
   // bugün kaç plan işi). Kullanıcı toplamı ancak uyguladıktan SONRA öğreniyordu.
-  'features/modes/components/TurkishModeBanner.tsx': 1718,
+  'features/modes/components/TurkishModeBanner.tsx': 1735, // +17: günlük değerlendirme anahtarı yuva-bazlı, çift-tık kilidi ref'e taşındı
   // 1523 → 1529: ERİŞİLEBİLİRLİK. Alışkanlık satırının adı, durumu ve serisi ekran
   // okuyucuya hiç ulaşmıyordu (durum renkle, seri rozetle söyleniyordu).
   // 1529 → 1530: CAM SAYFALAR. Alışkanlık ekleme ve plan sayfaları ortak cam yüzeye bağlandı.
@@ -313,7 +313,7 @@ const KNOWN_LARGE: Record<string, number> = {
   */
   // 1233 → 1214: başlık işleyicisi taslak denetimine (features/tasks/nlp/draft) devredildi.
   // 1214 → 1215: hazır etiketlerin dili ortak yardımcıdan (langOf) — satır içi dil dallanması yok.
-  'features/tasks/components/TaskFormModal.tsx': 1215,
+  'features/tasks/components/TaskFormModal.tsx': 1257, // +42: yerel-gün tarih ayrıştırma, ay-sonu kenetleme, saat/tarih tutarlılığı, alt-görev mutasyon düzeltmesi
   // 1150 → 1180: planın KULLANICI SEÇMEDEN başlamasını engelleyen kapı. Üretim koşulu
   // birçok modda yalnız "mod açık + ad + tarih" idi; tarih girilir girilmez plan uygulanmış
   // sayılıp kart bölüm değiştiriyor, yeniden kurulup kapanıyordu. Artış dokuz koşula
@@ -321,7 +321,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // "sadeleştirmede" geri alınır.
   // 1180 → 1199: duraklatma kapısı. Görev üreten dört ayrı yol var; kapı hepsinin
   // geçtiği tek noktaya (applyTasks) kondu, çağrı yerlerine dağıtılmadı.
-  'features/modes/hooks/usePlanAdaptations.ts': 1199,
+  'features/modes/hooks/usePlanAdaptations.ts': 1218, // +19: ikinci/üçüncü yuva alışkanlık süpürmesi, yerel-gün geçmiş-görev kontrolü
   // 910 → 864: hesap silme ve şifre değiştirmenin ÖLÜ kopyası kaldırıldı. Modal
   // işaretlemesi settings.tsx'e taşınırken bu dosyadaki state + iki handler geride
   // kalmıştı; hiçbiri çağrılmıyordu ama `deleteAccount`ın hatalı sürümü iki dosyada
@@ -333,12 +333,12 @@ const KNOWN_LARGE: Record<string, number> = {
   // trophy ikonu tema token'larına bağlandı.
   // 899 → 919: başarım önizlemesi en son kazanılana göre sıralanıyor (recency),
   // kazanılmış madalyada kupa ışıltısı (MedalShine deseni).
-  'app/profile.tsx': 919,
+  'app/profile.tsx': 923, // +4: cinsiyet çipine yeniden dokunma avatarı ezmesin, çerçeve rengi erişilebilirlik durumu düzeltildi
   'shared/constants/legal.ts': 893,
   // İlk kez 800 satırı geçti: admin panelinin Ürün İçgörüleri tipleri
   // (AdminModeAdoption/AdminRetentionCohort/AdminVersionShare) + X-App-Version
   // başlığı eklendi. API katmanı doğası gereği büyür — her uç nokta bir satır.
-  'shared/services/api.ts': 831,
+  'shared/services/api.ts': 844, // +13: otomatik tekrar yalnız idempotent metodlarda (POST/PATCH çift kayıt riski)
   // İlk kez 800 satırı geçti: duraklatma + geçmiş hedefler + bulut/yerel bozuk
   // veriye karşı tek nokta koruma (bkz. PLAN_ID_KEYS/sanitizePlanIds). Sözlük gibi
   // değil, bölünebilir — bir sonraki büyüme bu dosyayı gerçekten küçültmeli.
@@ -346,7 +346,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // görev gerçek kimliğini alınca bu iki modun izleme dizisi eski kimlikte
   // takılı kalıyordu, mod kapanınca görev hiç temizlenmiyordu).
   'features/modes/store/usePrefsStore.ts': 839,
-  'features/modes/utils/planAdaptations.ts': 880,
+  'features/modes/utils/planAdaptations.ts': 889, // +9: tez_weekly yinelenme kontrolü yerel-gün anahtarına geçti
   // 856 → 784: hesap silme akışı DeleteAccountModal bileşenine çıkarıldı. Silme,
   // uygulamadaki tek geri alınamaz işlem; durumu ekranın üstünde, onay kelimesi
   // ortasında, modalı en altında dağınık duruyordu. Tek adres = tek doğru davranış.

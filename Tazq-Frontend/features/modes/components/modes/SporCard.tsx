@@ -37,7 +37,7 @@ import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { useModeCompletionReview } from '@/features/modes/hooks/useModeCompletionReview';
 import { completionCopy } from '@/features/modes/utils/modeCompletion';
-import { toDateKey, dateKeyFromNow } from '@/shared/utils/dateKey';
+import { toDateKey, dateKeyFromNow, parseDateKey, calendarDayOf } from '@/shared/utils/dateKey';
 
 // Vurgu MERKEZİ PALETTEN, tema-duyarlı. Ham '#F97316' iki temada aynıydı ve açık
 // temada 2.80:1 veriyordu (WCAG'ın büyük-metin eşiği 3:1'in bile altı).
@@ -123,7 +123,7 @@ function SporSlot({ slot, goalKey, dateKey, otherGoals, addLabel, onOpenPreview 
   const complete = goal.trim() !== '' && date !== '';
   const past = isDatePast(date);
   const daysLeft = daysLeftOf(date);
-  const dateObj = date ? new Date(date) : new Date(Date.now() + 90 * 86400000);
+  const dateObj = date ? parseDateKey(date) : new Date(Date.now() + 90 * 86400000);
   const [expanded, setExpanded] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
 
@@ -257,7 +257,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
   const kiloAutoWeeks = cwNum > 0 && twNum > 0 && cwNum !== twNum ? Math.ceil(Math.abs(cwNum - twNum) / kiloWeeklyRate) : null;
   const kiloAutoDate = kiloAutoWeeks ? dateKeyFromNow(kiloAutoWeeks * 7) : null;
   const effectiveSporDate = sporType === 'kilo' ? (kiloAutoDate ?? date) : date;
-  const sporDateObj = effectiveSporDate ? new Date(effectiveSporDate) : new Date(Date.now() + 90 * 86400000);
+  const sporDateObj = effectiveSporDate ? parseDateKey(effectiveSporDate) : new Date(Date.now() + 90 * 86400000);
   const kiloWeightValid = cwNum >= 30 && cwNum <= 300 && twNum >= 30 && twNum <= 300;
   const kiloWeightRealistic = Math.abs(cwNum - twNum) <= 100;
   const kiloBmiTargetTooLow = minHealthyKg > 0 && twNum > 0 && twNum < minHealthyKg;
@@ -285,7 +285,10 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
   const sporTrainTarget = trainingDays ?? 3;
   const sporWeekDays = (() => { const days = new Set<string>(); tasks.forEach(t => { if (sporPlanTaskIds.includes(t.id) && t.isCompleted && t.completedAt && !t.completedAt.startsWith('0001')) { const k = fmtDateKey(new Date(t.completedAt)); if (weekKeys.has(k)) days.add(k); } }); return days.size; })();
   const sporTrainPct = sporTrainTarget > 0 ? Math.min(100, Math.round((sporWeekDays / sporTrainTarget) * 100)) : 0;
-  const isToday = (d?: string | null) => !!d && !d.startsWith('0001') && fmtDateKey(new Date(d)) === todayKey;
+  // GÖREV GÜNÜ ≠ ALIŞKANLIK GÜNÜ — todayKey (fmtDateKey) gece-kuşu tamponu içerir,
+  // görev vade tarihi tamponsuz takvim günüyle karşılaştırılmalı (bkz. ExamCard'daki not).
+  const todayCalKey = toDateKey(new Date());
+  const isToday = (d?: string | null) => calendarDayOf(d) === todayCalKey;
   const planHabits = habits.filter(h => sporPlanHabitIds.includes(h.id));
   const wkTasks = tasks.filter(t => sporPlanTaskIds.includes(t.id) && (isToday(t.dueDate) || (t.isCompleted && isToday(t.completedAt))));
   const progTotal = planHabits.length + wkTasks.length;
@@ -496,7 +499,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                     const diff = prev ? Math.round((entry.weight - prev.weight) * 10) / 10 : null;
                     const diffStr = diff === null ? (tr ? 'başlangıç' : 'start') : diff > 0 ? `+${diff}` : `${diff}`;
                     const diffColor = diff === null ? theme.onSurfaceVariant : (twNum < cwNum ? (diff < 0 ? theme.success : theme.error) : (diff > 0 ? theme.success : theme.error));
-                    const dateStr = new Date(entry.date).toLocaleDateString(tr ? 'tr-TR' : 'en-GB', { day: 'numeric', month: 'short' });
+                    const dateStr = parseDateKey(entry.date).toLocaleDateString(tr ? 'tr-TR' : 'en-GB', { day: 'numeric', month: 'short' });
                     return (
                       <View key={entry.date} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.sm, borderTopWidth: HAIRLINE, borderTopColor: theme.separator }}>
                         <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: idx === 0 ? SPOR : theme.onSurfaceVariant, opacity: idx === 0 ? 1 : 0.3, marginRight: S.sm }} />

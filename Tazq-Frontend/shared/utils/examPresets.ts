@@ -270,11 +270,19 @@ export const EXAM_PRESETS: ExamPreset[] = [
 
 // Normalize string: lowercase + remove Turkish special chars + punctuation
 function norm(s: string): string {
+  /*
+    İ ÖNCE, toLowerCase'DEN ÖNCE. Standart (Türkçe-farkında olmayan) `toLowerCase()`,
+    'İ'yi (noktalı büyük İ) düz 'i' değil "i" + birleşen nokta işareti (U+0307) yapar.
+    Aşağıdaki `.replace(/İ/g, 'i')` o noktada artık 'İ' bulamıyordu (zaten tüketilmişti)
+    ve kalıntı nokta işareti dizede kalıyordu. Sonuç: Türkçe klavyede otomatik büyütülen
+    "İcra"/"İelts" gibi girdiler ("icra"/"ielts" takma adlarıyla) hiç eşleşmiyordu.
+  */
   return s
+    .replace(/İ/g, 'i')
     .toLowerCase()
     .replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g')
     .replace(/ü/g, 'u').replace(/ö/g, 'o')
-    .replace(/ı/g, 'i').replace(/İ/g, 'i').replace(/I(?=[a-z])/g, 'i')
+    .replace(/ı/g, 'i').replace(/I(?=[a-z])/g, 'i')
     .replace(/[\s\-\.\/\+_,;:]/g, '');
 }
 

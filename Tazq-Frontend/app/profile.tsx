@@ -629,6 +629,10 @@ export default function ProfileScreen() {
                           <Touchable
                             key={g.key}
                             onPress={() => {
+                              // ZATEN SEÇİLİYSE DOKUNMA — aksi halde kullanıcının seçtiği
+                              // avatarı (ör. 'm5'), aynı cinsiyete yeniden dokununca
+                              // sessizce cinsiyet varsayılanına ('m1') sıfırlıyordu.
+                              if (isSelected) return;
                               haptic.select();
                               setNewGender(g.key);
                               if (g.key === 'male') {
@@ -756,7 +760,7 @@ export default function ProfileScreen() {
                           <Touchable
                             key={colorOpt.key}
                             accessibilityRole="radio"
-                            accessibilityState={{ selected: selectedBorderColor === colorOpt.key }}
+                            accessibilityState={{ selected: isSelected }}
                             accessibilityLabel={language === 'tr' ? `Çerçeve rengi: ${colorOpt.key}` : `Border color: ${colorOpt.key}`}
                             hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
                             onPress={() => { haptic.select(); setSelectedBorderColor(colorOpt.color); }}

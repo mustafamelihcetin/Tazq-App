@@ -146,7 +146,11 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
           const { useMomentumStore } = require('../../user/store/useMomentumStore');
           const momentumStore = useMomentumStore.getState();
           const isPerfect = momentumStore.addCompletedTask();
-          isOverheated = momentumStore.isOverheated;
+          // TAZE OKUMA — `momentumStore` çağrıdan ÖNCEKİ anlık görüntü; addCompletedTask
+          // kendi içinde set() çağırıp YENİ bir durum üretiyor. Bayat nesneden okumak, tam
+          // da aşırı ısınmaya geçişi tetikleyen tamamlamanın kendisini yanlış (bir önceki)
+          // ısı durumuna göre etiketlerdi.
+          isOverheated = useMomentumStore.getState().isOverheated;
           momentumStore.triggerRocketFeedback(t.title, isPerfect);
         } catch (e) {
           swallow('taskStore.registerCompletion', e);
@@ -228,9 +232,17 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
         return null;
       })
       .filter(Boolean) as Task[];
-    // Add any tasks not in the ordered list
+    /*
+      DIŞARIDA KALANLARIN sortOrder'I DA YENİDEN YAZILIR. Eskiden bu görevler eski
+      sortOrder değerini KORUYORDU; `setTasks`in karşılaştırıcısı sortOrder'a bakıyor,
+      yani ekranda görünmeyen (farklı süzgeç/arşiv) bir görevin ESKİ değeri (ör. 2) yeni
+      sıralanmış 0..n-1 aralığına düşünce, bir sonraki setTasks çağrısında (herhangi bir
+      tamamlama/ekleme) kullanıcının az önce elle sıraladığı listenin ARASINA sessizce
+      giriyordu. Devam eden indeks bu çakışmayı imkansız kılar.
+    */
+    let next = orderedIds.length;
     get().tasks.forEach(t => {
-      if (!orderedIds.includes(t.id)) reordered.push(t);
+      if (!orderedIds.includes(t.id)) reordered.push({ ...t, sortOrder: next++ });
     });
     set({ tasks: reordered });
   },

@@ -138,7 +138,7 @@ describe('uyku geriye dönük doldurma', () => {
   it('okuma mantığı TEK yerde — iki tüketici paylaşıyor', () => {
     // Ayrışsalardı biri düzeltilip öteki eskirdi; bu dosyada tam olarak bu olmuştu.
     expect(svc).toContain('async _readIntervals(from: Date, to: Date)');
-    expect(svc).toContain('const intervals = await this._readIntervals(from, to);');
+    expect(svc).toContain('const raw = await this._readIntervals(from, to);');
   });
 
   it('doldurma penceresi SINIRLI — geçmiş yeniden yazılmaz', () => {

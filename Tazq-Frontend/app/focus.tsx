@@ -508,7 +508,15 @@ export default function FocusScreen() {
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { trigger: triggerAchievement } = useAchievementStore();
   // Derin odak tercihleri artık prefs store'da (cihazda kalıcı) — her seansda sıfırlanmaz.
-  const { focusBreathMode, setFocusBreathMode, focusAmbientSound, setFocusAmbientSound, focusPreset, setFocusPreset, focusKeepAwake, setFocusKeepAwake } = usePrefsStore();
+  const { focusBreathMode, setFocusBreathMode, focusAmbientSound, setFocusAmbientSound, focusPreset, setFocusPreset, focusKeepAwake, setFocusKeepAwake, uiMode } = usePrefsStore();
+  /*
+    SADE MOD BAŞARIM KUTLAMASINI SUSTURUR — kural görev tamamlamada zaten var
+    (bkz. app/tasks.tsx `handleToggle`, `!isLite` kapısı), ama odak seansı bitince
+    tetiklenen başarımlar bu ekranda hiç kontrol edilmiyordu. `CelebrationOverlay`
+    global (bkz. app/_layout.tsx) ve kendi kapısı yok, yani Sade moddaki kullanıcı
+    odak seansını bitirince yine tam ekran konfeti/kart görüyordu.
+  */
+  const isLiteMode = uiMode === 'lite';
   const { measureAll } = useTour();
   const handleStepChange = (step: number) => {
     setTimeout(() => {
@@ -1083,7 +1091,7 @@ export default function FocusScreen() {
           FocusService.getStats().then(s => {
             const total = Math.round((s.totalFocusHours || 0) * 60);
             const ach = checkFocusAchievement(total);
-            if (ach) triggerAchievement(ach);
+            if (ach && !isLiteMode) triggerAchievement(ach);
           }).catch(() => {});
 
           const isLongBreak = round >= 4;
@@ -1135,10 +1143,10 @@ export default function FocusScreen() {
           FocusService.getStats().then(s => {
             const total = Math.round((s.totalFocusHours || 0) * 60);
             const ach = checkFocusAchievement(total);
-            if (ach) triggerAchievement(ach);
+            if (ach && !isLiteMode) triggerAchievement(ach);
           }).catch(() => {
             const ach = checkFocusAchievement(minutes);
-            if (ach) triggerAchievement(ach);
+            if (ach && !isLiteMode) triggerAchievement(ach);
           });
         });
       }
