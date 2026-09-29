@@ -197,6 +197,32 @@ api.interceptors.response.use(
     // Kullanıcı çevrimiçi; biz bilerek istek atmıyoruz.
     if (error?.code === GUEST_MODE_ERROR_CODE) return Promise.reject(error);
 
+    /*
+      TEK SEFERLİK HIZLI YENİDEN DENEME — "çevrimdışı" DEMEDEN ÖNCE.
+
+      Widget'a (ayrı bir süreç) dokunup uygulamayı SOĞUK başlatınca: cihazın ağ
+      yığını, yeni doğan uygulama süreci için henüz tam bağlanmamış olabiliyor —
+      birkaç yüz milisaniyelik bir pencere. O anda atılan ilk istek `ERR_NETWORK`
+      ile düşüyor, `isLikelyConnectivityError` bunu "cihaz çevrimdışı" sanıp banner
+      gösteriyordu — GERÇEK bağlantı varken. Diğer geçici hatalar (502/503/504,
+      timeout) zaten aşağıda tekrarlanıyordu, bu sınıf tekrarlanmıyordu. Yalnız
+      IDEMPOTENT metodlarda (bkz. aşağıdaki `isIdempotentMethod` notu — POST'u
+      körlemesine tekrarlamak çift kayıt riski taşır) TEK bir hızlı deneme
+      (~400ms) yapılıyor; o da başarısız olursa GERÇEKTEN çevrimdışıyızdır.
+    */
+    const connMethod = String((error.config as any)?.method ?? 'get').toLowerCase();
+    const connIsIdempotent = ['get', 'head', 'options', 'put', 'delete'].includes(connMethod);
+    const connConfig = error.config as typeof error.config & { _connRetried?: boolean };
+    if (isLikelyConnectivityError(error) && connConfig && connIsIdempotent && !connConfig._connRetried) {
+      connConfig._connRetried = true;
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      try {
+        return await api(connConfig);
+      } catch (retryErr) {
+        return Promise.reject(retryErr);
+      }
+    }
+
     // Only mark offline for likely device connectivity failures. Server/API
     // timeouts should not show a misleading "no internet" banner.
     if (isLikelyConnectivityError(error)) {
