@@ -157,7 +157,7 @@ let lastPushedJson = '';
  * her render'da native köprüyü (ve WCSession'ı) tetiklemeden, bir `useEffect`
  * içinde state değişince çağrılabilmesini sağlıyor.
  */
-export function pushWidgetSummary(): void {
+export function pushWidgetSummary(force = false): void {
   const bridge = getBridge();
   if (!bridge) return;
 
@@ -233,7 +233,9 @@ export function pushWidgetSummary(): void {
   };
 
   const json = JSON.stringify(payload);
-  if (json === lastPushedJson) return;
+  // `force`: aynı JSON olsa bile gönder — bkz. initWatchBridge'deki gecikmeli
+  // ikinci çağrı notu (WCSession aktivasyon yarışı).
+  if (!force && json === lastPushedJson) return;
   lastPushedJson = json;
   bridge.updateSharedData(json).catch((e: unknown) => swallow('nativeWidgetBridge.push', e));
 }

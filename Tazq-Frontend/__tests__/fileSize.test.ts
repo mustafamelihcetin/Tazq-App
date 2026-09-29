@@ -240,7 +240,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // widgetBridge bug düzeltmesi — görev/mod değişince widget hiç güncellenmiyordu).
   // 816 → 819: widget/Watch köprüsü splash'te çökmeye yol açtığı için geçici
   // olarak yorum satırına alındı (kök sebep doğrulanana kadar).
-  'app/_layout.tsx': 857, // +17: sabah özeti en yakın aktif hedefe göre kişiselleşiyor (goalSig) // +16: widget/Watch köprüsü yeniden açıldı (ana-kuyruk sertleştirmesiyle, bkz. TazqWidgetBridgeModule.swift) // +5: tema değişince widget'ı da tazeleyen abonelik (unsubTheme)
+  'app/_layout.tsx': 871, // +17: sabah özeti en yakın aktif hedefe göre kişiselleşiyor (goalSig) // +16: widget/Watch köprüsü yeniden açıldı (ana-kuyruk sertleştirmesiyle, bkz. TazqWidgetBridgeModule.swift) // +5: tema değişince widget'ı da tazeleyen abonelik (unsubTheme) // +14: WCSession aktivasyon yarışı için gecikmeli zorla-gönderim (activationRetry)
   // İlk kez 800 satırı geçti: onboarding'in "şu an neyle uğraşıyorsun?" sorusu
   // (durum seçimi + mod sorusuyla aynı desende ikinci bir modal, bkz. dosya başı notu).
   'app/onboarding.tsx': 815,
@@ -341,7 +341,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // İlk kez 800 satırı geçti: admin panelinin Ürün İçgörüleri tipleri
   // (AdminModeAdoption/AdminRetentionCohort/AdminVersionShare) + X-App-Version
   // başlığı eklendi. API katmanı doğası gereği büyür — her uç nokta bir satır.
-  'shared/services/api.ts': 844, // +13: otomatik tekrar yalnız idempotent metodlarda (POST/PATCH çift kayıt riski)
+  'shared/services/api.ts': 870, // +13: otomatik tekrar yalnız idempotent metodlarda (POST/PATCH çift kayıt riski) // +26: ERR_NETWORK için "çevrimdışı" demeden önce tek seferlik hızlı yeniden deneme (soğuk başlatma yarışı)
   // İlk kez 800 satırı geçti: duraklatma + geçmiş hedefler + bulut/yerel bozuk
   // veriye karşı tek nokta koruma (bkz. PLAN_ID_KEYS/sanitizePlanIds). Sözlük gibi
   // değil, bölünebilir — bir sonraki büyüme bu dosyayı gerçekten küçültmeli.

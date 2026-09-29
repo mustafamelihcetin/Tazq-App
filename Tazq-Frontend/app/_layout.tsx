@@ -572,6 +572,20 @@ export default function RootLayout() {
     if (!isLoggedIn) return;
     const unsubWatch = initWatchBridge();
     pushWidgetSummary();
+    /*
+      GECİKMELİ İKİNCİ (ZORLA) GÖNDERİM — WCSession AKTİVASYON YARIŞI İÇİN.
+
+      Telefonda `WCSession.default.activate()` asenkron (bkz. TazqWidgetBridgeModule.swift
+      OnCreate). Yukarıdaki ilk `pushWidgetSummary()` çağrısı aktivasyon TAMAMLANMADAN
+      yetişirse, native taraf `activationState == .activated` kontrolünden geçemeyip
+      Watch'a göndermeyi SESSİZCE atlıyor (widget/UserDefaults tarafı yine de yazılıyor,
+      o yüzden widget bozuk görünmüyordu ama Watch — kullanıcı ilk açılışta test edince —
+      hiç veri almadan boş kalıyordu). Sonraki bir habit/task/focus/prefs değişikliği
+      olmadıkça `lastPushedJson` dedup'ı yüzünden tekrar denenmiyordu. 2sn'lik bu ikinci
+      çağrı `force: true` ile dedup'ı atlayıp aktivasyonun kesin bitmiş olacağı bir anda
+      Watch'a gerçek veriyi ulaştırıyor.
+    */
+    const activationRetry = setTimeout(() => pushWidgetSummary(true), 2000);
     const unsubHabits = useHabitStore.subscribe(() => pushWidgetSummary());
     const unsubFocus = useFocusStore.subscribe(() => pushWidgetSummary());
     const unsubTasks = useTaskStore.subscribe(() => pushWidgetSummary());
@@ -580,7 +594,7 @@ export default function RootLayout() {
     // tercihine göre gönderiyor (bkz. widgetBridge.ts `resolveIsDark`) — kullanıcı
     // ayarlardan manuel temayı değiştirirse widget'ın da hemen izlemesi için.
     const unsubTheme = useThemeStore.subscribe(() => pushWidgetSummary());
-    return () => { unsubWatch(); unsubHabits(); unsubFocus(); unsubTasks(); unsubPrefs(); unsubTheme(); };
+    return () => { clearTimeout(activationRetry); unsubWatch(); unsubHabits(); unsubFocus(); unsubTasks(); unsubPrefs(); unsubTheme(); };
   }, [isLoggedIn]);
 
   // Auth Guard & Initialization
