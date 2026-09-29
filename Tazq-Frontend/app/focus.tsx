@@ -1120,10 +1120,17 @@ export default function FocusScreen() {
         setTimeout(() => haptic.commit(), 600);
         setTimeout(() => { setCompletionRitual(false); setSummaryVisible(true); }, 1800);
 
+        /*
+          KİLİT ŞİMDİ, SENKRON — kayıt yine ertelenir. Sıfırla/Kapat'a bu pencerede
+          basılırsa `reset()` sessionId'yi null'lar ve `commitSession` aşağıda YENİ
+          bir kimlikle kilidi ikinci kez alabiliyordu (aynı seans iki kez kaydediliyordu,
+          bkz. commitFocusSession'daki not). Kilit burada, ağır iş hâlâ ertelenmiş.
+        */
+        const claimedNow = useFocusStore.getState().claimCommit();
         InteractionManager.runAfterInteractions(() => {
           stopAmbientSound();
           setAmbientSound('off');
-          commitSession(minutes, true);
+          if (claimedNow) commitSession(minutes, true, true);
           track('focus_completed', { minutes, pomodoro: false });
           FocusService.getStats().then(s => {
             const total = Math.round((s.totalFocusHours || 0) * 60);
@@ -1149,8 +1156,8 @@ export default function FocusScreen() {
    *
    * @returns Seans kaydedildiyse `true`.
    */
-  const commitSession = (minutes: number, completed: boolean): boolean => {
-    const res = commitFocusSession(minutes, completed);
+  const commitSession = (minutes: number, completed: boolean, alreadyClaimed = false): boolean => {
+    const res = commitFocusSession(minutes, completed, alreadyClaimed);
     if (res === 'too-short') {
       useToastStore.getState().show(
         language === 'tr' ? '1 dakikadan kısa seanslar kaydedilmez.' : 'Sessions shorter than 1 minute are not logged.',

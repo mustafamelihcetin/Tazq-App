@@ -1320,19 +1320,16 @@ export default function HomeScreen() {
     }
     if (task.isCompleted) return; // aksiyon merkezi sadece tamamlar, hiç geri almaz
     haptic.surface();
-    
-    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date(todayStart.getTime() + 86400000);
-    
-    const pendingToday = tasks.filter(t => {
-      if (!t) return false;
-      if (t.id === taskId) return false;
-      if (t.isCompleted) return false;
-      if (!t.dueDate) return false;
-      const due = new Date(t.dueDate);
-      return due <= todayEnd;
-    });
-    const allTasksDone = pendingToday.length === 0;
+
+    /*
+      HALKA İLE AYNI TANIM — '0001' (tarih yok) sentinel'i burada da tarihsiz sayılmalı.
+      Eskiden bu satır kendi elle yazılmış filtresini kullanıyordu ve `!t.dueDate` boş
+      string/null'ı yakalıyor ama sunucunun '0001-01-01' sentinel'ini YAKALAMIYORDU —
+      o görev "geçmişte vadesi gelmiş, hâlâ bekliyor" sayılıyor, `allTasksDone` hiç
+      `true` olmuyordu. Sonuç: halka/TodayCard "Mükemmel gün!" derken bu fonksiyon aynı
+      anı "gün bitmedi" sanıyor, kutlama hiç tetiklenmiyordu (bkz. dayScope üstündeki not).
+    */
+    const allTasksDone = todayTasksIncomplete.filter(t => t.id !== taskId).length === 0;
 
     if (soundEffects && !allTasksDone) {
       playSoundEffect(require('../assets/sounds/success.mp3'), {

@@ -881,19 +881,40 @@ export default function ModlarScreen() {
 
   useEffect(() => {
     if (seasonal.examMode && seasonal.examDate && seasonal.examName) {
-      scheduleExamCountdownNotifs(seasonal.examName, seasonal.examDate, language);
+      scheduleExamCountdownNotifs(seasonal.examName, seasonal.examDate, language, 'exam');
     }
   }, [seasonal.examDate, seasonal.examName, seasonal.examMode, language]);
+
+  /*
+    İKİNCİ/ÜÇÜNCÜ SINAV — eskiden yalnız birincil yuva bildirim alıyordu. Ekran üçe
+    kadar eşzamanlı sınavı destekliyor (bkz. "İkinci/Üçüncü sınav ekle"); geri sayım
+    bildirimleri artık her yuva için AYRI kimlikle kuruluyor (bkz. notifications.ts
+    ExamSlot), yani bir sınav diğerinin bildirimini üzerine yazmıyor.
+  */
+  useEffect(() => {
+    if (seasonal.examMode && seasonal.exam2Date && seasonal.exam2Name) {
+      scheduleExamCountdownNotifs(seasonal.exam2Name, seasonal.exam2Date, language, 'exam2');
+    }
+  }, [seasonal.exam2Date, seasonal.exam2Name, seasonal.examMode, language]);
+
+  useEffect(() => {
+    if (seasonal.examMode && seasonal.exam3Date && seasonal.exam3Name) {
+      scheduleExamCountdownNotifs(seasonal.exam3Name, seasonal.exam3Date, language, 'exam3');
+    }
+  }, [seasonal.exam3Date, seasonal.exam3Name, seasonal.examMode, language]);
 
   // Ramazan period ended while app was closed — clean up habits automatically
   useEffect(() => {
     if (!seasonal.ramazan) return;
     const now = Date.now();
     const stillActive = RAMAZAN.some(r => {
-      const s = new Date(r.start);
+      // YEREL GÜN — r.start/r.end 'YYYY-MM-DD'. Ham `new Date()` UTC gece yarısı
+      // okur ve negatif UTC-fark saat dilimlerinde bir gün ERKEN kapatırdı: bu
+      // efekt Ramazan'ın son günü hâlâ sürerken alışkanlık/görevleri SİLERDİ.
+      const s = parseDateKey(r.start);
       s.setDate(s.getDate() - 7);
       s.setHours(0, 0, 0, 0);
-      const e = new Date(r.end);
+      const e = parseDateKey(r.end);
       e.setHours(23, 59, 59, 999);
       return now >= s.getTime() && now <= e.getTime();
     });
@@ -1488,8 +1509,15 @@ export default function ModlarScreen() {
               const prevT = slot === 'spor2' ? spor2PlanTaskIds  : slot === 'spor3' ? spor3PlanTaskIds  : sporPlanTaskIds;
               setPlanIds(slot, [...new Set([...prevH, ...habitIds])], [...new Set([...prevT, ...taskIds])]);
               setPlanSpec(slot, { templateId: meta?.templateId, dailyMinutes: meta?.dailyMinutes });
-              // kilo tipi için effectiveSporDate'i store'a kaydet (kiloAutoDate null olmayabilir)
-              if (slot === 'spor' && effectiveSporDate) {
+              /*
+                KİLO HEDEFİ ZATEN KURULUYSA TARİH TEKRAR YAZILMAZ. `kiloAutoDate`
+                "bugünden itibaren N hafta" diye hesaplanıyor — plan zaten kuruluyken
+                (ör. kullanıcı yalnız günlük şablon süresini değiştirmek için tekrar
+                Uygula'ya bastığında) bu satır hedef tarihini SESSİZCE geçen süre kadar
+                ileri itiyordu. Yalnız İLK kurulumda (ya da kilo dışı türlerde, orada
+                tarih doğrudan kullanıcı girişi) yazılır.
+              */
+              if (slot === 'spor' && effectiveSporDate && (!sporApplied || sporType !== 'kilo')) {
                 setSeasonalPref('sporDate', effectiveSporDate);
                 setSporDateInput(effectiveSporDate);
               }

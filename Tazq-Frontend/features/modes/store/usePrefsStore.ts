@@ -682,6 +682,12 @@ export const usePrefsStore = create<PrefsState>()(
           spor2PlanTaskIds: fix(s.spor2PlanTaskIds),
           spor3PlanTaskIds: fix(s.spor3PlanTaskIds),
           ramazanPlanTaskIds: fix(s.ramazanPlanTaskIds),
+          // Tasarruf ve Bırakma EKSİKTİ — çevrimdışıyken bu iki moda eklenen bir görev
+          // gerçek kimliğini alınca plan'ın kendi izleme dizisi eski (artık var olmayan)
+          // geçici kimlikte takılı kalıyordu; mod kapatılınca görev hiç temizlenmiyordu
+          // (sessizce yetim kalan görev — bkz. bu fonksiyonun üstündeki açıklama).
+          tasarrufPlanTaskIds: fix(s.tasarrufPlanTaskIds),
+          birakmaPlanTaskIds: fix(s.birakmaPlanTaskIds),
         };
       }),
 

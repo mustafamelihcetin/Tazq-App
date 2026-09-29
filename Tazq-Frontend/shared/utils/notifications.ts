@@ -660,10 +660,23 @@ export async function cancelWeeklySummary(): Promise<void> {
 
 // ─── Exam Countdown (7d / 3d / 1d before) ────────────────────────────────────
 
+/** Aynı anda 3 sınav yuvasına kadar desteklenir (bkz. modlar.tsx exam2/exam3). */
+export type ExamSlot = 'exam' | 'exam2' | 'exam3';
+const EXAM_SLOTS: readonly ExamSlot[] = ['exam', 'exam2', 'exam3'];
+
 export async function scheduleExamCountdownNotifs(
   examName: string,
   examDate: string,
-  locale: string = 'tr'
+  locale: string = 'tr',
+  /*
+    KİMLİK SINAV YUVASINA GÖRE — eskiden sabitti (`exam-countdown-7d` vb.), yani
+    ikinci/üçüncü sınav aynı kimliği kullanır ve BİRİNCİ sınavın bildirimini
+    SESSİZCE İPTAL EDİP ÜZERİNE YAZARDI (ikisi aynı `cancelScheduledNotificationAsync`
+    çağrısından geçiyordu). Üstelik bu fonksiyon yalnız birincil sınav için
+    çağrılıyordu — ikinci/üçüncü sınav hazırlayan kullanıcı hiç geri sayım
+    bildirimi almıyordu.
+  */
+  slot: ExamSlot = 'exam'
 ): Promise<void> {
   if (!Notifications || isExpoGo) return;
   try {
@@ -678,7 +691,7 @@ export async function scheduleExamCountdownNotifs(
     for (const daysBefore of [7, 3, 1]) {
       const trigger = new Date(targetDate);
       trigger.setDate(trigger.getDate() - daysBefore);
-      const id = `exam-countdown-${daysBefore}d`;
+      const id = `exam-countdown-${slot}-${daysBefore}d`;
       await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
       if (trigger > new Date()) {
         await Notifications.scheduleNotificationAsync({
@@ -706,10 +719,20 @@ export async function scheduleExamCountdownNotifs(
   } catch (e) { swallow('notifications.scheduleExamCountdownNotifs', e); }
 }
 
-export async function cancelExamCountdownNotifs(): Promise<void> {
+/** `slot` verilmezse (ör. tüm sınav modu kapatılırken) ÜÇ yuva da iptal edilir. */
+export async function cancelExamCountdownNotifs(slot?: ExamSlot): Promise<void> {
   if (!Notifications) return;
-  for (const d of [7, 3, 1]) {
-    try { await Notifications.cancelScheduledNotificationAsync(`exam-countdown-${d}d`); } catch (e) { swallow('notifications.cancelExamCountdownNotifs', e); }
+  const slots = slot ? [slot] : EXAM_SLOTS;
+  for (const s of slots) {
+    for (const d of [7, 3, 1]) {
+      try { await Notifications.cancelScheduledNotificationAsync(`exam-countdown-${s}-${d}d`); } catch (e) { swallow('notifications.cancelExamCountdownNotifs', e); }
+    }
+  }
+  if (!slot) {
+    // Eski (yuva-öneki olmayan) kimlikler — geçiş artığı, sessizce temizlenir.
+    for (const d of [7, 3, 1]) {
+      try { await Notifications.cancelScheduledNotificationAsync(`exam-countdown-${d}d`); } catch (e) { swallow('notifications.cancelExamCountdownNotifs', e); }
+    }
   }
 }
 
@@ -723,7 +746,17 @@ export async function scheduleRamadanStartNotification(
   try {
     const isTR = locale === 'tr';
 
-    const eve = new Date(startDateStr);
+    /*
+      `new Date(startDateStr)` DEĞİL — bu dosyadaki diğer zamanlayıcılar (görev
+      hatırlatma, sınav geri sayımı) tam bu sebeple `calendarDayOf`+`parseDateKey`
+      kullanıyor: '2026-03-10' gibi saf bir gün UTC okunursa negatif ofsetli saat
+      dilimlerinde (ör. ABD) bir gün ERKEN çözülür — "yarın Ramazan" bildirimi
+      Ramazan'dan İKİ gün önce, başlangıç bildirimi bir gün ERKEN çalardı.
+    */
+    const startDay = calendarDayOf(startDateStr);
+    if (!startDay) return;
+
+    const eve = parseDateKey(startDay);
     eve.setDate(eve.getDate() - 1);
     eve.setHours(20, 0, 0, 0);
     await Notifications.cancelScheduledNotificationAsync('ramazan-eve').catch(() => {});
@@ -743,7 +776,7 @@ export async function scheduleRamadanStartNotification(
       });
     }
 
-    const start = new Date(startDateStr);
+    const start = parseDateKey(startDay);
     start.setHours(7, 0, 0, 0);
     await Notifications.cancelScheduledNotificationAsync('ramazan-start').catch(() => {});
     if (start > new Date()) {

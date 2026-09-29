@@ -2759,7 +2759,9 @@ export function detectTurkishMode(): TurkishMode | null {
     // Active 7 days before Ramazan starts (pre-period)
     const preActive = isActive(r.start, r.end, 7);
     if (preActive >= 0) {
-      const startMs = new Date(r.start).setHours(0, 0, 0, 0);
+      // YEREL GÜN — bu dosyanın diğer her yerinde asLocalDay kullanılıyor; burası
+      // atlanmıştı ve negatif UTC-fark saat dilimlerinde "N gün sonra" bir fazla çıkıyordu.
+      const startMs = asLocalDay(r.start).setHours(0, 0, 0, 0);
       const daysToStart = Math.ceil((startMs - Date.now()) / 86400000);
       return {
         ...RAMAZAN_MODE(daysToStart),

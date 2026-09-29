@@ -32,12 +32,19 @@ export type CommitResult = 'saved' | 'too-short' | 'not-focus' | 'duplicate';
  *  · Aynı seans yalnız BİR kez kaydedilir (bkz. useFocusStore.claimCommit) — seans
  *    kaç yoldan biterse bitsin.
  *  · Çevrimdışıysa kuyruğa girer; ağ hatasında da.
+ *
+ * `alreadyClaimed`: kilidi BURADAN ÖNCE, senkron olarak almış çağıranlar için. Odak
+ * ekranının standart-mod tamamlama efekti ağır işi (ağ, puan) `InteractionManager`
+ * ile erteliyor — o pencerede kullanıcı Sıfırla/Kapat'a basarsa ikisi de kilidi
+ * almaya çalışıyor ve `sessionId` `reset()` ile null'landığı için ikinci deneme
+ * YENİ bir kimlikle kilidi tekrar alabiliyordu (aynı seans İKİ KEZ kaydediliyordu).
+ * Kilidi `atZero` anında senkron almak bu yarışı kapatır; burası yalnız sonucu kabul eder.
  */
-export function commitFocusSession(minutes: number, completed: boolean): CommitResult {
+export function commitFocusSession(minutes: number, completed: boolean, alreadyClaimed = false): CommitResult {
   const st = useFocusStore.getState();
   if (st.sessionKind === 'break') return 'not-focus';
   if (!Number.isFinite(minutes) || minutes < 1) return 'too-short';
-  if (!st.claimCommit()) return 'duplicate';
+  if (!alreadyClaimed && !st.claimCommit()) return 'duplicate';
 
   /*
     Bilinen eksiklik: sunucu seansın TARİHİNİ kabul etmiyor, aldığı anı damgalıyor.

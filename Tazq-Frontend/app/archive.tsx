@@ -10,13 +10,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { ICON, S, F, R, B, MAX_W, topBarSpace } from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
-import { TaskService } from '@/shared/services/api';
-import { useNetworkStore } from '@/shared/store/useNetworkStore';
-import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { Touchable } from '@/shared/components/Touchable';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
-import { isNetworkError } from '@/shared/utils/errors';
-import { restoreTask } from '@/features/tasks/utils/taskActions';
+import { restoreTask, deleteTaskAction } from '@/features/tasks/utils/taskActions';
 
 export default function ArchiveScreen() {
     const insets = useSafeAreaInsets();
@@ -28,38 +24,22 @@ export default function ArchiveScreen() {
     const { scrollY, onScroll } = useCollapsibleHeader();
     
     const tasks = useTaskStore(state => state.tasks);
-    const removeTask = useTaskStore(state => state.removeTask);
 
     const archivedTasks = tasks.filter(t => t.isArchived);
 
     // Etiketi kaldırır ve sunucuya yazar (bkz. taskActions.setArchived).
     const handleRestore = (task: { id: number }) => restoreTask(task.id);
 
-    const performDelete = async (id: number) => {
-        removeTask(id);
-
-        const isOnline = useNetworkStore.getState().isOnline;
-        if (!isOnline) {
-            useOfflineQueue.getState().enqueue({ type: 'delete-task', id });
-        } else {
-            try {
-                await TaskService.deleteTask(id);
-            } catch (err: unknown) {
-                if (isNetworkError(err)) {
-                    useOfflineQueue.getState().enqueue({ type: 'delete-task', id });
-                }
-            }
-        }
-    };
-
     // Kalıcı silme geri alınamaz → açık onay iste (uygulamanın geri kalanıyla aynı desen).
+    // Silme mantığının kendisi taskActions.deleteTaskAction'da: sunucu GERÇEKTEN
+    // reddederse (ağ hatası değil) taze listeyle uzlaşır, görev sessizce geri gelmez.
     const handleDelete = (id: number) => {
         Alert.alert(
             language === 'tr' ? 'Kalıcı olarak sil?' : 'Delete permanently?',
             language === 'tr' ? 'Bu görev kalıcı olarak silinecek. Bu işlem geri alınamaz.' : 'This task will be permanently deleted. This cannot be undone.',
             [
                 { text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' },
-                { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => performDelete(id) },
+                { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => deleteTaskAction(id) },
             ],
         );
     };

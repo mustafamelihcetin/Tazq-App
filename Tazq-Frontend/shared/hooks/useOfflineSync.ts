@@ -112,10 +112,19 @@ export function useOfflineSync() {
           useOfflineQueue.getState().dequeue(1);
         } catch (err: unknown) {
           const status = httpStatusOf(err);
+          /*
+            429 BU GRUPTAN BİLEREK ÇIKARILDI — kota aşımı (ör. TaskService.CreateTaskAsync'in
+            aktif görev tavanı) 4xx aralığında ama anlamı DİĞERLERİNDEN FARKLI: "bu istek asla
+            geçmez" değil, "şimdi değil, sonra dene". Eskiden buraya da düşüyordu — çevrimdışıyken
+            kotayı aşacak kadar görev oluşturan biri çevrimiçi olunca fazlalık görevlerini SESSİZCE
+            kaybediyordu (zehirli op sayılıp atılıyordu). Artık 5xx/ağ hatasıyla aynı yolu izliyor:
+            kuyruk burada durur, kullanıcı görev tamamlayıp/silip kota açtığında bir sonraki
+            senkronda tekrar denenir.
+          */
           // 4xx (istemci) hatası → bu op mevcut durumda ASLA geçmez: silinmiş görev (404),
           // başka kullanıcıya ait kayıt (401/403), geçersiz veri (400)... Kuyruğu sonsuza
           // dek kilitlememek için zehirli op'u at ve devam et. Yalnız 5xx/ağ hatasında dur.
-          if (status && status >= 400 && status < 500) {
+          if (status && status >= 400 && status < 500 && status !== 429) {
             if (__DEV__) console.log(`[Offline Sync] Discarding op (HTTP ${status}):`, op);
             useOfflineQueue.getState().dequeue(1);
             processed++;

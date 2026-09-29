@@ -30,6 +30,7 @@ import { Priority, RecurrenceType, SubtaskItem } from '@/shared/services/api';
 import { swallow } from '@/shared/utils/swallow';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
+import { parseDateKey, calendarDayOf } from '@/shared/utils/dateKey';
 
 const SWIPE_THRESHOLD = -80;
 
@@ -68,18 +69,28 @@ const RECURRENCE_OPTIONS: { key: RecurrenceType; labelKey: string }[] = [
 function getNextOccurrenceLabel(dueDateStr: string | null | undefined, recurrence: RecurrenceType, lang: string): string {
   if (!dueDateStr) return '';
   const isTR = lang === 'tr';
-  const dateObj = new Date(dueDateStr);
+  // YEREL GÜN — dueDateStr 'YYYY-MM-DD'; ham new Date() UTC gece yarısı okur ve
+  // negatif UTC-fark saat dilimlerinde "Sonraki: …" bir gün erken gösterilirdi.
+  const dateObj = parseDateKey(dueDateStr);
   if (isNaN(dateObj.getTime())) return '';
   const nextDate = new Date(dateObj);
-  
+
   if (recurrence === 'Daily') {
     nextDate.setDate(dateObj.getDate() + 1);
   } else if (recurrence === 'Weekly') {
     nextDate.setDate(dateObj.getDate() + 7);
   } else if (recurrence === 'Monthly') {
-    nextDate.setMonth(dateObj.getMonth() + 1);
+    /*
+      AY-SONU KENETLEME: setMonth kenetlemez — 31 Ocak + 1 ay 3 Mart'a taşardı
+      (Şubat 28/29 gün). Hedef ay son güne göre kırpılır.
+    */
+    const targetMonth = dateObj.getMonth() + 1;
+    const clamped = new Date(dateObj.getFullYear(), targetMonth + 1, 0).getDate();
+    nextDate.setDate(1);
+    nextDate.setMonth(targetMonth);
+    nextDate.setDate(Math.min(dateObj.getDate(), clamped));
   }
-  
+
   const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
   const formatted = nextDate.toLocaleDateString(isTR ? 'tr-TR' : 'en-US', options);
   return isTR ? `Sonraki: ${formatted}` : `Next: ${formatted}`;
@@ -209,7 +220,10 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
           title: task.title,
           description: task.description || '',
           priority: (task.priority as Priority) || 'Medium',
-          dueDate: task.dueDate?.split('T')[0] ?? '',
+          // YEREL GÜN — ham `.split('T')[0]` sunucunun ISO damgasının UTC gününü alıyordu;
+          // yerel gün UTC'den farklıysa (gece kuşağı) form yanlış günle açılıp, tarihe hiç
+          // dokunmadan kaydedilince tarihi sessizce bir gün kaydırıyordu.
+          dueDate: calendarDayOf(task.dueDate) ?? '',
           dueTime: task.dueTime || '',
           tags: task.tags || [],
           subtasks: task.subtasks || [],
@@ -333,7 +347,10 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
   };
 
   const openDatePicker = () => {
-    const base = form.dueDate ? new Date(form.dueDate) : new Date();
+    // YEREL GÜN — form.dueDate 'YYYY-MM-DD'; ham new Date() UTC gece yarısı okur ve
+    // negatif UTC-fark saat dilimlerinde seçici bir gün ÖNCEKİ günle açılırdı. Kullanıcı
+    // dokunmadan "Kaydet"e basarsa tarih sessizce bir gün geri kayardı.
+    const base = form.dueDate ? parseDateKey(form.dueDate) : new Date();
     setPickerDate({ year: base.getFullYear(), month: base.getMonth() + 1, day: base.getDate() });
     setShowDatePicker(true);
   };
@@ -767,7 +784,10 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                               nextDueDate = formatLocal(tomorrow);
                             }
                           } else {
-                            const targetDate = new Date(f.dueDate);
+                            // YEREL GÜN — f.dueDate 'YYYY-MM-DD'; ham new Date() negatif
+                            // UTC-fark saat dilimlerinde "yarın"ı "bugün" okuyup varsayılan
+                            // hatırlatıcıyı yanlış dalda (geçmiş bir saate) kurardı.
+                            const targetDate = parseDateKey(f.dueDate);
                             targetDate.setHours(0, 0, 0, 0);
                             const todayZero = new Date();
                             todayZero.setHours(0, 0, 0, 0);

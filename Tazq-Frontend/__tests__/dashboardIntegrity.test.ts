@@ -347,8 +347,12 @@ describe('Aksiyon Merkezi — silme ve süzgeçler', () => {
       Koşul `dateFilter && task.dueDate` idi: tarihsiz görevler süzgeci hiç görmüyordu.
       Ayrıca "etkin filtre" satırı — görevi tam da bunu anlatmak olan satır — bu
       süzgeci saymıyordu: liste daralıyor, nedeni söylenmiyor, "Tümü" temizlemiyordu.
+
+      Süzgeç ayrıca YEREL güne göre karşılaştırıyor (bkz. calendarDayOf): ham
+      `dueDate.slice(0,10)` UTC gününü alıyordu, UTC+3'te akşam kurulan bir görev
+      ertesi UTC gününe yazılıp yanlış günde görünüyordu/gizleniyordu.
     */
-    expect(TASKS).toMatch(/if \(dateFilter\) \{\s*if \(!task\.dueDate\) return false;/);
+    expect(TASKS).toMatch(/if \(dateFilter\) \{[\s\S]*?const day = calendarDayOf\(task\.dueDate\);\s*if \(!day \|\| day !== dateFilter\) return false;/);
     expect(TASKS).toContain("{(filter !== 'all' || !!tagFilter || !!dateFilter) && (");
     expect(TASKS).toContain("router.setParams({ dateFilter: undefined })");
   });

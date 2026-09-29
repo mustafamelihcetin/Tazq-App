@@ -155,12 +155,12 @@ export default function CockpitScreen() {
     tezPlanTaskIds,
     mulakatPlanTaskIds, mulakat2PlanTaskIds, mulakat3PlanTaskIds,
     sporPlanTaskIds, spor2PlanTaskIds, spor3PlanTaskIds,
-    ramazanPlanTaskIds,
+    ramazanPlanTaskIds, tasarrufPlanTaskIds, birakmaPlanTaskIds,
     examPlanHabitIds, exam2PlanHabitIds, exam3PlanHabitIds,
     tezPlanHabitIds,
     mulakatPlanHabitIds, mulakat2PlanHabitIds, mulakat3PlanHabitIds,
     sporPlanHabitIds, spor2PlanHabitIds, spor3PlanHabitIds,
-    ramazanPlanHabitIds,
+    ramazanPlanHabitIds, tasarrufPlanHabitIds, birakmaPlanHabitIds,
     soundEffects,
     onboardingCompleted,
   } = usePrefsStore();
@@ -239,18 +239,24 @@ export default function CockpitScreen() {
 
   const hasActiveSeasonalMode = seasonal.ramazan || seasonal.examMode || seasonal.tezMode || seasonal.mulakatMode || seasonal.sporMode;
 
+  /*
+    TASARRUF VE BIRAKMA EKSİKTİ — ikisi de gerçek plan görevi üretir (haftalık
+    "birikimini gir", günlük destek görevleri). Kümede yoklarsa bu görevler
+    aşağıdaki `tasks` filtresinden (satır ~360) geçemiyor ve genel listede
+    mod bölümüyle ÇİFT görünüyordu.
+  */
   const planTaskIdSet = useMemo(() => new Set([
     ...examPlanTaskIds, ...exam2PlanTaskIds, ...exam3PlanTaskIds,
     ...tezPlanTaskIds,
     ...mulakatPlanTaskIds, ...mulakat2PlanTaskIds, ...mulakat3PlanTaskIds,
     ...sporPlanTaskIds, ...spor2PlanTaskIds, ...spor3PlanTaskIds,
-    ...ramazanPlanTaskIds,
+    ...ramazanPlanTaskIds, ...tasarrufPlanTaskIds, ...birakmaPlanTaskIds,
   ]), [
     examPlanTaskIds, exam2PlanTaskIds, exam3PlanTaskIds,
     tezPlanTaskIds,
     mulakatPlanTaskIds, mulakat2PlanTaskIds, mulakat3PlanTaskIds,
     sporPlanTaskIds, spor2PlanTaskIds, spor3PlanTaskIds,
-    ramazanPlanTaskIds,
+    ramazanPlanTaskIds, tasarrufPlanTaskIds, birakmaPlanTaskIds,
   ]);
 
   const planHabitIdSet = useMemo(() => new Set([
@@ -258,13 +264,13 @@ export default function CockpitScreen() {
     ...tezPlanHabitIds,
     ...mulakatPlanHabitIds, ...mulakat2PlanHabitIds, ...mulakat3PlanHabitIds,
     ...sporPlanHabitIds, ...spor2PlanHabitIds, ...spor3PlanHabitIds,
-    ...ramazanPlanHabitIds,
+    ...ramazanPlanHabitIds, ...tasarrufPlanHabitIds, ...birakmaPlanHabitIds,
   ]), [
     examPlanHabitIds, exam2PlanHabitIds, exam3PlanHabitIds,
     tezPlanHabitIds,
     mulakatPlanHabitIds, mulakat2PlanHabitIds, mulakat3PlanHabitIds,
     sporPlanHabitIds, spor2PlanHabitIds, spor3PlanHabitIds,
-    ramazanPlanHabitIds,
+    ramazanPlanHabitIds, tasarrufPlanHabitIds, birakmaPlanHabitIds,
   ]);
 
   const todayKey = fmtDateKey();

@@ -43,7 +43,7 @@ import { forgetTasks } from '@/features/tasks/utils/forgetTask';
 */
 import { buildNextIntervalInstance, wantsReminder } from '@/features/tasks/utils/recurrenceInterval';
 import { moveWithinVisible } from '@/features/tasks/utils/reorder';
-import { completeTask, archiveTask } from '@/features/tasks/utils/taskActions';
+import { completeTask, archiveTask, deleteTaskAction } from '@/features/tasks/utils/taskActions';
 import { celebrate } from '@/features/user/utils/celebrate';
 import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
 import { useDemoGate, useTourGate } from '@/features/onboarding/utils/firstRun';
@@ -69,7 +69,7 @@ import { LaterToggle } from '@/features/tasks/components/LaterToggle';
 import { newTaskKey, nextInstanceKey } from '@/features/tasks/utils/clientKey';
 import { langOf } from '@/shared/utils/lang';
 import { describeTask, rowHint, bulkSelectHint } from '@/shared/utils/a11y';
-import { toDateKey } from '@/shared/utils/dateKey';
+import { toDateKey, calendarDayOf } from '@/shared/utils/dateKey';
 
 // SWIPE_THRESHOLD KALDIRILDI: hiç okunmuyordu. Kaydırma eşiği SwipeableItem'ın
 // kendi içinde (hız tabanlı) — burada duran sayı, orayı değiştirenin yanlış yere
@@ -694,10 +694,7 @@ export default function ActionCenter() {
         return entry && new Date(entry.completedAt) < cutoff;
       });
       if (toDelete.length > 0) {
-        toDelete.forEach(task => {
-          removeTask(task.id);
-          TaskService.deleteTask(task.id).catch((e) => swallow('tasks.deleteTask', e, { capture: true }));
-        });
+        toDelete.forEach(task => { void deleteTaskAction(task.id); });
       }
     } catch (e: unknown) {
       if (httpStatusOf(e) !== 401) {
@@ -855,19 +852,43 @@ export default function ActionCenter() {
     }
 
     const isCompleting = !task.isCompleted;
+    /*
+      SUNUCU GERÇEKTEN REDDEDERSE HATIRLATICI GERİ KURULUR. `cancelTaskNotification`
+      tamamlama daha sunucuya ulaşmadan, iyimser olarak çağrılıyor. Ağ hatasında sorun
+      yok (kuyruğa giriyor, iyimser tamamlama korunuyor); ama GERÇEK bir ret aşağıda
+      tamamlamayı geri alıyor ve görev yine açık görünüyor — hatırlatıcısı olmadan.
+      Kullanıcı "iptal ettim" demedi, sunucu reddetti; bildirim de reddedilenle
+      birlikte geri dönmeli.
+    */
+    const rescheduleNotificationOnRejection = () => {
+      if (!wantsReminder(task.tags)) return;
+      void scheduleTaskNotification(
+        id, task.title, task.dueDate, task.dueTime,
+        language, usePrefsStore.getState().hideNotificationContent,
+      );
+    };
 
     const proceed = async () => {
       if (isCompleting) {
         const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
         const todayEnd = new Date(todayStart.getTime() + 86400000);
         
+        /*
+          ARŞİVLENMİŞ VE 'TARİH YOK' SENTİNEL'İ HARİÇ — ikisi de "gün temizlendi"
+          kutlamasını SESSİZCE bastırıyordu: arşivlenmiş bir görev listede hiç
+          görünmüyor ama burada hâlâ "bekliyor" sayılıyordu; sunucunun '0001-01-01'
+          sentinel'i ise `!t.dueDate` boş string/null'ı yakalıyor, sentinel'i
+          YAKALAMIYOR — o görev de "geçmişte vadesi gelmiş" sayılıp kutlamayı
+          engelliyordu (bkz. app/index.tsx'teki aynı sınıf hata, dayScope üstündeki not).
+        */
         const pendingToday = tasks.filter(t => {
           if (!t) return false;
           if (t.id === id) return false;
           if (t.isCompleted) return false;
-          if (!t.dueDate) return false;
+          if (t.isArchived) return false;
+          if (!t.dueDate || t.dueDate.startsWith('0001')) return false;
           const due = new Date(t.dueDate);
-          return due <= todayEnd;
+          return !isNaN(due.getTime()) && due <= todayEnd;
         });
         const allTasksDone = pendingToday.length === 0;
 
@@ -983,6 +1004,7 @@ export default function ActionCenter() {
                 setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
                 exitAnimMap.current.delete(id);
                 showToast(t.toastUpdateFailed, 'error');
+                rescheduleNotificationOnRejection();
               }
             }
           }
@@ -1020,6 +1042,8 @@ export default function ActionCenter() {
         } else {
           toggleTaskCompletion(id);
           showToast(t.toastUpdateFailed, 'error');
+          // Yalnız TAMAMLAMA reddedildiyse: geri alma yolu bildirimi hiç iptal etmedi.
+          if (isCompleting) rescheduleNotificationOnRejection();
         }
       } finally {
         setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
@@ -1402,8 +1426,15 @@ export default function ActionCenter() {
         tanımı, dışarıda kalanı da kapsamaktır.
       */
       if (dateFilter) {
-        if (!task.dueDate) return false;
-        if (task.dueDate.slice(0, 10) !== dateFilter) return false;
+        /*
+          YEREL GÜN — `dateFilter` (Haftalık Merkez'den `fmtDateKey` ile gelir) YEREL
+          takvim günüdür. `slice(0,10)` ham ISO'nun UTC gününü alıyordu; UTC+3'te (TR)
+          akşam saatlerinde kurulan bir görev ertesi UTC gününe yazılır ve süzgeç o
+          görevi YANLIŞ günde gösterirdi/gizlerdi. `calendarDayOf` ikisini aynı yerel
+          güne indirger.
+        */
+        const day = calendarDayOf(task.dueDate);
+        if (!day || day !== dateFilter) return false;
       }
       if (tagFilter && !(task.tags || []).includes(tagFilter)) return false;
       if (searchQuery.trim()) {
@@ -1507,17 +1538,7 @@ export default function ActionCenter() {
           for (const id of Array.from(selectedIds)) {
             const task = tasks.find(tk => tk.id === id);
             if (task?.isCompleted) recordCompletion(task.id, task.title, task.completedAt ?? undefined);
-            removeTask(id);
-            if (!isOnline) {
-              enqueueOffline({ type: 'delete-task', id });
-            } else {
-              try { await TaskService.deleteTask(id); }
-              catch (err: unknown) {
-                if (isNetworkError(err)) {
-                  enqueueOffline({ type: 'delete-task', id });
-                }
-              }
-            }
+            await deleteTaskAction(id);
           }
           setSelectedIds(new Set());
           setIsBulkMode(false);
@@ -1758,17 +1779,7 @@ export default function ActionCenter() {
           // dizilerindeki kimlikler ise geride kalıyordu.
           forgetTasks(completedTasks.map(tk => tk.id), usePrefsStore.getState());
           for (const task of completedTasks) {
-            removeTask(task.id);
-            if (!isOnline) {
-              enqueueOffline({ type: 'delete-task', id: task.id });
-            } else {
-              try { await TaskService.deleteTask(task.id); }
-              catch (err: unknown) {
-                if (isNetworkError(err)) {
-                  enqueueOffline({ type: 'delete-task', id: task.id });
-                }
-              }
-            }
+            await deleteTaskAction(task.id);
           }
           haptic.success();
         }},

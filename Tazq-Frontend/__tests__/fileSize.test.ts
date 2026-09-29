@@ -50,6 +50,10 @@ const NEW_FILE_LIMIT = 800;
  * aksi halde liste bayatlar ve koruma işlevini yitirir (bkz. aşağıdaki test).
  */
 const KNOWN_LARGE: Record<string, number> = {
+  // İlk kez 800 satırı geçti: Ramazan bildirimlerindeki saat dilimi hatası
+  // düzeltildi (calendarDayOf+parseDateKey — bu dosyadaki diğer zamanlayıcılarla
+  // aynı desen), gerekçe yorumu satır ekledi.
+  'shared/utils/notifications.ts': 831, // +23: sınav geri sayım bildirimleri yuva-bazlı kimliğe geçti (exam2/exam3 artık bildirim alıyor)
   /*
     SÖZLÜK — doğası gereği uzun ve bölünmesi YANLIŞ olurdu.
 
@@ -261,7 +265,10 @@ const KNOWN_LARGE: Record<string, number> = {
   // tetikleniyordu ve Sade mod kapısı yoktu — modu kapatan kullanıcı yine tam ekran
   // kutlama alıyordu. Artış, gözden nasıl kaçtığını anlatan not (kutlama kararı tek
   // yere toplanmıştı ama bekçi test yalnız ana ekranı tarıyordu).
-  'app/cockpit.tsx': 1709, // +6 geri bakış bağlantısı · +96 gün seçimi ekranın tamamını kapsıyor (alışkanlıklar seçili güne yazılır), jestler sadeleşti, metinler DAY_COPY sözlüğüne taşındı
+  // +6 geri bakış bağlantısı · +96 gün seçimi ekranın tamamını kapsıyor (alışkanlıklar seçili güne yazılır), jestler sadeleşti, metinler DAY_COPY sözlüğüne taşındı
+  // 1709 → 1715: planTaskIdSet/planHabitIdSet Tasarruf ve Bırakma'yı unutmuştu —
+  // bu iki modun plan görevleri genel listede mod bölümüyle ÇİFT görünüyordu.
+  'app/cockpit.tsx': 1715,
   // 1358 → 1395: iki gerçek hatanın düzeltmesi. Kart konumları KENDİ bölümlerine göre
   // ölçülüyordu ama sayfa konumu sanılıp kullanılıyordu; aktif bir mod varken yeni mod
   // açılınca sayfa yanlış yere (yukarı) kayıyordu. Bölüm konumu da ölçülüp toplanıyor.
@@ -286,7 +293,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // İNDİ — borç kapandıysa tavan da kapanmalı, yoksa yer açılmış olur.
   // 1560 → 1565: geçmiş hedef kartının kopya hatası düzeltildi (süre bilinmiyor ≠
   // tamamlandı) + Bırakma'nın kendi başlangıcını okuyan yol.
-  'app/modlar.tsx': 1565, // +70: yaşayan plan ortak özete taşındı, durum kartı kahraman satırı, kartlar sırayla süzülüyor // +72: özet kartı yedi modun hepsini sayar (tasarruf/bırakma görünmüyordu), plan uygulanınca toplam günlük yük söylenir
+  'app/modlar.tsx': 1593, // +70: yaşayan plan ortak özete taşındı, durum kartı kahraman satırı, kartlar sırayla süzülüyor // +72: özet kartı yedi modun hepsini sayar (tasarruf/bırakma görünmüyordu), plan uygulanınca toplam günlük yük söylenir // +28: Ramazan bitiş kontrolü yerel-gün güvenli, exam2/exam3 geri sayım bildirimi, kilo re-apply tarih ezmesi düzeltildi
   // 1199 → 1194: akıllı ayrıştırıcı ipucu NlpHintRow'a çıkarıldı. İpucu tek metin
   // olarak kuruluyordu ve temizlenmiş bir cümleyle dört HAM emojiyi (📅⏰🔁🏷️) aynı
   // Text düğümünde yan yana getiriyordu; parçalar artık tür taşıyor, ikonu sunum çiziyor.
@@ -335,7 +342,10 @@ const KNOWN_LARGE: Record<string, number> = {
   // İlk kez 800 satırı geçti: duraklatma + geçmiş hedefler + bulut/yerel bozuk
   // veriye karşı tek nokta koruma (bkz. PLAN_ID_KEYS/sanitizePlanIds). Sözlük gibi
   // değil, bölünebilir — bir sonraki büyüme bu dosyayı gerçekten küçültmeli.
-  'features/modes/store/usePrefsStore.ts': 833,
+  // 833 → 838: remapPlanTaskId Tasarruf/Bırakma'yı unutmuştu (çevrimdışı eklenen
+  // görev gerçek kimliğini alınca bu iki modun izleme dizisi eski kimlikte
+  // takılı kalıyordu, mod kapanınca görev hiç temizlenmiyordu).
+  'features/modes/store/usePrefsStore.ts': 839,
   'features/modes/utils/planAdaptations.ts': 880,
   // 856 → 784: hesap silme akışı DeleteAccountModal bileşenine çıkarıldı. Silme,
   // uygulamadaki tek geri alınamaz işlem; durumu ekranın üstünde, onay kelimesi

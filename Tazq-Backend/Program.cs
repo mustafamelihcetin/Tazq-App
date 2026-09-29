@@ -409,7 +409,14 @@ builder.Services.AddScoped<ISystemService, SystemService>();
 builder.Services.AddScoped<IFocusSessionService, FocusSessionService>();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IGroqService, GroqService>();
-builder.Services.AddHostedService<ScheduledEmailService>();
+// DEVRE DIŞI (bug taraması, 2026-09-28): frontend'de bu tercihleri yazan tek uç
+// (PATCH /api/users/update-notification-preferences) hiçbir ekrandan çağrılmıyor,
+// yani UserNotificationPreferences tablosu hiç dolmuyor ve servis pratikte hiçbir
+// şey yapmıyordu. Ama tamamen bağlı/çalışır durumda kalıyordu: yerelleştirilmemiş
+// (yalnız İngilizce), uygulama içinden kapatılamayan ve Resend üzerinden ücretli
+// bir mail akışı — biri o uca yazarsa sessizce canlanırdı. Geri almak için tek
+// satırı aç.
+// builder.Services.AddHostedService<ScheduledEmailService>();
 // Günlük admin kayıt özeti (ADMIN_EMAIL / ADMIN_EMAILS boşsa kendini devre dışı bırakır)
 builder.Services.AddHostedService<Tazq_App.Services.AdminSignupDigestService>();
 

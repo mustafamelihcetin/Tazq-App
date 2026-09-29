@@ -245,9 +245,22 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    /*
+      YALNIZ IDEMPOTENT METODLAR OTOMATİK TEKRARLANIR.
+      Eskiden metod hiç bakılmıyordu: bir POST (ör. görev oluşturma, odak seansı
+      kaydı) 502/503/504 ya da istemci zaman aşımına (`ECONNABORTED`) uğrarsa —
+      YAZMA sunucuda BAŞARIYLA tamamlanmış ama yanıt gelmemiş/geç gelmiş olabilir —
+      interceptor aynı isteği SESSİZCE tekrar gönderiyordu. Sonuç: aynı görev/odak
+      seansı sunucuda İKİ KEZ oluşuyordu, kullanıcı hiçbir hata görmeden. GET/HEAD/
+      PUT/DELETE tekrarlanabilir (aynı uçtaki tekrar aynı sonucu üretir); POST/PATCH
+      üretmez.
+    */
+    const method = String(config?.method ?? 'get').toLowerCase();
+    const isIdempotentMethod = ['get', 'head', 'options', 'put', 'delete'].includes(method);
     const retryCount = config?._retryCount ?? 0;
     const shouldRetry =
       config &&
+      isIdempotentMethod &&
       retryCount < MAX_RETRIES &&
       (RETRY_STATUS_CODES.includes(error.response?.status) || error.code === 'ECONNABORTED');
 

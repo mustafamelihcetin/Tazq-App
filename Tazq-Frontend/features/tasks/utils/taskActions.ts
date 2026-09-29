@@ -5,6 +5,7 @@ import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { isNetworkError } from '@/shared/utils/errors';
 import { withSomedayResolved, withArchived } from '@/features/tasks/utils/taskTags';
 import { cancelTaskNotification } from '@/shared/utils/notifications';
+import { swallow } from '@/shared/utils/swallow';
 import type { Task } from '@/features/tasks/store/useTaskStore';
 
 /**
@@ -151,6 +152,55 @@ export async function patchTask(taskId: number, patch: Partial<Task>): Promise<P
 }
 
 /**
+ * Görevi SUNUCUDAN VE YEREL DEPODAN siler (iyimser + çevrimdışı güvenli).
+ *
+ * ── NEDEN TEK YOL ──────────────────────────────────────────────────────────────
+ * Silme beş ayrı yerde kopyalanmıştı (arşiv ekranı, toplu silme, tamamlananları
+ * temizleme, eski-tamamlanmışları otomatik süpürme, tek dokunuşla silme...) ve
+ * neredeyse hiçbiri GERÇEK bir sunucu reddini (ağ hatası değil — ör. görev başka
+ * bir cihazda zaten silinmiş, 403, 500) ele almıyordu: görev yerelden kaldırılıyor
+ * ama sunucuda KALIYOR ve bir sonraki tam getirmede (başka cihaz, yeniden kurulum,
+ * çekip-yenileme) sessizce geri geliyordu — kullanıcı "sildim ama geri geldi" diye
+ * şaşırıyordu. Tam da bu dosyanın başındaki uyarının anlattığı ayrışma.
+ *
+ * `completeTask`/`patchTask` ile aynı ilke ama farklı araç: onlarda değişen ALAN
+ * eski değerine dönüyor (nesne dizide duruyor). Silmede nesnenin kendisi dizide
+ * yok artık — geri koyacak "eski değer" yok. Bunun yerine sunucudan TAZE listeyi
+ * çekip mağazayı onunla değiştiriyoruz: görev gerçekten hâlâ sunucudaysa geri
+ * döner, gerçekten silinmişse (ör. başka cihaz) yerel durum zaten doğruydu.
+ */
+export type DeleteResult = 'ok' | 'queued' | 'failed' | 'skipped';
+
+export async function deleteTaskAction(taskId: number): Promise<DeleteResult> {
+  const store = useTaskStore.getState();
+  if (!store.tasks.some(t => t.id === taskId)) return 'skipped';
+
+  store.removeTask(taskId);
+
+  if (!useNetworkStore.getState().isOnline) {
+    useOfflineQueue.getState().enqueue({ type: 'delete-task', id: taskId });
+    return 'queued';
+  }
+
+  try {
+    await TaskService.deleteTask(taskId);
+    return 'ok';
+  } catch (err: unknown) {
+    if (isNetworkError(err)) {
+      useOfflineQueue.getState().enqueue({ type: 'delete-task', id: taskId });
+      return 'queued';
+    }
+    // Gerçek ret → sunucudan TAZE listeyi çek; kullanıcı silinmemiş bir şeyi
+    // silinmiş sanmasın.
+    try {
+      const freshTasks = await TaskService.getTasks();
+      useTaskStore.getState().setTasks(freshTasks);
+    } catch (e) { swallow('taskActions.deleteTask.refetchAfterRejection', e, { capture: true }); }
+    return 'failed';
+  }
+}
+
+/**
  * Görevin tarihini/saatini değiştirir (iyimser + çevrimdışı güvenli).
  *
  * "Yarına al" ve "bu saate yerleştir" aynı işlemdir: ikisi de görevin ne zaman
@@ -192,6 +242,8 @@ function setArchived(taskId: number, on: boolean): void {
   const task = store.tasks.find(t => t.id === taskId);
   if (!task) return;
 
+  const beforeTags = task.tags;
+  const beforeArchived = task.isArchived;
   const tags = withArchived(task.tags, on);
   store.updateTask(taskId, { tags, isArchived: on });
   if (on) void cancelTaskNotification(taskId);
@@ -205,7 +257,11 @@ function setArchived(taskId: number, on: boolean): void {
   TaskService.updateTask(taskId, { tags, isArchived: on }).catch((err: unknown) => {
     if (isNetworkError(err)) {
       useOfflineQueue.getState().enqueue({ type: 'update-task', id: taskId, payload });
+      return;
     }
+    // Gerçek ret → yalnız değiştirdiğimiz iki alanı geri koy (patchTask ile aynı ilke):
+    // kullanıcı arşivlemediği/geri almadığı bir şeyi yapılmış sanmasın.
+    useTaskStore.getState().updateTask(taskId, { tags: beforeTags, isArchived: beforeArchived });
   });
 }
 
