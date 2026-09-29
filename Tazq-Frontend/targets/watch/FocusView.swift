@@ -1,9 +1,20 @@
 import SwiftUI
 
+/*
+  SALT-İZLEME — telefondaki odak seansının durumunu YALNIZ gösterir, başlatmaz/durdurmaz.
+
+  Eskiden burada tam işlevli bir Start/Stop butonu ve süre seçici vardı. Ama telefon
+  tarafı (bkz. widgetBridge.ts `initWatchBridge`, TazqWidgetBridgeModule.swift) Watch'tan
+  gelen "focusAction" mesajlarını BİLEREK dinlemiyor — telefondaki odak akışı commit/claim
+  adımlarıyla bir durum makinesi, Watch'tan körlemesine yazmak yarım/çift oturum riski
+  taşıyor. Sonuç: kullanıcı Watch'ta "başlat"a basıp kendi yerel sayacını izliyordu ama
+  hiçbir gerçek seans kaydolmuyordu — telefonu açtığında hiçbir şey eşleşmiyordu. Bu,
+  kullanıcıyı yanıltan bir tasarım/uygulama uyuşmazlığıydı (2026-09'da düzeltildi).
+  `store.focusActive`/`focusElapsedSeconds`/`focusTotalSeconds` hâlâ telefondan
+  `applyData` ile güncelleniyor — bu ekran o durumu YANSITMAYA devam ediyor.
+*/
 struct FocusView: View {
   @EnvironmentObject var store: SessionStore
-  @State private var selectedMinutes = 25
-  private let durations = [15, 25, 45, 60]
   private var tr: Bool { store.language == "tr" }
 
   private var remaining: Int {
@@ -23,7 +34,6 @@ struct FocusView: View {
 
   var body: some View {
     VStack(spacing: 10) {
-      // Circular timer
       ZStack {
         Circle()
           .stroke(Color.white.opacity(0.1), lineWidth: 6)
@@ -51,52 +61,16 @@ struct FocusView: View {
         }
       }
 
-      // Duration picker (only when not active)
-      if !store.focusActive {
-        HStack(spacing: 6) {
-          ForEach(durations, id: \.self) { min in
-            Button {
-              selectedMinutes = min
-            } label: {
-              Text("\(min)")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(selectedMinutes == min ? .black : .white)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 4)
-                .background(
-                  Capsule().fill(selectedMinutes == min ? Color.blue : Color.white.opacity(0.12))
-                )
-            }
-            .buttonStyle(.plain)
-          }
-        }
-      } else {
+      if store.focusActive {
         Text(tr ? "Odaklan 🔥" : "Stay focused 🔥")
           .font(.system(size: 12, weight: .semibold))
           .foregroundColor(.orange)
+      } else {
+        Text(tr ? "Telefondan başlat" : "Start from your phone")
+          .font(.system(size: 11))
+          .foregroundColor(.secondary)
+          .multilineTextAlignment(.center)
       }
-
-      // Start / Stop button
-      Button {
-        store.toggleFocus(durationMinutes: selectedMinutes)
-      } label: {
-        HStack(spacing: 6) {
-          Image(systemName: store.focusActive ? "stop.fill" : "play.fill")
-            .font(.system(size: 13))
-          Text(store.focusActive
-               ? (tr ? "Durdur" : "Stop")
-               : (tr ? "Başlat" : "Start"))
-            .font(.system(size: 13, weight: .bold))
-        }
-        .foregroundColor(.white)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 9)
-        .background(
-          RoundedRectangle(cornerRadius: 22)
-            .fill(store.focusActive ? Color.red.opacity(0.8) : Color.blue)
-        )
-      }
-      .buttonStyle(.plain)
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 8)

@@ -53,7 +53,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // İlk kez 800 satırı geçti: Ramazan bildirimlerindeki saat dilimi hatası
   // düzeltildi (calendarDayOf+parseDateKey — bu dosyadaki diğer zamanlayıcılarla
   // aynı desen), gerekçe yorumu satır ekledi.
-  'shared/utils/notifications.ts': 831, // +23: sınav geri sayım bildirimleri yuva-bazlı kimliğe geçti (exam2/exam3 artık bildirim alıyor)
+  'shared/utils/notifications.ts': 847, // +23: sınav geri sayım bildirimleri yuva-bazlı kimliğe geçti (exam2/exam3 artık bildirim alıyor) // +16: sabah özeti aktif hedefe göre kişiselleşiyor (activeGoal)
   /*
     SÖZLÜK — doğası gereği uzun ve bölünmesi YANLIŞ olurdu.
 
@@ -67,7 +67,7 @@ const KNOWN_LARGE: Record<string, number> = {
   */
   // 860 → 870: misafirin "cihazdaki verileri sil" metinleri (iki dil).
   // 870 → 874: tasarruf ve bırakma da birer mod adı — özet ikisini hiç görmüyordu.
-  'shared/constants/i18n.ts': 874,
+  'shared/constants/i18n.ts': 912, // +38: onboarding "şu an neyle uğraşıyorsun?" sorusunun tr/en metinleri
   // 2820 → 2817: baştaki emojiyi silen üç ayrı uygulamadan ikisi (biri hatalıydı,
   // \p{Emoji} rakamları da yiyordu) shared/utils/emoji.ts'e indi.
   // 2817 → 2820: YKS/KPSS/Ramazan'ın DİL kapısı (İngilizce arayüzde takvimle
@@ -233,14 +233,17 @@ const KNOWN_LARGE: Record<string, number> = {
   // Mantık kancada ve bileşende; burada yalnız bağlantı.
   // 2311 → 2315: hızlı eklemede "… yarın için eklendi" (ana sayfa yalnız bugünü gösterir).
   // 2315 → 2318: hızlı eklemede görev oluşturma anahtarı (ikiz görev önlemi).
-  'app/index.tsx': 2351, // +3 tur kapısı · +1 hızlı odak store yolu · +25 haftalık sayılar ortak motordan (yerel gün; sunucunun UTC kırılımı üç ekranda farklı sayı veriyordu)
+  'app/index.tsx': 2355, // +3 tur kapısı · +1 hızlı odak store yolu · +25 haftalık sayılar ortak motordan (yerel gün; sunucunun UTC kırılımı üç ekranda farklı sayı veriyordu) · +4 tarihsiz görev için ayrı toast mesajı
   // İlk kez 800'ü geçti: widget/Watch köprüsünün tek başlatma noktası (bildirim
   // dinleyicisiyle aynı desen — [isLoggedIn] bağımlı, tek yerde kurulur).
   // 810 → 816: widget köprüsü artık gorev/mod store'larını da dinliyor (bkz.
   // widgetBridge bug düzeltmesi — görev/mod değişince widget hiç güncellenmiyordu).
   // 816 → 819: widget/Watch köprüsü splash'te çökmeye yol açtığı için geçici
   // olarak yorum satırına alındı (kök sebep doğrulanana kadar).
-  'app/_layout.tsx': 819,
+  'app/_layout.tsx': 857, // +17: sabah özeti en yakın aktif hedefe göre kişiselleşiyor (goalSig) // +16: widget/Watch köprüsü yeniden açıldı (ana-kuyruk sertleştirmesiyle, bkz. TazqWidgetBridgeModule.swift) // +5: tema değişince widget'ı da tazeleyen abonelik (unsubTheme)
+  // İlk kez 800 satırı geçti: onboarding'in "şu an neyle uğraşıyorsun?" sorusu
+  // (durum seçimi + mod sorusuyla aynı desende ikinci bir modal, bkz. dosya başı notu).
+  'app/onboarding.tsx': 815,
   // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.

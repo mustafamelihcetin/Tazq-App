@@ -18,7 +18,7 @@ import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
-import { ChevronRight, Clock, Smartphone, Lock, Cloud, Ban, Coins, GraduationCap, Calendar, Zap, Bell, Flame, ListChecks } from 'lucide-react-native';
+import { ChevronRight, Clock, Smartphone, Lock, Cloud, Ban, Coins, GraduationCap, Calendar, Zap, Bell, Flame, ListChecks, Briefcase, BookOpen, Dumbbell, Sparkles } from 'lucide-react-native';
 import { CategoryColors } from '@/shared/constants/Colors';
 import { Easing } from 'react-native-reanimated';
 import { TazqLogo } from '@/shared/components/TazqLogo';
@@ -29,6 +29,57 @@ import { usePrefsStore } from '@/features/modes';
 import { useAuthStore } from '@/features/user';
 import { swallow } from '@/shared/utils/swallow';
 import { haptic } from '@/shared/utils/haptics';
+import { usePlanAdaptations } from '@/features/modes/hooks/usePlanAdaptations';
+import { quickStartBirakma, quickStartWelcomeTask } from '@/features/onboarding/utils/quickStart';
+import { modeAccent } from '@/shared/constants/Colors';
+
+/**
+ * "ŞU AN NEYLE UĞRAŞIYORSUN" — mod sorusundan ÖNCEKİ tek soru.
+ *
+ * ── NEDEN AYRI BİR SLAYT DEĞİL ────────────────────────────────────────────────
+ * Bu dosyanın kendi tarihi (yukarıdaki "YEDİ SLAYTTAN DÖRDE" notu) net: yeni bir
+ * slayt "Geç"le atlanır ve cevap hiç alınamaz. Mod sorusu tam da bunun için slayt
+ * değil, çıkışın önünde bir modal — bu soru da aynı deseni izliyor: mod sorusunun
+ * BİR ÖNCESİNDE ikinci bir küçük adım, atlanabilir ama atlamak için de tek dokunuş
+ * yeterli (okumaya zorlamaz).
+ *
+ * ── SEÇENEKLER NEDEN BU YEDİSİ DEĞİL ALTISI ────────────────────────────────────
+ * Ramazan takvime bağlı (kullanıcı "seçmez", tarih gelince kendiliğinden görünür) ve
+ * Tasarruf burada yok — kapsam bilerek dar tutuldu, ileride eklenebilir.
+ *
+ * ── SIFIR-GİRDİLİ vs. İSİM+TARİH İSTEYEN ────────────────────────────────────────
+ * Bırakma ve "sadece organize" seçimleri ANINDA bir plan/görev kurar (bkz.
+ * features/onboarding/utils/quickStart.ts). Sınav/Mülakat/Tez/Spor en az isim+tarih
+ * istediği için burada kurulamaz — onboarding yalnız `seasonal.<mod>Mode`i açar;
+ * kullanıcı ana ekranda `ModeTodayCard`a (mod açık, plan yokken de görünür) dokunup
+ * `/modlar`da 2 alanı doldurur. Bu, TurkishModeBanner'ın ~160 satırlık slot mantığını
+ * onboarding'de KOPYALAMAMAK için bilinçli bir tercih (bkz. quickStart.ts başlığı).
+ */
+type GoalKey = 'exam' | 'mulakat' | 'tez' | 'spor' | 'birakma' | 'none';
+
+/*
+  RENK YOK — bilerek. Ham hex burada tanımlansaydı iki temada aynı, kontrastı
+  ölçülmemiş bir ton olurdu (bkz. palette Discipline testi). Vurgu, `modeAccent()`
+  ile aynı anahtarların (exam/mulakat/tez/spor/birakma) zaten mod kartlarında
+  kullanılan, kontrastı __tests__/colorContrast.test.ts ile doğrulanmış paletinden
+  render anında okunuyor (bkz. aşağıdaki `goalAccent`).
+*/
+const GOAL_OPTIONS: { key: GoalKey; Icon: typeof GraduationCap; titleKey: string; subKey: string }[] = [
+  { key: 'exam', Icon: GraduationCap, titleKey: 'onboardingGoalExam', subKey: 'onboardingGoalExamSub' },
+  { key: 'mulakat', Icon: Briefcase, titleKey: 'onboardingGoalMulakat', subKey: 'onboardingGoalMulakatSub' },
+  { key: 'tez', Icon: BookOpen, titleKey: 'onboardingGoalTez', subKey: 'onboardingGoalTezSub' },
+  { key: 'spor', Icon: Dumbbell, titleKey: 'onboardingGoalSpor', subKey: 'onboardingGoalSporSub' },
+  { key: 'birakma', Icon: Ban, titleKey: 'onboardingGoalBirakma', subKey: 'onboardingGoalBirakmaSub' },
+  { key: 'none', Icon: Sparkles, titleKey: 'onboardingGoalNone', subKey: 'onboardingGoalNoneSub' },
+];
+
+/** Sıfır girdili seçimler için mod adı → seasonal alan adı eşlemesi. */
+const GOAL_SEASONAL_KEY: Partial<Record<GoalKey, 'examMode' | 'mulakatMode' | 'tezMode' | 'sporMode'>> = {
+  exam: 'examMode',
+  mulakat: 'mulakatMode',
+  tez: 'tezMode',
+  spor: 'sporMode',
+};
 
 /**
  * TANITIM — YEDİ SLAYTTAN DÖRDE.
@@ -96,8 +147,16 @@ export default function OnboardingScreen() {
     çıkışın önünde tek soruyla soruluyor; cevap Ayarlar'dan değiştirilebiliyor.
   */
   const [modeAsk, setModeAsk] = useState<null | 'continue' | 'guest'>(null);
+  /*
+    "ŞU AN NEYLE UĞRAŞIYORSUN" — mod sorusunun BİR ÖNCESİNDE gösterilir (bkz. dosya
+    başındaki not). `goalAsk` aynı 'continue'|'guest' anlamını taşır (hangi çıkış
+    yoldan geldiği), yalnız akışta bir adım önde durur.
+  */
+  const [goalAsk, setGoalAsk] = useState<null | 'continue' | 'guest'>(null);
+  const [pickedGoal, setPickedGoal] = useState<GoalKey | null>(null);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
+  const { runAdaptations } = usePlanAdaptations();
 
   const isSmallDevice = height < 750;
   const visualSize = Math.min(width * 0.72, height * 0.3);
@@ -109,6 +168,11 @@ export default function OnboardingScreen() {
     if (key === 'indigo') return CategoryColors.indigo;
     return (theme as Record<string, string>)[key] ?? theme.primary;
   };
+
+  // Durum sorusunun seçenek rengi — 'none' nötr (spesifik bir mod değil), diğerleri
+  // mod kartlarıyla AYNI paletten (bkz. GOAL_OPTIONS başındaki not).
+  const goalAccent = (key: GoalKey): string =>
+    key === 'none' ? theme.onSurfaceVariant : modeAccent(key, isDark);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -127,6 +191,30 @@ export default function OnboardingScreen() {
   };
 
   /**
+   * SEÇİLEN DURUMU UYGULAR — bkz. dosya başındaki "SIFIR-GİRDİLİ vs. İSİM+TARİH
+   * İSTEYEN" notu. Hiçbir adım kullanıcıyı bekletmeye değecek kadar ağır değil
+   * (yerelde anında; ağ isteği çevrimdışı kuyruğa düşer) ama yine de bir hata bütün
+   * çıkışı kilitlememeli — bu yüzden kendi try/catch'i var.
+   */
+  const applyPickedGoal = async () => {
+    if (!pickedGoal) return;
+    try {
+      if (pickedGoal === 'birakma') {
+        await quickStartBirakma('sigara', tr);
+        setTimeout(() => runAdaptations(true), 300);
+      } else if (pickedGoal === 'none') {
+        await quickStartWelcomeTask(tr);
+      } else {
+        const seasonalKey = GOAL_SEASONAL_KEY[pickedGoal];
+        if (seasonalKey) usePrefsStore.getState().setSeasonalPref(seasonalKey, true);
+      }
+      track('onboarding_goal_picked', { goal: pickedGoal });
+    } catch (e) {
+      swallow('onboarding.applyPickedGoal', e, { capture: true });
+    }
+  };
+
+  /**
    * TANITIMI KAPATIR — tercih yazılır, bayrak kalıcı olur, çıkılır.
    *
    * İki çıkış da (hesapla devam / hesapsız dene) buradan geçiyor: eskiden aynı beş
@@ -136,6 +224,7 @@ export default function OnboardingScreen() {
     haptic.commit();
     // Kullanıcının cevabı: skor/seri görünecek mi? (Sade mod ivmeyi gizler.)
     usePrefsStore.getState().setUiMode(mode);
+    await applyPickedGoal();
     try {
       await AsyncStorage.setItem('tazq-onboarding-done', 'true');
     } catch (e) {
@@ -157,16 +246,35 @@ export default function OnboardingScreen() {
     if (currentIndex < SLIDES.length - 1) {
       scrollViewRef.current?.scrollTo({ x: (currentIndex + 1) * width, animated: true });
     } else {
-      // Son slayt: çıkmadan ÖNCE tek soru (bkz. aşağıdaki mod sorusu).
+      // Son slayt: çıkmadan ÖNCE durum sorusu, SONRA mod sorusu (bkz. aşağıdaki modallar).
       haptic.surface();
-      setModeAsk('continue');
+      setGoalAsk('continue');
     }
+  };
+
+  /** Durum seçildi/atlandı → mod sorusuna geç. Aynı çıkış türü (`exit`) taşınır. */
+  const proceedFromGoalAsk = (goal: GoalKey | null, exit: 'continue' | 'guest') => {
+    haptic.select();
+    setPickedGoal(goal);
+    setGoalAsk(null);
+    setModeAsk(exit);
+  };
+
+  /*
+    DİNAMİK ANAHTAR OKUMA — TEK YERDE. Hem slaytlar (title/bodyKey) hem durum
+    sorusunun seçenekleri (titleKey/subKey) çalışma anında belirlenen bir anahtarla
+    `t`den metin okuyor; `as any` kaçışı burada TEK satıra toplanıyor, her çağrı
+    yerine ayrı ayrı yazılmıyor (bkz. typeSafety.test.ts'in `as any` tavanı).
+  */
+  const getGoalText = (key: string): string => {
+    if (!t) return key;
+    return (t as any)[key] || key;
   };
 
   const getText = (item: typeof SLIDES[0], isTitle: boolean) => {
     if (!t) return isTitle ? item.titleKey : item.bodyKey;
     const key = isTitle ? item.titleKey : item.bodyKey;
-    return (t as any)[key] || key;
+    return getGoalText(key);
   };
 
   const renderVisual = (item: typeof SLIDES[0], index: number) => {
@@ -543,7 +651,7 @@ export default function OnboardingScreen() {
           */}
           {currentIndex === SLIDES.length - 1 && (
             <Touchable
-              onPress={() => { haptic.surface(); setModeAsk('guest'); }}
+              onPress={() => { haptic.surface(); setGoalAsk('guest'); }}
               accessibilityRole="button"
               accessibilityLabel={t.guest.tryWithoutAccount}
               accessibilityHint={t.guest.tryHint}
@@ -570,6 +678,50 @@ export default function OnboardingScreen() {
           </Touchable>
         </View>
       </SafeAreaView>
+
+      {/*
+        DURUM SORUSU — mod sorusunun BİR ÖNCESİNDE (bkz. dosya başındaki not).
+        Seçilen/atlanan seçenek `proceedFromGoalAsk`le mod sorusuna devrediliyor.
+      */}
+      <Modal visible={goalAsk !== null} transparent animationType="fade" onRequestClose={() => setGoalAsk(null)}>
+        <View style={styles.askBackdrop}>
+          <GlassSheet>
+            <Text style={[styles.askTitle, { color: theme.onSurface }]}>{t.onboardingGoalAsk}</Text>
+            <Text style={[styles.askSub, { color: theme.onSurfaceVariant }]}>{t.onboardingGoalAskSub}</Text>
+
+            {GOAL_OPTIONS.map(({ key, Icon, titleKey, subKey }) => {
+              const color = goalAccent(key);
+              return (
+                <Touchable
+                  key={key}
+                  onPress={() => proceedFromGoalAsk(key, goalAsk ?? 'continue')}
+                  accessibilityRole="button"
+                  accessibilityLabel={getGoalText(titleKey)}
+                  accessibilityHint={getGoalText(subKey)}
+                  style={[styles.askOption, { borderColor: color + '55', backgroundColor: color + '12' }]}
+                >
+                  <Icon size={ICON.md} color={color} strokeWidth={2.2} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.askOptionTitle, { color: theme.onSurface }]}>{getGoalText(titleKey)}</Text>
+                    <Text style={[styles.askOptionSub, { color: theme.onSurfaceMuted }]}>{getGoalText(subKey)}</Text>
+                  </View>
+                </Touchable>
+              );
+            })}
+
+            <Touchable
+              onPress={() => proceedFromGoalAsk(null, goalAsk ?? 'continue')}
+              accessibilityRole="button"
+              accessibilityLabel={t.onboardingGoalSkip}
+              style={{ alignSelf: 'center', paddingVertical: S.sm, paddingHorizontal: S.md, marginTop: S.xs }}
+            >
+              <Text style={{ fontSize: F.footnote, fontWeight: '700', color: theme.onSurfaceVariant }}>
+                {t.onboardingGoalSkip}
+              </Text>
+            </Touchable>
+          </GlassSheet>
+        </View>
+      </Modal>
 
       {/*
         MOD SORUSU — tanıtımın sonunda, çıkıştan hemen önce. Yeni bir slayt DEĞİL:

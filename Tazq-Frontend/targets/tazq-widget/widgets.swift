@@ -28,6 +28,15 @@ struct TazqEntry: TimelineEntry {
   let taskHex: String?
   let habitHex: String?
   let streakHex: String?
+  /*
+    2026-09'da eklendi — ÖNCEDEN metin rengi her yerde SABİT beyazdı ("widget zemini
+    hep koyu" varsayımıyla). Kullanıcı açık temadaysa telefon artık AÇIK zemin
+    (`bgHex`) gönderiyor (bkz. widgetBridge.ts `resolveIsDark`) — ama zemin açıksa
+    beyaz yazı okunmaz olurdu. Bu alan, her metnin `onBg(isDark:)` ile zemine göre
+    beyaz/siyah seçmesini sağlıyor. Eski/gelmemiş veri için `true` varsayılıyor
+    (önceki sabit-koyu davranışla aynı — geriye dönük kırılma yok).
+  */
+  let isDark: Bool
 }
 
 struct TazqProvider: TimelineProvider {
@@ -36,7 +45,7 @@ struct TazqProvider: TimelineProvider {
                taskTitles: ["Rapor taslağını bitir", "Market listesi", "30 dk koş"], tr: true,
                countdownLabel: "YKS 2027", countdownDays: 42, countdownColorHex: "#0A84FF", countdownTextHex: "#0A84FF", countdownEmoji: "🎯",
                countdown2Label: "Tez Savunması", countdown2Days: 88, countdown2ColorHex: "#8B5CF6", countdown2TextHex: "#8B5CF6", countdown2Emoji: "📚",
-               bgHex: nil, taskHex: nil, habitHex: nil, streakHex: nil)
+               bgHex: nil, taskHex: nil, habitHex: nil, streakHex: nil, isDark: true)
   }
 
   func getSnapshot(in context: Context, completion: @escaping (TazqEntry) -> Void) {
@@ -80,7 +89,8 @@ struct TazqProvider: TimelineProvider {
       bgHex: d?.string(forKey: "bgColor"),
       taskHex: d?.string(forKey: "taskColor"),
       habitHex: d?.string(forKey: "habitColor"),
-      streakHex: d?.string(forKey: "streakColor")
+      streakHex: d?.string(forKey: "streakColor"),
+      isDark: d?.object(forKey: "isDark") as? Bool ?? true
     )
   }
 }
@@ -88,9 +98,10 @@ struct TazqProvider: TimelineProvider {
 // MARK: - Renkler
 
 // Telefon her push'ta GERÇEK marka renklerini yazıyor (bkz. widgetBridge.ts
-// `bgColor`/`taskColor`/`habitColor`/`streakColor` — shared/constants/Colors.ts
-// `dark` paletinden, burada kopyası TUTULMUYOR). Bu sabitler yalnız ilk açılışta
-// (widget henüz hiç veri almamışken) ya da SwiftUI önizlemesinde kullanılan yedek.
+// `bgColor`/`taskColor`/`habitColor`/`streakColor` — kullanıcının GERÇEK açık/koyu
+// tema tercihine göre `Colors.light`/`Colors.dark`'tan, burada kopyası TUTULMUYOR).
+// Bu sabitler yalnız ilk açılışta (widget henüz hiç veri almamışken) ya da SwiftUI
+// önizlemesinde kullanılan yedek — koyu tema varsayılan (isDark alanının varsayılanıyla aynı).
 private let fallbackBg = Color(hexOrNil: "#09090B")
 private let fallbackStreak = Color(hexOrNil: "#FB923C")
 private let fallbackHabit = Color(hexOrNil: "#34D399")
@@ -106,6 +117,12 @@ private extension Color {
   }
 }
 
+/// Zemine göre okunabilir metin rengi — koyu zeminde beyaz, açık zeminde siyah.
+/// `opacity` ikincil/üçüncül metinler için (başlık/rakam dışındaki her şey).
+private func onBg(_ isDark: Bool, _ opacity: Double = 1) -> Color {
+  isDark ? Color.white.opacity(opacity) : Color.black.opacity(opacity)
+}
+
 // MARK: - Ortak parçalar
 
 private struct TodayRing: View {
@@ -113,6 +130,7 @@ private struct TodayRing: View {
   let total: Int
   let taskColor: Color
   let habitColor: Color
+  let isDark: Bool
   var diameter: CGFloat = 74
   var lineWidth: CGFloat = 9
   var numberSize: CGFloat = 26
@@ -121,7 +139,7 @@ private struct TodayRing: View {
 
   var body: some View {
     ZStack {
-      Circle().stroke(Color.white.opacity(0.10), lineWidth: lineWidth)
+      Circle().stroke(onBg(isDark, 0.10), lineWidth: lineWidth)
       Circle()
         .trim(from: 0, to: total > 0 ? pct : 0)
         .stroke(
@@ -133,10 +151,10 @@ private struct TodayRing: View {
       VStack(spacing: 0) {
         Text("\(done)")
           .font(.system(size: numberSize, weight: .black))
-          .foregroundColor(.white)
+          .foregroundColor(onBg(isDark))
         Text("/\(total)")
           .font(.system(size: numberSize * 0.46, weight: .bold))
-          .foregroundColor(.white.opacity(0.45))
+          .foregroundColor(onBg(isDark, 0.45))
       }
     }
     .frame(width: diameter, height: diameter)
@@ -149,6 +167,7 @@ private struct TodayRing: View {
 private struct TaskRow: View {
   let title: String
   let color: Color
+  let isDark: Bool
   var body: some View {
     HStack(spacing: 7) {
       Circle()
@@ -156,7 +175,7 @@ private struct TaskRow: View {
         .frame(width: 13, height: 13)
       Text(title)
         .font(.system(size: 12, weight: .medium))
-        .foregroundColor(.white.opacity(0.85))
+        .foregroundColor(onBg(isDark, 0.85))
         .lineLimit(1)
     }
   }
@@ -177,10 +196,11 @@ private struct StreakBadge: View {
 
 private struct EmptyTodayNote: View {
   let tr: Bool
+  let isDark: Bool
   var body: some View {
     Text(tr ? "Bugün için bir şey yok" : "Nothing due today")
       .font(.system(size: 12, weight: .medium))
-      .foregroundColor(.white.opacity(0.6))
+      .foregroundColor(onBg(isDark, 0.6))
       .multilineTextAlignment(.center)
   }
 }
@@ -197,18 +217,18 @@ private struct HabitsOnlyNote: View {
     VStack(alignment: .leading, spacing: 6) {
       Text(entry.tr ? "Bugünkü alışkanlıklar" : "Today's habits")
         .font(.system(size: 12, weight: .medium))
-        .foregroundColor(.white.opacity(0.75))
+        .foregroundColor(onBg(entry.isDark, 0.75))
       HStack(spacing: 6) {
         GeometryReader { geo in
           ZStack(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 2.5).fill(Color.white.opacity(0.12))
+            RoundedRectangle(cornerRadius: 2.5).fill(onBg(entry.isDark, 0.12))
             RoundedRectangle(cornerRadius: 2.5).fill(color).frame(width: geo.size.width * pct)
           }
         }
         .frame(height: 5)
         Text("\(entry.habitsCompleted)/\(entry.habitsTotal)")
           .font(.system(size: 11, weight: .bold))
-          .foregroundColor(.white.opacity(0.7))
+          .foregroundColor(onBg(entry.isDark, 0.7))
       }
     }
   }
@@ -231,7 +251,7 @@ struct TazqTodayView: View {
     HStack {
       Text("TAZQ")
         .font(.system(size: 11, weight: .black))
-        .foregroundColor(.white.opacity(0.5))
+        .foregroundColor(onBg(entry.isDark, 0.5))
       Spacer()
       StreakBadge(streak: entry.streak, color: streakColor)
     }
@@ -243,14 +263,14 @@ struct TazqTodayView: View {
         HStack(spacing: 4) {
           Circle().fill(taskColor).frame(width: 6, height: 6)
           Text("\(entry.tasksCompleted)/\(entry.tasksTotal)")
-            .font(.system(size: 10, weight: .bold)).foregroundColor(.white.opacity(0.7))
+            .font(.system(size: 10, weight: .bold)).foregroundColor(onBg(entry.isDark, 0.7))
         }
       }
       if entry.habitsTotal > 0 {
         HStack(spacing: 4) {
           Circle().fill(habitColor).frame(width: 6, height: 6)
           Text("\(entry.habitsCompleted)/\(entry.habitsTotal)")
-            .font(.system(size: 10, weight: .bold)).foregroundColor(.white.opacity(0.7))
+            .font(.system(size: 10, weight: .bold)).foregroundColor(onBg(entry.isDark, 0.7))
         }
       }
     }
@@ -261,12 +281,12 @@ struct TazqTodayView: View {
     VStack(spacing: 8) {
       header
       if total > 0 {
-        TodayRing(done: done, total: total, taskColor: taskColor, habitColor: habitColor)
+        TodayRing(done: done, total: total, taskColor: taskColor, habitColor: habitColor, isDark: entry.isDark)
           .padding(.top, 2)
         categoryDots
       } else {
         Spacer(minLength: 0)
-        EmptyTodayNote(tr: entry.tr)
+        EmptyTodayNote(tr: entry.tr, isDark: entry.isDark)
         Spacer(minLength: 0)
       }
     }
@@ -277,7 +297,7 @@ struct TazqTodayView: View {
   private var mediumBody: some View {
     HStack(alignment: .center, spacing: 16) {
       VStack(spacing: 6) {
-        TodayRing(done: done, total: total, taskColor: taskColor, habitColor: habitColor, diameter: 58, lineWidth: 7, numberSize: 20)
+        TodayRing(done: done, total: total, taskColor: taskColor, habitColor: habitColor, isDark: entry.isDark, diameter: 58, lineWidth: 7, numberSize: 20)
         StreakBadge(streak: entry.streak, color: streakColor)
       }
       .frame(width: 70)
@@ -285,17 +305,17 @@ struct TazqTodayView: View {
       VStack(alignment: .leading, spacing: 7) {
         Text(entry.tr ? "BUGÜN" : "TODAY")
           .font(.system(size: 10, weight: .black))
-          .foregroundColor(.white.opacity(0.4))
+          .foregroundColor(onBg(entry.isDark, 0.4))
         if !entry.taskTitles.isEmpty {
           ForEach(entry.taskTitles.prefix(3), id: \.self) { title in
-            TaskRow(title: title, color: taskColor)
+            TaskRow(title: title, color: taskColor, isDark: entry.isDark)
           }
         } else if entry.habitsTotal > 0 {
           // Görev yok ama alışkanlık VAR — "bugün için bir şey yok" demek burada
           // YANLIŞ olurdu (bkz. aşağıdaki not, largeBody ile aynı düzeltme).
           HabitsOnlyNote(entry: entry, color: habitColor)
         } else {
-          EmptyTodayNote(tr: entry.tr)
+          EmptyTodayNote(tr: entry.tr, isDark: entry.isDark)
         }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
@@ -310,7 +330,7 @@ struct TazqTodayView: View {
       if !entry.taskTitles.isEmpty {
         VStack(alignment: .leading, spacing: 9) {
           ForEach(entry.taskTitles.prefix(6), id: \.self) { title in
-            TaskRow(title: title, color: taskColor)
+            TaskRow(title: title, color: taskColor, isDark: entry.isDark)
           }
         }
         Spacer(minLength: 0)
@@ -327,18 +347,18 @@ struct TazqTodayView: View {
         Spacer(minLength: 0)
       } else {
         Spacer(minLength: 0)
-        EmptyTodayNote(tr: entry.tr)
+        EmptyTodayNote(tr: entry.tr, isDark: entry.isDark)
         Spacer(minLength: 0)
       }
 
-      Divider().background(Color.white.opacity(0.1))
+      Divider().background(onBg(entry.isDark, 0.1))
       HStack {
         Text("\(entry.tr ? "Görevler" : "Tasks") \(entry.tasksCompleted)/\(entry.tasksTotal)")
-          .font(.system(size: 10, weight: .bold)).foregroundColor(.white.opacity(0.6))
+          .font(.system(size: 10, weight: .bold)).foregroundColor(onBg(entry.isDark, 0.6))
         Spacer()
         if entry.habitsTotal > 0 {
           Text("\(entry.tr ? "Alışkanlık" : "Habits") \(entry.habitsCompleted)/\(entry.habitsTotal)")
-            .font(.system(size: 10, weight: .bold)).foregroundColor(.white.opacity(0.6))
+            .font(.system(size: 10, weight: .bold)).foregroundColor(onBg(entry.isDark, 0.6))
         }
       }
     }
@@ -378,6 +398,7 @@ private struct CountdownBlock: View {
   let colorHex: String?
   let textHex: String?
   let emoji: String?
+  let isDark: Bool
   var numberSize: CGFloat = 36
 
   private var textAccent: Color { Color(hexOrNil: textHex) }
@@ -388,22 +409,22 @@ private struct CountdownBlock: View {
       if let days, let label {
         Text("\(days)")
           .font(.system(size: numberSize, weight: .black))
-          .foregroundColor(.white)
+          .foregroundColor(onBg(isDark))
         Text(tr ? "gün kaldı" : "days left")
           .font(.system(size: 9, weight: .bold))
           .foregroundColor(textAccent)
           .textCase(.uppercase)
         Text(label)
           .font(.system(size: 11, weight: .semibold))
-          .foregroundColor(.white.opacity(0.7))
+          .foregroundColor(onBg(isDark, 0.7))
           .lineLimit(1)
       } else {
         Text(tr ? "Aktif bir dönemin yok" : "No active period")
           .font(.system(size: 12, weight: .medium))
-          .foregroundColor(.white.opacity(0.6))
+          .foregroundColor(onBg(isDark, 0.6))
         Text(tr ? "Uygulamadan bir mod başlat" : "Start a mode in the app")
           .font(.system(size: 10))
-          .foregroundColor(.white.opacity(0.4))
+          .foregroundColor(onBg(isDark, 0.4))
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
@@ -420,21 +441,21 @@ struct TazqCountdownView: View {
   private var smallBody: some View {
     VStack(alignment: .leading, spacing: 6) {
       HStack {
-        Text("TAZQ").font(.system(size: 11, weight: .black)).foregroundColor(.white.opacity(0.4))
+        Text("TAZQ").font(.system(size: 11, weight: .black)).foregroundColor(onBg(entry.isDark, 0.4))
         Spacer()
       }
       Spacer(minLength: 0)
-      CountdownBlock(tr: entry.tr, label: entry.countdownLabel, days: entry.countdownDays, colorHex: entry.countdownColorHex, textHex: entry.countdownTextHex, emoji: entry.countdownEmoji)
+      CountdownBlock(tr: entry.tr, label: entry.countdownLabel, days: entry.countdownDays, colorHex: entry.countdownColorHex, textHex: entry.countdownTextHex, emoji: entry.countdownEmoji, isDark: entry.isDark)
     }
   }
 
   /// Orta — birden fazla aktif dönemin varsa ikisi yan yana (tek moda düşmüyor).
   private var mediumBody: some View {
     HStack(alignment: .top, spacing: 18) {
-      CountdownBlock(tr: entry.tr, label: entry.countdownLabel, days: entry.countdownDays, colorHex: entry.countdownColorHex, textHex: entry.countdownTextHex, emoji: entry.countdownEmoji, numberSize: 30)
+      CountdownBlock(tr: entry.tr, label: entry.countdownLabel, days: entry.countdownDays, colorHex: entry.countdownColorHex, textHex: entry.countdownTextHex, emoji: entry.countdownEmoji, isDark: entry.isDark, numberSize: 30)
       if entry.countdown2Days != nil {
-        Rectangle().fill(Color.white.opacity(0.1)).frame(width: 1)
-        CountdownBlock(tr: entry.tr, label: entry.countdown2Label, days: entry.countdown2Days, colorHex: entry.countdown2ColorHex, textHex: entry.countdown2TextHex, emoji: entry.countdown2Emoji, numberSize: 30)
+        Rectangle().fill(onBg(entry.isDark, 0.1)).frame(width: 1)
+        CountdownBlock(tr: entry.tr, label: entry.countdown2Label, days: entry.countdown2Days, colorHex: entry.countdown2ColorHex, textHex: entry.countdown2TextHex, emoji: entry.countdown2Emoji, isDark: entry.isDark, numberSize: 30)
       }
     }
   }
@@ -477,7 +498,7 @@ struct TazqCountdownWidget: Widget {
              taskTitles: ["Rapor taslağını bitir", "Market listesi", "30 dk koş"], tr: true,
              countdownLabel: nil, countdownDays: nil, countdownColorHex: nil, countdownTextHex: nil, countdownEmoji: nil,
              countdown2Label: nil, countdown2Days: nil, countdown2ColorHex: nil, countdown2TextHex: nil, countdown2Emoji: nil,
-             bgHex: nil, taskHex: nil, habitHex: nil, streakHex: nil)
+             bgHex: nil, taskHex: nil, habitHex: nil, streakHex: nil, isDark: true)
 }
 
 #Preview("Bugün — Orta", as: .systemMedium) {
@@ -487,7 +508,7 @@ struct TazqCountdownWidget: Widget {
              taskTitles: ["Rapor taslağını bitir", "Market listesi", "30 dk koş", "E-postaları yanıtla"], tr: true,
              countdownLabel: nil, countdownDays: nil, countdownColorHex: nil, countdownTextHex: nil, countdownEmoji: nil,
              countdown2Label: nil, countdown2Days: nil, countdown2ColorHex: nil, countdown2TextHex: nil, countdown2Emoji: nil,
-             bgHex: nil, taskHex: nil, habitHex: nil, streakHex: nil)
+             bgHex: nil, taskHex: nil, habitHex: nil, streakHex: nil, isDark: true)
 }
 
 #Preview("Bugün — Büyük", as: .systemLarge) {
@@ -497,7 +518,7 @@ struct TazqCountdownWidget: Widget {
              taskTitles: ["Rapor taslağını bitir", "Market listesi", "30 dk koş", "E-postaları yanıtla", "Kitap oku", "Faturaları öde"], tr: true,
              countdownLabel: nil, countdownDays: nil, countdownColorHex: nil, countdownTextHex: nil, countdownEmoji: nil,
              countdown2Label: nil, countdown2Days: nil, countdown2ColorHex: nil, countdown2TextHex: nil, countdown2Emoji: nil,
-             bgHex: nil, taskHex: nil, habitHex: nil, streakHex: nil)
+             bgHex: nil, taskHex: nil, habitHex: nil, streakHex: nil, isDark: true)
 }
 
 #Preview("Geri Sayım — Küçük", as: .systemSmall) {
@@ -507,7 +528,7 @@ struct TazqCountdownWidget: Widget {
              taskTitles: [], tr: true,
              countdownLabel: "YKS 2027", countdownDays: 42, countdownColorHex: "#0A84FF", countdownTextHex: "#0A84FF", countdownEmoji: "🎯",
              countdown2Label: nil, countdown2Days: nil, countdown2ColorHex: nil, countdown2TextHex: nil, countdown2Emoji: nil,
-             bgHex: nil, taskHex: nil, habitHex: nil, streakHex: nil)
+             bgHex: nil, taskHex: nil, habitHex: nil, streakHex: nil, isDark: true)
 }
 
 #Preview("Geri Sayım — Orta", as: .systemMedium) {
@@ -517,5 +538,5 @@ struct TazqCountdownWidget: Widget {
              taskTitles: [], tr: true,
              countdownLabel: "YKS 2027", countdownDays: 42, countdownColorHex: "#0A84FF", countdownTextHex: "#0A84FF", countdownEmoji: "🎯",
              countdown2Label: "Tez Savunması", countdown2Days: 88, countdown2ColorHex: "#8B5CF6", countdown2TextHex: "#8B5CF6", countdown2Emoji: "📚",
-             bgHex: nil, taskHex: nil, habitHex: nil, streakHex: nil)
+             bgHex: nil, taskHex: nil, habitHex: nil, streakHex: nil, isDark: true)
 }

@@ -803,8 +803,15 @@ export default function HomeScreen() {
           }
           haptic.success();
           // İleri bir güne düştüyse NEREYE gittiğini söyle — ana sayfa yalnız bugünü gösterir.
+          // Tarihsiz eklenenler için de ayrı bir mesaj: "Bugün" sekmesi/widget onu SAYMAZ
+          // (yalnız vadesi gelenler sayılır), kullanıcı "eklendi ama görünmüyor" sanmasın.
           const when = whenLabel(payload.dueDate, langOf(language));
-          showToast(when ? horizonCopy(langOf(language)).titled(payload.title, when) : `"${payload.title}" ${t.toastTaskAdded}`, 'success');
+          const toastMsg = when
+            ? horizonCopy(langOf(language)).titled(payload.title, when)
+            : payload.dueDate
+              ? `"${payload.title}" ${t.toastTaskAdded}`
+              : horizonCopy(langOf(language)).titledNoDate(payload.title);
+          showToast(toastMsg, 'success');
         }
     } catch (error: unknown) {
         if (isNetworkError(error)) {

@@ -54,6 +54,11 @@ const COPY = {
     added: (when: string) => `${when} için eklendi`,
     // Cümle içinde "Yarın" küçük yazılır; gün ve ay adları büyük kalır.
     titled: (title: string, when: string) => `"${title}" ${when === 'Yarın' ? 'yarın' : when} için eklendi.`,
+    // Tarihsiz eklenen görev "Bugün"de/widget'ta SAYILMAZ (yalnız vadesi gelenler
+    // sayılıyor, bkz. app/index.tsx todayTasks) ama "Görevler"de normal görünür —
+    // Belki Bir Gün'e ATILMAZ, sadece bir güne bağlı değildir. Kullanıcı "eklendi
+    // ama widget'ta yok, nereye gitti?" diye şaşırmasın diye bu ayrım toast'ta söyleniyor.
+    titledNoDate: (title: string) => `"${title}" eklendi — Görevler'de, belirli bir güne bağlı değil.`,
     showLater: (n: number) => `Daha sonra · ${n} görev`,
     hideLater: 'Daha sonrakileri gizle',
     emptyTitle: `Önümüzdeki ${NEAR_DAYS} gün boş`,
@@ -64,6 +69,7 @@ const COPY = {
     date: (day: number, month: string) => `${month} ${day}`,
     added: (when: string) => `Added for ${when}`,
     titled: (title: string, when: string) => `"${title}" added for ${when === 'Tomorrow' ? 'tomorrow' : when}.`,
+    titledNoDate: (title: string) => `"${title}" added — in Tasks, not tied to a specific day.`,
     showLater: (n: number) => `Later · ${n} tasks`,
     hideLater: 'Hide later tasks',
     emptyTitle: `Next ${NEAR_DAYS} days are clear`,

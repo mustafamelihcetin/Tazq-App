@@ -21,14 +21,14 @@ struct WatchCountdown: Codable {
 /*
   ÇOĞU ALAN OPSİYONEL — bilerek.
 
-  Bu struct'ın ilk hâlinde hepsi ZORUNLUYDU. Telefon köprüsü (bkz.
-  features/nativeBridge/utils/widgetBridge.ts) widget odaklı yeniden yazılırken
-  `habits`/`bestStreak`/`focusActive`/`focusElapsedSeconds`/`focusTotalSeconds`
-  hiç gönderilmez oldu — ama JSONDecoder ZORUNLU bir alan eksikse TÜM decode'u
-  reddediyor. Sonuç: Watch, köprüden gelen HİÇBİR güncellemeyi kabul etmiyordu,
-  sessizce (applyData'daki `try?` hatayı yutuyordu). Opsiyonel yapmak, telefonun
-  ŞU AN gönderdiği alanları (streak/habitsCompletedToday/habitsTotal/language)
-  geçirirken göndermediklerini mevcut değerde bırakıyor.
+  Bu struct'ın ilk hâlinde hepsi ZORUNLUYDU; JSONDecoder ZORUNLU bir alan eksikse
+  TÜM decode'u reddediyor, tek bir alan gönderilmese bile. Opsiyonel yapmak,
+  telefonun göndermediği alanları (focus alanları hâlâ gönderilmiyor — bkz.
+  widgetBridge.ts'teki "BİLEREK dinlenmiyor" notu ve FocusView.swift'in salt-izleme
+  notu) mevcut değerinde bırakıyor; TEK bir eksik/yeni alan yüzünden gelen HİÇBİR
+  güncelleme reddedilmiyor. `habits`/`bestStreak` alanları 2026-09'da widgetBridge.ts'e
+  eklendi — bu struct zaten opsiyonel olduğu için ekleme sorunsuzdu, adı/alt-alan
+  adları karşı taraftaki struct'la birebir eşleşmesi yeterliydi.
 */
 struct WatchData: Codable {
   var habits: [WatchHabit]?
@@ -60,7 +60,12 @@ class SessionStore: NSObject, ObservableObject, WCSessionDelegate {
 
   override init() {
     super.init()
-    if WCSession.isSupported() {
+    // Ana kuyruğa elle atlama — telefon tarafındaki TazqWidgetBridgeModule.swift'te
+    // aynı gerekçeyle uygulandı: WCSession bir singleton, delegate/activate() çağrılarını
+    // Apple'ın belgelerindeki örnekler hep ana kuyruktan yapıyor; `init()`'in hangi
+    // kuyrukta çalıştığı (SwiftUI @StateObject başlatma sırası) garanti değil.
+    DispatchQueue.main.async { [weak self] in
+      guard WCSession.isSupported() else { return }
       WCSession.default.delegate = self
       WCSession.default.activate()
     }
@@ -77,18 +82,7 @@ class SessionStore: NSObject, ObservableObject, WCSessionDelegate {
     WKInterfaceDevice.current().play(.success)
   }
 
-  func toggleFocus(durationMinutes: Int = 25) {
-    if focusActive {
-      stopFocusLocal()
-      sendToPhone(type: "focusAction", data: ["action": "stop"])
-    } else {
-      startFocusLocal(durationMinutes: durationMinutes)
-      sendToPhone(type: "focusAction", data: ["action": "start", "durationMinutes": durationMinutes])
-    }
-    WKInterfaceDevice.current().play(.click)
-  }
-
-  // MARK: - Local Focus Timer
+  // MARK: - Local Focus Timer (yalnız telefondan gelen durumu YANSITMAK için, bkz. FocusView.swift)
 
   private func startFocusLocal(durationMinutes: Int) {
     focusActive = true

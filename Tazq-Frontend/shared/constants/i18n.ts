@@ -50,6 +50,25 @@ export const translations = {
     onboardingModeFullSub: 'One number for your day, plus streaks and achievements',
     onboardingModeLite: 'Keep it plain',
     onboardingModeLiteSub: 'Just tasks, habits and focus — no scoring',
+    /**
+     * TANITIM SONUNDA, MOD SORUSUNDAN ÖNCE — "şu an neyle uğraşıyorsın?" sorusu.
+     * (bkz. app/onboarding.tsx). Seçime göre ilk adım anında hazırlanır.
+     */
+    onboardingGoalAsk: "What's going on right now?",
+    onboardingGoalAskSub: "We'll set up your first steps — takes a few seconds.",
+    onboardingGoalExam: 'Exam prep',
+    onboardingGoalExamSub: "We'll build a daily study plan",
+    onboardingGoalMulakat: 'Job interview',
+    onboardingGoalMulakatSub: "We'll prep you day by day",
+    onboardingGoalTez: 'Thesis / project',
+    onboardingGoalTezSub: "We'll pace your writing",
+    onboardingGoalSpor: 'Fitness / weight goal',
+    onboardingGoalSporSub: "We'll track your progress",
+    onboardingGoalBirakma: 'Quit smoking',
+    onboardingGoalBirakmaSub: 'Your streak starts today',
+    onboardingGoalNone: 'Just getting organized',
+    onboardingGoalNoneSub: "No pressure — we'll keep it simple",
+    onboardingGoalSkip: "I'll decide later",
     onboardingTitle1: 'Master Your Focus',
     onboardingBody1: 'Take back control of your time. Seamlessly unite your tasks, habits, and focus sessions to reach your absolute peak every single day.',
     onboardingTitle2: 'Semantic Intelligence',
@@ -480,6 +499,25 @@ export const translations = {
     onboardingModeFullSub: 'Günün tek sayıda, üstüne seri ve başarımlar',
     onboardingModeLite: 'Sade tutalım',
     onboardingModeLiteSub: 'Sadece görev, alışkanlık ve odak — puanlama yok',
+    /**
+     * TANITIM SONUNDA, MOD SORUSUNDAN ÖNCE — "şu an neyle uğraşıyorsun?" sorusu.
+     * (bkz. app/onboarding.tsx). Seçime göre ilk adım anında hazırlanır.
+     */
+    onboardingGoalAsk: 'Şu an neyle uğraşıyorsun?',
+    onboardingGoalAskSub: 'İlk adımlarını hazırlayalım — birkaç saniye sürer.',
+    onboardingGoalExam: 'Sınava hazırlanıyorum',
+    onboardingGoalExamSub: 'Günlük çalışma planını kuralım',
+    onboardingGoalMulakat: 'Mülakata hazırlanıyorum',
+    onboardingGoalMulakatSub: 'Seni gün gün hazırlayalım',
+    onboardingGoalTez: 'Tez / proje yazıyorum',
+    onboardingGoalTezSub: 'Yazım hızını ayarlayalım',
+    onboardingGoalSpor: 'Spor / kilo hedefim var',
+    onboardingGoalSporSub: 'İlerlemeni takip edelim',
+    onboardingGoalBirakma: 'Sigarayı bırakıyorum',
+    onboardingGoalBirakmaSub: 'Serin bugün başlasın',
+    onboardingGoalNone: 'Sadece organize olmak istiyorum',
+    onboardingGoalNoneSub: 'Baskı yok — sade tutalım',
+    onboardingGoalSkip: 'Sonra karar veririm',
     onboardingTitle1: 'Odağına Hükmet',
     onboardingBody1: 'Hayatının kontrolünü eline al. Görevlerini, alışkanlıklarını ve zamanını tek bir akışta birleştirip her gün potansiyelini zirveye taşı.',
     onboardingTitle2: 'Semantik Zeka',

@@ -22,11 +22,23 @@ public class TazqWidgetBridgeModule: Module {
     Events("onWatchAction")
 
     OnCreate {
-      if WCSession.isSupported() {
+      /*
+        ANA KUYRUĞA ELLE ATLA — `OnCreate`'in hangi kuyrukta çalıştığı Expo Modules
+        sürümüne göre değişebilir; `WCSession.default` bir singleton ve delegate/
+        activate() çağrılarını her zaman ana kuyrukta yapmak Apple'ın belgelerindeki
+        WatchConnectivity örnekleriyle tutarlı. Yanlış kuyrukta yapılan bir UIKit/
+        WatchConnectivity çağrısı sessizce çalışabilir YA DA açılışta çökebilir —
+        splash'teki çökme raporundan beri bu ihtimal netleşmedi, ucuz ve zararsız
+        bir önlem olarak burada kapatılıyor.
+      */
+      DispatchQueue.main.async { [weak self] in
+        guard WCSession.isSupported() else { return }
         let delegate = WatchSessionDelegate { [weak self] dict in
-          self?.sendEvent("onWatchAction", dict)
+          // `didReceiveMessage` sistem tarafından ARKA PLAN kuyruğunda çağrılabilir
+          // (Apple belgeleri) — `sendEvent` de aynı gerekçeyle ana kuyruğa atlanıyor.
+          DispatchQueue.main.async { self?.sendEvent("onWatchAction", dict) }
         }
-        self.sessionDelegate = delegate
+        self?.sessionDelegate = delegate
         WCSession.default.delegate = delegate
         WCSession.default.activate()
       }
@@ -57,20 +69,27 @@ public class TazqWidgetBridgeModule: Module {
         }
       }
 
-      if #available(iOS 14.0, *) {
-        WidgetCenter.shared.reloadAllTimelines()
-      }
-
       /*
-        Watch'a giden `dict` AYNI kaynak — NSNull hâlâ içinde. WCSession de property
-        list dışı tipleri kabul etmiyor; en az bir alan `null` olduğunda (ör. aktif
-        mod yokken, ki bu SIK bir durum) `updateApplicationContext` `try?` içinde
-        SESSİZCE başarısız olur ve o turdaki TÜM Watch güncellemesi kaybolurdu —
-        yalnız o bir alan değil. NSNull anahtarları göndermeden önce ayıklanıyor.
+        WidgetCenter/WCSession ANA KUYRUKTA — `OnCreate`teki notla aynı gerekçe.
+        `AsyncFunction` gövdesi bir arka plan kuyruğunda çalışır; bu iki API de
+        Apple'ın kendi örneklerinde hep ana kuyruktan çağrılır.
       */
-      if WCSession.isSupported() && WCSession.default.activationState == .activated {
-        let watchSafeDict = dict.filter { !($0.value is NSNull) }
-        try? WCSession.default.updateApplicationContext(watchSafeDict)
+      DispatchQueue.main.async {
+        if #available(iOS 14.0, *) {
+          WidgetCenter.shared.reloadAllTimelines()
+        }
+
+        /*
+          Watch'a giden `dict` AYNI kaynak — NSNull hâlâ içinde. WCSession de property
+          list dışı tipleri kabul etmiyor; en az bir alan `null` olduğunda (ör. aktif
+          mod yokken, ki bu SIK bir durum) `updateApplicationContext` `try?` içinde
+          SESSİZCE başarısız olur ve o turdaki TÜM Watch güncellemesi kaybolurdu —
+          yalnız o bir alan değil. NSNull anahtarları göndermeden önce ayıklanıyor.
+        */
+        if WCSession.isSupported() && WCSession.default.activationState == .activated {
+          let watchSafeDict = dict.filter { !($0.value is NSNull) }
+          try? WCSession.default.updateApplicationContext(watchSafeDict)
+        }
       }
     }
   }

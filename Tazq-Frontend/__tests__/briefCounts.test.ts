@@ -108,6 +108,8 @@ describe('bildirim modülü', () => {
   });
 
   it('özetler sayılar değişince yeniden kurulur', () => {
-    expect(layout).toMatch(/productivityHour, notifSig\]\);/);
+    // goalSig eklendi: hedef seçilince/tarihi girilince özet aynı oturumda
+    // hedef-farkında olsun (bkz. scheduleMorningBrief'in activeGoal parametresi).
+    expect(layout).toMatch(/productivityHour, notifSig, goalSig\]\);/);
   });
 });

@@ -182,6 +182,18 @@ export async function scheduleMorningBrief(
   name?: string,
   /** Çalacağı an (bkz. briefCounts.nextAt); sayı bu günün sayısı olmalı. */
   fireAt?: Date,
+  /**
+   * En yakın aktif mod/hedef (bkz. useActiveModeSummary.nearest) — VERİLMEZSE
+   * metin bugünküyle birebir aynıdır (geriye dönük uyumlu, mevcut çağrıların
+   * hiçbiri bozulmaz).
+   *
+   * NEDEN: sabah özeti tamamen görev-sayısı/seri temelliydi, kullanıcının hangi
+   * hedefe çalıştığından hiç bahsetmiyordu. Yeni kaydolan bir kullanıcı için en
+   * kritik pencere ilk 1-2 gün — tam da elinde henüz ne görevi ne serisi olduğu
+   * an. "Sınavına 89 gün kaldı" demek, "3 görevin var" demekten çok daha güçlü bir
+   * geri çağırma: kullanıcının KENDİ seçtiği bir şeye bağlanıyor.
+   */
+  activeGoal?: { label: string; daysLeft: number },
 ): Promise<void> {
   if (!Notifications || isExpoGo) return;
   try {
@@ -190,7 +202,7 @@ export async function scheduleMorningBrief(
     await Notifications.cancelScheduledNotificationAsync('morning-brief').catch(() => {});
 
     // Don't schedule if nothing to show
-    if (todayTaskCount === 0 && streak === 0) return;
+    if (todayTaskCount === 0 && streak === 0 && !activeGoal) return;
 
     // Üretkenlik saatine göre tetikle — kullanıcının en uygun anında hatırlat.
     const briefHour = briefHourFor(productivityHour);
@@ -201,7 +213,11 @@ export async function scheduleMorningBrief(
       : '';
 
     // Metin: ileri-bakan, davetkâr. "Küçük bir adım" psikolojisi = harekete geçmeyi kolaylaştırır.
-    const body = todayTaskCount > 0
+    const body = activeGoal
+      ? (isTR
+          ? `${activeGoal.label}: ${activeGoal.daysLeft} gün kaldı. ${todayTaskCount > 0 ? 'Bugünkü planın hazır.' : 'Planına göz at.'}${streakLine}`
+          : `${activeGoal.label}: ${activeGoal.daysLeft} days left. ${todayTaskCount > 0 ? "Today's plan is ready." : 'Check your plan.'}${streakLine}`)
+      : todayTaskCount > 0
       ? (isTR
           ? `Bugün ${todayTaskCount} görevin var. Birini seçip başla.${streakLine}`
           : `You have ${todayTaskCount} task${todayTaskCount > 1 ? 's' : ''} today. Pick one and start.${streakLine}`)

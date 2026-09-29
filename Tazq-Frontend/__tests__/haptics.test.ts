@@ -167,11 +167,15 @@ describe('yoğunluk', () => {
      * olabilir (görev üretimi durur/başlar) — dokunuşun bir şey yaptığını söyleyen tek
      * işaret titreşim. Ara verme kararı zaten tereddütle verilir; sessiz kalmak
      * "basmadım mı?" sorusunu doğururdu.
+     * → 308: onboarding'in "şu an neyle uğraşıyorsun?" sorusu (bkz. app/onboarding.tsx
+     * `proceedFromGoalAsk`). Tek çağrı, yedi seçenek/atla dokunuşunun HEPSİ aynı
+     * işleyiciden geçiyor — 298 notundaki gerekçeyle aynı: bu bir SEÇİM eylemi, diğer
+     * tüm seçim/ayar anahtarları da aynı titreşimi veriyor.
      *
      * DÜRÜST NOT: hedef oran ~1/3, bugünkü ölçüm ~1/1.4. Yani yoğunluk HÂLÂ YÜKSEK.
      * Bunu düşürmek 50+ çağrı yerinde tek tek "bu titreşim ne anlatıyor?" sorusunu
      * yanıtlamayı gerektirir — ayrı ve bilinçli bir tur işi.
      */
-    expect(hap).toBeLessThanOrEqual(307);
+    expect(hap).toBeLessThanOrEqual(308);
   });
 });

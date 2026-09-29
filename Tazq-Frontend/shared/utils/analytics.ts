@@ -16,6 +16,7 @@ export type AnalyticsEvent =
   // Aktivasyon
   | 'onboarding_step'
   | 'onboarding_completed'
+  | 'onboarding_goal_picked'
   | 'first_task_completed'
   | 'first_win'
   // Modlar / plan

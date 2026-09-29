@@ -147,6 +147,8 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { usePrefsStore } from '@/features/modes';
+import { useThemeStore } from '@/shared/store/useThemeStore';
+import { useActiveModeSummary } from '@/features/modes/hooks/useActiveModeSummary';
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { swallow } from '@/shared/utils/swallow';
 import { httpStatusOf } from '@/shared/utils/errors';
@@ -199,6 +201,15 @@ export default function RootLayout() {
   */
   const notifSig = useMemo(() => notificationSignature(tasks), [tasks]);  const { morningBrief: morningBriefEnabled, eveningBrief: eveningBriefEnabled, productivityHour, notifPrimerSeen, welcomeStatus, completedTours, _hasHydrated: prefsHydrated } = usePrefsStore();
   const focusActive = useFocusStore((s) => s.isActive);
+  /*
+    SABAH ÖZETİNİN HEDEF-FARKINDALIĞI — bkz. scheduleMorningBrief'in `activeGoal`
+    parametresi. `nearest` her render yeni bir nesne olduğu için doğrudan effect
+    bağımlılığına konmuyor; sabit bir imza (`goalSig`) türetilip ona bakılıyor —
+    böylece hedef değişince (onboarding'de seçilince, tarihi girilince) özet bir
+    sonraki soğuk açılışı beklemeden yeniden kurulur.
+  */
+  const { nearest: nearestMode } = useActiveModeSummary();
+  const goalSig = nearestMode ? `${nearestMode.key}|${nearestMode.days ?? ''}` : '';
 
   // Preload all critical assets
   useEffect(() => {
@@ -329,9 +340,12 @@ export default function RootLayout() {
         streak = habits?.reduce((max: number, h: any) => Math.max(max, h.streak ?? 0), 0) ?? 0;
       } catch (e) { swallow('layout.readHabitStreakForBrief', e); }
 
-      // Morning brief: today's task count + streak (respects user preference)
+      // Morning brief: today's task count + streak + (varsa) en yakın hedef (respects user preference)
       if (morningBriefEnabled) {
-        scheduleMorningBrief(todayTasks.length, streak, language || 'en', productivityHour, currentUser?.name, morningAt);
+        const activeGoal = nearestMode && nearestMode.days != null && nearestMode.days >= 0
+          ? { label: nearestMode.label, daysLeft: nearestMode.days }
+          : undefined;
+        scheduleMorningBrief(todayTasks.length, streak, language || 'en', productivityHour, currentUser?.name, morningAt, activeGoal);
       } else {
         cancelMorningBrief();
       }
@@ -354,8 +368,12 @@ export default function RootLayout() {
     Listeye kullanıcının BİLEREK değiştirebildiği şeyler eklendi (tercihler, dil, saat).
     `tasks` bilerek DIŞARIDA: her görev değişiminde bildirimleri iptal edip yeniden
     kurmak gürültü olurdu; sayılar bir sonraki açılışta zaten tazeleniyor.
+
+    `goalSig` de burada: onboarding'de bir hedef seçilince ya da modlar.tsx'te tarihi
+    girilince sabah özeti aynı oturumda hedef-farkında hâle gelsin — bir sonraki soğuk
+    açılışı beklemesin.
   */
-  }, [isLoggedIn, notifPermission, morningBriefEnabled, eveningBriefEnabled, language, productivityHour, notifSig]);
+  }, [isLoggedIn, notifPermission, morningBriefEnabled, eveningBriefEnabled, language, productivityHour, notifSig, goalSig]);
 
   /*
     HATIRLATICILAR GÖREVLERLE BİRLİKTE YAŞAR.
@@ -525,25 +543,45 @@ export default function RootLayout() {
     return () => { try { sub?.remove?.(); } catch (e) { swallow('layout.notificationSubscriptionRemove', e); } };
   }, [isLoggedIn]);
 
-  // Ana Ekran Widget'ı ve Apple Watch köprüsü — GEÇİCİ OLARAK KAPALI.
-  //
-  // Bu blok splash ekranında çökmeye yol açıyordu; ikiye bölme testinde
-  // (bkz. proje geçmişi) yalnız native modülü İSTEMEK (getTazqWidgetBridge)
-  // sorunsuzdu, initWatchBridge()'in kendisi test edilirken kullanıcı geniş
-  // kapsamlı taramaya geçti — initWatchBridge/pushWidgetSummary ayrımı HENÜZ
-  // KESİNLEŞMEDİ. Kesin sebep bulunup doğrulanana kadar ikisi de kapalı;
-  // yarım bir düzeltmeyle "çökmüyor gibi" görünüp tekrar açmak riskli.
-  //
-  // useEffect(() => {
-  //   if (!isLoggedIn) return;
-  //   const unsubWatch = initWatchBridge();
-  //   pushWidgetSummary();
-  //   const unsubHabits = useHabitStore.subscribe(() => pushWidgetSummary());
-  //   const unsubFocus = useFocusStore.subscribe(() => pushWidgetSummary());
-  //   const unsubTasks = useTaskStore.subscribe(() => pushWidgetSummary());
-  //   const unsubPrefs = usePrefsStore.subscribe(() => pushWidgetSummary());
-  //   return () => { unsubWatch(); unsubHabits(); unsubFocus(); unsubTasks(); unsubPrefs(); };
-  // }, [isLoggedIn]);
+  /*
+    Ana Ekran Widget'ı ve Apple Watch köprüsü — YENİDEN AÇILDI.
+
+    ── GEÇMİŞ ────────────────────────────────────────────────────────────────────
+    Bu blok splash ekranında çökmeye yol açmıştı. İkiye bölme testinde yalnız native
+    modülü İSTEMEK (getTazqWidgetBridge) sorunsuzdu; initWatchBridge/pushWidgetSummary
+    ayrımı testin ortasında bırakılmıştı (kullanıcı geniş kapsamlı taramaya geçti) —
+    KESİN native sebep hiç doğrulanamadı (cihaz/Xcode erişimi olmadan sembolize bir
+    çökme raporu alınamadı; Sentry `enabled: !__DEV__` olduğu için dev-client build'te
+    zaten hiç rapor tutmuyordu).
+
+    ── BU TURDA YAPILAN ────────────────────────────────────────────────────────────
+    Kod incelemesinde kesin bir hata bulunamadı; en olası (ama doğrulanamamış) şüpheli
+    native tarafta WCSession/WidgetCenter çağrılarının kuyruk (thread) garantisiydi —
+    `modules/tazq-widget-bridge/ios/TazqWidgetBridgeModule.swift`teki OnCreate,
+    updateSharedData ve WCSessionDelegate geri çağrıları artık AÇIKÇA ana kuyruğa
+    (`DispatchQueue.main.async`) atlıyor. Blok bu savunmayla yeniden açılıyor.
+
+    ── HÂLÂ ÇÖKERSE ─────────────────────────────────────────────────────────────────
+    Bu değişikliği cihazda doğrulamak için gerçek bir çökme raporu ŞART. En ucuz yol:
+    `eas build --profile preview` (development DEĞİL — o profilde Sentry `__DEV__`
+    yüzünden kapalı kalır; preview standalone olduğu için Sentry açık). Yine çökerse
+    Sentry'deki native istisna, hangi satırda olduğunu (sembolize olmasa bile hangi
+    çağrının) gösterecektir — bir sonraki adım o rapora bakmak, tekrar tahmin değil.
+  */
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const unsubWatch = initWatchBridge();
+    pushWidgetSummary();
+    const unsubHabits = useHabitStore.subscribe(() => pushWidgetSummary());
+    const unsubFocus = useFocusStore.subscribe(() => pushWidgetSummary());
+    const unsubTasks = useTaskStore.subscribe(() => pushWidgetSummary());
+    const unsubPrefs = usePrefsStore.subscribe(() => pushWidgetSummary());
+    // Widget/Watch artık zemin+metin rengini kullanıcının GERÇEK açık/koyu tema
+    // tercihine göre gönderiyor (bkz. widgetBridge.ts `resolveIsDark`) — kullanıcı
+    // ayarlardan manuel temayı değiştirirse widget'ın da hemen izlemesi için.
+    const unsubTheme = useThemeStore.subscribe(() => pushWidgetSummary());
+    return () => { unsubWatch(); unsubHabits(); unsubFocus(); unsubTasks(); unsubPrefs(); unsubTheme(); };
+  }, [isLoggedIn]);
 
   // Auth Guard & Initialization
   useEffect(() => {

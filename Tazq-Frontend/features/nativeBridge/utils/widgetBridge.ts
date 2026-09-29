@@ -1,12 +1,13 @@
+import { Appearance } from 'react-native';
 import { useHabitStore } from '@/features/habits';
 import { useFocusStore } from '@/features/focus/store/useFocusStore';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useTaskStore } from '@/features/tasks/store/useTaskStore';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
+import { useThemeStore } from '@/shared/store/useThemeStore';
 import { fmtDateKey } from '@/features/habits';
 import { parseDateKey } from '@/shared/utils/dateKey';
 import { wasCompletedOn, todayKey as productTodayKey } from '@/features/dashboard/utils/streakDay';
-import { completeTask } from '@/features/tasks/utils/taskActions';
 import { Colors, modeAccent, modeAccentText } from '@/shared/constants/Colors';
 import { localizeSporGoal } from '@/features/modes/utils/turkishModes';
 import { swallow } from '@/shared/utils/swallow';
@@ -28,6 +29,23 @@ function getBridge() {
 
 const WIDGET_MAX_TASK_TITLES = 6;
 const WIDGET_TASK_TITLE_MAX_CHARS = 40;
+const WATCH_MAX_HABITS = 12;
+
+/**
+ * `shared/hooks/useAppTheme.ts` ile AYNI çözümleme mantığı (manuel tema seçiliyse o,
+ * 'system' ise cihazın renk şeması) — bu dosya bir React bileşeni değil (düz
+ * `getState()` ile bir `useEffect` içinden çağrılıyor), bu yüzden `useColorScheme()`
+ * hook'u yerine `Appearance.getColorScheme()` (aynı API'nin imperatif hâli) kullanılıyor.
+ *
+ * widgets.swift artık `isDark` alanına göre metin rengini (beyaz/siyah) kendi seçiyor
+ * (2026-09) — bu yüzden burada zemin/aksan rengini SEÇMEK yeterli, widget tarafı
+ * okunabilirliği kendi hesaplıyor.
+ */
+function resolveIsDark(): boolean {
+  const manualTheme = useThemeStore.getState().theme;
+  if (manualTheme !== 'system') return manualTheme === 'dark';
+  return Appearance.getColorScheme() === 'dark';
+}
 
 /**
  * Bugünün görev sayısı VE ilk birkaç başlığı — `app/index.tsx`'teki `dayScope`ün
@@ -94,9 +112,8 @@ const FALLBACK_MODE_LABEL: Record<'exam' | 'tez' | 'mulakat' | 'spor' | 'tasarru
  * `getState()` ile çağrılır. Habit/task ilerleme yüzdesi widget'ta gösterilmiyor,
  * bu yüzden onun hesapları burada YOK — yalnız ad/gün/renk/emoji.
  */
-function nearestModeCountdowns(tr: boolean): ModeCountdownEntry[] {
+function nearestModeCountdowns(tr: boolean, isDark: boolean): ModeCountdownEntry[] {
   const seasonal = usePrefsStore.getState().seasonal;
-  const isDark = true; // widget zemini her zaman koyu (bkz. widgets.swift) — koyu tema tonları kullanılıyor.
 
   const daysLeftOf = (dateStr: string | null | undefined): number | null => {
     if (!dateStr) return null;
@@ -148,13 +165,33 @@ export function pushWidgetSummary(): void {
   const todayKey = fmtDateKey(new Date());
   const habitsTotal = habits.length;
   const habitsCompletedToday = habits.filter(h => h.completedDates.includes(todayKey)).length;
-  const streak = useFocusStore.getState().localStreak;
-  const tasks = todayTasks();
   const tr = useLanguageStore.getState().language === 'tr';
-  const [countdown, countdown2] = nearestModeCountdowns(tr);
+  // Watch'ın alışkanlık listesi (HabitsView.swift) — SessionStore.swift'teki `WatchHabit`
+  // ile AYNI alan adları (id/name/emoji/color/completedToday) zorunlu, JSONDecoder
+  // eşleşmeyen anahtarı görmezden gelir ama eksik/yanlış adlı bir alan tüm decode'u
+  // reddeder (bkz. SessionStore.swift'teki WatchData yorumu). Sayı sınırı, WCSession'ın
+  // updateApplicationContext boyut sınırını (Apple belgelerinde net değil ama küçük
+  // tutmak önerilir) aşmamak için — widget'taki görev başlığı sınırıyla aynı gerekçe.
+  const watchHabits = habits.slice(0, WATCH_MAX_HABITS).map(h => ({
+    id: h.id,
+    name: (tr ? h.nameTr : h.nameEn) || h.name,
+    emoji: h.emoji,
+    color: h.color,
+    completedToday: h.completedDates.includes(todayKey),
+  }));
+  const streak = useFocusStore.getState().localStreak;
+  const bestStreak = useFocusStore.getState().bestStreak;
+  const tasks = todayTasks();
+  const isDark = resolveIsDark();
+  const palette = isDark ? Colors.dark : Colors.light;
+  const [countdown, countdown2] = nearestModeCountdowns(tr, isDark);
 
   const payload: Record<string, unknown> = {
     streak,
+    // Watch'taki StatsView "En iyi: X" satırı `bestStreak > 0` şartına bağlı — daha önce
+    // hiç gönderilmediği için bu satır kalıcı olarak gizliydi. Store zaten tutuyor
+    // (bkz. useFocusStore bestStreak), taşımak bedava.
+    bestStreak,
     habitsCompletedToday,
     habitsTotal,
     tasksCompletedToday: tasks.done,
@@ -162,6 +199,12 @@ export function pushWidgetSummary(): void {
     // Widget listeyi kendi biçiminde ister; JSON.stringify edilmiş dizi olarak
     // yazılıyor (UserDefaults düz tipleri tercih eder), Swift tarafı çözüyor.
     taskTitlesJson: JSON.stringify(tasks.titles),
+    // DÜZ DİZİ — `taskTitlesJson`'ın aksine string'e ÇEVRİLMİYOR. Watch tarafı bu dict'i
+    // doğrudan `JSONDecoder`'a veriyor (bkz. SessionStore.swift `applyData`); widget ise
+    // UserDefaults'tan okuyor. Alan adı ve alt-alan adları `WatchHabit` Codable struct'ıyla
+    // BİREBİR aynı olmalı (id/name/emoji/color/completedToday) — biri kayarsa decode SESSİZCE
+    // tüm mesajı reddeder.
+    habits: watchHabits,
     language: useLanguageStore.getState().language,
     countdownLabel: countdown?.label ?? null,
     countdownDays: countdown?.days ?? null,
@@ -173,13 +216,20 @@ export function pushWidgetSummary(): void {
     countdown2Color: countdown2?.color ?? null,
     countdown2TextColor: countdown2?.textColor ?? null,
     countdown2Emoji: countdown2?.emoji ?? null,
-    // Widget kendi renklerini UYDURMASIN — uygulamanın gerçek koyu tema paletinden
-    // (bkz. shared/constants/Colors.ts `dark`). Palet değişirse widget de kendiliğinden
-    // izler; Swift tarafında ayrı bir kopya tutmak zamanla sessizce ayrışırdı.
-    bgColor: Colors.dark.background,
-    taskColor: Colors.dark.primary,
-    habitColor: Colors.dark.success,
-    streakColor: Colors.dark.streak,
+    /*
+      Widget kendi renklerini UYDURMASIN — uygulamanın gerçek açık/koyu paletinden
+      (bkz. shared/constants/Colors.ts), kullanıcının GERÇEK tema tercihine göre
+      (`resolveIsDark`). ÖNCEDEN hep `Colors.dark` sabitti (açık temadaki kullanıcı
+      widget'ta hep koyu görüyordu) — widgets.swift artık `isDark` alanına göre
+      metin rengini kendi seçtiği için (2026-09) burada yalnız DOĞRU zemin/aksan
+      rengini seçmek yeterli. Palet değişirse widget de kendiliğinden izler;
+      Swift tarafında ayrı bir kopya tutmak zamanla sessizce ayrışırdı.
+    */
+    isDark,
+    bgColor: palette.background,
+    taskColor: palette.primary,
+    habitColor: palette.success,
+    streakColor: palette.streak,
   };
 
   const json = JSON.stringify(payload);
@@ -204,9 +254,24 @@ export function initWatchBridge(): () => void {
 
   const sub = bridge.addListener('onWatchAction', (event) => {
     if (event.type !== 'habitCompleted') return;
-    const habitId = Number(event.data?.habitId);
-    if (!Number.isFinite(habitId)) return;
-    completeTask(habitId).catch((e: unknown) => swallow('nativeWidgetBridge.watchAction', e));
+    /*
+      `completeTask` (task store, sayısal id) BURADA YANLIŞTI — Watch'ın gönderdiği
+      `habitId` habit store'un STRING id'si (`habit_${Date.now()}_...`, bkz.
+      useHabitStore.ts). `Number(...)` her zaman NaN üretiyor, guard hep false
+      dönüyor, buton hiçbir zaman çalışmıyordu. Alışkanlık tamamlama tamamen yerel
+      (habit store'un persist'i) — `app/_layout.tsx`'teki bildirim eylemi
+      ('habit-complete') ile AYNI kalıp: zaten tamamlanmışsa tekrar toggle'lama
+      (çift WCSession mesajı gelirse geri almasın).
+    */
+    const habitId = event.data?.habitId;
+    if (typeof habitId !== 'string' || !habitId) return;
+    const { toggleDate, habits } = useHabitStore.getState();
+    const habit = habits.find(h => h.id === habitId);
+    if (!habit) return;
+    const todayKey = fmtDateKey(new Date());
+    if (!(habit.completedDates ?? []).includes(todayKey)) {
+      toggleDate(habitId, todayKey);
+    }
   });
 
   return () => sub.remove();
