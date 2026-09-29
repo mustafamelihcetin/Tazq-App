@@ -48,7 +48,7 @@ import { buildTasarrufPlan, buildBirakmaPlan } from '@/shared/utils/lifeModePlan
 import { isWeightEntryTask, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask } from '@/features/modes/utils/weightCheckin';
 import { MODE_TASK_TAGS, PLAN_TAGS, retireModeTasksByTag } from '@/features/modes/utils/planTaskOps';
 import { getExtraPool, ensureExtraPool } from '@/features/modes/utils/planPoolSync';
-import { parseDateKey } from '@/shared/utils/dateKey';
+import { parseDateKey, calendarDayOf } from '@/shared/utils/dateKey';
 import { isSlotPausedNow, markPausedHabitsSkipped } from '@/features/modes/utils/pauseOps';
 
 const LAST_RUN_KEY = 'plan_adaptations_last_run';
@@ -632,10 +632,19 @@ export function usePlanAdaptations() {
       // `planMode`, eski (legacy) olanlarda id öneki (`habit_<modtype>_...`).
       // Manuel alışkanlıklar (id `habit_<timestamp>_...`) etkilenmez → yanlış-pozitif yok.
       const offModes = new Set<string>();
-      if (!sSeasonal.examMode) { offModes.add('exam'); offModes.add('yks'); offModes.add('kpss'); }
+      /*
+        İKİNCİ/ÜÇÜNCÜ YUVA UNUTULMUŞTU. `h.planMode` yeni alışkanlıklarda 'exam2',
+        'mulakat3' gibi yuva-özel değerler taşıyor ama bu küme yalnız temel adları
+        içeriyordu — master anahtar kapatılınca (bkz. altındaki "ARTIK PLAN ID
+        TEMİZLİĞİ" bloğu, satır 666/668, zaten exam2/exam3/mulakat2/… için prefs
+        id'lerini temizliyor) o yuvaların ALIŞKANLIK NESNELERİ hiç süpürülmüyordu:
+        prefs'teki referans gitse de alışkanlık listede kalıcı bir hayalet olarak
+        kalıyordu.
+      */
+      if (!sSeasonal.examMode) { offModes.add('exam'); offModes.add('exam2'); offModes.add('exam3'); offModes.add('yks'); offModes.add('kpss'); }
       if (!sSeasonal.tezMode) offModes.add('tez');
-      if (!sSeasonal.mulakatMode) offModes.add('mulakat');
-      if (!sSeasonal.sporMode) offModes.add('spor');
+      if (!sSeasonal.mulakatMode) { offModes.add('mulakat'); offModes.add('mulakat2'); offModes.add('mulakat3'); }
+      if (!sSeasonal.sporMode) { offModes.add('spor'); offModes.add('spor2'); offModes.add('spor3'); }
       if (!sSeasonal.ramazan) offModes.add('ramazan');
       if (!sSeasonal.tasarrufMode) offModes.add('tasarruf');
       if (!sSeasonal.birakmaMode) offModes.add('birakma');
@@ -781,11 +790,24 @@ export function usePlanAdaptations() {
       ...activePrefs.ramazanPlanTaskIds,
     ]);
 
+    // YEREL GÜN ANAHTARI — todayStr aşağıda tekrar hesaplanıyordu, buraya taşındı.
+    const todayStr = `${logicalToday.getFullYear()}-${String(logicalToday.getMonth() + 1).padStart(2, '0')}-${String(logicalToday.getDate()).padStart(2, '0')}`;
+
     const oldPlanTasks = existing.filter(t => {
       if (t.isCompleted) return false;
       if (!t.dueDate || t.dueDate.startsWith('0001')) return false;
 
-      const isPast = new Date(t.dueDate).getTime() < todayStart.getTime();
+      /*
+        YEREL GÜN KARŞILAŞTIRMASI — ham `new Date(t.dueDate).getTime() < todayStart.getTime()`
+        `t.dueDate` çoğunlukla salt tarih ('YYYY-MM-DD', bkz. planAdaptations.ts daysFromNow)
+        olduğu için UTC gece yarısı okunuyordu; negatif UTC-fark saat dilimlerinde BUGÜN
+        vadeli bir görev "geçmiş" sayılıyordu. Spor/Ramazan etiketli görevlerde bu dal
+        SİLMEYE gidiyor (aşağıda retirePlanTask) — yani kullanıcı henüz bir günü bile
+        geçmemiş bir görevi aynı gün içinde kaybedebiliyordu. calendarDayOf hem salt
+        günü hem tam zaman damgasını doğru yerel güne indirger.
+      */
+      const dueDay = calendarDayOf(t.dueDate);
+      const isPast = dueDay !== null && dueDay < todayStr;
       if (!isPast) return false;
 
       const isPlanTask = planTaskIdSet.has(t.id) || (t.tags && t.tags.some(tag =>
@@ -798,9 +820,6 @@ export function usePlanAdaptations() {
 
       return isPlanTask && !isWeightEntry;
     });
-
-    // Format today date string (like YYYY-MM-DD) based on logicalToday with 3h buffer
-    const todayStr = `${logicalToday.getFullYear()}-${String(logicalToday.getMonth() + 1).padStart(2, '0')}-${String(logicalToday.getDate()).padStart(2, '0')}`;
 
     oldPlanTasks.forEach(task => {
       const modeTag = task.tags?.find(tag =>

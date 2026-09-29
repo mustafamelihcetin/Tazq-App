@@ -11,7 +11,7 @@
 import { CreateTaskPayload } from '@/shared/services/api';
 import type { RecoveryState } from '@/shared/utils/recovery';
 import { WeightEntry } from '@/features/modes/store/useSporStore';
-import { parseDateKey } from '@/shared/utils/dateKey';
+import { parseDateKey, calendarDayOf, toDateKey } from '@/shared/utils/dateKey';
 
 export type Language = 'tr' | 'en';
 
@@ -595,10 +595,19 @@ export function buildTezAdaptationTasks(
   const mon = new Date(now);
   mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
   mon.setHours(0, 0, 0, 0);
-  const thisWeekHasWeekly = existingTasks.some(t =>
-    (t.tags ?? []).includes('tez_weekly') &&
-    new Date(t.dueDate ?? 0) >= mon
-  );
+  /*
+    GÜN-ANAHTARI KARŞILAŞTIRMASI — ham `new Date(t.dueDate) >= mon` mevcut
+    `tez_weekly` görevinin tarihini ('YYYY-MM-DD', bkz. daysFromNow) UTC gece
+    yarısı okuyordu; negatif UTC-fark saat dilimlerinde bu haftanın görevi
+    "geçen hafta" sayılıp fonksiyonun kendi belirttiği "7 günde bir" garantisi
+    bozuluyor, aynı hafta içinde ikinci bir haftalık kontrol görevi oluşuyordu.
+  */
+  const monKey = toDateKey(mon);
+  const thisWeekHasWeekly = existingTasks.some(t => {
+    if (!(t.tags ?? []).includes('tez_weekly')) return false;
+    const day = calendarDayOf(t.dueDate);
+    return day !== null && day >= monKey;
+  });
   if (!thisWeekHasWeekly) {
     tasks.push({
       title: tr ? `${name}: bu hafta ne tamamladın? İlerlemeyi kaydet` : `${name}: what did you complete this week? Record progress`,

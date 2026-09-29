@@ -30,7 +30,7 @@ import { Priority, RecurrenceType, SubtaskItem } from '@/shared/services/api';
 import { swallow } from '@/shared/utils/swallow';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
-import { parseDateKey, calendarDayOf } from '@/shared/utils/dateKey';
+import { parseDateKey, calendarDayOf, toDateKey } from '@/shared/utils/dateKey';
 
 const SWIPE_THRESHOLD = -80;
 
@@ -403,10 +403,19 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
     
     setSaving(true);
     try {
+      /*
+        SAAT, TARİHSİZ KALAMAZ. Saat ve tarih seçicileri birbirinden bağımsız
+        açılabiliyor; kullanıcı yalnız saati seçip kaydederse görev "saati var ama
+        tarihi yok" gibi tutarsız bir haldeydi — çağıran taraf `dueDate` boşsa saati
+        yine de gönderiyordu. Bir saat, ait olduğu günü bilmeden anlamsız; en makul
+        varsayım bugündür.
+      */
+      const safeDueDate = !form.dueDate && form.dueTime ? toDateKey(new Date()) : form.dueDate;
       await onSave({
         ...form,
         title: form.title.trim(),
         description: form.description.trim(),
+        dueDate: safeDueDate,
       });
       onClose();
     } catch {
@@ -886,9 +895,22 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                       accessibilityState={{ checked: sub.done }}
                       accessibilityLabel={`${sub.text} — ${sub.done ? (language === 'tr' ? 'tamamlandı' : 'done') : (language === 'tr' ? 'tamamlanmadı' : 'not done')}`}
                       onPress={() => {
-                        const subs = [...form.subtasks];
-                        subs[i].done = !subs[i].done;
-                        setForm(f => ({ ...f, subtasks: subs }));
+                        /*
+                          FONKSİYONEL GÜNCELLEME + YENİ NESNE — iki ayrı hata:
+                          1) `form.subtasks`i (kapanıştaki bayat değer) okumak, art arda
+                             hızlı iki dokunuşta ilkini kaybettiriyordu (ikinci güncelleme
+                             ilkinden ÖNCEKİ diziyi kopyalıyordu).
+                          2) `subs[i].done = …` alt-görev NESNESİNİ yerinde değiştiriyordu —
+                             bu nesne düzenlenen görevin (üst bileşendeki) ORİJİNAL dizisiyle
+                             AYNI referans. Kullanıcı kutucuğu işaretleyip sonra modalı
+                             Kaydet'e basmadan kapatırsa (X/geri kaydırma), değişiklik ağa
+                             hiç gitmeden üst bileşenin belleğindeki göreve sessizce işlenmiş
+                             oluyordu.
+                        */
+                        setForm(f => ({
+                          ...f,
+                          subtasks: f.subtasks.map((s, idx) => idx === i ? { ...s, done: !s.done } : s),
+                        }));
                         haptic.surface();
                       }}
                       style={{ width: 24, height: 24, borderRadius: R.sm, borderWidth: 1.5, borderColor: sub.done ? theme.success : theme.outline, alignItems: 'center', justifyContent: 'center', backgroundColor: sub.done ? theme.success + '1A' : 'transparent' }}
