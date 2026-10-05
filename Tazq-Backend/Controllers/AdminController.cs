@@ -35,6 +35,10 @@ namespace Tazq_App.Controllers
         [HttpGet("stats")]
         public async Task<IActionResult> GetStats() => Ok(await _admin.GetStatsAsync());
 
+        // Kayıtlı kullanıcılar, anonim kurulumlar ve mağaza kanalları — "Kitle" kartı.
+        [HttpGet("audience")]
+        public async Task<IActionResult> GetAudience() => Ok(await _admin.GetAudienceAsync());
+
         // Dönemsel mod benimsenmesi + elde tutma + sürüm dağılımı — ürüne özgü içgörüler.
         [HttpGet("product-insights")]
         public async Task<IActionResult> GetProductInsights() => Ok(await _admin.GetProductInsightsAsync());

@@ -798,8 +798,28 @@ export interface AiTestResult {
   message: string;
 }
 
+export interface AudienceStats {
+  registered: { total: number; emailVerified: number; deleted: number };
+  installs: { total: number; activeLast7Days: number; activeLast30Days: number };
+  appStore: StoreChannelStatus;
+  playStore: StoreChannelStatus;
+}
+
+export interface StoreChannelStatus {
+  status: 'not_configured' | 'pending_api';
+  downloads: number | null;
+  rating: number | null;
+  ratingCount: number | null;
+}
+
+/** Misafir kapısının DIŞINDA: anonim kurulum sayımı, misafirken de çalışmalı. */
+export async function pingInstall(installId: string, platform: 'ios' | 'android'): Promise<void> {
+  await axios.post(`${BASE_URL}/api/telemetry/install`, { installId, platform }, { timeout: 10000 });
+}
+
 export const AdminSystemService = {
   health: async (): Promise<SystemHealth> => (await api.get('/api/admin/system/health')).data,
+  audience: async (): Promise<AudienceStats> => (await api.get('/api/admin/audience')).data,
   stats: async (): Promise<SystemStats> => (await api.get('/api/admin/system/stats')).data,
   /**
    * Sayfalanmış sunucu logları.

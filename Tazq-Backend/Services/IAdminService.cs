@@ -23,6 +23,18 @@ namespace Tazq_App.Services
         int TotalUsers, int TotalTasks, int CompletedTasks, int TotalFocusMinutes,
         int ActiveToday, int ActiveThisWeek, int SessionsToday, List<DailyTrendPoint> DailyTrend);
 
+    public record RegisteredAudience(int Total, int EmailVerified, int Deleted);
+
+    public record InstallAudience(int Total, int ActiveLast7Days, int ActiveLast30Days);
+
+    // Status: "not_configured" (kimlik bilgisi yok) | "pending_api" (bilgi var, çekim henüz bağlı değil).
+    // Downloads/Rating yalnız gerçek API bağlandığında dolar; o zamana kadar null.
+    public record StoreChannelStatus(string Status, int? Downloads, double? Rating, int? RatingCount);
+
+    public record AudienceStats(
+        RegisteredAudience Registered, InstallAudience Installs,
+        StoreChannelStatus AppStore, StoreChannelStatus PlayStore);
+
     public enum AdminActionResult { Success, NotFound, SelfActionForbidden }
 
     /// <summary>
@@ -51,6 +63,7 @@ namespace Tazq_App.Services
     {
         Task<UserListResult> GetUsersAsync(int page, int pageSize, string? search, string? sort, bool asc);
         Task<AdminStats> GetStatsAsync();
+        Task<AudienceStats> GetAudienceAsync();
         Task<ProductInsights> GetProductInsightsAsync();
         Task<AdminActionResult> DeleteUserAsync(int id, AdminIdentity admin);
         Task<AdminActionResult> SetRoleAsync(int id, string role, AdminIdentity admin);

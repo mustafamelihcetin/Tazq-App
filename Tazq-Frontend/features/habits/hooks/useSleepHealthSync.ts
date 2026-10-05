@@ -121,9 +121,14 @@ export function useSleepHealthSync() {
     const goalHours = usePrefsStore.getState().sleepGoalHours || 7;
     const dur = formatSleepDuration(mins, lang);
 
+    /*
+      Kullanıcının asıl sorusu: hedefe ulaştım mı? Cevap ilk kelimede olmalı.
+      · ulaşıldı  → otomatik işaretlendi, tek dokunuşla geri alınabilir
+      · ulaşılmadı → yalnız bilgi; işaretlemek isterse tek dokunuş
+    */
     if (outcome === 'marked') {
       useToastStore.getState().show(
-        lang === 'tr' ? `Uyku işaretlendi · ${dur}` : `Sleep marked · ${dur}`,
+        lang === 'tr' ? `Uyku hedefine ulaştı · ${dur}` : `Sleep goal reached · ${dur}`,
         'success',
         {
           label: lang === 'tr' ? 'Geri al' : 'Undo',
@@ -141,7 +146,9 @@ export function useSleepHealthSync() {
     }
 
     useToastStore.getState().show(
-      lang === 'tr' ? `Son uyku ${dur} · hedef ${goalHours} saat` : `Last sleep ${dur} · goal ${goalHours}h`,
+      lang === 'tr'
+        ? `Hedefe ulaşılmadı · ${dur} / ${goalHours} sa`
+        : `Goal not reached · ${dur} / ${goalHours}h`,
       'info',
       {
         label: lang === 'tr' ? 'İşaretle' : 'Mark',

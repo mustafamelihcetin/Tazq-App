@@ -39,7 +39,8 @@ import { F, S, ICON, R, B, W, LH } from '@/shared/constants/tokens';
  */
 
 export const Toast = () => {
-  const { visible, message, type, hide, actionLabel, onAction } = useToastStore();
+  const { visible, message, type, placement, hide, actionLabel, onAction } = useToastStore();
+  const fromTop = placement === 'top';
   const { language } = useLanguageStore();
   const { theme } = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -65,16 +66,16 @@ export const Toast = () => {
     <AnimatePresence>
       {visible && (
         <MotiView
-          from={{ translateY: 28, opacity: 0, scale: 0.94 }}
+          from={{ translateY: fromTop ? -28 : 28, opacity: 0, scale: 0.94 }}
           animate={{ translateY: 0, opacity: 1, scale: 1 }}
-          exit={{ translateY: 20, opacity: 0, scale: 0.96 }}
+          exit={{ translateY: fromTop ? -20 : 20, opacity: 0, scale: 0.96 }}
           /*
             Hafif ölçek, yalnız kayan bir şeritten daha "yerine oturmuş" hissettirir —
             bildirim ekrana itilmiş gibi değil, oradan çıkmış gibi görünür. Kalite
             hissinin geldiği yer burası; renk değil.
           */
           transition={{ type: 'spring', damping: 22, stiffness: 320, mass: 0.9 }}
-          style={[styles.wrap, { bottom: insets.bottom + 100 }]}
+          style={[styles.wrap, fromTop ? { top: insets.top + 8 } : { bottom: insets.bottom + 100 }]}
           pointerEvents="box-none"
         >
           <Touchable

@@ -148,6 +148,7 @@ import {
 import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { usePrefsStore } from '@/features/modes';
 import { useThemeStore } from '@/shared/store/useThemeStore';
+import { reportInstallOncePerDay } from '@/shared/utils/installPing';
 import { useActiveModeSummary } from '@/features/modes/hooks/useActiveModeSummary';
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { swallow } from '@/shared/utils/swallow';
@@ -596,6 +597,8 @@ export default function RootLayout() {
     const unsubTheme = useThemeStore.subscribe(() => pushWidgetSummary());
     return () => { clearTimeout(activationRetry); unsubWatch(); unsubHabits(); unsubFocus(); unsubTasks(); unsubPrefs(); unsubTheme(); };
   }, [isLoggedIn]);
+
+  useEffect(() => { reportInstallOncePerDay(); }, []);
 
   // Auth Guard & Initialization
   useEffect(() => {

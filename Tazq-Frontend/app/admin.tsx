@@ -15,7 +15,7 @@ import { Pager } from '@/shared/components/Pager';
 import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useAuthStore } from '@/features/user';
-import { AdminService, AdminUser, AdminStats, AdminProductInsights, AdminModeAdoption, BanHistoryItem, AdminUserDetail, AdminAuditItem, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary, LogSource, AiStatus, AiTestResult } from '@/shared/services/api';
+import { AdminService, AdminUser, AdminStats, AdminProductInsights, AdminModeAdoption, BanHistoryItem, AdminUserDetail, AdminAuditItem, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary, LogSource, AiStatus, AiTestResult, AudienceStats, StoreChannelStatus } from '@/shared/services/api';
 import { sendAdminSupportNotification } from '@/shared/utils/notifications';
 import { ICON, S, R, F, B, MAX_W, HAIRLINE } from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
@@ -81,6 +81,17 @@ const INSIGHTS_COPY = {
   versionsTitle: { tr: 'SÜRÜM DAĞILIMI', en: 'VERSION DISTRIBUTION' },
 };
 
+const AUDIENCE_COPY = {
+  tr: {
+    title: 'Kitle', registered: 'Kayıtlı', verified: 'E-posta onaylı', guestDevices: 'Kayıtsız cihaz', last30: 'Son 30 gün',
+    storeStatus: { not_configured: 'Bağlı değil', pending_api: 'Hazır, veri bekleniyor' },
+  },
+  en: {
+    title: 'Audience', registered: 'Registered', verified: 'Email verified', guestDevices: 'Guest devices', last30: 'Last 30 days',
+    storeStatus: { not_configured: 'Not connected', pending_api: 'Ready, awaiting data' },
+  },
+} as const;
+
 const MODE_SUMMARY_WORDS = {
   active: { tr: 'aktif', en: 'active' },
   closed: { tr: 'kapanmış', en: 'closed' },
@@ -116,6 +127,7 @@ export default function AdminScreen() {
   const keyboardHeight = useKeyboardHeight();
   const isDark = colorScheme === 'dark';
   const tr = language === 'tr';
+  const ac = tr ? AUDIENCE_COPY.tr : AUDIENCE_COPY.en;
   const myId = useAuthStore(s => s.user?.id);
 
   const [activeTab, setActiveTab] = useState<'users' | 'stats' | 'support' | 'system'>('users');
@@ -154,6 +166,7 @@ export default function AdminScreen() {
   const [expandedCrashes, setExpandedCrashes] = useState<Record<string, boolean>>({});
   const [unreadCount, setUnreadCount] = useState(0);
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [audience, setAudience] = useState<AudienceStats | null>(null);
   const [insights, setInsights] = useState<AdminProductInsights | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [total, setTotal] = useState(0);
@@ -207,12 +220,14 @@ export default function AdminScreen() {
     if (!silent) setLoading(true);
     setError(false);
     try {
-      const [s, m, pi] = await Promise.all([
+      const [s, m, pi, au] = await Promise.all([
         AdminService.getStats(),
         SupportService.getAllMessages().catch(() => ({ messages: [], unreadCount: 0 })),
         AdminService.getProductInsights().catch(() => null),
+        AdminSystemService.audience().catch(() => null),
       ]);
       setStats(s);
+      setAudience(au);
       setInsights(pi);
       setMessages(m.messages);
       setUnreadCount(m.unreadCount);
@@ -591,6 +606,35 @@ export default function AdminScreen() {
           {/* ── İSTATİSTİK sekmesi: genel bakış ── */}
           {activeTab === 'stats' && stats && (
             <>
+              {audience && (
+                <View style={{ backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
+                  <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurface }}>{ac.title}</Text>
+                  <View style={{ flexDirection: 'row', gap: S.sm }}>
+                    {[
+                      { label: ac.registered, value: audience.registered.total },
+                      { label: ac.verified, value: audience.registered.emailVerified },
+                      { label: ac.guestDevices, value: audience.installs.total },
+                      { label: ac.last30, value: audience.installs.activeLast30Days },
+                    ].map(c => (
+                      <View key={c.label} style={{ flex: 1, alignItems: 'center', gap: S.xs }}>
+                        <Text style={{ fontSize: F.title3, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>{c.value}</Text>
+                        <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant, textAlign: 'center' }}>{c.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  {([['App Store', audience.appStore], ['Google Play', audience.playStore]] as [string, StoreChannelStatus][]).map(([name, ch]) => (
+                    <View key={name} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={{ fontSize: F.footnote, color: theme.onSurfaceVariant }}>{name}</Text>
+                      <Text style={{ fontSize: F.footnote, fontWeight: '600', color: theme.onSurface }}>
+                        {ch.downloads != null
+                          ? `${ch.downloads} · ★ ${ch.rating?.toFixed(1) ?? '–'} (${ch.ratingCount ?? 0})`
+                          : ac.storeStatus[ch.status]}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
               <View style={{ flexDirection: 'row', gap: S.sm }}>
                 {[
                   { icon: <Users size={ICON.sm} color="#6366F1" />, label: tr ? 'Kullanıcı' : 'Users', value: stats.totalUsers, color: '#6366F1' },

@@ -18,6 +18,7 @@ namespace Tazq_App.Data
 		public DbSet<ClientCrash> ClientCrashes { get; set; }
 		public DbSet<BanHistory> BanHistories { get; set; }
 		public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
+		public DbSet<AppInstall> AppInstalls { get; set; }
 
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)

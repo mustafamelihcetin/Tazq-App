@@ -8,11 +8,13 @@ namespace Tazq_App.Services
     public class AdminService : IAdminService
     {
         private readonly AppDbContext _context;
+        private readonly IStoreMetricsService _storeMetrics;
         private const int BanReasonMaxLength = 200;
 
-        public AdminService(AppDbContext context)
+        public AdminService(AppDbContext context, IStoreMetricsService storeMetrics)
         {
             _context = context;
+            _storeMetrics = storeMetrics;
         }
 
         // Denetim kaydını ekler; SaveChanges çağıranda yapılır ki kayıt, tetikleyen
@@ -96,6 +98,26 @@ namespace Tazq_App.Services
                 .ToListAsync();
 
             return new UserListResult(users, total);
+        }
+
+        public async Task<AudienceStats> GetAudienceAsync()
+        {
+            var now = DateTime.UtcNow;
+
+            var liveUsers = _context.Users.Where(u => u.DeletedAt == null);
+            var registered = new RegisteredAudience(
+                Total: await liveUsers.CountAsync(),
+                EmailVerified: await liveUsers.CountAsync(u => u.IsEmailVerified),
+                Deleted: await _context.Users.CountAsync(u => u.DeletedAt != null));
+
+            var installs = _context.AppInstalls;
+            var installAudience = new InstallAudience(
+                Total: await installs.CountAsync(),
+                ActiveLast7Days: await installs.CountAsync(i => i.LastSeenAt >= now.AddDays(-7)),
+                ActiveLast30Days: await installs.CountAsync(i => i.LastSeenAt >= now.AddDays(-30)));
+
+            return new AudienceStats(registered, installAudience,
+                _storeMetrics.AppStore(), _storeMetrics.PlayStore());
         }
 
         public async Task<AdminStats> GetStatsAsync()
