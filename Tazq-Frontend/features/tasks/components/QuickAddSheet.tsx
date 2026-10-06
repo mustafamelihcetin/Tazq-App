@@ -35,7 +35,8 @@ import { NlpHintRow, EMPTY_NLP_HINT, type NlpHint } from '@/features/tasks/compo
 interface QuickAddSheetProps {
   visible: boolean;
   onClose: () => void;
-  onSave: (title: string) => Promise<void>;
+  /** `dayChoice`: metinde tarih yoksa kullanıcının chip ile seçtiği gün (yoksa null). */
+  onSave: (title: string, dayChoice: DayChoice) => Promise<void>;
   /**
    * Verilirse "Detaylar" düğmesi çizilir — yazılan metinle tam formu açar.
    * Tam formun bulunmadığı ekranlarda verilmez.
@@ -47,12 +48,16 @@ interface QuickAddSheetProps {
   t: any;
 }
 
+export type DayChoice = 'today' | 'tomorrow' | null;
+
 export const QuickAddSheet: React.FC<QuickAddSheetProps> = ({
   visible, onClose, onSave, onDetails, theme, isDark, language, t,
 }) => {
   const [draft, setDraft] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [hint, setHint] = useState<NlpHint>(EMPTY_NLP_HINT);
+  const [dayChoice, setDayChoice] = useState<DayChoice>(null);
+  const [textHasDate, setTextHasDate] = useState(false);
   const keyboardHeight = useKeyboardHeight();
   // Metinler i18n sözlüğünden — bu ekranda satır içi iki dilli dallanma YOK.
   const q = t.quickAdd;
@@ -64,6 +69,8 @@ export const QuickAddSheet: React.FC<QuickAddSheetProps> = ({
       prepare();
       setDraft('');
       setHint(EMPTY_NLP_HINT);
+      setDayChoice(null);
+      setTextHasDate(false);
       setIsSaving(false);
     }
   }, [visible, prepare]);
@@ -72,17 +79,19 @@ export const QuickAddSheet: React.FC<QuickAddSheetProps> = ({
     setDraft(text);
     if (!text.trim()) {
       setHint(EMPTY_NLP_HINT);
+      setTextHasDate(false);
       return;
     }
     const parsed = parseTaskHint(text, language as 'tr' | 'en');
     setHint({ message: '', chips: buildNlpChips(parsed, language) });
+    setTextHasDate(!!parsed.dueDate);
   };
 
   const handleSave = async () => {
     if (!draft.trim() || isSaving) return;
     setIsSaving(true);
     try {
-      await onSave(draft.trim());
+      await onSave(draft.trim(), textHasDate ? null : dayChoice);
       onClose();
     } catch {
       // Hata ÇAĞIRANIN sorumluluğunda: toast/uyarı orada gösteriliyor, sayfa açık kalır.
@@ -152,6 +161,33 @@ export const QuickAddSheet: React.FC<QuickAddSheetProps> = ({
             {/* Ayrıştırıcının okudukları — hızlı ekleme kara kutu olmasın. */}
             <NlpHintRow hint={hint} theme={theme} />
 
+            {/* Metinde tarih yoksa tek dokunuşla gün seç; metin tarih içeriyorsa chip'ler gizli. */}
+            {canSave && !textHasDate && (
+              <View style={styles.dayRow}>
+                {(['today', 'tomorrow'] as const).map((d) => {
+                  const active = dayChoice === d;
+                  return (
+                    <Touchable
+                      key={d}
+                      onPress={() => setDayChoice(active ? null : d)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={d === 'today' ? q.dayToday : q.dayTomorrow}
+                      style={[
+                        styles.dayChip,
+                        { backgroundColor: active ? theme.primary : (isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)') },
+                      ]}
+                    >
+                      <Text style={[styles.dayChipText, { color: active ? theme.onPrimary : theme.onSurface }]}>
+                        {d === 'today' ? q.dayToday : q.dayTomorrow}
+                      </Text>
+                    </Touchable>
+                  );
+                })}
+                <Text style={[styles.dayHint, { color: theme.onSurfaceMuted }]}>{dayChoice ? '' : q.dayHint}</Text>
+              </View>
+            )}
+
             <View style={styles.note}>
               <Sparkles size={ICON.xs} color={theme.onSurfaceMuted} />
               <Text style={[styles.noteText, { color: theme.onSurfaceMuted }]}>{q.note}</Text>
@@ -208,6 +244,10 @@ const styles = StyleSheet.create({
   sub: { fontSize: F.caption, fontWeight: '600', marginTop: S.xxs },
   inputGroup: { borderRadius: R.lg, paddingHorizontal: S.md, minHeight: verticalScale(64), justifyContent: 'center', marginTop: S.md },
   input: { fontWeight: '600', fontSize: F.subhead, paddingVertical: S.sm },
+  dayRow: { flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm, flexWrap: 'wrap' },
+  dayChip: { paddingHorizontal: S.md, paddingVertical: S.xs + 2, borderRadius: R.full },
+  dayChipText: { fontSize: F.caption2, fontWeight: '700' },
+  dayHint: { fontSize: F.caption, fontWeight: '600', flex: 1, minWidth: 120 },
   note: { flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm },
   noteText: { fontSize: F.caption, fontWeight: '600', flex: 1 },
   actions: { flexDirection: 'row', gap: S.sm, marginTop: S.lg },

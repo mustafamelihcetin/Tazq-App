@@ -67,7 +67,7 @@ const KNOWN_LARGE: Record<string, number> = {
   */
   // 860 → 870: misafirin "cihazdaki verileri sil" metinleri (iki dil).
   // 870 → 874: tasarruf ve bırakma da birer mod adı — özet ikisini hiç görmüyordu.
-  'shared/constants/i18n.ts': 912, // +38: onboarding "şu an neyle uğraşıyorsun?" sorusunun tr/en metinleri
+  'shared/constants/i18n.ts': 918, // +38: onboarding "şu an neyle uğraşıyorsun?" sorusunun tr/en metinleri // +6: hızlı eklemede Bugün/Yarın chip metinleri
   // 2820 → 2817: baştaki emojiyi silen üç ayrı uygulamadan ikisi (biri hatalıydı,
   // \p{Emoji} rakamları da yiyordu) shared/utils/emoji.ts'e indi.
   // 2817 → 2820: YKS/KPSS/Ramazan'ın DİL kapısı (İngilizce arayüzde takvimle
@@ -233,7 +233,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // Mantık kancada ve bileşende; burada yalnız bağlantı.
   // 2311 → 2315: hızlı eklemede "… yarın için eklendi" (ana sayfa yalnız bugünü gösterir).
   // 2315 → 2318: hızlı eklemede görev oluşturma anahtarı (ikiz görev önlemi).
-  'app/index.tsx': 2355, // +3 tur kapısı · +1 hızlı odak store yolu · +25 haftalık sayılar ortak motordan (yerel gün; sunucunun UTC kırılımı üç ekranda farklı sayı veriyordu) · +4 tarihsiz görev için ayrı toast mesajı
+  'app/index.tsx': 2365, // +10: tarih chip'i payload'ı, boş plan 'Görev ekle' bağlantısı, değerlendirme isteğinin modal kapısı · +3 tur kapısı · +1 hızlı odak store yolu · +25 haftalık sayılar ortak motordan (yerel gün; sunucunun UTC kırılımı üç ekranda farklı sayı veriyordu) · +4 tarihsiz görev için ayrı toast mesajı
   // İlk kez 800'ü geçti: widget/Watch köprüsünün tek başlatma noktası (bildirim
   // dinleyicisiyle aynı desen — [isLoggedIn] bağımlı, tek yerde kurulur).
   // 810 → 816: widget köprüsü artık gorev/mod store'larını da dinliyor (bkz.

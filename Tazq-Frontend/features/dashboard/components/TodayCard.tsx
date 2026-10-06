@@ -51,6 +51,9 @@ export interface TodayCardProps {
   /** Kutlama animasyonunu yeniden tetikleyen sayaç. */
   burstKey: number;
   onTap: () => void;
+  /** Boş plan durumunda ilerleyecek tek eylem — hızlı eklemeyi açar. */
+  onAddTask?: () => void;
+  addLabel?: string;
   label: string;
   isSmallScreen: boolean;
   isDark: boolean;
@@ -62,7 +65,7 @@ export interface TodayCardProps {
 export const TodayCard = React.memo<TodayCardProps>(
   ({
     completed, goal, focusMinutes, focusGoalMinutes, highlight, surprise, burstKey,
-    onTap, label, isSmallScreen, isDark, tr, theme, padding,
+    onTap, onAddTask, addLabel, label, isSmallScreen, isDark, tr, theme, padding,
   }) => {
     /**
      * "Görev yok" AYRI bir durum — "hepsi bitti" değil.
@@ -184,6 +187,16 @@ export const TodayCard = React.memo<TodayCardProps>(
                             ? (tr ? 'gün yeni başlıyor' : 'the day is just starting')
                             : (tr ? 'görev tamamlandı' : 'tasks completed')}
                   </Text>
+                  {!hasGoal && !highlight && onAddTask && addLabel && (
+                    <Touchable
+                      onPress={onAddTask}
+                      accessibilityRole="button"
+                      accessibilityLabel={addLabel}
+                      style={[styles.addPill, { backgroundColor: theme.primary + '1F' }]}
+                    >
+                      <Text style={[styles.addPillText, { color: theme.primary }]}>{`+ ${addLabel}`}</Text>
+                    </Touchable>
+                  )}
                   </View>
                 </MotiView>
 
@@ -317,6 +330,8 @@ const styles = StyleSheet.create({
   // yanındaki 12pt glif taban hizasında bir tık aşağı düşer.
   subRow: { flexDirection: 'row', alignItems: 'center', gap: S.xs },
   sub: { fontSize: F.caption, fontWeight: W.semibold, letterSpacing: 0.3 },
+  addPill: { alignSelf: 'flex-start', marginTop: S.xs, paddingHorizontal: S.sm, paddingVertical: S.xxs, borderRadius: R.full },
+  addPillText: { fontSize: F.caption2, fontWeight: W.bold },
   focusRow: { flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.xxs },
   track: { flex: 1, height: 3, borderRadius: R.xs, overflow: 'hidden' },
   fill: { height: '100%', borderRadius: R.xs },

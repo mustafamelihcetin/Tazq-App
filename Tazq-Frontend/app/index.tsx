@@ -59,7 +59,8 @@ import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { scheduleWeeklySummary } from '@/shared/utils/notifications';
 import { Touchable } from '@/shared/components/Touchable';
 import { StatusHubModal } from '@/features/dashboard/components/StatusHubModal';
-import { QuickAddSheet } from '@/features/tasks/components/QuickAddSheet';
+import { QuickAddSheet, type DayChoice } from '@/features/tasks/components/QuickAddSheet';
+import { dateKeyFromNow } from '@/shared/utils/dateKey';
 import { ModeTodayCard } from '@/features/modes/components/ModeTodayCard';
 import { useActiveModeSummary } from '@/features/modes/hooks/useActiveModeSummary';
 import { useAppShortcuts } from '@/shared/hooks/useAppShortcuts';
@@ -762,7 +763,7 @@ export default function HomeScreen() {
     return () => { clearTimeout(timeout); clearInterval(interval); sub.remove(); };
   }, []);
 
-  const handleQuickSave = async (title: string) => {
+  const handleQuickSave = async (title: string, dayChoice: DayChoice = null) => {
     // Titreşim BAŞTA çağrılıyordu: kayıt başarısız olsa bile kullanıcı "oldu"
     // hissini almış oluyordu. Onay, olayın kendisinden sonra gelir.
     const hint = parseTaskHint(title, language as 'tr' | 'en');
@@ -773,7 +774,7 @@ export default function HomeScreen() {
         description: '',
         priority: hint.priority || 'Medium',
         isCompleted: false,
-        dueDate: hint.dueDate || (isReminder ? new Date().toISOString() : null),
+        dueDate: hint.dueDate || (dayChoice === 'today' ? dateKeyFromNow(0) : dayChoice === 'tomorrow' ? dateKeyFromNow(1) : null) || (isReminder ? new Date().toISOString() : null),
         dueTime: hint.dueTime || null,
         tags: hint.tags?.length ? hint.tags : ['Draft'],
         // Tek anahtar: doğrudan istek ve kuyruktaki tekrar aynı görevi İKİ kez oluşturmaz.
@@ -979,8 +980,15 @@ export default function HomeScreen() {
   // Senaryo bazlı değerlendirme isteme tetikleyicisi.
   // Karar kuralları evaluateReviewPrompt'ta (saf ve test edilir); burada yalnızca
   // girdileri toplayıp sonucu uygularız.
+  /*
+    BAŞKA BİR EKRAN AÇIKKEN DEĞERLENDİRME İSTEMİ ÇIKMAZ: tur, hoş geldin, profil kurulumu
+    ya da hızlı ekleme açıkken iki modal üst üste binerdi. Koşul kalkınca (örn. tur
+    kapanınca) efekt yeniden kurulur ve istek o zaman değerlendirilir.
+  */
+  const otherModalOpen = profileSetupVisible || welcomeStatus === 'pending' || tourOn || quickDraftVisible;
+
   useEffect(() => {
-    if (statsLoading || streak === undefined || tasks.length === 0) return;
+    if (statsLoading || streak === undefined || tasks.length === 0 || otherModalOpen) return;
 
     const checkReviewPrompt = async () => {
       try {
@@ -1014,7 +1022,7 @@ export default function HomeScreen() {
     }, 3000);
 
     return () => clearTimeout(timer);
-  }, [statsLoading, tasks, streak, overdueCount, momentum, todayRating, todayCompleted, dailyGoal]);
+  }, [statsLoading, tasks, streak, overdueCount, momentum, todayRating, todayCompleted, dailyGoal, otherModalOpen]);
 
 
 
@@ -1865,6 +1873,8 @@ export default function HomeScreen() {
               surprise={todaySurprise}
               burstKey={todayBurstKey}
               onTap={todayTap.onTap}
+              onAddTask={() => setQuickDraftVisible(true)}
+              addLabel={t.quickAdd.title}
               label={t.todayLabel}
               isSmallScreen={isSmallScreen}
               isDark={isDark}

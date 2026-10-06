@@ -128,7 +128,7 @@ export function useSleepHealthSync() {
     */
     if (outcome === 'marked') {
       useToastStore.getState().show(
-        lang === 'tr' ? `Uyku hedefine ulaştı · ${dur}` : `Sleep goal reached · ${dur}`,
+        lang === 'tr' ? `Uyku hedefe ulaştı · ${dur}` : `Sleep goal reached · ${dur}`,
         'success',
         {
           label: lang === 'tr' ? 'Geri al' : 'Undo',
@@ -140,7 +140,9 @@ export function useSleepHealthSync() {
               if (cur && (cur.completedDates ?? []).includes(todayKey)) useHabitStore.getState().toggleDate(id, todayKey);
             }
           },
-        }
+        },
+        'top',
+        1
       );
       return;
     }
@@ -148,12 +150,14 @@ export function useSleepHealthSync() {
     useToastStore.getState().show(
       lang === 'tr'
         ? `Hedefe ulaşılmadı · ${dur} / ${goalHours} sa`
-        : `Goal not reached · ${dur} / ${goalHours}h`,
+        : `Goal missed · ${dur} / ${goalHours}h`,
       'info',
       {
         label: lang === 'tr' ? 'İşaretle' : 'Mark',
         onAction: () => { for (const id of habitIds) markDone(id, todayKey); },
-      }
+      },
+      'top',
+      Math.min(mins / (goalHours * 60), 1)
     );
   }, []);
 

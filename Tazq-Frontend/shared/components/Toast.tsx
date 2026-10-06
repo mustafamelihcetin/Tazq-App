@@ -7,7 +7,10 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Touchable } from '@/shared/components/Touchable';
-import { F, S, ICON, R, B, W, LH } from '@/shared/constants/tokens';
+import { F, S, ICON, R, B, W, LH, topBarSpace } from '@/shared/constants/tokens';
+import Svg, { Circle } from 'react-native-svg';
+import { Animated as RNAnimated, Easing } from 'react-native';
+import { useEffect, useRef } from 'react';
 
 /**
  * TOAST — geçici bildirim kapsülü.
@@ -39,7 +42,7 @@ import { F, S, ICON, R, B, W, LH } from '@/shared/constants/tokens';
  */
 
 export const Toast = () => {
-  const { visible, message, type, placement, hide, actionLabel, onAction } = useToastStore();
+  const { visible, message, type, placement, progress, hide, actionLabel, onAction } = useToastStore();
   const fromTop = placement === 'top';
   const { language } = useLanguageStore();
   const { theme } = useAppTheme();
@@ -75,7 +78,7 @@ export const Toast = () => {
             hissinin geldiği yer burası; renk değil.
           */
           transition={{ type: 'spring', damping: 22, stiffness: 320, mass: 0.9 }}
-          style={[styles.wrap, fromTop ? { top: insets.top + 8 } : { bottom: insets.bottom + 100 }]}
+          style={[styles.wrap, fromTop ? { top: topBarSpace(insets.top) + S.sm } : { bottom: insets.bottom + 100 }]}
           pointerEvents="box-none"
         >
           <Touchable
@@ -91,7 +94,7 @@ export const Toast = () => {
               },
             ]}
           >
-            <Icon size={ICON.sm} color={accent} strokeWidth={2.4} />
+            {progress != null ? <ProgressRing value={progress} color={accent} track={theme.outline} /> : <Icon size={ICON.xs} color={accent} strokeWidth={2.4} />}
 
             {/*
               `flexShrink` var ama `flex: 1` YOK: kapsül içeriği kadar geniş olsun,
@@ -100,7 +103,8 @@ export const Toast = () => {
             */}
             <Text
               style={[styles.text, { color: theme.onSurface }]}
-              numberOfLines={2}
+              numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {message}
             </Text>
@@ -130,6 +134,31 @@ export const Toast = () => {
   );
 };
 
+
+const RING = 18;
+const RING_STROKE = 2.4;
+const RING_R = (RING - RING_STROKE) / 2;
+const RING_C = 2 * Math.PI * RING_R;
+
+/**
+ * Hedefe ilerleme halkası: 0→değer arasında yumuşakça dolar. Metin yerine görsel
+ * cevap — "ne kadar yaklaşıldı" bir bakışta okunur.
+ */
+const ProgressRing = ({ value, color, track }: { value: number; color: string; track: string }) => {
+  const anim = useRef(new RNAnimated.Value(0)).current;
+  useEffect(() => {
+    RNAnimated.timing(anim, { toValue: Math.min(Math.max(value, 0), 1), duration: 650, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+  }, [value, anim]);
+  const dashOffset = anim.interpolate({ inputRange: [0, 1], outputRange: [RING_C, 0] });
+  return (
+    <Svg width={RING} height={RING} style={{ transform: [{ rotate: '-90deg' }] }}>
+      <Circle cx={RING / 2} cy={RING / 2} r={RING_R} stroke={track} strokeWidth={RING_STROKE} fill="none" />
+      <AnimatedCircle cx={RING / 2} cy={RING / 2} r={RING_R} stroke={color} strokeWidth={RING_STROKE} fill="none" strokeLinecap="round" strokeDasharray={`${RING_C} ${RING_C}`} strokeDashoffset={dashOffset} />
+    </Svg>
+  );
+};
+const AnimatedCircle = RNAnimated.createAnimatedComponent(Circle);
+
 const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
@@ -141,26 +170,23 @@ const styles = StyleSheet.create({
   capsule: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: S.smd,
-    // Tam yuvarlak: kapsül formu "geçici" der. Köşeli bir kutu kalıcı içerik gibi durur.
+    gap: S.sm,
+    // Tek satır olduğu için tam yuvarlak hap: sakin, kısa bir not. İki satıra
+    // sarsaydı aynı şekil kocaman bir balona dönüşüyordu — bu yüzden metin tek satır.
     borderRadius: R.full,
     borderWidth: B.thin,
-    paddingVertical: S.smd,
+    paddingVertical: S.xs + 2,
     paddingHorizontal: S.md,
     maxWidth: '100%',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    // Eski gölge 0.2/20 idi ve dolu renkli şeridin altında bulanık bir leke gibi
-    // duruyordu. Daha geniş ve daha soluk gölge, yüzeyi ezmeden yükseklik verir.
-    shadowOpacity: 0.16,
-    shadowRadius: 24,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
   text: {
-    fontSize: F.subhead,
-    // Eskiden '700' idi — cümlenin tamamı bold. Normal ağırlık okunur, bold bağırır.
-    fontWeight: W.medium,
-    lineHeight: F.subhead * LH.normal,
+    fontSize: F.footnote,
+    fontWeight: W.semibold,
     flexShrink: 1,
   },
   divider: {

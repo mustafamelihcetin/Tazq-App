@@ -392,6 +392,9 @@ export const translations = {
       detailsHint: 'Opens the full form with what you typed',
       save: 'Add',
       close: 'Close',
+      dayToday: 'Today',
+      dayTomorrow: 'Tomorrow',
+      dayHint: 'No date in your sentence — pick a day or leave it open',
     },
     /** E-posta doğrulama hatırlatması — doğrulama artık kullanımın önkoşulu DEĞİL. */
     verifyEmail: {
@@ -808,6 +811,9 @@ export const translations = {
       detailsHint: 'Yazdığın metinle tam formu açar',
       save: 'Ekle',
       close: 'Kapat',
+      dayToday: 'Bugün',
+      dayTomorrow: 'Yarın',
+      dayHint: 'Cümlede tarih yok — bir gün seç ya da boş bırak',
     },
     /** E-posta doğrulama hatırlatması — doğrulama artık kullanımın önkoşulu DEĞİL. */
     verifyEmail: {

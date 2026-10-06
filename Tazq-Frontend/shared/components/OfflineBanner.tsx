@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import { WifiOff } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
+import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { F, S, ICON, R, topBarSpace } from '@/shared/constants/tokens';
 
 /**
@@ -19,15 +20,32 @@ import { F, S, ICON, R, topBarSpace } from '@/shared/constants/tokens';
  * İkisi birbirinin yerine geçmez — bant, kullanıcı bir şey YAPMADAN önce bilgilendirir.
  *
  * `pointerEvents="none"`: hiçbir dokunuşu yutmaz, yalnız haber verir.
+ *
+ * GECİKME: kısa bir kopukluk (ağ geçişi, soğuk başlatma) bant göstermeye değmez —
+ * yalnız kopukluk BU SÜREDEN uzun sürerse görünür; geri gelince hemen kaybolur.
+ * Renk nötr yüzey: alarm kırmızısı yerine bilgi tonu, uygulamanın geri kalanıyla aynı dil.
  */
+const SHOW_AFTER_MS = 1500;
+
 export const OfflineBanner = () => {
   const { isOnline } = useNetworkStore();
   const { language } = useLanguageStore();
+  const { theme } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (isOnline) {
+      setVisible(false);
+      return;
+    }
+    const timer = setTimeout(() => setVisible(true), SHOW_AFTER_MS);
+    return () => clearTimeout(timer);
+  }, [isOnline]);
 
   return (
     <AnimatePresence>
-      {!isOnline && (
+      {visible && (
         <MotiView
           pointerEvents="none"
           from={{ translateY: -16, opacity: 0 }}
@@ -41,9 +59,9 @@ export const OfflineBanner = () => {
           */
           style={[styles.wrapper, { top: topBarSpace(insets.top) + S.sm }]}
         >
-          <View style={styles.banner}>
-            <WifiOff size={ICON.sm} color="#fff" />
-            <Text style={styles.text}>
+          <View style={[styles.banner, { backgroundColor: theme.surfaceFloating, borderColor: theme.outline }]}>
+            <WifiOff size={ICON.sm} color={theme.onSurfaceVariant} />
+            <Text style={[styles.text, { color: theme.onSurface }]}>
               {language === 'tr' ? 'Bağlantı kesildi' : 'Connection lost'}
             </Text>
           </View>
@@ -62,7 +80,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   banner: {
-    backgroundColor: 'rgba(185, 28, 28, 0.94)',
+    borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -78,7 +96,6 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   text: {
-    color: '#fff',
     fontSize: F.footnote,
     fontWeight: '700',
   },

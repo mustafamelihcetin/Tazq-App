@@ -375,6 +375,8 @@ struct TazqTodayView: View {
     .padding(14)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: family == .systemSmall ? .center : .leading)
     .containerBackground(bg, for: .widget)
+    // Dokununca uygulamanın görevler ekranı açılır — ana sayfa yerine doğrudan yapılacak iş.
+    .widgetURL(URL(string: "tazq-app://tasks"))
   }
 }
 
@@ -477,6 +479,8 @@ struct TazqCountdownView: View {
         RadialGradient(colors: [accent.opacity(0.30), .clear], center: .topTrailing, startRadius: 4, endRadius: 160)
       }
     }
+    // Geri sayımın ait olduğu yer modlar ekranı — dokununca oraya açılır.
+    .widgetURL(URL(string: "tazq-app://modlar"))
   }
 }
 
