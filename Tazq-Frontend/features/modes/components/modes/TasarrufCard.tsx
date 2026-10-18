@@ -23,7 +23,7 @@ import { Touchable } from '@/shared/components/Touchable';
 import { FormReveal, ModeField } from '../ModeField';
 import { renderModeEmojiIcon } from '@/features/modes/utils/modeIcons';
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
-import { buildTasarrufPlan, tasarrufTypeLabel, TASARRUF_COLOR } from '@/shared/utils/lifeModePlans';
+import { buildTasarrufPlan, tasarrufTypeLabel, TASARRUF_COLOR, spendingAreaLabel, type SpendingArea } from '@/shared/utils/lifeModePlans';
 import { retirePlanTask , retireModeTasksByTag} from '@/features/modes/utils/planTaskOps';
 import { Coins } from 'lucide-react-native';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
@@ -48,6 +48,8 @@ export function TasarrufCard() {
   const tasarrufPlanTaskIds = usePrefsStore(s => s.tasarrufPlanTaskIds);
   const setPlanIds = usePrefsStore(s => s.setPlanIds);
   const clearPlanIds = usePrefsStore(s => s.clearPlanIds);
+  const planSpecs = usePrefsStore(s => s.planSpecs);
+  const setPersonalNote = usePrefsStore(s => s.setPersonalNote);
 
   const { budgetType, startAmount, targetAmount, log, setBudgetType, setStartAmount, setTargetAmount, addEntry, reset } = useBudgetStore();
   const addHabit = useHabitStore(s => s.addHabit);
@@ -61,6 +63,10 @@ export function TasarrufCard() {
   // Acil fon'a özel: aylık gider + kaç aylık güvence (hedef bundan hesaplanır).
   const [monthlyExpense, setMonthlyExpense] = useState('');
   const [coverMonths, setCoverMonths] = useState(6);
+  // "En çok nerede fazladan harcıyorsun?" — budgetType'tan AYRI, opsiyonel ikinci soru
+  // (bkz. lifeModePlans.ts spendingArea notu). Yalnız kurulum anında geçerli, bir store'a
+  // yazılmaz — apply() anında TEK ekstra göreve dönüşür, sonra anlamı kalmaz.
+  const [spendingArea, setSpendingArea] = useState<SpendingArea>('');
 
   const applied = tasarrufPlanHabitIds.length > 0 || tasarrufPlanTaskIds.length > 0;
   const lifecycle = usePlanLifecycle('tasarruf', seasonal.tasarrufDate, tasarrufPlanHabitIds);
@@ -167,7 +173,7 @@ export function TasarrufCard() {
     applyingRef.current = true;
     try {
     haptic.success();
-    const content = buildTasarrufPlan(budgetType);
+    const content = buildTasarrufPlan(budgetType, spendingArea);
     const habitIds: string[] = [];
     content.habits.forEach((h, i) => {
       const id = `habit_tasarruf_${i}_${Date.now()}`;
@@ -394,6 +400,24 @@ export function TasarrufCard() {
               )}
             </View>
           )}
+          <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant }}>{tr ? 'En çok nerede fazladan harcıyorsun? (opsiyonel)' : 'Where do you overspend the most? (optional)'}</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
+            {(['disarida_yemek', 'online_alisveris', 'abonelikler', 'eglence_hobi'] as const).map(key => {
+              const active = spendingArea === key;
+              return (
+                <Touchable key={key} onPress={() => { haptic.select(); setSpendingArea(active ? '' : key); }} style={{ paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
+                  <Text style={{ fontSize: F.caption, fontWeight: '500', color: active ? C : theme.onSurfaceVariant }}>{spendingAreaLabel(key, tr)}</Text>
+                </Touchable>
+              );
+            })}
+          </View>
+          <ModeField
+            accent={C}
+            value={planSpecs.tasarruf?.personalNote ?? ''}
+            onChangeText={(v) => setPersonalNote('tasarruf', v)}
+            placeholder={tr ? 'Eklemek istediğin bir şey var mı? (opsiyonel)' : 'Anything else to add? (optional)'}
+            maxLength={140}
+          />
           <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'Süre' : 'Duration'}</Text>
           <View style={{ flexDirection: 'row', gap: S.xs }}>
             {DURATIONS.map(m => {

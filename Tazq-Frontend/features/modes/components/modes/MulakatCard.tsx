@@ -27,6 +27,8 @@ import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { useModeCompletionReview } from '@/features/modes/hooks/useModeCompletionReview';
 import { completionCopy } from '@/features/modes/utils/modeCompletion';
 import { toDateKey, parseDateKey, calendarDayOf } from '@/shared/utils/dateKey';
+import { WeakAreaPicker } from '../WeakAreaPicker';
+import { INTERVIEW_AREAS } from '@/shared/utils/weakAreas';
 
 // Vurgu merkezi paletten (bkz. Colors.ModeAccents) — tema-duyarlı + kontrast güvenli.
 const BASE_CALENDAR_WIDTH = 340;
@@ -122,6 +124,14 @@ function SecondarySlot({ slot, nameKey, dateKey, placeholder, onOpenPreview }: {
             <CalendarDays size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
           </Touchable>
           {showPicker && <DatePickerInline value={dateObj} onPick={(iso) => setSeasonalPref(dateKey, iso)} onClose={() => setShowPicker(false)} />}
+          {name.trim() && (
+            <WeakAreaPicker
+              slot={slot}
+              modeKey="mulakat"
+              options={INTERVIEW_AREAS}
+              label={{ tr: 'Hangi soru türünde zayıfsın? (opsiyonel)', en: 'Which question type do you feel weak in? (optional)' }}
+            />
+          )}
           <View style={{ flexDirection: 'row', gap: S.sm }}>
             <Touchable onPress={() => { if (name || date) del(); setExpanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
               <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
@@ -143,6 +153,8 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
   const seasonal = usePrefsStore(s => s.seasonal);
   const setSeasonalPref = usePrefsStore(s => s.setSeasonalPref);
   const clearPlanIds = usePrefsStore(s => s.clearPlanIds);
+  const planSpecs = usePrefsStore(s => s.planSpecs);
+  const setPersonalNote = usePrefsStore(s => s.setPersonalNote);
   const mulakatPlanHabitIds = usePrefsStore(s => s.mulakatPlanHabitIds);
   // Ara verme + kat edilen yol — dört kart da aynı kaynaktan (bkz. usePlanLifecycle).
   const lifecycle = usePlanLifecycle('mulakat', seasonal.mulakatDate, mulakatPlanHabitIds);
@@ -294,6 +306,7 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
                     todayDone={progDone}
                     todayTotal={progTotal}
                     lifecycle={lifecycle}
+                    personalNote={planSpecs.mulakat?.personalNote}
                   />
                 </View>
               </View>
@@ -313,6 +326,21 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
                 <CalendarDays size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
               </Touchable>
               {showPicker && <DatePickerInline value={dateObj} onPick={(iso) => setSeasonalPref('mulakatDate', iso)} onClose={() => setShowPicker(false)} />}
+              {name.trim() && (
+                <WeakAreaPicker
+                  slot="mulakat"
+                  modeKey="mulakat"
+                  options={INTERVIEW_AREAS}
+                  label={{ tr: 'Hangi soru türünde zayıfsın? (opsiyonel)', en: 'Which question type do you feel weak in? (optional)' }}
+                />
+              )}
+              <ModeField
+                accent={ACCENT}
+                value={planSpecs.mulakat?.personalNote ?? ''}
+                onChangeText={(v) => setPersonalNote('mulakat', v)}
+                placeholder={tr ? 'Eklemek istediğin bir şey var mı? (opsiyonel)' : 'Anything else to add? (optional)'}
+                maxLength={140}
+              />
               <View style={{ flexDirection: 'row', gap: S.sm }}>
                 <Touchable onPress={() => setExpanded(false)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
                   <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>

@@ -1,4 +1,4 @@
-import { buildTasarrufPlan, buildBirakmaPlan, birakmaMilestoneTask, birakmaTypeTasks, tasarrufTypeLabel, birakmaTypeLabel } from '@/shared/utils/lifeModePlans';
+import { buildTasarrufPlan, buildBirakmaPlan, birakmaMilestoneTask, birakmaTypeTasks, tasarrufTypeLabel, birakmaTypeLabel, spendingAreaLabel, triggerLabel } from '@/shared/utils/lifeModePlans';
 
 describe('lifeModePlans', () => {
   it('tasarruf: tipe özel görevleri başa ekler + tipe özel alışkanlık + temel içerik', () => {
@@ -47,5 +47,50 @@ describe('lifeModePlans', () => {
   it('tip etiketleri TR/EN', () => {
     expect(tasarrufTypeLabel('acilfon', true)).toBe('Acil Fon');
     expect(birakmaTypeLabel('sosyal', false)).toBe('Social Media');
+  });
+
+  it('tasarruf: spendingArea verilmezse davranış AYNI (geriye dönük uyumlu)', () => {
+    const withoutArea = buildTasarrufPlan('birikim');
+    const withExplicitEmpty = buildTasarrufPlan('birikim', '');
+    expect(withExplicitEmpty.tasks.length).toBe(withoutArea.tasks.length);
+  });
+
+  it('tasarruf: spendingArea verilince tam olarak 1 ekstra görev en başa eklenir', () => {
+    const base = buildTasarrufPlan('birikim');
+    const withArea = buildTasarrufPlan('birikim', 'abonelikler');
+    expect(withArea.tasks.length).toBe(base.tasks.length + 1);
+    expect(withArea.tasks[0].title).toMatch(/[Aa]bonelik/);
+  });
+
+  it('tasarruf: her harcama alanı kendi görevini üretir', () => {
+    const areas: Array<Parameters<typeof buildTasarrufPlan>[1]> = ['disarida_yemek', 'online_alisveris', 'abonelikler', 'eglence_hobi'];
+    const titles = new Set(areas.map(a => buildTasarrufPlan('', a).tasks[0].title));
+    expect(titles.size).toBe(areas.length);
+  });
+
+  it('birakma: trigger verilmezse davranış AYNI (geriye dönük uyumlu)', () => {
+    const withoutTrigger = buildBirakmaPlan('sigara');
+    const withExplicitEmpty = buildBirakmaPlan('sigara', '');
+    expect(withExplicitEmpty.tasks.length).toBe(withoutTrigger.tasks.length);
+  });
+
+  it('birakma: trigger verilince tam olarak 1 ekstra görev eklenir, türden bağımsız', () => {
+    const base = buildBirakmaPlan('sigara');
+    const withTrigger = buildBirakmaPlan('sigara', 'stres');
+    expect(withTrigger.tasks.length).toBe(base.tasks.length + 1);
+    expect(withTrigger.tasks[withTrigger.tasks.length - 1].title).toMatch(/[Ss]tres/);
+  });
+
+  it('birakma: her tetikleyici kendi görevini üretir', () => {
+    const triggers: Array<Parameters<typeof buildBirakmaPlan>[1]> = ['stres', 'sosyal_ortam', 'can_sikintisi', 'otomatik_pilot'];
+    const titles = new Set(triggers.map(t => buildBirakmaPlan('', t).tasks.at(-1)!.title));
+    expect(titles.size).toBe(triggers.length);
+  });
+
+  it('alan/tetikleyici etiketleri TR/EN', () => {
+    expect(spendingAreaLabel('abonelikler', true)).toBe('Abonelikler');
+    expect(spendingAreaLabel('disarida_yemek', false)).toBe('Eating Out');
+    expect(triggerLabel('can_sikintisi', true)).toBe('Can Sıkıntısı');
+    expect(triggerLabel('sosyal_ortam', false)).toBe('Social Setting');
   });
 });

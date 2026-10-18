@@ -41,6 +41,7 @@ import { useHabitStore } from '@/features/habits';
 import { buildDailyTasks, DailyPlanSpec, PlanKind } from '@/features/modes/utils/dailyPlanEngine';
 import { runPlanMigrationOnce } from '@/features/modes/utils/planMigration';
 import { findExamCurriculum, pickSubject, pickTopic, subjectExamLabel } from '@/shared/utils/curriculum';
+import { INTERVIEW_AREAS, TEZ_AREAS, SPOR_AREAS, pickWeightedArea, areaLabel, type SporAreaKind } from '@/shared/utils/weakAreas';
 import { useSubjectStore } from '@/shared/store/useSubjectStore';
 import { useBudgetStore, type BudgetType } from '@/shared/store/useBudgetStore';
 import { useQuitStore, type QuitType } from '@/shared/store/useQuitStore';
@@ -1084,19 +1085,22 @@ export function usePlanAdaptations() {
         });
       }
     }
-    // Tez
+    // Tez — zayıf alan kendi-kendine seçimi (bkz. WeakAreaPicker) spec.name'e eklenir,
+    // AYNI "—" biçimi exam'daki subjectExamLabel ile (bkz. weakAreas.ts).
     if (activeSeasonal.tezMode && activeSeasonal.tezName && activeSeasonal.tezDate
         && hasAppliedPlan(tezPlanTaskIds, tezPlanHabitIds)) {
+      const tezArea = pickWeightedArea(TEZ_AREAS, subjectDayIndex, planSpecs.tez?.weakTopicIds);
       dailySlots.push({
-        spec: { kind: 'tez', slot: 'tez', name: activeSeasonal.tezName, daysLeft: daysUntil(activeSeasonal.tezDate), dailyMinutes: planSpecs.tez?.dailyMinutes, templateId: planSpecs.tez?.templateId },
+        spec: { kind: 'tez', slot: 'tez', name: areaLabel(activeSeasonal.tezName, tezArea, lang), daysLeft: daysUntil(activeSeasonal.tezDate), dailyMinutes: planSpecs.tez?.dailyMinutes, templateId: planSpecs.tez?.templateId },
         mode: 'tez', taskIds: tezPlanTaskIds, habitIds: tezPlanHabitIds,
       });
     }
-    // Mülakat slotları
+    // Mülakat slotları — aynı alan-etiketleme deseni.
     for (const slot of mulakatSlots) {
       if (slot.active && slot.name && slot.date && hasAppliedPlan(slot.taskIds, slot.habitIds)) {
+        const mulakatArea = pickWeightedArea(INTERVIEW_AREAS, subjectDayIndex, planSpecs[slot.mode]?.weakTopicIds);
         dailySlots.push({
-          spec: { kind: 'mulakat', slot: slot.mode, name: slot.name, daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
+          spec: { kind: 'mulakat', slot: slot.mode, name: areaLabel(slot.name, mulakatArea, lang), daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
           mode: slot.mode, taskIds: slot.taskIds, habitIds: slot.habitIds,
         });
       }
@@ -1109,8 +1113,17 @@ export function usePlanAdaptations() {
     ];
     for (const slot of sporSlots) {
       if (slot.goal && slot.date && hasAppliedPlan(slot.taskIds, slot.habitIds)) {
+        const kind = sporKind(slot.goal);
+        /*
+          SPOR ŞABLONLARI {name} KULLANMIYOR — bu yüzden `name` ataması sabit metni
+          HİÇ etkilemiyor (bkz. dailyPlanEngine.ts .replace('{name}', ...), yer tutucu
+          yoksa no-op). Yalnız iki yere akıyor: AI havuz genişletme ipucu
+          (planPoolSync.ts → AiService.planPool({ name })) ve plan özeti ekranı. Yani en
+          düşük riskli kişiselleştirme yolu — sabit görev havuzuna dokunmadan.
+        */
+        const sporArea = pickWeightedArea(SPOR_AREAS[kind as SporAreaKind] ?? [], subjectDayIndex, planSpecs[slot.mode]?.weakTopicIds);
         dailySlots.push({
-          spec: { kind: sporKind(slot.goal), slot: slot.mode, daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
+          spec: { kind, slot: slot.mode, name: areaLabel(slot.goal, sporArea, lang), daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
           mode: slot.mode, taskIds: slot.taskIds, habitIds: slot.habitIds,
         });
       }

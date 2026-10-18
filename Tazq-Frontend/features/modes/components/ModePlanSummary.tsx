@@ -44,6 +44,7 @@ const COPY = {
     a11y: (name: string, when: string, prog: string) => `${name}. ${when}. ${prog}`,
     daysLeft: (n: number) => `${n} gün kaldı`,
     progress: (d: number, t: number) => `bugün ${d} / ${t} tamamlandı`,
+    note: (text: string) => `Not: ${text}`,
   },
   en: {
     days: 'DAYS',
@@ -57,6 +58,7 @@ const COPY = {
     a11y: (name: string, when: string, prog: string) => `${name}. ${when}. ${prog}`,
     daysLeft: (n: number) => `${n} days left`,
     progress: (d: number, t: number) => `today ${d} of ${t} done`,
+    note: (text: string) => `Note: ${text}`,
   },
 };
 
@@ -93,10 +95,15 @@ export interface ModePlanSummaryProps {
    * yarım bir arayüz göstermez.
    */
   lifecycle?: PlanLifecycle;
+  /**
+   * Kurulumda eklenen opsiyonel kişisel not (bkz. usePrefsStore `PlanSpec.personalNote`).
+   * GÖREV MOTORUNU ETKİLEMEZ — yalnız burada, küçük italik bir satırda gösterilir.
+   */
+  personalNote?: string;
 }
 
 export const ModePlanSummary: React.FC<ModePlanSummaryProps> = ({
-  language, accent, accentText, goalName, daysLeft, past, dateLabel, todayDone, todayTotal, pastAction, progress, lifecycle,
+  language, accent, accentText, goalName, daysLeft, past, dateLabel, todayDone, todayTotal, pastAction, progress, lifecycle, personalNote,
 }) => {
   const { theme } = useAppTheme();
   const c = COPY[language];
@@ -122,6 +129,11 @@ export const ModePlanSummary: React.FC<ModePlanSummaryProps> = ({
           </Text>
         </View>
         {pastAction}
+        {personalNote ? (
+          <Text numberOfLines={2} style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontStyle: 'italic' }}>
+            {c.note(personalNote)}
+          </Text>
+        ) : null}
       </View>
     );
   }
@@ -209,6 +221,12 @@ export const ModePlanSummary: React.FC<ModePlanSummaryProps> = ({
           <View style={{ marginTop: S.sm }}>
             <PlanArcRow tr={language === 'tr'} accent={accent} accentText={accentText} lifecycle={lifecycle} />
           </View>
+        ) : null}
+
+        {personalNote ? (
+          <Text numberOfLines={2} style={{ marginTop: S.sm, color: theme.onSurfaceMuted, fontSize: F.caption, fontStyle: 'italic' }}>
+            {c.note(personalNote)}
+          </Text>
         ) : null}
       </View>
     </View>

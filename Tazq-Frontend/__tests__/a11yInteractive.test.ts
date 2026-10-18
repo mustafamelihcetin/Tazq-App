@@ -258,13 +258,14 @@ const ROLE_CEILING: Record<string, number> = {
   'features/focus/components/FocusIsland.tsx': 1,
   'features/modes/components/TurkishModeBanner.tsx': 19,
   'features/modes/components/WeightEntryModal.tsx': 1,
-  'features/modes/components/modes/BirakmaCard.tsx': 6,
-  'features/modes/components/modes/ExamCard.tsx': 16, // +1 (2026-10-18): WeakTopicPicker konu çipleri (Touchable)
+  'features/modes/components/modes/BirakmaCard.tsx': 7, // +1 (2026-10-19): tetikleyici çipi
+  'features/modes/components/modes/ExamCard.tsx': 15, // 16 → 15 (2026-10-19): WeakTopicPicker çipleri ortak WeakAreaPicker'a taşındı
   'features/modes/components/modes/MulakatCard.tsx': 11,
   'features/modes/components/modes/RamazanCard.tsx': 2,
   'features/modes/components/modes/SporCard.tsx': 16,
-  'features/modes/components/modes/TasarrufCard.tsx': 8,
+  'features/modes/components/modes/TasarrufCard.tsx': 9, // +1 (2026-10-19): harcama-alanı çipi
   'features/modes/components/modes/TezCard.tsx': 6,
+  'features/modes/components/WeakAreaPicker.tsx': 1, // (2026-10-19): yeni ortak bileşen — zayıf-alan çipi
   'features/tasks/components/TaskFormModal.tsx': 22,
   'features/user/components/MomentumPulse.tsx': 3,
   'features/user/components/ProfileSetupModal.tsx': 4,

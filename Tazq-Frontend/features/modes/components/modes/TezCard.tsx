@@ -29,6 +29,8 @@ import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { useModeCompletionReview } from '@/features/modes/hooks/useModeCompletionReview';
 import { completionCopy } from '@/features/modes/utils/modeCompletion';
 import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
+import { WeakAreaPicker } from '../WeakAreaPicker';
+import { TEZ_AREAS } from '@/shared/utils/weakAreas';
 
 // Vurgu merkezi paletten (bkz. Colors.ModeAccents) — tema-duyarlı + kontrast güvenli.
 const BASE_CALENDAR_WIDTH = 340;
@@ -44,6 +46,8 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   const seasonal = usePrefsStore(s => s.seasonal);
   const setSeasonalPref = usePrefsStore(s => s.setSeasonalPref);
   const clearPlanIds = usePrefsStore(s => s.clearPlanIds);
+  const planSpecs = usePrefsStore(s => s.planSpecs);
+  const setPersonalNote = usePrefsStore(s => s.setPersonalNote);
   const tezPlanHabitIds = usePrefsStore(s => s.tezPlanHabitIds);
   const tezPlanTaskIds = usePrefsStore(s => s.tezPlanTaskIds);
   const tezReviewShown = usePrefsStore(s => s.tezReviewShown);
@@ -179,6 +183,7 @@ clearPlanIds('tez');
                   todayDone={progDone}
                   todayTotal={progTotal}
                   lifecycle={lifecycle}
+                  personalNote={planSpecs.tez?.personalNote}
                 />
                 {!hasPlan && (
                   <Touchable
@@ -232,6 +237,21 @@ clearPlanIds('tez');
                   </View>
                 </View>
               )}
+              {name.trim() && (
+                <WeakAreaPicker
+                  slot="tez"
+                  modeKey="tez"
+                  options={TEZ_AREAS}
+                  label={{ tr: 'Hangi alanda zayıfsın? (opsiyonel)', en: 'Which area do you feel weak in? (optional)' }}
+                />
+              )}
+              <ModeField
+                accent={TEZ}
+                value={planSpecs.tez?.personalNote ?? ''}
+                onChangeText={(v) => setPersonalNote('tez', v)}
+                placeholder={tr ? 'Eklemek istediğin bir şey var mı? (opsiyonel)' : 'Anything else to add? (optional)'}
+                maxLength={140}
+              />
               <Touchable
                 onPress={() => {
                   haptic.select();

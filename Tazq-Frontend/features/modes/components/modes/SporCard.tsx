@@ -38,6 +38,8 @@ import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { useModeCompletionReview } from '@/features/modes/hooks/useModeCompletionReview';
 import { completionCopy } from '@/features/modes/utils/modeCompletion';
 import { toDateKey, dateKeyFromNow, parseDateKey, calendarDayOf } from '@/shared/utils/dateKey';
+import { WeakAreaPicker } from '../WeakAreaPicker';
+import { SPOR_AREAS, type SporAreaKind } from '@/shared/utils/weakAreas';
 
 // Vurgu MERKEZİ PALETTEN, tema-duyarlı. Ham '#F97316' iki temada aynıydı ve açık
 // temada 2.80:1 veriyordu (WCAG'ın büyük-metin eşiği 3:1'in bile altı).
@@ -196,6 +198,8 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
   const seasonal = usePrefsStore(s => s.seasonal);
   const setSeasonalPref = usePrefsStore(s => s.setSeasonalPref);
   const clearPlanIds = usePrefsStore(s => s.clearPlanIds);
+  const planSpecs = usePrefsStore(s => s.planSpecs);
+  const setPersonalNote = usePrefsStore(s => s.setPersonalNote);
   const spor2PlanHabitIds = usePrefsStore(s => s.spor2PlanHabitIds);
   const spor2PlanTaskIds = usePrefsStore(s => s.spor2PlanTaskIds);
   const spor3PlanHabitIds = usePrefsStore(s => s.spor3PlanHabitIds);
@@ -443,6 +447,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                     todayDone={progDone}
                     todayTotal={progTotal}
                     lifecycle={lifecycle}
+                    personalNote={planSpecs.spor?.personalNote}
                     progress={
                   sporType === 'kilo' && kiloGoalKg > 0 ? (
                                             <View style={{ marginTop: S.sm, gap: S.xs }}>
@@ -704,6 +709,21 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                 </>
               )}
 
+              {sporType && SPOR_AREAS[(sporType === 'yaris' ? 'genel' : sporType) as SporAreaKind] && (
+                <WeakAreaPicker
+                  slot="spor"
+                  modeKey="spor"
+                  options={SPOR_AREAS[(sporType === 'yaris' ? 'genel' : sporType) as SporAreaKind]}
+                  label={{ tr: 'Hangi alanda zayıfsın? (opsiyonel)', en: 'Which area do you feel weak in? (optional)' }}
+                />
+              )}
+              <ModeField
+                accent={SPOR}
+                value={planSpecs.spor?.personalNote ?? ''}
+                onChangeText={(v) => setPersonalNote('spor', v)}
+                placeholder={tr ? 'Eklemek istediğin bir şey var mı? (opsiyonel)' : 'Anything else to add? (optional)'}
+                maxLength={140}
+              />
               <View style={{ flexDirection: 'row', gap: S.sm }}>
                 <Touchable onPress={() => setExpanded(false)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
                   <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>

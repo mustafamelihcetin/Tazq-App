@@ -60,12 +60,21 @@ export interface PlanSpec {
    */
   pausedUntil?: string | null;
   /**
-   * Kullanıcının kendi kendine "zayıfım" dediği konu id'leri (bkz. curriculum.ts
-   * `Topic.id`). Sınav kurulumunda tek seferlik seçim; `pickTopic` bunlara 2x ağırlık
-   * verir ("rehber hocanın bugün zayıf olduğun konuya bakalım demesi"). Yalnız exam*
-   * slotlarında kullanılır, boş/yok = salt rotasyon.
+   * Kullanıcının kendi kendine "zayıfım" dediği alan/konu id'leri — TÜM modlarda aynı
+   * alan (ilk olarak sınav için eklendi: curriculum.ts `Topic.id`; mülakat/spor/tez
+   * için `weakAreas.ts`'teki alan id'leri). `pickTopic`/`pickWeightedArea` bunlara 2x
+   * ağırlık verir ("rehber hocanın bugün zayıf olduğun konuya bakalım demesi").
+   * Boş/yok = salt rotasyon. Tek alan paylaşılıyor çünkü anlamı her modda birebir aynı
+   * — ayrı bir isimle ikinci bir alan açmak gereksiz tekrar olurdu.
    */
   weakTopicIds?: string[];
+  /**
+   * Kullanıcının kurulumda kendi kelimeleriyle eklediği opsiyonel not. GÖREV MOTORUNU
+   * ETKİLEMEZ — yalnız `ModePlanSummary`'de gösterilir. Serbest metni deterministik
+   * motora bağlamak (ör. anahtar kelime eşleştirme) uydurma/yanlış eşleşme riski
+   * taşır; bu yüzden bilinçli olarak "kişisel hatırlatma" seviyesinde tutuluyor.
+   */
+  personalNote?: string;
 }
 
 /** Geçmiş hedef kaydı (bkz. utils/goalHistory). */
@@ -80,6 +89,8 @@ interface PrefsState {
   setPlanDraftMinutes: (mode: PlanMode, minutes: number | null) => void;
   /** Kendi-kendine zayıf konu seçimi (bkz. PlanSpec.weakTopicIds). `startDate` damgalamaz. */
   setWeakTopicIds: (mode: PlanMode, ids: string[]) => void;
+  /** Kurulumda eklenen opsiyonel kişisel not (bkz. PlanSpec.personalNote). Motora akmaz. */
+  setPersonalNote: (mode: PlanMode, note: string) => void;
   clearPlanSpec: (mode: PlanMode) => void;
   /** Planı `untilKey` gününe kadar (o gün dahil) duraklat; null = devam ettir. */
   setPlanPause: (mode: PlanMode, untilKey: string | null) => void;
@@ -475,6 +486,13 @@ export const usePrefsStore = create<PrefsState>()(
       setWeakTopicIds: (mode, ids) =>
         set((s) => ({
           planSpecs: { ...s.planSpecs, [mode]: { ...s.planSpecs[mode], weakTopicIds: ids } },
+        })),
+
+      // AYNI gerekçe: kişisel not kurulumun bir parçası, `startDate` damgalamamalı,
+      // plan aktifken de her an güncellenebilir.
+      setPersonalNote: (mode, note) =>
+        set((s) => ({
+          planSpecs: { ...s.planSpecs, [mode]: { ...s.planSpecs[mode], personalNote: note } },
         })),
 
       /*

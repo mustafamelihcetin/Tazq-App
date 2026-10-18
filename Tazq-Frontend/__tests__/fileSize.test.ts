@@ -324,7 +324,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // "sadeleştirmede" geri alınır.
   // 1180 → 1199: duraklatma kapısı. Görev üreten dört ayrı yol var; kapı hepsinin
   // geçtiği tek noktaya (applyTasks) kondu, çağrı yerlerine dağıtılmadı.
-  'features/modes/hooks/usePlanAdaptations.ts': 1259, // +19: ikinci/üçüncü yuva alışkanlık süpürmesi, yerel-gün geçmiş-görev kontrolü // +36: sekiz çağrı noktası arasında eşzamanlı çalışmayı birleştiren modül-seviyeli kilit (adaptationRunInFlight) // +5 (2026-10-18): sınav slotlarında konu seviyesi (pickTopic) + weakTopicIds ağırlıklandırma
+  'features/modes/hooks/usePlanAdaptations.ts': 1272, // +19: ikinci/üçüncü yuva alışkanlık süpürmesi, yerel-gün geçmiş-görev kontrolü // +36: sekiz çağrı noktası arasında eşzamanlı çalışmayı birleştiren modül-seviyeli kilit (adaptationRunInFlight) // +5 (2026-10-18): sınav slotlarında konu seviyesi (pickTopic) + weakTopicIds ağırlıklandırma // +13 (2026-10-19): mülakat/tez/spor slotlarında da alan-etiketleme (pickWeightedArea)
   // 910 → 864: hesap silme ve şifre değiştirmenin ÖLÜ kopyası kaldırıldı. Modal
   // işaretlemesi settings.tsx'e taşınırken bu dosyadaki state + iki handler geride
   // kalmıştı; hiçbiri çağrılmıyordu ama `deleteAccount`ın hatalı sürümü iki dosyada
@@ -348,7 +348,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // 833 → 838: remapPlanTaskId Tasarruf/Bırakma'yı unutmuştu (çevrimdışı eklenen
   // görev gerçek kimliğini alınca bu iki modun izleme dizisi eski kimlikte
   // takılı kalıyordu, mod kapanınca görev hiç temizlenmiyordu).
-  'features/modes/store/usePrefsStore.ts': 856, // +17 (2026-10-18): PlanSpec.weakTopicIds + setWeakTopicIds — sınav kurulumunda kendi-kendine zayıf konu seçimi
+  'features/modes/store/usePrefsStore.ts': 874, // +17 (2026-10-18): PlanSpec.weakTopicIds + setWeakTopicIds — sınav kurulumunda kendi-kendine zayıf konu seçimi // +18 (2026-10-19): PlanSpec.personalNote + setPersonalNote — tüm modlara yayılan kişisel not
   'features/modes/utils/planAdaptations.ts': 889, // +9: tez_weekly yinelenme kontrolü yerel-gün anahtarına geçti
   // 856 → 784: hesap silme akışı DeleteAccountModal bileşenine çıkarıldı. Silme,
   // uygulamadaki tek geri alınamaz işlem; durumu ekranın üstünde, onay kelimesi

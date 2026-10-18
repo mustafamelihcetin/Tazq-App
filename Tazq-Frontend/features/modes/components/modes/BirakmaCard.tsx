@@ -21,7 +21,7 @@ import { Touchable } from '@/shared/components/Touchable';
 import { FormReveal, ModeField } from '../ModeField';
 import { renderModeEmojiIcon } from '@/features/modes/utils/modeIcons';
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
-import { buildBirakmaPlan, birakmaTypeTasks, birakmaTypeLabel, BIRAKMA_COLOR } from '@/shared/utils/lifeModePlans';
+import { buildBirakmaPlan, birakmaTypeTasks, birakmaTypeLabel, BIRAKMA_COLOR, triggerLabel, type TriggerId } from '@/shared/utils/lifeModePlans';
 import { retirePlanTask , retireModeTasksByTag} from '@/features/modes/utils/planTaskOps';
 import { swallow } from '@/shared/utils/swallow';
 import { Ban, Shield } from 'lucide-react-native';
@@ -44,6 +44,8 @@ export function BirakmaCard() {
   const birakmaPlanTaskIds = usePrefsStore(s => s.birakmaPlanTaskIds);
   const setPlanIds = usePrefsStore(s => s.setPlanIds);
   const clearPlanIds = usePrefsStore(s => s.clearPlanIds);
+  const planSpecs = usePrefsStore(s => s.planSpecs);
+  const setPersonalNote = usePrefsStore(s => s.setPersonalNote);
 
   const { items, addItem, removeItem, recordRelapse, reset } = useQuitStore();
   const habits = useHabitStore(s => s.habits);
@@ -55,6 +57,10 @@ export function BirakmaCard() {
   const [expanded, setExpanded] = useState(() => useQuitStore.getState().items.length === 0);
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [customName, setCustomName] = useState('');
+  // "Tetikleyicin ne?" — QuitType'tan AYRI, opsiyonel ikinci soru (bkz. lifeModePlans.ts
+  // trigger notu). Türden bağımsız BAZ plana TEK ek görev olarak eklenir — birden çok
+  // tür seçilse de tekrarlanmaz.
+  const [trigger, setTrigger] = useState<TriggerId>('');
 
   const applied = items.length > 0;
   // Bırakmanın hedef TARİHİ yok (ölçüsü seridir) — geri sayım da yok, yol sayısı var.
@@ -97,7 +103,7 @@ export function BirakmaCard() {
     if (birakmaPlanHabitIds.length > 0 || birakmaPlanTaskIds.length > 0) {
       return { habitIds: [...birakmaPlanHabitIds], taskIds: [...birakmaPlanTaskIds] };
     }
-    const content = buildBirakmaPlan('' as QuitType);
+    const content = buildBirakmaPlan('' as QuitType, trigger);
     const habitIds: string[] = [];
     content.habits.forEach((h, i) => {
       const id = `habit_birakma_${i}_${Date.now()}`;
@@ -317,6 +323,28 @@ export function BirakmaCard() {
           {sel['ozel'] && (
             <ModeField accent={C} value={customName} onChangeText={setCustomName} placeholder={tr ? 'Ne? (ör. Kahve)' : 'What? (e.g. Coffee)'} maxLength={24} returnKeyType="done" />
           )}
+          {!applied && (
+            <>
+              <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant }}>{tr ? 'En büyük tetikleyicin ne? (opsiyonel)' : "What's your biggest trigger? (optional)"}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
+                {(['stres', 'sosyal_ortam', 'can_sikintisi', 'otomatik_pilot'] as const).map(key => {
+                  const active = trigger === key;
+                  return (
+                    <Touchable key={key} onPress={() => { haptic.select(); setTrigger(active ? '' : key); }} style={{ paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
+                      <Text style={{ fontSize: F.caption, fontWeight: '500', color: active ? C : theme.onSurfaceVariant }}>{triggerLabel(key, tr)}</Text>
+                    </Touchable>
+                  );
+                })}
+              </View>
+            </>
+          )}
+          <ModeField
+            accent={C}
+            value={planSpecs.birakma?.personalNote ?? ''}
+            onChangeText={(v) => setPersonalNote('birakma', v)}
+            placeholder={tr ? 'Eklemek istediğin bir şey var mı? (opsiyonel)' : 'Anything else to add? (optional)'}
+            maxLength={140}
+          />
           <Touchable disabled={!addValid} onPress={addSelected} style={{ marginTop: S.xs, backgroundColor: addValid ? C : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), borderRadius: R.full, paddingVertical: S.sm + 2, alignItems: 'center' }}>
             <Text style={{ color: addValid ? C_ON : theme.onSurfaceVariant, fontWeight: '700', fontSize: F.body }}>{applied ? (tr ? 'Ekle' : 'Add') : (tr ? 'Bugünden Başla' : 'Start Today')}</Text>
           </Touchable>

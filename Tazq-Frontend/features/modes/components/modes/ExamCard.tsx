@@ -24,6 +24,7 @@ import { matchExamName, detectExamFromInput, HOURS_OPTIONS, type ExamPreset } fr
 import { isSeasonalExamActive } from '../../utils/turkishModes';
 import { findExamCurriculum, listTopics } from '@/shared/utils/curriculum';
 import type { PlanMode } from '../../store/usePrefsStore';
+import { WeakAreaPicker } from '../WeakAreaPicker';
 import { ICON, S, R, F, B, HAIRLINE } from '@/shared/constants/tokens';
 import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
@@ -188,64 +189,24 @@ function HoursSelector({ preset, dailyMinutes, onPick, withLevelLabels }: { pres
 }
 
 /**
- * Zayıf konu seçimi — gerçek bir sınav sorusu SORMUYORUZ (yanlış bir KPSS sorusu
- * güven kırar, bkz. plan §1.2). Kendi-kendine değerlendirme: kullanıcı hangi konularda
- * zayıf olduğunu kendisi işaretler, `pickTopic` bu konulara 2x ağırlık verir —
- * rehber hocanın "bugün zayıf olduğun konuya bakalım" demesinin karşılığı.
- *
- * Yalnız müfredatı konu derinliğinde olan sınavlarda görünür (bkz. curriculum.ts
- * dalga planı); diğerlerinde `listTopics` boş döner ve bileşen hiçbir şey render etmez
- * — eksik veri kullanıcıya görünmez, sessizce atlanır.
+ * Zayıf konu seçimi — artık ortak `WeakAreaPicker`'a delege eder (bkz. o dosyanın
+ * başlığı; sınav dışındaki modlara yayılırken genelleştirildi). Bu sarmalayıcı yalnız
+ * sınava özgü veri kaynağını (`findExamCurriculum`+`listTopics`) ortak bileşenin
+ * beklediği düz `WeakAreaOption[]` biçimine çevirir.
  */
 function WeakTopicPicker({ slot, examName }: { slot: PlanMode; examName: string }) {
-  const { accent: ACCENT } = useModeAccent('exam');
-  const { theme } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
-  const selected = usePrefsStore(s => s.planSpecs[slot]?.weakTopicIds) ?? [];
-  const setWeakTopicIds = usePrefsStore(s => s.setWeakTopicIds);
-
   const curriculum = findExamCurriculum(examName);
   const topics = curriculum ? listTopics(curriculum) : [];
-  if (!topics.length) return null;
-
-  const grouped: { subject: string; items: typeof topics }[] = [];
-  for (const t of topics) {
-    const subjLabel = tr ? t.subjectTr : t.subjectEn;
-    let group = grouped.find(g => g.subject === subjLabel);
-    if (!group) { group = { subject: subjLabel, items: [] }; grouped.push(group); }
-    group.items.push(t);
-  }
-
-  const toggle = (id: string) => {
-    haptic.select();
-    const next = selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id];
-    setWeakTopicIds(slot, next);
-  };
-
+  const options = topics.map(t => ({ id: t.id, tr: t.tr, en: t.en, groupTr: t.subjectTr, groupEn: t.subjectEn }));
   return (
-    <View style={{ gap: S.sm }}>
-      <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant }}>
-        {tr ? 'Zayıf olduğun konular var mı? (opsiyonel)' : 'Any topics you feel weak in? (optional)'}
-      </Text>
-      <View style={{ gap: S.sm }}>
-        {grouped.map(g => (
-          <View key={g.subject} style={{ gap: S.xs }}>
-            <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceMuted }}>{g.subject}</Text>
-            <View style={{ flexDirection: 'row', gap: S.xs, flexWrap: 'wrap' }}>
-              {g.items.map(t => {
-                const active = selected.includes(t.id);
-                return (
-                  <Touchable key={t.id} onPress={() => toggle(t.id)} style={{ paddingHorizontal: S.sm + 2, paddingVertical: S.xs + 2, borderRadius: R.full, borderWidth: B.medium, borderColor: active ? ACCENT : theme.separator, backgroundColor: active ? ACCENT + '18' : 'transparent' }} activeOpacity={0.7}>
-                    <Text style={{ fontSize: F.caption, fontWeight: '500', color: active ? ACCENT : theme.onSurfaceVariant }}>{tr ? t.tr : t.en}</Text>
-                  </Touchable>
-                );
-              })}
-            </View>
-          </View>
-        ))}
-      </View>
-    </View>
+    <WeakAreaPicker
+      slot={slot}
+      modeKey="exam"
+      options={options}
+      label={{ tr: 'Zayıf olduğun konular var mı? (opsiyonel)', en: 'Any topics you feel weak in? (optional)' }}
+    />
   );
 }
 

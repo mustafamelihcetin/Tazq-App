@@ -116,7 +116,48 @@ const TASARRUF_TYPE_TASKS: Record<Exclude<BudgetType, ''>, ModeDraftTask[]> = {
   ],
 };
 
-export function buildTasarrufPlan(type: BudgetType): ModePlanContent {
+// "En çok nerede fazladan harcıyorsun?" — budgetType'tan AYRI, opsiyonel ikinci soru.
+// Kullanıcıyı tanımanın ikinci katmanı: tip "neye çalışıyorsun"u, bu "nerede sızıyor"u
+// söylüyor. TEK bir gerçekten spesifik görev ekler (jenerik "bütçeni gözden geçir"
+// değil, somut bir ilk adım) — TASARRUF_TYPE_TASKS ile AYNI tasarım ilkesi.
+export type SpendingArea = '' | 'disarida_yemek' | 'online_alisveris' | 'abonelikler' | 'eglence_hobi';
+
+const TASARRUF_SPENDING_EXTRA_TASKS: Partial<Record<Exclude<SpendingArea, ''>, ModeDraftTask>> = {
+  disarida_yemek: {
+    title: 'Bu hafta 2 öğünü dışarı yerine evde hazırla',
+    titleEn: 'Cook 2 meals at home instead of eating out this week',
+    priority: 'Medium',
+    tags: ['tasarruf'],
+    desc: 'Dışarıda yemeğin en çok sızdırdığın alan olduğunu işaretledin — bu hafta en az 2 öğünü evde hazırlayıp farkı not et.',
+    descEn: 'You flagged eating out as your biggest leak — cook at least 2 meals at home this week and note the difference.',
+  },
+  online_alisveris: {
+    title: 'Sepete eklediğin şeyi 24 saat beklet (dürtüsel alışverişe fren)',
+    titleEn: 'Let cart items sit for 24 hours before buying (impulse brake)',
+    priority: 'Medium',
+    tags: ['tasarruf'],
+    desc: 'Online alışverişte dürtüsel satın alımları azaltmak için sepete eklediğin her şeyi en az 24 saat bekletme kuralı koy.',
+    descEn: 'Set a rule: wait at least 24 hours before checking out anything you add to your cart.',
+  },
+  abonelikler: {
+    title: 'Tüm aboneliklerini tek tek listele, kullanmadığını işaretle',
+    titleEn: 'List every subscription one by one, flag the unused ones',
+    priority: 'High',
+    tags: ['tasarruf'],
+    desc: 'Banka/kart ekstrelerinden geçen 2 ayı tarayıp her abonelik için "kullanıyorum/kullanmıyorum" işaretle, kullanmadıklarını bu hafta iptal et.',
+    descEn: 'Scan the last 2 months of statements, mark each subscription used/unused, and cancel the unused ones this week.',
+  },
+  eglence_hobi: {
+    title: 'Bu ay eğlence/hobi için net bir tavan belirle',
+    titleEn: 'Set a hard monthly cap for entertainment/hobbies',
+    priority: 'Medium',
+    tags: ['tasarruf'],
+    desc: 'Eğlence ve hobi harcamalarının en çok sızdığın alan olduğunu işaretledin — bu ay için somut bir tutar tavanı belirle ve ona uy.',
+    descEn: "You flagged entertainment/hobbies as your biggest leak — set a concrete monthly cap and stick to it.",
+  },
+};
+
+export function buildTasarrufPlan(type: BudgetType, spendingArea?: SpendingArea): ModePlanContent {
   const habits = TASARRUF_BASE_HABITS.map(h => ({ ...h }));
   const tasks = [...TASARRUF_BASE_TASKS];
   if (type && TASARRUF_TYPE_HABITS[type as Exclude<BudgetType, ''>]) {
@@ -126,7 +167,20 @@ export function buildTasarrufPlan(type: BudgetType): ModePlanContent {
     // Tipe özel görevler en başa (en alakalı ilk adımlar üstte görünsün).
     tasks.unshift(...TASARRUF_TYPE_TASKS[type as Exclude<BudgetType, ''>]);
   }
+  if (spendingArea && TASARRUF_SPENDING_EXTRA_TASKS[spendingArea as Exclude<SpendingArea, ''>]) {
+    tasks.unshift({ ...TASARRUF_SPENDING_EXTRA_TASKS[spendingArea as Exclude<SpendingArea, ''>]! });
+  }
   return { habits, tasks };
+}
+
+export function spendingAreaLabel(area: SpendingArea, tr: boolean): string {
+  const map: Record<string, [string, string]> = {
+    disarida_yemek: ['Dışarıda Yemek', 'Eating Out'],
+    online_alisveris: ['Online Alışveriş', 'Online Shopping'],
+    abonelikler: ['Abonelikler', 'Subscriptions'],
+    eglence_hobi: ['Eğlence & Hobi', 'Entertainment & Hobbies'],
+  };
+  const e = map[area]; return e ? (tr ? e[0] : e[1]) : '';
 }
 
 // ── BIRAKMA ─────────────────────────────────────────────────────────────────
@@ -273,8 +327,62 @@ export function birakmaTypeTasks(type: QuitType): ModeDraftTask[] {
   return extra ? extra.map(t => ({ ...t })) : [];
 }
 
-export function buildBirakmaPlan(type: QuitType): ModePlanContent {
+// "Tetikleyicin ne?" — QuitType'tan AYRI, opsiyonel ikinci soru. Tip "neyi bırakıyorsun"u,
+// bu "seni ona çeken şey ne"yi söylüyor. Kullanıcı birden fazla tür bırakabildiği için
+// (bkz. BirakmaCard addSelected) bu, TÜRDEN BAĞIMSIZ temel plana TEK bir ek görev olarak
+// eklenir — her seçilen tür için tekrarlanmaz (3 tür seçilse bile tetikleyici görevi 1).
+export type TriggerId = '' | 'stres' | 'sosyal_ortam' | 'can_sikintisi' | 'otomatik_pilot';
+
+const BIRAKMA_TRIGGER_EXTRA_TASKS: Partial<Record<Exclude<TriggerId, ''>, ModeDraftTask>> = {
+  stres: {
+    title: 'Stres anında kullanacağın 3 nefes/hareket tekniğini şimdi belirle',
+    titleEn: 'Decide 3 breathing/movement techniques to use when stressed, right now',
+    priority: 'High',
+    tags: ['birakma'],
+    desc: 'En büyük tetikleyicinin stres olduğunu işaretledin — kriz anında düşünmeden uygulayabileceğin 3 somut tekniği şimdiden yazılı olarak belirle.',
+    descEn: 'You flagged stress as your biggest trigger — write down 3 concrete techniques you can use without thinking in the moment.',
+  },
+  sosyal_ortam: {
+    title: 'Bir sosyal ortam için alkolsüz/sigarasız alternatifini önceden belirle',
+    titleEn: 'Pre-decide your substitute for one upcoming social setting',
+    priority: 'High',
+    tags: ['birakma'],
+    desc: 'En büyük tetikleyicinin sosyal ortam olduğunu işaretledin — bu hafta katılacağın bir sosyal ortam için önceden bir alternatif/çıkış planı hazırla.',
+    descEn: 'You flagged social settings as your biggest trigger — prepare an alternative/exit plan ahead of one social event this week.',
+  },
+  can_sikintisi: {
+    title: 'Can sıkıntısı anında yapacağın 3 alternatif aktiviteyi listele',
+    titleEn: 'List 3 alternative activities for when boredom hits',
+    priority: 'High',
+    tags: ['birakma'],
+    desc: 'En büyük tetikleyicinin can sıkıntısı olduğunu işaretledin — eski alışkanlığın yerine geçecek 3 somut aktiviteyi şimdiden belirle.',
+    descEn: 'You flagged boredom as your biggest trigger — decide 3 concrete activities now to replace the old habit.',
+  },
+  otomatik_pilot: {
+    title: 'Alışkanlığı tetikleyen günlük rutinini bir noktada kır',
+    titleEn: 'Break your daily routine at the exact point that triggers the habit',
+    priority: 'High',
+    tags: ['birakma'],
+    desc: 'En büyük tetikleyicinin otomatik pilot (fark etmeden yapma) olduğunu işaretledin — alışkanlığın tetiklendiği günlük rutinin bir noktasını bilerek değiştir (ör. farklı bir yoldan git, farklı saatte kahve iç).',
+    descEn: 'You flagged autopilot as your biggest trigger — deliberately change one point in the daily routine that triggers it (e.g. take a different route, have coffee at a different time).',
+  },
+};
+
+export function triggerLabel(trigger: TriggerId, tr: boolean): string {
+  const map: Record<string, [string, string]> = {
+    stres: ['Stres', 'Stress'],
+    sosyal_ortam: ['Sosyal Ortam', 'Social Setting'],
+    can_sikintisi: ['Can Sıkıntısı', 'Boredom'],
+    otomatik_pilot: ['Otomatik Pilot', 'Autopilot'],
+  };
+  const e = map[trigger]; return e ? (tr ? e[0] : e[1]) : '';
+}
+
+export function buildBirakmaPlan(type: QuitType, trigger?: TriggerId): ModePlanContent {
   const tasks = [...BIRAKMA_BASE_TASKS, ...birakmaTypeTasks(type)];
+  if (trigger && BIRAKMA_TRIGGER_EXTRA_TASKS[trigger as Exclude<TriggerId, ''>]) {
+    tasks.push({ ...BIRAKMA_TRIGGER_EXTRA_TASKS[trigger as Exclude<TriggerId, ''>]! });
+  }
   return { habits: BIRAKMA_BASE_HABITS.map(h => ({ ...h })), tasks };
 }
 
@@ -319,8 +427,10 @@ export function getAllLifeModePairs(): Array<{ tr: string; en: string }> {
 
   TASARRUF_BASE_TASKS.forEach(t => pairs.push({ tr: t.title, en: t.titleEn }));
   Object.values(TASARRUF_TYPE_TASKS).forEach(list => list.forEach(t => pairs.push({ tr: t.title, en: t.titleEn })));
+  Object.values(TASARRUF_SPENDING_EXTRA_TASKS).forEach(t => t && pairs.push({ tr: t.title, en: t.titleEn }));
   BIRAKMA_BASE_TASKS.forEach(t => pairs.push({ tr: t.title, en: t.titleEn }));
   Object.values(BIRAKMA_TYPE_TASKS).forEach(list => list.forEach(t => pairs.push({ tr: t.title, en: t.titleEn })));
+  Object.values(BIRAKMA_TRIGGER_EXTRA_TASKS).forEach(t => t && pairs.push({ tr: t.title, en: t.titleEn }));
 
   return pairs;
 }

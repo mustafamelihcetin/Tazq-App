@@ -180,7 +180,9 @@ describe('yoğunluk', () => {
      * → 315 (2026-10-18): app/odemeler.tsx — ekle daveti (select), tekrar sıklığı
      * çipi (select), tarih seçici açma (select), ödendi işaretleme (select), ekle
      * onayı (commit), silme onayı (commit). Hepsi SEÇİM/TAAHHÜT eylemi, aynı desen.
+     * → 317 (2026-10-19): TasarrufCard'daki harcama-alanı çipi + BirakmaCard'daki
+     * tetikleyici çipi — aynı mantık (seçim anahtarları titreşir).
      */
-    expect(hap).toBeLessThanOrEqual(315);
+    expect(hap).toBeLessThanOrEqual(317);
   });
 });

@@ -25,6 +25,7 @@ import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { ProgressRail } from '@/shared/components/ProgressRail';
+import { ModeField } from '../ModeField';
 import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { PlanLifecycleRow } from '@/features/modes/components/PlanPauseRow';
@@ -40,6 +41,8 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   const seasonal = usePrefsStore(s => s.seasonal);
   const setSeasonalPref = usePrefsStore(s => s.setSeasonalPref);
   const clearPlanIds = usePrefsStore(s => s.clearPlanIds);
+  const planSpecs = usePrefsStore(s => s.planSpecs);
+  const setPersonalNote = usePrefsStore(s => s.setPersonalNote);
   const ramazanPlanHabitIds = usePrefsStore(s => s.ramazanPlanHabitIds);
   const lifecycle = usePlanLifecycle('ramazan', null, ramazanPlanHabitIds);
   const ramazanPlanTaskIds = usePrefsStore(s => s.ramazanPlanTaskIds);
@@ -156,6 +159,15 @@ clearPlanIds('ramazan');
               {/* Ara verme — yedi modun ortak satırı (bkz. PlanPauseRow). Ramazan'ın
                   hedef tarihi yok: ölçü dönemin kendisi, geri sayım kartın üstünde. */}
               <PlanLifecycleRow tr={tr} accent={accent} accentText={accentText} lifecycle={lifecycle} hasPlan />
+              <ModeField
+                accent={accent}
+                height={36}
+                inputStyle={{ fontSize: F.caption }}
+                value={planSpecs.ramazan?.personalNote ?? ''}
+                onChangeText={(v) => setPersonalNote('ramazan', v)}
+                placeholder={tr ? 'Eklemek istediğin bir şey var mı? (opsiyonel)' : 'Anything else to add? (optional)'}
+                maxLength={140}
+              />
             </View>
           ) : (
             <Touchable onPress={onOpenPreview} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }} activeOpacity={0.7}>
