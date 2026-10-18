@@ -517,6 +517,12 @@ export default function RootLayout() {
           return;
         }
 
+        // Ödeme vadesi bildirimi → "💳 Ödemeler"
+        if (action === 'open-payments' && isLoggedIn) {
+          router.push('/odemeler');
+          return;
+        }
+
         // Default tap → deep link based on notification data
         if (!isLoggedIn) return;
         const taskId = data.taskId;

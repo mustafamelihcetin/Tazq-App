@@ -53,7 +53,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // İlk kez 800 satırı geçti: Ramazan bildirimlerindeki saat dilimi hatası
   // düzeltildi (calendarDayOf+parseDateKey — bu dosyadaki diğer zamanlayıcılarla
   // aynı desen), gerekçe yorumu satır ekledi.
-  'shared/utils/notifications.ts': 847, // +23: sınav geri sayım bildirimleri yuva-bazlı kimliğe geçti (exam2/exam3 artık bildirim alıyor) // +16: sabah özeti aktif hedefe göre kişiselleşiyor (activeGoal)
+  'shared/utils/notifications.ts': 897, // +23: sınav geri sayım bildirimleri yuva-bazlı kimliğe geçti (exam2/exam3 artık bildirim alıyor) // +16: sabah özeti aktif hedefe göre kişiselleşiyor (activeGoal) // +50 (2026-10-18): payment-due bildirim kategorisi + schedule/cancelPaymentDueNotif (scheduleExamCountdownNotifs ile aynı kalıp)
   /*
     SÖZLÜK — doğası gereği uzun ve bölünmesi YANLIŞ olurdu.
 
@@ -67,7 +67,7 @@ const KNOWN_LARGE: Record<string, number> = {
   */
   // 860 → 870: misafirin "cihazdaki verileri sil" metinleri (iki dil).
   // 870 → 874: tasarruf ve bırakma da birer mod adı — özet ikisini hiç görmüyordu.
-  'shared/constants/i18n.ts': 918, // +38: onboarding "şu an neyle uğraşıyorsun?" sorusunun tr/en metinleri // +6: hızlı eklemede Bugün/Yarın chip metinleri
+  'shared/constants/i18n.ts': 968, // +38: onboarding "şu an neyle uğraşıyorsun?" sorusunun tr/en metinleri // +6: hızlı eklemede Bugün/Yarın chip metinleri // +50 (2026-10-18): payments sözlüğü (app/odemeler.tsx + PaymentsSummaryCard — i18nRatchet'in yeni-dosya kuralı yüzünden inline ternary yerine burada)
   // 2820 → 2817: baştaki emojiyi silen üç ayrı uygulamadan ikisi (biri hatalıydı,
   // \p{Emoji} rakamları da yiyordu) shared/utils/emoji.ts'e indi.
   // 2817 → 2820: YKS/KPSS/Ramazan'ın DİL kapısı (İngilizce arayüzde takvimle
@@ -233,14 +233,14 @@ const KNOWN_LARGE: Record<string, number> = {
   // Mantık kancada ve bileşende; burada yalnız bağlantı.
   // 2311 → 2315: hızlı eklemede "… yarın için eklendi" (ana sayfa yalnız bugünü gösterir).
   // 2315 → 2318: hızlı eklemede görev oluşturma anahtarı (ikiz görev önlemi).
-  'app/index.tsx': 2365, // +10: tarih chip'i payload'ı, boş plan 'Görev ekle' bağlantısı, değerlendirme isteğinin modal kapısı · +3 tur kapısı · +1 hızlı odak store yolu · +25 haftalık sayılar ortak motordan (yerel gün; sunucunun UTC kırılımı üç ekranda farklı sayı veriyordu) · +4 tarihsiz görev için ayrı toast mesajı
+  'app/index.tsx': 2369, // +10: tarih chip'i payload'ı, boş plan 'Görev ekle' bağlantısı, değerlendirme isteğinin modal kapısı · +3 tur kapısı · +1 hızlı odak store yolu · +25 haftalık sayılar ortak motordan (yerel gün; sunucunun UTC kırılımı üç ekranda farklı sayı veriyordu) · +4 tarihsiz görev için ayrı toast mesajı // +4 (2026-10-18): PaymentsSummaryCard mod kartının altına eklendi
   // İlk kez 800'ü geçti: widget/Watch köprüsünün tek başlatma noktası (bildirim
   // dinleyicisiyle aynı desen — [isLoggedIn] bağımlı, tek yerde kurulur).
   // 810 → 816: widget köprüsü artık gorev/mod store'larını da dinliyor (bkz.
   // widgetBridge bug düzeltmesi — görev/mod değişince widget hiç güncellenmiyordu).
   // 816 → 819: widget/Watch köprüsü splash'te çökmeye yol açtığı için geçici
   // olarak yorum satırına alındı (kök sebep doğrulanana kadar).
-  'app/_layout.tsx': 874, // +2: anonim kurulum ping'i (günde bir) // +17: sabah özeti en yakın aktif hedefe göre kişiselleşiyor (goalSig) // +16: widget/Watch köprüsü yeniden açıldı (ana-kuyruk sertleştirmesiyle, bkz. TazqWidgetBridgeModule.swift) // +5: tema değişince widget'ı da tazeleyen abonelik (unsubTheme) // +14: WCSession aktivasyon yarışı için gecikmeli zorla-gönderim (activationRetry)
+  'app/_layout.tsx': 880, // +2: anonim kurulum ping'i (günde bir) // +17: sabah özeti en yakın aktif hedefe göre kişiselleşiyor (goalSig) // +16: widget/Watch köprüsü yeniden açıldı (ana-kuyruk sertleştirmesiyle, bkz. TazqWidgetBridgeModule.swift) // +5: tema değişince widget'ı da tazeleyen abonelik (unsubTheme) // +14: WCSession aktivasyon yarışı için gecikmeli zorla-gönderim (activationRetry) // +6 (2026-10-18): 'open-payments' bildirim aksiyonu yönlendirmesi
   // İlk kez 800 satırı geçti: onboarding'in "şu an neyle uğraşıyorsun?" sorusu
   // (durum seçimi + mod sorusuyla aynı desende ikinci bir modal, bkz. dosya başı notu).
   'app/onboarding.tsx': 815,
@@ -324,7 +324,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // "sadeleştirmede" geri alınır.
   // 1180 → 1199: duraklatma kapısı. Görev üreten dört ayrı yol var; kapı hepsinin
   // geçtiği tek noktaya (applyTasks) kondu, çağrı yerlerine dağıtılmadı.
-  'features/modes/hooks/usePlanAdaptations.ts': 1218, // +19: ikinci/üçüncü yuva alışkanlık süpürmesi, yerel-gün geçmiş-görev kontrolü
+  'features/modes/hooks/usePlanAdaptations.ts': 1259, // +19: ikinci/üçüncü yuva alışkanlık süpürmesi, yerel-gün geçmiş-görev kontrolü // +36: sekiz çağrı noktası arasında eşzamanlı çalışmayı birleştiren modül-seviyeli kilit (adaptationRunInFlight) // +5 (2026-10-18): sınav slotlarında konu seviyesi (pickTopic) + weakTopicIds ağırlıklandırma
   // 910 → 864: hesap silme ve şifre değiştirmenin ÖLÜ kopyası kaldırıldı. Modal
   // işaretlemesi settings.tsx'e taşınırken bu dosyadaki state + iki handler geride
   // kalmıştı; hiçbiri çağrılmıyordu ama `deleteAccount`ın hatalı sürümü iki dosyada
@@ -341,14 +341,14 @@ const KNOWN_LARGE: Record<string, number> = {
   // İlk kez 800 satırı geçti: admin panelinin Ürün İçgörüleri tipleri
   // (AdminModeAdoption/AdminRetentionCohort/AdminVersionShare) + X-App-Version
   // başlığı eklendi. API katmanı doğası gereği büyür — her uç nokta bir satır.
-  'shared/services/api.ts': 890, // +19: anonim kurulum ping'i + admin audience istemcisi // +13: otomatik tekrar yalnız idempotent metodlarda (POST/PATCH çift kayıt riski) // +26: ERR_NETWORK için "çevrimdışı" demeden önce tek seferlik hızlı yeniden deneme (soğuk başlatma yarışı)
+  'shared/services/api.ts': 929, // +19: anonim kurulum ping'i + admin audience istemcisi // +13: otomatik tekrar yalnız idempotent metodlarda (POST/PATCH çift kayıt riski) // +26: ERR_NETWORK için "çevrimdışı" demeden önce tek seferlik hızlı yeniden deneme (soğuk başlatma yarışı) // +39 (2026-10-18): PaymentService (ödeme takibi — görevlerden ayrı yüzey)
   // İlk kez 800 satırı geçti: duraklatma + geçmiş hedefler + bulut/yerel bozuk
   // veriye karşı tek nokta koruma (bkz. PLAN_ID_KEYS/sanitizePlanIds). Sözlük gibi
   // değil, bölünebilir — bir sonraki büyüme bu dosyayı gerçekten küçültmeli.
   // 833 → 838: remapPlanTaskId Tasarruf/Bırakma'yı unutmuştu (çevrimdışı eklenen
   // görev gerçek kimliğini alınca bu iki modun izleme dizisi eski kimlikte
   // takılı kalıyordu, mod kapanınca görev hiç temizlenmiyordu).
-  'features/modes/store/usePrefsStore.ts': 839,
+  'features/modes/store/usePrefsStore.ts': 856, // +17 (2026-10-18): PlanSpec.weakTopicIds + setWeakTopicIds — sınav kurulumunda kendi-kendine zayıf konu seçimi
   'features/modes/utils/planAdaptations.ts': 889, // +9: tez_weekly yinelenme kontrolü yerel-gün anahtarına geçti
   // 856 → 784: hesap silme akışı DeleteAccountModal bileşenine çıkarıldı. Silme,
   // uygulamadaki tek geri alınamaz işlem; durumu ekranın üstünde, onay kelimesi
@@ -384,6 +384,11 @@ const KNOWN_LARGE: Record<string, number> = {
   // switch-case yapısını bozardı. 800'ü ilk kez geçti: turun güncellik denetiminde
   // (2026-09-20) üç adım gerçeğe uydurulup bir yeni adım eklendi.
   'features/onboarding/components/TourFeaturePreview.tsx': 840,
+  // İçerik dosyası — 23 sınavın (KPSS'den bekçilik'e) ders+konu ağacı. Kod karmaşıklığı
+  // DEĞİL, veri hacmi: her satır bir ders/konu kaydı (bkz. dosya başlığındaki dalga planı,
+  // 2026-10-18 tarihinde Dalga 2+3 ile KPSS/YKS dışındaki tüm sınavlar da konu derinliğine
+  // çıktı). Bölünmesi anlamsız — tek bakışta "hangi sınavda ne var" görülebilmeli.
+  'shared/utils/curriculum.ts': 928,
 };
 
 describe('dosya boyutu', () => {

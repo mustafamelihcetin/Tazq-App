@@ -408,6 +408,7 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddSingleton<IStoreMetricsService, StoreMetricsService>();
 builder.Services.AddScoped<ISystemService, SystemService>();
 builder.Services.AddScoped<IFocusSessionService, FocusSessionService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IGroqService, GroqService>();
 // DEVRE DIŞI (bug taraması, 2026-09-28): frontend'de bu tercihleri yazan tek uç

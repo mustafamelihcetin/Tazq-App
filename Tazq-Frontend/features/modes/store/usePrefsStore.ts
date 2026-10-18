@@ -59,6 +59,13 @@ export interface PlanSpec {
    * miras alır ve kullanıcı hiç görev üretmeyen bir planla baş başa kalırdı.
    */
   pausedUntil?: string | null;
+  /**
+   * Kullanıcının kendi kendine "zayıfım" dediği konu id'leri (bkz. curriculum.ts
+   * `Topic.id`). Sınav kurulumunda tek seferlik seçim; `pickTopic` bunlara 2x ağırlık
+   * verir ("rehber hocanın bugün zayıf olduğun konuya bakalım demesi"). Yalnız exam*
+   * slotlarında kullanılır, boş/yok = salt rotasyon.
+   */
+  weakTopicIds?: string[];
 }
 
 /** Geçmiş hedef kaydı (bkz. utils/goalHistory). */
@@ -71,6 +78,8 @@ interface PrefsState {
   setPlanSpec: (mode: PlanMode, spec: PlanSpec) => void;
   /** Kurulum taslağı: yalnız günlük süreyi yazar, `startDate` damgalamaz. */
   setPlanDraftMinutes: (mode: PlanMode, minutes: number | null) => void;
+  /** Kendi-kendine zayıf konu seçimi (bkz. PlanSpec.weakTopicIds). `startDate` damgalamaz. */
+  setWeakTopicIds: (mode: PlanMode, ids: string[]) => void;
   clearPlanSpec: (mode: PlanMode) => void;
   /** Planı `untilKey` gününe kadar (o gün dahil) duraklat; null = devam ettir. */
   setPlanPause: (mode: PlanMode, untilKey: string | null) => void;
@@ -458,6 +467,14 @@ export const usePrefsStore = create<PrefsState>()(
       setPlanDraftMinutes: (mode, minutes) =>
         set((s) => ({
           planSpecs: { ...s.planSpecs, [mode]: { ...s.planSpecs[mode], dailyMinutes: minutes } },
+        })),
+
+      // `setPlanDraftMinutes` ile AYNI gerekçe: zayıf-konu seçimi kurulumun bir parçası,
+      // `startDate` damgalamamalı. Ayrıca kurulum SONRASI da (plan zaten aktifken) her an
+      // güncellenebilir — biweekly check-in burayı çağırır, plan yeniden kurulmaz.
+      setWeakTopicIds: (mode, ids) =>
+        set((s) => ({
+          planSpecs: { ...s.planSpecs, [mode]: { ...s.planSpecs[mode], weakTopicIds: ids } },
         })),
 
       /*

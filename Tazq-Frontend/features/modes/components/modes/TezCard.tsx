@@ -28,7 +28,7 @@ import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { useModeCompletionReview } from '@/features/modes/hooks/useModeCompletionReview';
 import { completionCopy } from '@/features/modes/utils/modeCompletion';
-import { toDateKey } from '@/shared/utils/dateKey';
+import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
 
 // Vurgu merkezi paletten (bkz. Colors.ModeAccents) — tema-duyarlı + kontrast güvenli.
 const BASE_CALENDAR_WIDTH = 340;
@@ -66,7 +66,10 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   const isComplete = name.trim() !== '' && date !== '';
   const past = isDatePast(date);
   const daysLeft = daysLeftOf(date);
-  const dateObj = date ? new Date(date) : new Date(Date.now() + 90 * 86400000);
+  // `parseDateKey` — ExamCard/MulakatCard/SporCard'ın hepsi aynı deseni kullanıyor;
+  // ham `new Date(date)` negatif UTC ofsetli saat dilimlerinde tarih seçiciyi
+  // kaydedilenden bir gün ERKEN açılmış gösterirdi (bkz. planTaskOps.ts formatPlanDate notu).
+  const dateObj = date ? parseDateKey(date) : new Date(Date.now() + 90 * 86400000);
   const accent = TEZ;
 
   // Bugünkü ilerleme (alışkanlık + bugün vadeli/tamamlanan plan görevi).

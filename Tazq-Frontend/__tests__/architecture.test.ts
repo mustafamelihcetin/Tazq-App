@@ -41,7 +41,10 @@ const importsOf = (rel: string) => [...read(rel).matchAll(/from '@\/(\w+)\//g)].
  * bayatlama koruması hâlâ eski 20'ye göre hesap yapıyordu ve testi kırdı. Tek sabit,
  * ikisinin ayrışmasını imkânsız kılıyor.
  */
-const LAYER_CEILING = 7;
+// 7 → 8 (2026-10-18): useOfflineSync artık ödeme kuyruğunu da boşaltırken
+// usePaymentsStore'u yazıyor (bkz. useOfflineSync → görev/tercih store'u notu) —
+// AYNI meşru ihtiyaç, ödeme takibi için tekrarlanıyor.
+const LAYER_CEILING = 8;
 
 describe('katman yönü', () => {
   const sharedFiles = walk('shared');

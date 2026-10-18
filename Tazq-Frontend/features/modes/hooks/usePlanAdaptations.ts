@@ -40,7 +40,7 @@ import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useHabitStore } from '@/features/habits';
 import { buildDailyTasks, DailyPlanSpec, PlanKind } from '@/features/modes/utils/dailyPlanEngine';
 import { runPlanMigrationOnce } from '@/features/modes/utils/planMigration';
-import { findExamCurriculum, pickSubject, subjectExamLabel } from '@/shared/utils/curriculum';
+import { findExamCurriculum, pickSubject, pickTopic, subjectExamLabel } from '@/shared/utils/curriculum';
 import { useSubjectStore } from '@/shared/store/useSubjectStore';
 import { useBudgetStore, type BudgetType } from '@/shared/store/useBudgetStore';
 import { useQuitStore, type QuitType } from '@/shared/store/useQuitStore';
@@ -139,7 +139,7 @@ function computeAdherenceSignal(): { activeDays7: number; total14: number } {
   return { activeDays7: days.size, total14 };
 }
 
-function makeClientKey(payload: { title: string; dueDate?: string | null; tags?: string[] | null }): string {
+export function makeClientKey(payload: { title: string; dueDate?: string | null; tags?: string[] | null }): string {
   const tags = (payload.tags ?? []).slice().sort().join(',');
   const day = dateKey(payload.dueDate);
   const basis = `${tags}|${day}|${payload.title.trim().toLocaleLowerCase('tr')}`;
@@ -324,6 +324,9 @@ function selfHealActiveModes(tr: boolean) {
   }
 }
 
+/** Bkz. `run` sarmalayıcısındaki not — modül seviyesinde, TÜM hook örnekleri arasında paylaşılır. */
+let adaptationRunInFlight: Promise<void> | null = null;
+
 export function usePlanAdaptations() {
   const {
     seasonal,
@@ -465,7 +468,7 @@ export function usePlanAdaptations() {
     setPlanIds(planMode, prunedHabitIds, taskIds);
   }, [addTask, setPlanIds]);
 
-  const run = useCallback(async (force = false) => {
+  const runImpl = useCallback(async (force = false) => {
     // ── HİDRASYON GÜVENLİĞİ (HER ÇAĞRI İÇİN) ───────────────────────────────
     // run() aşağıda kapalı modlara ait plan/alışkanlık/config'i siler. Store'lar
     // AsyncStorage'dan yüklenmeden çalışırsa seasonal=VARSAYILAN (tüm modlar kapalı)
@@ -1051,7 +1054,7 @@ export function usePlanAdaptations() {
       return t === 'yaris' ? 'genel' : t;
     };
 
-    const dailySlots: { spec: DailyPlanSpec; mode: Parameters<typeof applyTasks>[1]; taskIds: number[]; habitIds: string[]; subjectId?: string }[] = [];
+    const dailySlots: { spec: DailyPlanSpec; mode: Parameters<typeof applyTasks>[1]; taskIds: number[]; habitIds: string[]; subjectId?: string; topicId?: string }[] = [];
 
     // Konu/müfredat takibi için bugünün gün indeksi (deterministik rotasyon)
     const subjectDayIndex = Math.floor(today.getTime() / 86400000);
@@ -1063,17 +1066,21 @@ export function usePlanAdaptations() {
       if (slot.active && slot.name && slot.date && hasAppliedPlan(slot.taskIds, slot.habitIds)) {
         let planName = slot.name;
         let subjectId: string | undefined;
+        let topicId: string | undefined;
         const curriculum = findExamCurriculum(slot.name);
         if (curriculum) {
           const subject = pickSubject(curriculum, subjectProgress, subjectDayIndex);
           if (subject) {
-            planName = subjectExamLabel(slot.name, subject, lang);
             subjectId = subject.id;
+            const weakTopicIds = planSpecs[slot.mode]?.weakTopicIds;
+            const topic = pickTopic(subject, subjectProgress, subjectDayIndex, weakTopicIds);
+            topicId = topic?.id;
+            planName = subjectExamLabel(slot.name, subject, lang, topic);
           }
         }
         dailySlots.push({
           spec: { kind: 'exam', slot: slot.mode, name: planName, daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
-          mode: slot.mode, taskIds: slot.taskIds, habitIds: slot.habitIds, subjectId,
+          mode: slot.mode, taskIds: slot.taskIds, habitIds: slot.habitIds, subjectId, topicId,
         });
       }
     }
@@ -1153,6 +1160,7 @@ export function usePlanAdaptations() {
       // Konu çalışıldıysa ilerlemeyi işaretle → yarın rotasyon bir sonraki konuya geçer.
       if (daily.length > 0 && ds.subjectId) {
         useSubjectStore.getState().markStudied(ds.subjectId, subjectTodayKey);
+        if (ds.topicId) useSubjectStore.getState().markStudied(ds.topicId, subjectTodayKey);
       }
     }
 
@@ -1176,6 +1184,39 @@ export function usePlanAdaptations() {
     planSpecs,
     applyTasks,
   ]);
+
+  /*
+    EŞZAMANLI ÇAĞRI BİRLEŞTİRME — MODÜL SEVİYESİNDE, HOOK ÖRNEĞİ DEĞİL.
+
+    `usePlanAdaptations()` SEKİZ ayrı yerden çağrılıyor (app/_layout.tsx arka planda,
+    app/modlar.tsx, app/onboarding.tsx, TurkishModeBanner, TasarrufCard, BirakmaCard,
+    SporCard, WeightEntryModal) — her biri KENDİ `runImpl` kapanışını alır. Bir
+    `useRef` burada İŞE YARAMAZ: her bileşen örneğinin kendi ref'i olur, ikisi
+    birbirinden habersiz kalır. Kilit modül düzeyinde olmalı ki TÜM örnekler aynı
+    anda tek bir çalışmayı paylaşsın.
+
+    ÖLÇÜLEN RİSK: kullanıcı bir modu etkinleştirip `setTimeout(() => runAdaptations(true), 300)`
+    tetiklerken AYNI anda `_layout.tsx`'in arka plan tetikleyicisi de çalışırsa, ikisi
+    de "bugün için görev üretildi mi" kontrolünü BİRBİRİNDEN HABERSİZ, hâlâ "hayır"
+    durumundayken geçip aynı günün görevini sunucuda İKİ KEZ oluşturabilir —
+    TasarrufCard/BirakmaCard'ın `apply()`'ında düzeltilen çift-dokunuş hatasının motor
+    seviyesindeki karşılığı.
+
+    NEDEN "MEŞGULSE ATLA" DEĞİL: `app/modlar.tsx` dönen söze (`Promise`) `.then()` ile
+    bağlanıp iş GERÇEKTEN bitince taze görev sayısını okuyor. Sessizce atlayan bir
+    kilit, o `.then()`'i hemen (işi beklemeden) tetikler ve eski sayıyı okurdu —
+    aynı sorunu başka bir yere taşımış olurduk. Bunun yerine eşzamanlı çağrılar AYNI
+    sözü paylaşır: tek çalışma, herkes gerçek bitişi bekler (`api.ts`teki
+    `tryRefreshToken`'ın `refreshPromise` birleştirmesiyle aynı kalıp).
+  */
+  const run = useCallback(async (force = false) => {
+    if (adaptationRunInFlight) return adaptationRunInFlight;
+    const p = runImpl(force).finally(() => {
+      if (adaptationRunInFlight === p) adaptationRunInFlight = null;
+    });
+    adaptationRunInFlight = p;
+    return p;
+  }, [runImpl]);
 
   useEffect(() => {
     // Kullanıcı giriş yapmış ve task'lar yüklenmişse çalıştır

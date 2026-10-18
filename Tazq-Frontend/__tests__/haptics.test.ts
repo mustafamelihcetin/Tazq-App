@@ -175,7 +175,12 @@ describe('yoğunluk', () => {
      * DÜRÜST NOT: hedef oran ~1/3, bugünkü ölçüm ~1/1.4. Yani yoğunluk HÂLÂ YÜKSEK.
      * Bunu düşürmek 50+ çağrı yerinde tek tek "bu titreşim ne anlatıyor?" sorusunu
      * yanıtlamayı gerektirir — ayrı ve bilinçli bir tur işi.
+     * → 309: ExamCard'daki zayıf-konu çipi seçimi — bir SEÇİM eylemi, aynı mantık
+     * yukarıdaki 298/308 notlarıyla aynı (seçim anahtarları titreşir).
+     * → 315 (2026-10-18): app/odemeler.tsx — ekle daveti (select), tekrar sıklığı
+     * çipi (select), tarih seçici açma (select), ödendi işaretleme (select), ekle
+     * onayı (commit), silme onayı (commit). Hepsi SEÇİM/TAAHHÜT eylemi, aynı desen.
      */
-    expect(hap).toBeLessThanOrEqual(308);
+    expect(hap).toBeLessThanOrEqual(315);
   });
 });

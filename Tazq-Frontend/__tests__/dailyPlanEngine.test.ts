@@ -80,6 +80,20 @@ describe('dailyPlanEngine - buildDailyTasks', () => {
     expect(out.some(t => t.title.includes('YDS'))).toBe(true);
   });
 
+  /*
+    KONU-SEVİYESİ SPESİFİKLİK UÇTAN UCA — usePlanAdaptations.ts'teki exam slot döngüsü
+    `subjectExamLabel(examName, subject, lang, topic)`'in çıktısını (ör. "KPSS — Türkçe ·
+    Paragraf") doğrudan `spec.name`'e yazıyor; buraya ayrı bir `{topic}` yer tutucusu
+    EKLENMEDİ, çünkü mevcut `{name}` mekanizması zaten yeterli (bkz. curriculum.ts
+    dosya başlığındaki dalga planı notu). Bu test o varsayımı KANITLIYOR: motor hiç
+    değişmeden, konu adı görev metnine aynen taşınıyor.
+  */
+  it('carries a topic-qualified plan name (from subjectExamLabel) straight into titles', () => {
+    const topicLabel = 'KPSS — Türkçe · Paragraf';
+    const out = buildDailyTasks(specFor(400, { name: topicLabel }), [], 'tr', TODAY);
+    expect(out.some(t => t.title.includes(topicLabel))).toBe(true);
+  });
+
   it('produces English copy when lang=en', () => {
     const out = buildDailyTasks(specFor(400), [], 'en', TODAY);
     expect(out.length).toBeGreaterThan(0);

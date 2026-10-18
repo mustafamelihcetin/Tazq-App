@@ -91,6 +91,11 @@ export async function registerNotificationCategories(): Promise<void> {
     await Notifications.setNotificationCategoryAsync('daily-summary', [
       { identifier: 'open-tasks', buttonTitle: tr ? 'Aç' : 'Open', options: { opensAppToForeground: true } },
     ]);
+
+    // Ödeme vadesi yaklaşıyor — ödemeler ekranını aç
+    await Notifications.setNotificationCategoryAsync('payment-due', [
+      { identifier: 'open-payments', buttonTitle: tr ? 'Ödemeler' : 'Payments', options: { opensAppToForeground: true } },
+    ]);
   } catch (e) { swallow('notifications.registerNotificationCategories', e); }
 }
 
@@ -750,6 +755,51 @@ export async function cancelExamCountdownNotifs(slot?: ExamSlot): Promise<void> 
       try { await Notifications.cancelScheduledNotificationAsync(`exam-countdown-${d}d`); } catch (e) { swallow('notifications.cancelExamCountdownNotifs', e); }
     }
   }
+}
+
+// ─── Payment Due Notifications ───────────────────────────────────────────────
+// `scheduleExamCountdownNotifs` ile AYNI kalıp: kimlik ödeme id'sine göre (birden
+// çok ödeme aynı kimliği EZMESİN), sabit N gün önce tek bildirim (geri sayım dizisi
+// değil — bir faturanın "7/3/1 gün kaldı" diye üç kez hatırlatılması gerekmiyor,
+// tek bir "yaklaşıyor" yeterli).
+
+export async function schedulePaymentDueNotif(
+  paymentId: number,
+  title: string,
+  dueDate: Date,
+  locale: string = 'tr',
+  daysBefore: number = 3,
+): Promise<void> {
+  if (!Notifications || isExpoGo) return;
+  try {
+    const isTR = locale === 'tr';
+    const id = `payment-due-${paymentId}`;
+    await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+
+    const trigger = new Date(dueDate);
+    trigger.setHours(10, 0, 0, 0);
+    trigger.setDate(trigger.getDate() - daysBefore);
+    if (trigger <= new Date()) return;
+
+    await Notifications.scheduleNotificationAsync({
+      identifier: id,
+      content: {
+        title: isTR ? `${title} ödemesi yaklaşıyor` : `${title} payment is coming up`,
+        body: isTR
+          ? `${daysBefore} gün içinde vadesi geliyor.`
+          : `Due in ${daysBefore} day${daysBefore > 1 ? 's' : ''}.`,
+        sound: true,
+        data: { type: 'payment-due', paymentId },
+        categoryIdentifier: 'payment-due',
+      },
+      trigger: { type: 'date', date: trigger } as any,
+    });
+  } catch (e) { swallow('notifications.schedulePaymentDueNotif', e); }
+}
+
+export async function cancelPaymentDueNotif(paymentId: number): Promise<void> {
+  if (!Notifications) return;
+  try { await Notifications.cancelScheduledNotificationAsync(`payment-due-${paymentId}`); } catch (e) { swallow('notifications.cancelPaymentDueNotif', e); }
 }
 
 // ─── Ramadan Notifications ────────────────────────────────────────────────────

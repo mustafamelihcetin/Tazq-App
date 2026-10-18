@@ -133,7 +133,27 @@ export async function ensureWeeklyWeightTask(dueDate: Date, language: 'tr' | 'en
  * @param taskId Kullanıcının bastığı görev (varsa) — önce o kapatılır.
  * @returns true = kaydedildi, false = 7 gün dolmadığı için reddedildi.
  */
+/*
+  EŞZAMANLI ÇAĞRI BİRLEŞTİRME — bkz. usePlanAdaptations.ts `run` sarmalayıcısındaki
+  AYNI gerekçe. Bu fonksiyon ÜÇ ayrı yerden çağrılıyor (SporCard'ın satır içi girişi,
+  tasks ekranındaki görev-tıklama modalı, plan kurulumu) ve kapı (`canLogWeight`
+  okuma) ile yazma (`addWeightEntry`) ATOMIK DEĞİL: iki çağrı aynı anda gelirse
+  ikisi de aynı "henüz girilmedi" durumunu okuyup aynı haftaya İKİ tartım kaydı
+  yazabilirdi. Her çağıranın kendi `ref` kilidini hatırlamasına güvenmek yerine
+  kilit TEK KAYNAKTA, burada.
+*/
+let weightEntryInFlight: Promise<boolean> | null = null;
+
 export async function recordWeeklyWeight(kg: number, language: 'tr' | 'en' = 'tr', taskId?: number | null): Promise<boolean> {
+  if (weightEntryInFlight) return weightEntryInFlight;
+  const p = recordWeeklyWeightImpl(kg, language, taskId).finally(() => {
+    if (weightEntryInFlight === p) weightEntryInFlight = null;
+  });
+  weightEntryInFlight = p;
+  return p;
+}
+
+async function recordWeeklyWeightImpl(kg: number, language: 'tr' | 'en', taskId?: number | null): Promise<boolean> {
   const log = useSporStore.getState().weightLog;
   if (!canLogWeight(log)) return false;
 

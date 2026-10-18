@@ -397,8 +397,6 @@ export default function ModlarScreen() {
     ? (kiloAutoDate ?? sporDateInput)
     : sporDateInput;
 
-  const sporDateObj = effectiveSporDate ? new Date(effectiveSporDate) : new Date(Date.now() + 90 * 86400000);
-
   // Input completeness per goal type
   const kiloWeightValid = cwNum >= 30 && cwNum <= 300 && twNum >= 30 && twNum <= 300;
   const kiloWeightRealistic = Math.abs(cwNum - twNum) <= 100;
@@ -516,15 +514,6 @@ export default function ModlarScreen() {
   }, [clearFocusTimers]);
   // Ekrandan çıkarken bekleyen kaydırmayı iptal et (unmount sonrası setState/scroll yok).
   useEffect(() => clearFocusTimers, [clearFocusTimers]);
-
-  const formatExamDate = (iso: string) => {
-    if (!iso) return '';
-    const d = new Date(iso);
-    if (language === 'tr') {
-      return d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    }
-    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
 
   const examIsComplete = examSlot.isComplete;
   const examDatePast = examSlot.datePast;
@@ -735,8 +724,6 @@ export default function ModlarScreen() {
   */
   const statusOrdered = [...statusCands].sort((a, b) => a.days - b.days);
   const statusNearest = statusOrdered[0] ?? null;
-  const statusNow = new Date();
-  const statusIsToday = (d?: string | null) => { if (!d) return false; const x = new Date(d); return x.getFullYear() === statusNow.getFullYear() && x.getMonth() === statusNow.getMonth() && x.getDate() === statusNow.getDate(); };
   /*
     BUGÜNKÜ İLERLEME — her modun planı sayılır.
 

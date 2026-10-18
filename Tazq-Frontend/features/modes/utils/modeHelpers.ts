@@ -16,7 +16,7 @@
  */
 import { localizeSporGoal } from './turkishModes';
 import { swallow } from '@/shared/utils/swallow';
-import { parseDateKey } from '@/shared/utils/dateKey';
+import { parseDateKey, calendarDayOf } from '@/shared/utils/dateKey';
 
 type TaskLike = { id: number; tags?: string[] | null };
 
@@ -59,7 +59,10 @@ export function deriveDateSlot(
   const endOfDay = dateInput ? parseDateKey(dateInput).setHours(23, 59, 59, 999) : 0;
   const datePast = dateInput ? endOfDay < now : false;
   const daysLeft = dateInput && !datePast ? Math.max(0, Math.ceil((endOfDay - now) / 86400000)) : 0;
-  const dateObj = dateInput ? new Date(dateInput) : new Date(now + fallbackDays * 86400000);
+  // `parseDateKey` — ham `new Date(dateInput)` negatif UTC ofsetli saat dilimlerinde
+  // (ör. ABD) tarih seçiciyi kaydedilenden bir gün ERKEN açılmış gösterirdi; bu
+  // fonksiyonun hemen üstündeki `endOfDay` zaten aynı sebeple `parseDateKey` kullanıyordu.
+  const dateObj = dateInput ? parseDateKey(dateInput) : new Date(now + fallbackDays * 86400000);
   return { isComplete, datePast, daysLeft, dateObj };
 }
 
@@ -79,12 +82,21 @@ const stripEmoji = (s: string) => s
   .replace(/\s+/g, ' ')
   .trim();
 
+/**
+ * Bu fonksiyon `getModeInfoForTask` içinden, görev satırlarındaki "X gün kaldı"
+ * rozetini besler — mod kartlarının (`planTaskOps.daysLeftOf`, doğru) gösterdiği
+ * sayıyla AYNI kaynaktan (`seasonal.*Date`) türüyor ama ham `new Date(isoDate)`
+ * kullanıyordu. Negatif UTC ofsetli saat dilimlerinde (ör. ABD) bu, kartın "61 gün"
+ * derken görev satırının "60 gün" demesi demekti — tam da bu kod tabanının başka
+ * yerlerde defalarca uyardığı kendi-kendiyle-çelişen ekran hatası. `parseDateKey`
+ * ile aynı kaynağı kullanacak şekilde düzeltildi.
+ */
 function getDaysLeft(isoDate: string | null | undefined): number | undefined {
   if (!isoDate) return undefined;
   const now = new Date();
   now.setHours(now.getHours() - 3); // 3-hour buffer
   now.setHours(0, 0, 0, 0);
-  const target = new Date(isoDate);
+  const target = parseDateKey(isoDate);
   target.setHours(0, 0, 0, 0);
   const diffMs = target.getTime() - now.getTime();
   return Math.max(0, Math.ceil(diffMs / 86400000));
@@ -102,9 +114,17 @@ export function getTaskRemainingTime(dueDate: string | null | undefined, dueTime
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-  
-  // Parse target date without timezone issues
-  const targetDateOnly = new Date(dueDate);
+
+  /*
+    `calendarDayOf` + `parseDateKey` — yorum "timezone sorunu yok" diyordu ama
+    ham `new Date(dueDate)` gerçekte güvenli değildi: `dueDate` bazen saf bir gün
+    anahtarı olarak gelir (ör. henüz sunucu yanıtı dönmemiş yeni eklenen bir görev)
+    ve negatif UTC ofsetli saat dilimlerinde bir gün ERKEN hesaplanırdı. `calendarDayOf`
+    üç bilinen biçimi de (saf gün, sunucunun UTC-gece-yarısı biçimi, gerçek an) güvenli
+    bir yerel güne çevirir.
+  */
+  const dueDayKey = calendarDayOf(dueDate);
+  const targetDateOnly = dueDayKey ? parseDateKey(dueDayKey) : new Date(dueDate);
   targetDateOnly.setHours(0, 0, 0, 0);
 
   const diffDays = Math.round((targetDateOnly.getTime() - todayStart.getTime()) / 86400000);
@@ -115,7 +135,7 @@ export function getTaskRemainingTime(dueDate: string | null | undefined, dueTime
 
   if (diffDays === 0) {
     if (dueTime) {
-      let targetDate = new Date(dueDate);
+      let targetDate = dueDayKey ? parseDateKey(dueDayKey) : new Date(dueDate);
       const timeParts = dueTime.includes('T') ? new Date(dueTime) : null;
       if (timeParts && !isNaN(timeParts.getTime())) {
         targetDate.setHours(timeParts.getHours(), timeParts.getMinutes(), 0, 0);

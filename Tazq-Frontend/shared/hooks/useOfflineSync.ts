@@ -3,7 +3,8 @@ import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { useTaskStore } from '@/features/tasks/store/useTaskStore';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
-import { TaskService, FocusService } from '@/shared/services/api';
+import { TaskService, FocusService, PaymentService } from '@/shared/services/api';
+import { usePaymentsStore } from '@/features/payments/store/usePaymentsStore';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { swallow } from '@/shared/utils/swallow';
@@ -56,14 +57,20 @@ export function useOfflineSync() {
 
       if (__DEV__) console.log(`[Offline Sync] Starting sync of ${ops.length} items`);
       let processed = 0;
-      const idMap = new Map<number, number>(); // Map tempId -> realId
+      let paymentOpsProcessed = false;
+      const idMap = new Map<number, number>(); // Map tempId -> realId (görevler)
+      const paymentIdMap = new Map<number, number>(); // Map tempId -> realId (ödemeler — AYRI harita, bkz. OfflineOp notu)
 
       for (let i = 0; i < ops.length; i++) {
         let op = ops[i];
         try {
-          // If a previous operation remapped an ID, update this operation
-          if ('id' in op && idMap.has(op.id)) {
-            op = { ...op, id: idMap.get(op.id)! } as any;
+          // If a previous operation remapped an ID, update this operation.
+          // Görev ve ödeme kimlik uzayları AYRI haritalarda tutulur (bkz. yukarıdaki not) —
+          // bu yüzden hangi haritaya bakılacağı op türüne göre seçilir, karışmaz.
+          const isPaymentOp = op.type.endsWith('-payment');
+          if ('id' in op) {
+            const map = isPaymentOp ? paymentIdMap : idMap;
+            if (map.has(op.id)) op = { ...op, id: map.get(op.id)! } as any;
           }
 
           if (op.type === 'create-task') {
@@ -105,8 +112,26 @@ export function useOfflineSync() {
               gece yarısını geçerse seans ertesi güne yazılır — bilinen eksiklik.
             */
             await FocusService.saveSession(op.taskName, op.minutes, op.completed);
+          } else if (op.type === 'create-payment') {
+            const created = await PaymentService.createPayment(op.payload as any);
+            paymentIdMap.set(op.tempId, created.id);
+            usePaymentsStore.getState().removePayment(op.tempId);
+            usePaymentsStore.getState().addPayment(created);
+            paymentOpsProcessed = true;
+          } else if (op.type === 'update-payment') {
+            await PaymentService.updatePayment(op.id, op.payload as any);
+            paymentOpsProcessed = true;
+          } else if (op.type === 'delete-payment') {
+            await PaymentService.deletePayment(op.id);
+            paymentOpsProcessed = true;
+          } else if (op.type === 'mark-paid-payment') {
+            await PaymentService.markPaid(op.id, op.cycleKey);
+            paymentOpsProcessed = true;
+          } else if (op.type === 'unmark-paid-payment') {
+            await PaymentService.unmarkPaid(op.id);
+            paymentOpsProcessed = true;
           }
-          
+
           processed++;
           // Dequeue one by one so if it crashes, remaining ops are saved
           useOfflineQueue.getState().dequeue(1);
@@ -141,6 +166,15 @@ export function useOfflineSync() {
           const freshTasks = await TaskService.getTasks();
           useTaskStore.getState().setTasks(freshTasks);
         } catch (e) { swallow('offlineSync.refetchTasksAfterFlush', e, { capture: true }); }
+
+        // Ödeme op'u işlendiyse taze listeyi çek — görev tazelemesinden AYRI (bkz.
+        // usePaymentsStore başlığı); ödeme değişikliği yoksa gereksiz istek atılmaz.
+        if (paymentOpsProcessed) {
+          try {
+            const freshPayments = await PaymentService.getPayments();
+            usePaymentsStore.getState().setPayments(freshPayments);
+          } catch (e) { swallow('offlineSync.refetchPaymentsAfterFlush', e, { capture: true }); }
+        }
 
         if (useOfflineQueue.getState().ops.length === 0) {
           const language = useLanguageStore.getState().language;

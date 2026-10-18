@@ -63,12 +63,17 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
     }
   }, [visible]);
 
+  // ÇİFT DOKUNUŞ KİLİDİ — bkz. TurkishModeBanner.tsx `applyingRef`: `saving` state'i
+  // tek başına yetmez, commit gecikmesinde hızlı iki dokunuş ikisini de geçirebilir.
+  const savingRef = useRef(false);
   const handleSave = async () => {
     const kg = parseFloat(input.replace(',', '.'));
     if (isNaN(kg) || kg < 20 || kg > 300) {
       haptic.error();
       return;
     }
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       // Tek kaynak: 7-gün kadansı + görevi tamamla + bir sonraki haftalık görevi planla.
@@ -87,6 +92,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
       // Adaptasyon motoru çalıştır
       setTimeout(() => runAdaptations(true), 400);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };

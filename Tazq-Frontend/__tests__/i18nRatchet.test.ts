@@ -166,7 +166,7 @@ const BASELINE: Record<string, number> = {
   'shared/utils/lifeModePlans.ts': 3,
   // 42 → 40: haftalık özetin başlığı, gövdesi ve tekrarlı yedeği ayrı ayrı
   // dallanıyordu; üçü tek sözlükte toplandı (iki dil yan yana).
-  'shared/utils/notifications.ts': 40,
+  'shared/utils/notifications.ts': 41, // (2026-10-18): schedulePaymentDueNotif — scheduleExamCountdownNotifs ile aynı isTR deseni
   'shared/utils/ramadanDates.ts': 1,
   'shared/utils/stepInsight.ts': 3,
 };

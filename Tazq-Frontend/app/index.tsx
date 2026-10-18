@@ -62,6 +62,7 @@ import { StatusHubModal } from '@/features/dashboard/components/StatusHubModal';
 import { QuickAddSheet, type DayChoice } from '@/features/tasks/components/QuickAddSheet';
 import { dateKeyFromNow } from '@/shared/utils/dateKey';
 import { ModeTodayCard } from '@/features/modes/components/ModeTodayCard';
+import { PaymentsSummaryCard } from '@/features/payments/components/PaymentsSummaryCard';
 import { useActiveModeSummary } from '@/features/modes/hooks/useActiveModeSummary';
 import { useAppShortcuts } from '@/shared/hooks/useAppShortcuts';
 import { ProfileSetupModal } from '@/features/user/components/ProfileSetupModal';
@@ -1848,6 +1849,9 @@ export default function HomeScreen() {
               ilk gördüğü şey, yapacağı iş değil aldığı nottu.
             */}
             <ModeTodayCard onOpen={() => router.push('/modlar')} />
+            {/* Ödemeler — GÖREV/plan akışından AYRI bir yüzey, bkz. PaymentsSummaryCard
+                başlığı. Mod kartının hemen altında: ikincil ama her zaman görünür. */}
+            <PaymentsSummaryCard />
             </WideCol>
 
             {/*

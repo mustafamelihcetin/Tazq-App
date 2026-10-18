@@ -1,6 +1,7 @@
 import {
   findExamCurriculum,
   pickSubject,
+  pickTopic,
   setCurriculum,
   getActiveCurriculumVersion,
   subjectExamLabel,
@@ -24,8 +25,11 @@ describe('findExamCurriculum', () => {
     expect(findExamCurriculum('')).toBeNull();
     expect(findExamCurriculum('   ')).toBeNull();
   });
-  it('returns null for a preset that has no curriculum yet (ör. IELTS)', () => {
-    expect(findExamCurriculum('IELTS')).toBeNull();
+  it('returns a curriculum for a bilerek ders-seviyesinde bırakılan sınav (AÖF — program-bağımlı, evrensel konu yok)', () => {
+    const aof = findExamCurriculum('AÖF');
+    expect(aof?.id).toBe('aof');
+    expect(aof?.subjects.length).toBeGreaterThan(0);
+    expect(aof?.subjects.every(s => !s.topics || s.topics.length === 0)).toBe(true);
   });
 });
 
@@ -105,5 +109,139 @@ describe('subjectExamLabel', () => {
   it('formats "Exam — Subject"', () => {
     expect(subjectExamLabel('KPSS', { id: 's', tr: 'Türkçe', en: 'Turkish' }, 'tr')).toBe('KPSS — Türkçe');
     expect(subjectExamLabel('KPSS', { id: 's', tr: 'Türkçe', en: 'Turkish' }, 'en')).toBe('KPSS — Turkish');
+  });
+  it('appends topic with " · " when provided', () => {
+    const subject = { id: 's', tr: 'Türkçe', en: 'Turkish' };
+    const topic = { id: 't', tr: 'Paragraf', en: 'Paragraph' };
+    expect(subjectExamLabel('KPSS', subject, 'tr', topic)).toBe('KPSS — Türkçe · Paragraf');
+    expect(subjectExamLabel('KPSS', subject, 'en', topic)).toBe('KPSS — Turkish · Paragraph');
+  });
+  it('omits topic suffix when topic is null/undefined', () => {
+    const subject = { id: 's', tr: 'Türkçe', en: 'Turkish' };
+    expect(subjectExamLabel('KPSS', subject, 'tr', null)).toBe('KPSS — Türkçe');
+    expect(subjectExamLabel('KPSS', subject, 'tr')).toBe('KPSS — Türkçe');
+  });
+});
+
+describe('pickTopic — konu seviyesinde aralıklı tekrar', () => {
+  const kpss = BASELINE_CURRICULUM.exams.find(e => e.id === 'kpss')! as ExamCurriculum;
+  const turkce = kpss.subjects.find(s => s.id === 'kpss_turkce')!;
+  const aofDers = BASELINE_CURRICULUM.exams.find(e => e.id === 'aof')!.subjects[0];
+
+  it('returns null when the subject has no topics (bilerek — program-bağımlı/beceri testi, bkz. aof/katiplik_klavye notları)', () => {
+    expect(pickTopic(aofDers, {}, 0)).toBeNull();
+  });
+
+  it('prioritizes never-studied topics', () => {
+    const progress: Record<string, SubjectProgress> = {
+      kpss_turkce_sozcukte: { lastStudied: '2026-06-20' },
+      kpss_turkce_cumlede: { lastStudied: '2026-06-20' },
+    };
+    const picked = pickTopic(turkce, progress, 0);
+    expect(picked).not.toBeNull();
+    expect(['kpss_turkce_paragraf', 'kpss_turkce_yazim', 'kpss_turkce_dilbilgisi', 'kpss_turkce_anlatim']).toContain(picked!.id);
+  });
+
+  it('is deterministic (same inputs → same output)', () => {
+    const p = {};
+    expect(pickTopic(turkce, p, 3)!.id).toBe(pickTopic(turkce, p, 3)!.id);
+  });
+
+  it('covers all topics over enough days', () => {
+    const seen = new Set<string>();
+    for (let d = 0; d < 40; d++) {
+      const t = pickTopic(turkce, {}, d);
+      if (t) seen.add(t.id);
+    }
+    expect(seen.size).toBe(turkce.topics!.length);
+  });
+
+  it('doubles weight for weakTopicIds so they appear more often', () => {
+    const allSameDay: Record<string, SubjectProgress> = {};
+    for (const t of turkce.topics!) allSameDay[t.id] = { lastStudied: '2026-06-20' };
+    let weakHits = 0;
+    let totalHits = 0;
+    for (let d = 0; d < 60; d++) {
+      const picked = pickTopic(turkce, allSameDay, d, ['kpss_turkce_paragraf']);
+      if (picked) {
+        totalHits++;
+        if (picked.id === 'kpss_turkce_paragraf') weakHits++;
+      }
+    }
+    const expectedShareWithoutWeak = 1 / turkce.topics!.length;
+    expect(weakHits / totalHits).toBeGreaterThan(expectedShareWithoutWeak);
+  });
+});
+
+describe('Dalga 2 — ALES/LGS/DGS/YDS tam konu derinliği', () => {
+  const dalga2Ids = ['ales', 'lgs', 'dgs', 'yds'];
+
+  it.each(dalga2Ids)('%s — her ders en az bir konu taşıyor', (examId) => {
+    const exam = BASELINE_CURRICULUM.exams.find(e => e.id === examId)!;
+    expect(exam).toBeDefined();
+    expect(exam.subjects.length).toBeGreaterThan(0);
+    for (const subject of exam.subjects) {
+      expect(subject.topics?.length ?? 0).toBeGreaterThan(0);
+    }
+  });
+
+  it.each(dalga2Ids)('%s — pickTopic konu üretir, ders seviyesine düşmez', (examId) => {
+    const exam = BASELINE_CURRICULUM.exams.find(e => e.id === examId)!;
+    for (const subject of exam.subjects) {
+      expect(pickTopic(subject, {}, 0)).not.toBeNull();
+    }
+  });
+
+  it('subjectExamLabel bir Dalga-2 sınavında da konuyu doğru biçimde ekler', () => {
+    const lgs = BASELINE_CURRICULUM.exams.find(e => e.id === 'lgs')!;
+    const matematik = lgs.subjects.find(s => s.id === 'lgs_matematik')!;
+    const topic = pickTopic(matematik, {}, 0)!;
+    expect(subjectExamLabel('LGS', matematik, 'tr', topic)).toBe(`LGS — Matematik · ${topic.tr}`);
+  });
+});
+
+describe('Dalga 3 — kalan nişler tam konu derinliği', () => {
+  // `aof` ve `katiplik`'in klavye dersi KASITLI istisna (program-bağımlı / beceri testi
+  // — bkz. curriculum.ts dosya başlığı); bu yüzden onlar hariç tüm dersler konu taşımalı.
+  const dalga3Ids = [
+    'ielts', 'toefl', 'tus', 'usmle', 'gre', 'gmat', 'msü', 'pmyo',
+    'pte', 'bilsem', 'kaymakamlik', 'icra', 'smmm', 'bekcilik',
+  ];
+
+  it.each(dalga3Ids)('%s — her ders en az bir konu taşıyor', (examId) => {
+    const exam = BASELINE_CURRICULUM.exams.find(e => e.id === examId)!;
+    expect(exam).toBeDefined();
+    expect(exam.subjects.length).toBeGreaterThan(0);
+    for (const subject of exam.subjects) {
+      expect(subject.topics?.length ?? 0).toBeGreaterThan(0);
+    }
+  });
+
+  it.each(dalga3Ids)('%s — pickTopic konu üretir, ders seviyesine düşmez', (examId) => {
+    const exam = BASELINE_CURRICULUM.exams.find(e => e.id === examId)!;
+    for (const subject of exam.subjects) {
+      expect(pickTopic(subject, {}, 0)).not.toBeNull();
+    }
+  });
+
+  it('oabt — Alan Bilgisi bilerek ders seviyesinde, Eğitim Bilimleri konu taşıyor', () => {
+    const oabt = BASELINE_CURRICULUM.exams.find(e => e.id === 'oabt')!;
+    const alan = oabt.subjects.find(s => s.id === 'oabt_alan')!;
+    const pedagoji = oabt.subjects.find(s => s.id === 'oabt_pedagoji')!;
+    expect(alan.topics?.length ?? 0).toBe(0);
+    expect(pedagoji.topics!.length).toBeGreaterThan(0);
+  });
+
+  it('katiplik — klavye dersi bilerek ders seviyesinde, Mevzuat konu taşıyor', () => {
+    const katiplik = BASELINE_CURRICULUM.exams.find(e => e.id === 'katiplik')!;
+    const klavye = katiplik.subjects.find(s => s.id === 'katiplik_klavye')!;
+    const mevzuat = katiplik.subjects.find(s => s.id === 'katiplik_mevzuat')!;
+    expect(klavye.topics?.length ?? 0).toBe(0);
+    expect(mevzuat.topics!.length).toBeGreaterThan(0);
+  });
+
+  it('aof — hiçbir dersinde konu kırılımı yok (program-bağımlı, dürüstlük ilkesi)', () => {
+    const aof = BASELINE_CURRICULUM.exams.find(e => e.id === 'aof')!;
+    expect(aof.subjects.every(s => (s.topics?.length ?? 0) === 0)).toBe(true);
   });
 });

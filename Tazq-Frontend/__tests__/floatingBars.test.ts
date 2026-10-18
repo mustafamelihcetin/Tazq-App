@@ -316,7 +316,8 @@ describe('sayfa üstü boşluğu', () => {
     // taşındı. Her biri kendi satırını çiziyordu ve başlık puntosu 14–30pt arasında
     // dağılmıştı; ana ekranlar 17pt olunca alt sayfaya inince başlık BÜYÜYORDU.
     // 9 -> 10: "Bugün" ekranı (gün'ün saat ekseni) eklendi.
-    expect(headerScreens.length).toBe(10);
+    // 10 -> 11 (2026-10-18): "Ödemeler" ekranı (odemeler.tsx) eklendi.
+    expect(headerScreens.length).toBe(11);
   });
 
   it.each(headerScreens)('%s üstünü topBarSpace’ten türetmeli', (file) => {
@@ -340,7 +341,7 @@ describe('başlık kutusu', () => {
     // Artık dokuzu tek bileşenden çiziyor: eşitlik yapısal, ayrışma imkânsız.
     expect(shared.sort()).toEqual([
       'archive.tsx', 'cockpit.tsx', 'gun.tsx', 'index.tsx', 'legal.tsx', 'mod-ozet.tsx',
-      'modlar.tsx', 'report.tsx', 'settings.tsx', 'tasks.tsx',
+      'modlar.tsx', 'odemeler.tsx', 'report.tsx', 'settings.tsx', 'tasks.tsx',
     ]);
   });
 

@@ -17,9 +17,28 @@ import { swallow } from '@/shared/utils/swallow';
 
 const MIGRATION_KEY = 'plan_migration_v2_done';
 
+/*
+  EŞZAMANLI ÇAĞRI BİRLEŞTİRME — `usePlanAdaptations.ts`teki `run` sarmalayıcısıyla
+  AYNI gerekçe: bu fonksiyon da sekiz ayrı bileşen örneğinden, uygulama açılışında
+  neredeyse aynı anda çağrılabiliyor. AsyncStorage bayrağı yalnız İŞ BİTİNCE yazılıyor
+  (bilerek — yarıda kesilen bir migrasyon bir sonraki açılışta tekrar denenmeli), yani
+  bayrak kontrolü tek başına yarışı kapatmıyor: iki eşzamanlı çağrı ikisi de `done=null`
+  okuyup aynı görevleri sunucudan iki kez silmeye çalışabilirdi (zararsız ama gereksiz).
+*/
+let migrationInFlight: Promise<void> | null = null;
+
 type PlanMode = 'exam' | 'exam2' | 'exam3' | 'ramazan' | 'tez' | 'mulakat' | 'mulakat2' | 'mulakat3' | 'spor' | 'spor2' | 'spor3';
 
 export async function runPlanMigrationOnce(): Promise<void> {
+  if (migrationInFlight) return migrationInFlight;
+  const p = runPlanMigrationImpl().finally(() => {
+    if (migrationInFlight === p) migrationInFlight = null;
+  });
+  migrationInFlight = p;
+  return p;
+}
+
+async function runPlanMigrationImpl(): Promise<void> {
   try {
     const done = await AsyncStorage.getItem(MIGRATION_KEY);
     if (done) return;

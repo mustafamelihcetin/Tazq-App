@@ -252,13 +252,14 @@ const ROLE_CEILING: Record<string, number> = {
   'app/focus.tsx': 7, // 17 → 7: modlar/pomodoro sayfaları kendi dosyalarına taşındı (rolleriyle), süre seçenekleri ve sayaç adlandırıldı
   'app/profile.tsx': 4,
   'app/promo.tsx': 2,
+  'app/odemeler.tsx': 5, // (2026-10-18): yeni ekran — ekle davetiyesi, ödendi/geri al, sil, vazgeç/ekle
   'app/settings.tsx': 5,
   'app/tasks.tsx': 4,
   'features/focus/components/FocusIsland.tsx': 1,
   'features/modes/components/TurkishModeBanner.tsx': 19,
   'features/modes/components/WeightEntryModal.tsx': 1,
   'features/modes/components/modes/BirakmaCard.tsx': 6,
-  'features/modes/components/modes/ExamCard.tsx': 15,
+  'features/modes/components/modes/ExamCard.tsx': 16, // +1 (2026-10-18): WeakTopicPicker konu çipleri (Touchable)
   'features/modes/components/modes/MulakatCard.tsx': 11,
   'features/modes/components/modes/RamazanCard.tsx': 2,
   'features/modes/components/modes/SporCard.tsx': 16,

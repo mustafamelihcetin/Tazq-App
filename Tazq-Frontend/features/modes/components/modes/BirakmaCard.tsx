@@ -2,7 +2,7 @@
  * BirakmaCard — Bırakma modu kartı (ÇOKLU). Aynı anda birden çok şey bırakılabilir;
  * her biri kendi "X gün temiz" serisi + nüks (şefkatli sıfırlama) ile takip edilir.
  */
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, Switch } from 'react-native';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
@@ -14,7 +14,7 @@ import { useHabitStore, fmtDateKey } from '@/features/habits/store/useHabitStore
 import { useTaskStore } from '@/features/tasks/store/useTaskStore';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
-import { usePlanAdaptations } from '@/features/modes/hooks/usePlanAdaptations';
+import { usePlanAdaptations, makeClientKey } from '@/features/modes/hooks/usePlanAdaptations';
 import { TaskService } from '@/shared/services/api';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
@@ -75,7 +75,11 @@ export function BirakmaCard() {
   const selectedKeys = TYPES.filter(t => sel[t.key]).map(t => t.key);
   const addValid = selectedKeys.length > 0 && (!sel['ozel'] || customName.trim().length > 0);
 
-  const createPlanTask = async (payload: any): Promise<number | null> => {
+  // Sunucu tarafı idempotency — bkz. usePlanAdaptations.ts `makeClientKey` notu:
+  // aynı kullanıcı + aynı anahtar + tamamlanmamışsa sunucu yenisini oluşturmaz.
+  // İstemci tarafındaki `applyingRef` kilidinin yanına ikinci bir güvenlik ağı.
+  const createPlanTask = async (rawPayload: any): Promise<number | null> => {
+    const payload = { ...rawPayload, clientKey: rawPayload.clientKey ?? makeClientKey(rawPayload) };
     if (!useNetworkStore.getState().isOnline) {
       const tempId = -Date.now() - Math.floor(Math.random() * 1000);
       useOfflineQueue.getState().enqueue({ type: 'create-task', tempId, payload });
@@ -128,8 +132,16 @@ export function BirakmaCard() {
     setSeasonalPref('birakmaName', name);
   };
 
+  /*
+    ÇİFT DOKUNUŞ KİLİDİ — bkz. TurkishModeBanner.tsx `applyingRef`: aynı kalıp.
+    `addSelected` birden çok `await` içeriyor; hızlı iki dokunuş sunucuda İKİ KEZ
+    aynı plan görevlerini oluşturabilirdi.
+  */
+  const applyingRef = useRef(false);
   const addSelected = async () => {
-    if (!addValid) return;
+    if (!addValid || applyingRef.current) return;
+    applyingRef.current = true;
+    try {
     haptic.success();
     const { habitIds, taskIds } = await ensureBasePlan();
     // Yeni seçilen her tür için TİPE ÖZEL görevleri paylaşılan plana ekle.
@@ -156,6 +168,9 @@ export function BirakmaCard() {
     refreshName();
     setSel({}); setCustomName(''); setExpanded(false);
     setTimeout(() => runAdaptations(true), 300);
+    } finally {
+      applyingRef.current = false;
+    }
   };
 
   const closePlan = () => {

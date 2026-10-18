@@ -212,10 +212,21 @@ export function rolloverPlanTask(taskId: number, todayStr: string): void {
 }
 
 
-/** Plan tarihini yerelleştirilmiş kısa biçimde formatlar (TR: gg.aa.yyyy, EN: dd MMM yyyy). */
+/**
+ * Plan tarihini yerelleştirilmiş kısa biçimde formatlar (TR: gg.aa.yyyy, EN: dd MMM yyyy).
+ *
+ * ÖLÇÜLEN SORUN: bu dosyadaki `isDatePast`/`daysLeftOf` tam bu hatadan kaçınmak için
+ * özenle `parseDateKey` kullanıyordu, ama bu fonksiyon hemen yanlarında ham `new Date(iso)`
+ * kullanıyordu — negatif UTC ofsetli saat dilimlerinde (ör. ABD) seçilen tarih bir gün
+ * ERKEN gösteriliyordu. Sonuç tam olarak dosyanın başka yerlerde uyardığı tutarsızlık:
+ * kart "11 Ekim" yazarken geri sayım/"tarih geçti" mantığı 10'u değil 11'i baz alıyordu.
+ * `calendarDayOf` üç bilinen biçimi de (saf gün, sunucunun UTC-gece-yarısı biçimi, gerçek
+ * an) güvenli bir yerel güne çevirir — tıpkı yukarıdaki fonksiyonların yaptığı gibi.
+ */
 export function formatPlanDate(iso: string | null | undefined, tr: boolean): string {
   if (!iso) return '';
-  const d = new Date(iso);
+  const key = calendarDayOf(iso);
+  const d = key ? parseDateKey(key) : new Date(iso);
   return tr
     ? d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })
     : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });

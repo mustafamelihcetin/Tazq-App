@@ -514,6 +514,45 @@ export const FocusService = {
   },
 };
 
+export interface PaymentPayload {
+  title: string;
+  amount: number;
+  dueDay: number;
+  recurrence: 'Once' | 'Monthly' | 'Yearly';
+  nextDueDate?: string | null;
+  category?: string | null;
+}
+
+/**
+ * Ödeme takibi — GÖREVLERDEN AYRI yüzey. `TaskService`'i hiçbir zaman çağırmaz,
+ * `useTaskStore`'a dokunmaz (bkz. features/payments/store/usePaymentsStore.ts başlığı).
+ */
+export const PaymentService = {
+  getPayments: async () => {
+    const response = await api.get('/api/payments');
+    return response.data;
+  },
+  createPayment: async (payload: PaymentPayload) => {
+    const response = await api.post('/api/payments', payload);
+    return response.data;
+  },
+  updatePayment: async (id: number, payload: PaymentPayload) => {
+    const response = await api.put(`/api/payments/${id}`, payload);
+    return response.data;
+  },
+  deletePayment: async (id: number) => {
+    await api.delete(`/api/payments/${id}`);
+  },
+  markPaid: async (id: number, cycleKey: string) => {
+    const response = await api.post(`/api/payments/${id}/mark-paid`, { cycleKey });
+    return response.data;
+  },
+  unmarkPaid: async (id: number) => {
+    const response = await api.post(`/api/payments/${id}/unmark-paid`);
+    return response.data;
+  },
+};
+
 export interface AdminUser {
   id: number;
   name: string;
