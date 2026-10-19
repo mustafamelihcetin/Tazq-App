@@ -73,7 +73,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // 2817 → 2820: YKS/KPSS/Ramazan'ın DİL kapısı (İngilizce arayüzde takvimle
   // kendiliğinden açılmasınlar). Kapının kendisi ayrı dosyada — bu dosya uygulamanın
   // en büyüğü ve saf veri katmanı; bir store bağımlılığı buraya ait değil.
-  'features/modes/utils/turkishModes.ts': 2822, // +2: Ramazan geri sayımı yerel-gün güvenli (asLocalDay)
+  'features/modes/utils/turkishModes.ts': 2833, // +2: Ramazan geri sayımı yerel-gün güvenli (asLocalDay) // +11 (2026-10-19): Push/Pull/Legs split ve STAR hikayesi başlıkları artık jargonu açıklıyor (bkz. SporCard'daki "Split programını kaydet" şikayeti)
   // 2488 → 2491: ERİŞİLEBİLİRLİK. Sayaç kürenin basılı-tutma alanı adsız bir kontrol
   // olarak odak alıyordu; o bir topraklanma JESTİ, düğme değil — ağacın dışına alındı.
   // 2491 → 2497: CAM SAYFALAR. Beş modalın (süre, mod, nefes, özet, pomodoro) elle
@@ -324,7 +324,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // "sadeleştirmede" geri alınır.
   // 1180 → 1199: duraklatma kapısı. Görev üreten dört ayrı yol var; kapı hepsinin
   // geçtiği tek noktaya (applyTasks) kondu, çağrı yerlerine dağıtılmadı.
-  'features/modes/hooks/usePlanAdaptations.ts': 1272, // +19: ikinci/üçüncü yuva alışkanlık süpürmesi, yerel-gün geçmiş-görev kontrolü // +36: sekiz çağrı noktası arasında eşzamanlı çalışmayı birleştiren modül-seviyeli kilit (adaptationRunInFlight) // +5 (2026-10-18): sınav slotlarında konu seviyesi (pickTopic) + weakTopicIds ağırlıklandırma // +13 (2026-10-19): mülakat/tez/spor slotlarında da alan-etiketleme (pickWeightedArea)
+  'features/modes/hooks/usePlanAdaptations.ts': 1275, // +19: ikinci/üçüncü yuva alışkanlık süpürmesi, yerel-gün geçmiş-görev kontrolü // +36: sekiz çağrı noktası arasında eşzamanlı çalışmayı birleştiren modül-seviyeli kilit (adaptationRunInFlight) // +5 (2026-10-18): sınav slotlarında konu seviyesi (pickTopic) + weakTopicIds ağırlıklandırma // +13 (2026-10-19): mülakat/tez/spor slotlarında da alan-etiketleme (pickWeightedArea) // +3 (2026-10-19): weakTopicIds artık pickSubject çağrısından ÖNCE okunup ona da iletiliyor (ders seviyesi ağırlıklandırma)
   // 910 → 864: hesap silme ve şifre değiştirmenin ÖLÜ kopyası kaldırıldı. Modal
   // işaretlemesi settings.tsx'e taşınırken bu dosyadaki state + iki handler geride
   // kalmıştı; hiçbiri çağrılmıyordu ama `deleteAccount`ın hatalı sürümü iki dosyada
@@ -388,7 +388,9 @@ const KNOWN_LARGE: Record<string, number> = {
   // DEĞİL, veri hacmi: her satır bir ders/konu kaydı (bkz. dosya başlığındaki dalga planı,
   // 2026-10-18 tarihinde Dalga 2+3 ile KPSS/YKS dışındaki tüm sınavlar da konu derinliğine
   // çıktı). Bölünmesi anlamsız — tek bakışta "hangi sınavda ne var" görülebilmeli.
-  'shared/utils/curriculum.ts': 928,
+  // 928 → 940 (2026-10-19): pickSubject artık weakTopicIds alıp zayıf konulu dersin
+  // rotasyon ağırlığını 2x'liyor (daha önce yalnız pickTopic'te vardı).
+  'shared/utils/curriculum.ts': 940,
 };
 
 describe('dosya boyutu', () => {

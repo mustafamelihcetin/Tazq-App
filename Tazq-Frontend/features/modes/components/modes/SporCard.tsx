@@ -97,6 +97,13 @@ function SporDatePicker({ value, onPick, onClose }: { value: Date; onPick: (iso:
   const { isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const calendarScale = useCalScale();
+  // iOS'un inline takvimi AÇILIR AÇILMAZ `value`'yu zaten seçili/vurgulu gösteriyor
+  // (bkz. kullanıcı tarihi yoksa 90-gün-sonrası varsayımı) ama `onChange` kullanıcı
+  // bir güne DOKUNANA kadar hiç ateşlenmiyor. Sonuç: takvimde bir tarih seçili
+  // GÖRÜNÜYOR ama üstteki alan hâlâ "Hedef tarihi seç" yazıyor — kullanıcı aynı
+  // güne BİR KEZ DAHA basmak zorunda kalıyor. Görünen ile kayıtlı durumu mount'ta
+  // eşitleyerek bu ikinci dokunuşu gereksiz kılıyoruz.
+  useEffect(() => { onPick(toDateKey(value)); }, []);
   return (
     <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH * calendarScale, height: 320 * calendarScale, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: S.xs } : { alignSelf: 'center', marginVertical: S.xs }}>
       <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH, height: 320, transform: [{ scale: calendarScale }], justifyContent: 'center', alignItems: 'center' } : undefined}>
@@ -181,7 +188,12 @@ function SporSlot({ slot, goalKey, dateKey, otherGoals, addLabel, onOpenPreview 
             <Touchable onPress={() => { if (goal || date) del(); setExpanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
               <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
             </Touchable>
-            {complete && (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview(slot); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: SPOR, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><AppIcon Icon={Dumbbell} color={SPOR_ON} size={24} radius={R.sm} iconSize={ICON.sm} /><Text style={{ color: SPOR_ON, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
+            {/* Kurulum bitmediyse dugme SESSIZCE KAYBOLMAZ — ne eksik oldugu yazar (bkz. TasarrufCard'daki aynı düzeltme). */}
+            {complete ? (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview(slot); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: SPOR, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><AppIcon Icon={Dumbbell} color={SPOR_ON} size={24} radius={R.sm} iconSize={ICON.sm} /><Text style={{ color: SPOR_ON, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>) : (
+              <View style={{ flex: 2, alignItems: 'center', justifyContent: 'center', paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)' }}>
+                <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption }}>{!goal.trim() ? (tr ? 'Önce hedef türünü seç' : 'Pick a goal type first') : (tr ? 'Hedef tarihini seç' : 'Pick the target date')}</Text>
+              </View>
+            )}
           </View>
         </FormReveal>
       )}
@@ -275,6 +287,34 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
     : sporType === 'maraton' ? weeklyKm.trim() !== '' && targetEvent !== ''
     : (sporType === 'guc' || sporType === 'genel' || sporType === 'yaris') ? trainingDays !== null : false;
   const sporIsComplete = hasPlan || (goal.trim() !== '' && sporInputsComplete && (sporType === 'kilo' ? kiloAutoDate !== null : date !== ''));
+  // "Planı Seç" pasifse NEDENİNİ söyle — sessiz pasif/gizli buton kafa karıştırıyordu
+  // (bkz. TasarrufCard'daki aynı düzeltme). Sıra önemli: hedef türü seçilmeden
+  // türe özel ipuçları anlamsız.
+  const sporDisabledHint = (() => {
+    if (sporIsComplete) return '';
+    if (!goal.trim()) return tr ? 'Önce hedef türünü seç' : 'Pick a goal type first';
+    if (sporType === 'kilo') {
+      if (!(currentWeight.trim() !== '' && cwNum > 0)) return tr ? 'Şu anki kilonu gir' : 'Enter your current weight';
+      if (!(targetWeight.trim() !== '' && twNum > 0)) return tr ? 'Hedef kilonu gir' : 'Enter your target weight';
+      if (cwNum === twNum) return tr ? 'Hedef, şu anki kilondan farklı olmalı' : 'Target must differ from your current weight';
+      if (!kiloWeightValid) return tr ? 'Kilo değerleri 30–300 kg arasında olmalı' : 'Weight must be between 30–300 kg';
+      if (!kiloWeightRealistic) return tr ? 'Fark 100 kg\'ı geçemez' : 'The difference cannot exceed 100 kg';
+      if (!kiloBmiValid) return tr ? 'Hedef kilo sağlıklı aralığın altında' : 'Target weight is below the healthy range';
+      return '';
+    }
+    if (sporType === 'maraton') {
+      if (!weeklyKm.trim()) return tr ? 'Mevcut haftalık km\'ni gir' : 'Enter your current weekly km';
+      if (!targetEvent) return tr ? 'Bir hedef mesafe seç (5K/10K/Yarı/Tam)' : 'Pick a target distance (5K/10K/Half/Full)';
+      if (!date) return tr ? 'Hedef tarihini seç' : 'Pick the target date';
+      return '';
+    }
+    if (sporType === 'guc' || sporType === 'genel' || sporType === 'yaris') {
+      if (trainingDays === null) return tr ? 'Haftada kaç gün antrenman yapacağını seç' : 'Pick how many days/week';
+      if (!date) return tr ? 'Hedef tarihini seç' : 'Pick the target date';
+      return '';
+    }
+    return '';
+  })();
   const past = isDatePast(effectiveSporDate);
   const daysLeft = daysLeftOf(effectiveSporDate);
   const latestWeight = weightLog.length > 0 ? weightLog[0].weight : null;
@@ -724,11 +764,14 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                 placeholder={tr ? 'Eklemek istediğin bir şey var mı? (opsiyonel)' : 'Anything else to add? (optional)'}
                 maxLength={140}
               />
+              {!!sporDisabledHint && (
+                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, textAlign: 'center' }}>{sporDisabledHint}</Text>
+              )}
               <View style={{ flexDirection: 'row', gap: S.sm }}>
                 <Touchable onPress={() => setExpanded(false)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
                   <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
                 </Touchable>
-                {sporIsComplete && (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview('spor'); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: SPOR, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}>{renderModeEmojiIcon(goalEmoji(sporType), 13, SPOR_ON)}<Text style={{ color: SPOR_ON, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
+                <Touchable disabled={!sporIsComplete} onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview('spor'); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: sporIsComplete ? SPOR : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}>{renderModeEmojiIcon(goalEmoji(sporType), 13, sporIsComplete ? SPOR_ON : theme.onSurfaceVariant)}<Text style={{ color: sporIsComplete ? SPOR_ON : theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>
               </View>
             </FormReveal>
           )}

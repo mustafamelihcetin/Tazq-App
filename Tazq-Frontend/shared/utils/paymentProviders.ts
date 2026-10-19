@@ -21,9 +21,23 @@ import { PaymentProviderColors } from '@/shared/constants/Colors';
 export interface PaymentProvider {
   id: string;
   name: string;
+  /**
+   * İngilizce görünen ad — SADECE marka olmayan, çevrilmesi gereken GENEL kategori
+   * adları için (ör. "Sigorta" → "Insurance"). Marka adları (Netflix, İGDAŞ, AT&T…)
+   * birer özel isimdir, hangi dilde olursa olsun AYNI yazılır — onlarda bu alan yok.
+   * Eskiden tek `name` vardı: İngilizce arayüzde bir kategori önerisi seçince başlık
+   * alanına TÜRKÇE metin ("Spor Salonu") yazılıyordu — yurt dışı kullanıcı için
+   * yanlış dildeydi (bkz. odemeler.tsx'teki seçim mantığı, `providerDisplayName`).
+   */
+  nameEn?: string;
   aliases: string[];
   icon: LucideIcon;
   color: string;
+}
+
+/** Seçim/eşleşme sırasında dile uygun adı döndürür (bkz. `nameEn` notu). */
+export function providerDisplayName(p: PaymentProvider, language: 'tr' | 'en'): string {
+  return language === 'en' && p.nameEn ? p.nameEn : p.name;
 }
 
 const C = PaymentProviderColors;
@@ -125,10 +139,52 @@ export const PAYMENT_PROVIDERS: PaymentProvider[] = [
   { id: 'trendyol-premium', name: 'Trendyol Premium', aliases: ['trendyol premium', 'trendyol'], icon: ShoppingBag, color: C.trendyolPremium },
   { id: 'hepsiburada-premium', name: 'Hepsiburada Premium', aliases: ['hepsiburada premium', 'hepsiburada'], icon: ShoppingBag, color: C.hepsiburadaPremium },
   // Spor/eğitim/sigorta — yaygın diğer abonelik türleri
-  { id: 'gym', name: 'Spor Salonu', aliases: ['spor salonu', 'gym', 'fitness', 'macfit'], icon: Dumbbell, color: C.gym },
-  { id: 'education', name: 'Eğitim/Kurs', aliases: ['kurs', 'egitim', 'eğitim'], icon: GraduationCap, color: C.education },
+  { id: 'gym', name: 'Spor Salonu', nameEn: 'Gym', aliases: ['spor salonu', 'gym', 'fitness', 'macfit'], icon: Dumbbell, color: C.gym },
+  { id: 'education', name: 'Eğitim/Kurs', nameEn: 'Education', aliases: ['kurs', 'egitim', 'eğitim', 'course', 'education', 'class', 'online course'], icon: GraduationCap, color: C.education },
   { id: 'udemy', name: 'Udemy', aliases: ['udemy'], icon: GraduationCap, color: C.udemy },
-  { id: 'insurance', name: 'Sigorta', aliases: ['sigorta', 'insurance'], icon: ShieldCheck, color: C.insurance },
+  { id: 'insurance', name: 'Sigorta', nameEn: 'Insurance', aliases: ['sigorta', 'insurance'], icon: ShieldCheck, color: C.insurance },
+
+  /*
+    MARKA-BAĞIMSIZ GENEL KATEGORİLER — Türkiye dışında 190+ ülkenin yerel elektrik/
+    gaz/su/operatör/internet sağlayıcısını tek tek listelemek mümkün değil (yukarıdaki
+    İGDAŞ/BEDAŞ/İSKİ gibi TR'ye özel kayıtlar yurt dışında hiçbir şeye karşılık gelmiyor).
+    Kullanıcı kendi yerel sağlayıcısının adını yazdığında marka eşleşmese bile en azından
+    DOĞRU TÜRDE bir ikon+renk alsın — bu yüzden jenerik "elektrik/gaz/su/operatör/internet"
+    kategorileri de öneriliyor (gym/education/insurance ile AYNI, zaten var olan desen).
+  */
+  { id: 'electric-generic', name: 'Elektrik', nameEn: 'Electric Company', aliases: ['elektrik', 'electric', 'electricity', 'power bill'], icon: Zap, color: C.electricGeneric },
+  { id: 'gas-generic', name: 'Doğalgaz', nameEn: 'Gas Company', aliases: ['doğalgaz', 'dogalgaz', 'gas', 'natural gas'], icon: Flame, color: C.gasGeneric },
+  { id: 'water-generic', name: 'Su', nameEn: 'Water Company', aliases: ['su', 'water', 'water bill'], icon: Droplet, color: C.waterGeneric },
+  { id: 'mobile-generic', name: 'Mobil Hat', nameEn: 'Mobile Carrier', aliases: ['mobil hat', 'cep telefonu hattı', 'mobile', 'carrier', 'phone bill'], icon: Smartphone, color: C.mobileGeneric },
+  { id: 'internet-generic', name: 'İnternet', nameEn: 'Internet Provider', aliases: ['internet', 'broadband', 'wifi bill'], icon: Wifi, color: C.internetGeneric },
+
+  // Uluslararası mobil operatörler (ABD/İngiltere) — Vodafone/Turkcell gibi küresel
+  // markalar yukarıda zaten var, burada sadece onlarla aynı ülkelerde olmayanlar.
+  { id: 'att', name: 'AT&T', aliases: ['at&t', 'att'], icon: Smartphone, color: C.att },
+  { id: 'verizon', name: 'Verizon', aliases: ['verizon'], icon: Smartphone, color: C.verizon },
+  { id: 't-mobile', name: 'T-Mobile', aliases: ['t-mobile', 'tmobile'], icon: Smartphone, color: C.tMobile },
+  { id: 'ee', name: 'EE', aliases: ['ee mobile', 'ee'], icon: Smartphone, color: C.ee },
+  { id: 'o2', name: 'O2', aliases: ['o2'], icon: Smartphone, color: C.o2 },
+  { id: 'three', name: 'Three', aliases: ['three mobile', 'three'], icon: Smartphone, color: C.three },
+  // Uluslararası internet/kablo sağlayıcıları (ABD/İngiltere)
+  { id: 'comcast-xfinity', name: 'Comcast Xfinity', aliases: ['comcast', 'xfinity', 'comcast xfinity'], icon: Wifi, color: C.comcastXfinity },
+  { id: 'spectrum', name: 'Spectrum', aliases: ['spectrum'], icon: Wifi, color: C.spectrum },
+  { id: 'cox', name: 'Cox', aliases: ['cox', 'cox communications'], icon: Wifi, color: C.cox },
+  { id: 'bt', name: 'BT', aliases: ['bt broadband', 'british telecom', 'bt'], icon: Wifi, color: C.bt },
+  { id: 'sky', name: 'Sky', aliases: ['sky broadband', 'sky'], icon: Wifi, color: C.sky },
+  { id: 'virgin-media', name: 'Virgin Media', aliases: ['virgin media', 'virgin'], icon: Wifi, color: C.virginMedia },
+  // Uluslararası enerji sağlayıcıları (İngiltere)
+  { id: 'british-gas', name: 'British Gas', aliases: ['british gas'], icon: Flame, color: C.britishGas },
+  { id: 'eon', name: 'E.ON', aliases: ['e.on', 'eon'], icon: Zap, color: C.eon },
+  { id: 'edf-energy', name: 'EDF Energy', aliases: ['edf energy', 'edf'], icon: Zap, color: C.edfEnergy },
+  { id: 'octopus-energy', name: 'Octopus Energy', aliases: ['octopus energy', 'octopus'], icon: Zap, color: C.octopusEnergy },
+  // Uluslararası sigorta şirketleri (ABD/İngiltere)
+  { id: 'geico', name: 'GEICO', aliases: ['geico'], icon: ShieldCheck, color: C.geico },
+  { id: 'state-farm', name: 'State Farm', aliases: ['state farm'], icon: ShieldCheck, color: C.stateFarm },
+  { id: 'allstate', name: 'Allstate', aliases: ['allstate'], icon: ShieldCheck, color: C.allstate },
+  { id: 'progressive', name: 'Progressive', aliases: ['progressive'], icon: ShieldCheck, color: C.progressive },
+  { id: 'direct-line', name: 'Direct Line', aliases: ['direct line'], icon: ShieldCheck, color: C.directLine },
+  { id: 'aviva', name: 'Aviva', aliases: ['aviva'], icon: ShieldCheck, color: C.aviva },
 ];
 
 /*
@@ -151,7 +207,7 @@ export function matchProvider(input: string): PaymentProvider | null {
   const key = norm(input);
   if (!key) return null;
   for (const p of PAYMENT_PROVIDERS) {
-    if (norm(p.name) === key || p.aliases.some(a => norm(a) === key)) return p;
+    if (norm(p.name) === key || (p.nameEn && norm(p.nameEn) === key) || p.aliases.some(a => norm(a) === key)) return p;
   }
   return null;
 }
@@ -168,7 +224,7 @@ export function searchProviders(input: string, limit = 4): PaymentProvider[] {
   const key = norm(input);
   if (!key || key.length < 2) return [];
   const scoreOf = (p: PaymentProvider): number => {
-    const tokens = [p.name, ...p.aliases].map(norm);
+    const tokens = [p.name, ...(p.nameEn ? [p.nameEn] : []), ...p.aliases].map(norm);
     if (tokens.some(t => t === key)) return 3;
     if (tokens.some(t => t.startsWith(key))) return 2;
     if (tokens.some(t => t.includes(key))) return 1;

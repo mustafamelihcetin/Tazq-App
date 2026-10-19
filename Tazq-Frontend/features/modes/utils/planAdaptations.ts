@@ -724,12 +724,12 @@ export function buildMulakatAdaptationTasks(
       tags: ['mulakat_eve', 'work'],
     });
     tasks.push({
-      title: tr ? `STAR hikayelerini prova et` : `Rehearse STAR stories`,
-      description: JSON.stringify({ 
-        tr: `STAR hikayelerini prova et`, 
-        en: `Rehearse STAR stories`,
-        descTr: `Mülakatta anlatacağınız 3 güçlü STAR hikayesini sesli olarak prova edin ve her birini 2 dakikada bitirecek şekilde ayarlayın.`,
-        descEn: `Rehearse your 3 strongest STAR stories out loud and practice keeping each under 2 minutes.`
+      title: tr ? `STAR hikayelerini prova et (Durum-Görev-Eylem-Sonuç)` : `Rehearse STAR stories (Situation-Task-Action-Result)`,
+      description: JSON.stringify({
+        tr: `STAR hikayelerini prova et (Durum-Görev-Eylem-Sonuç)`,
+        en: `Rehearse STAR stories (Situation-Task-Action-Result)`,
+        descTr: `Mülakatta anlatacağınız 3 güçlü hikayeyi şu sırayla anlat: Durum (ne oldu) → Görev (senin sorumluluğun) → Eylem (ne yaptın) → Sonuç (ne değişti). Sesli prova edin, her biri 2 dakikada bitsin.`,
+        descEn: `Tell your 3 strongest stories in this order: Situation (what happened) → Task (your responsibility) → Action (what you did) → Result (what changed). Rehearse out loud, keeping each under 2 minutes.`
       }),
       priority: 'High',
       dueDate: daysFromNow(0),

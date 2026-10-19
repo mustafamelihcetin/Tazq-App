@@ -3,7 +3,7 @@
     "name": "TAZQ",
     "slug": "Tazq-Frontend",
     "owner": "melihctn",
-    "version": "1.5.1",
+    "version": "1.6.0",
     "orientation": "portrait",
     "icon": "./assets/brand/icon.png",
     "userInterfaceStyle": "automatic",
@@ -13,6 +13,8 @@
       [
         "expo-splash-screen",
         {
+          "image": "./assets/brand/splash_logo.png",
+          "resizeMode": "contain",
           "backgroundColor": "#F4F4F5",
           "dark": {
             "backgroundColor": "#09090B"
@@ -40,7 +42,7 @@
           "android": {
             "usesCleartextTraffic": true,
             "compileSdkVersion": 36,
-            "targetSdkVersion": 35,
+            "targetSdkVersion": 36,
             "minSdkVersion": 26,
             "buildToolsVersion": "36.0.0",
             "enableProguardInReleaseBuilds": true,

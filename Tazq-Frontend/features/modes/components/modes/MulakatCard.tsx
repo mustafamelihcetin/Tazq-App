@@ -2,7 +2,7 @@
  * MulakatCard — "İş Mülakatı" dönemsel modu (3 slot). modlar.tsx'ten çıkarıldı.
  * Veri doğrudan `seasonal` store'dan (desync yok). Önizleme/apply merkezi → onOpenPreview.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Switch, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { ChevronRight, CalendarDays, BookOpen, X, Briefcase } from 'lucide-react-native';
@@ -44,6 +44,10 @@ function DatePickerInline({ value, onPick, onClose }: { value: Date; onPick: (is
   const { isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const calendarScale = useCalScale();
+  // bkz. SporCard'daki SporDatePicker'daki aynı not: iOS inline takvim açılır
+  // açılmaz `value`'yu zaten seçili gösteriyor ama onChange kullanıcı dokunana
+  // kadar ateşlenmiyor — görünen ile kayıtlı durumu mount'ta eşitliyoruz.
+  useEffect(() => { onPick(toDateKey(value)); }, []);
   return (
     <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH * calendarScale, height: 320 * calendarScale, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: S.xs } : { alignSelf: 'center', marginVertical: S.xs }}>
       <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH, height: 320, transform: [{ scale: calendarScale }], justifyContent: 'center', alignItems: 'center' } : undefined}>
@@ -136,7 +140,11 @@ function SecondarySlot({ slot, nameKey, dateKey, placeholder, onOpenPreview }: {
             <Touchable onPress={() => { if (name || date) del(); setExpanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
               <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
             </Touchable>
-            {complete && (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview(slot); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><BookOpen size={ICON.xs} color={ACCENT_ON} /><Text style={{ color: ACCENT_ON, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
+            {complete ? (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview(slot); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><BookOpen size={ICON.xs} color={ACCENT_ON} /><Text style={{ color: ACCENT_ON, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>) : (
+              <View style={{ flex: 2, alignItems: 'center', justifyContent: 'center', paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)' }}>
+                <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption }}>{!name.trim() ? (tr ? 'Önce şirket/pozisyon adı gir' : 'Enter the company/role first') : (tr ? 'Mülakat tarihini seç' : 'Pick the interview date')}</Text>
+              </View>
+            )}
           </View>
         </FormReveal>
       )}
@@ -345,7 +353,12 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
                 <Touchable onPress={() => setExpanded(false)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
                   <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
                 </Touchable>
-                {isComplete && (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview('mulakat'); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}><BookOpen size={ICON.sm} color={ACCENT_ON} /><Text style={{ color: ACCENT_ON, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
+                {/* Kurulum bitmediyse dugme SESSIZCE KAYBOLMAZ — ne eksik oldugu yazar (bkz. ExamCard'daki ayni duzeltme). */}
+                {isComplete ? (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview('mulakat'); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}><BookOpen size={ICON.sm} color={ACCENT_ON} /><Text style={{ color: ACCENT_ON, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>) : (
+                  <View style={{ flex: 2, alignItems: 'center', justifyContent: 'center', paddingVertical: S.sm + 2, borderRadius: R.full, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)' }}>
+                    <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption }}>{!name.trim() ? (tr ? 'Önce şirket/pozisyon adı gir' : 'Enter the company/role first') : (tr ? 'Mülakat tarihini seç' : 'Pick the interview date')}</Text>
+                  </View>
+                )}
               </View>
             </FormReveal>
           )}

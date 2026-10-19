@@ -405,6 +405,41 @@ export const PaymentProviderColors = {
   education: '#7C3AED',
   udemy: '#7C3AED',
   insurance: '#0891B2',
+  // Marka-bağımsız GENEL kategoriler — hiçbir ülkenin tüm sağlayıcıları
+  // tek tek listelenemez (190+ ülke). Kullanıcı kendi yerel sağlayıcısını
+  // yazdığında yine de doğru ikon+renk alması için (bkz. paymentProviders.ts
+  // başlığındaki "yurt dışı" notu).
+  electricGeneric: '#D97706',
+  gasGeneric: '#EA580C',
+  waterGeneric: '#0891B2',
+  mobileGeneric: '#475569',
+  internetGeneric: '#7C3AED',
+  // Uluslararası mobil operatörler (ABD/İngiltere)
+  att: '#2563EB',
+  verizon: '#DC2626',
+  tMobile: '#DB2777',
+  ee: '#7C3AED',
+  o2: '#2563EB',
+  three: '#111827',
+  // Uluslararası internet/kablo sağlayıcıları (ABD/İngiltere)
+  comcastXfinity: '#2563EB',
+  spectrum: '#2563EB',
+  cox: '#DC2626',
+  bt: '#7C3AED',
+  sky: '#2563EB',
+  virginMedia: '#DC2626',
+  // Uluslararası enerji sağlayıcıları (İngiltere)
+  britishGas: '#EA580C',
+  eon: '#DC2626',
+  edfEnergy: '#2563EB',
+  octopusEnergy: '#7C3AED',
+  // Uluslararası sigorta şirketleri (ABD/İngiltere)
+  geico: '#16A34A',
+  stateFarm: '#DC2626',
+  allstate: '#2563EB',
+  progressive: '#2563EB',
+  directLine: '#DC2626',
+  aviva: '#DC2626',
 } as const;
 
 /**

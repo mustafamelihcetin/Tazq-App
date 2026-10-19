@@ -22,7 +22,7 @@ import { nextDueDateOf, activeCycleKeyOf, isPaidForCycle } from '@/features/paym
 import { schedulePaymentDueNotif, cancelPaymentDueNotif } from '@/shared/utils/notifications';
 import { formatPlanDate } from '@/features/modes/utils/planTaskOps';
 import { CURRENCIES, currencySymbol, defaultCurrencyFor, type CurrencyCode } from '@/shared/utils/currency';
-import { matchProvider, searchProviders, type PaymentProvider } from '@/shared/utils/paymentProviders';
+import { matchProvider, searchProviders, providerDisplayName, type PaymentProvider } from '@/shared/utils/paymentProviders';
 
 /** Dil kodu → Intl locale. Ternary DEĞİL (bkz. __tests__/i18nRatchet.test.ts) — bu
  *  dosya metinlerini TAMAMEN `t.payments` sözlüğünden alıyor, sayı/tarih biçimi
@@ -79,6 +79,7 @@ export default function OdemelerScreen() {
   // Sağlayıcı önerisi — ExamCard'daki `PresetEditor` ile AYNI desen: yazarken kısmi
   // eşleşmeleri göster, seçince adı otomatik tamamla + ikonla tanı (bkz. paymentProviders.ts).
   const [providerSuggestions, setProviderSuggestions] = useState<PaymentProvider[]>([]);
+  const titleProvider = useMemo(() => matchProvider(title), [title]);
 
   const resetForm = () => {
     setTitle(''); setAmount(''); setRecurrence('Monthly'); setDueDayValue(new Date().getDate()); setAnchorDate(new Date()); setShowPicker(false); setProviderSuggestions([]);
@@ -139,12 +140,21 @@ export default function OdemelerScreen() {
   };
 
   // Yeni/düzenlenen ödeme için vade bildirimini kur — sunucuya yazılmış (id>0) kayıtlarda.
-  const scheduledRef = useRef(new Set<number>());
+  //
+  // ÖNEMLİ: anahtar SADECE id DEĞİL, id+vade. Eskiden anahtar yalnız id'ydi: bir ödeme
+  // bir KEZ zamanlandıktan sonra Set'e düşüyor ve "ödendi" işaretlenip `due` bir sonraki
+  // aya/yıla ilerlediğinde BİR DAHA ASLA zamanlanmıyordu — ekrandaki "sıradaki vade"
+  // (nextDueDateOf) doğru ilerliyordu ama kullanıcı o yeni dönem için hiç hatırlatma
+  // ALMIYORDU. Anahtara vadeyi de katmak her yeni dönemde yeniden zamanlamayı sağlıyor.
+  const scheduledRef = useRef(new Map<number, number>());
   useEffect(() => {
     for (const { p, due } of rows) {
-      if (p.id > 0 && !scheduledRef.current.has(p.id)) {
-        scheduledRef.current.add(p.id);
-        void schedulePaymentDueNotif(p.id, p.title, due, language);
+      if (p.id > 0) {
+        const dueTime = due.getTime();
+        if (scheduledRef.current.get(p.id) !== dueTime) {
+          scheduledRef.current.set(p.id, dueTime);
+          void schedulePaymentDueNotif(p.id, p.title, due, language);
+        }
       }
     }
   }, [rows, language]);
@@ -195,6 +205,13 @@ export default function OdemelerScreen() {
         data={[] as never[]}
         onScroll={onScroll}
         scrollEventThrottle={16}
+        // VARSAYILAN 'never': klavye açıkken listedeki herhangi bir dokunulabilire
+        // basmak İLK dokunuşu sadece klavyeyi kapatmaya harcıyordu — "Ne için"
+        // kutusu odaktayken öneri satırına basmak bu yüzden hiç işlenmiyordu
+        // (onPressIn'e taşımak da yetmedi, çünkü FlatList'in kendi responder'ı
+        // dokunuşu Touchable'a ULAŞMADAN yutuyordu). 'handled': dokunulabilir bir
+        // öğeye basılıyorsa dokunuş HEMEN işlenir, klavye kapanması yan etkidir.
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl, gap: S.md, width: '100%', maxWidth: contentW, alignSelf: 'center' }}
         renderItem={() => null}
         ListHeaderComponent={
@@ -211,6 +228,11 @@ export default function OdemelerScreen() {
                   <ModeField
                     accent={theme.primary}
                     value={title}
+                    // Öneriden seçilince (veya bilinen bir ada yazarken) kutunun İÇİNDE de
+                    // aynı ikon görünür — altındaki öneri listesi kapandıktan sonra hangi
+                    // sağlayıcıyı seçtiğini unutturmamak için (bkz. kayıtlı satırlardaki
+                    // AYNI matchProvider deseni, renderRow'daki kullanım).
+                    prefix={titleProvider ? <AppIcon Icon={titleProvider.icon} color={titleProvider.color} size={24} radius={R.sm} iconSize={ICON.xs} /> : undefined}
                     onChangeText={(v) => { setTitle(v); setProviderSuggestions(searchProviders(v)); }}
                     onBlur={() => {
                       // Alandan çıkınca öneriler KAPANIR — eskiden açık kalıyordu
@@ -230,12 +252,18 @@ export default function OdemelerScreen() {
                       {providerSuggestions.map(p => (
                         <Touchable
                           key={p.id}
-                          onPress={() => { haptic.select(); setTitle(p.name); setProviderSuggestions([]); }}
+                          // onPressIn, onPress DEĞİL — bkz. ModeField'daki aynı not: komşu
+                          // TextInput'un onBlur'u klavyeyi kapatıp düzeni YUKARI KAYDIRIYOR;
+                          // onPress (dokunuş BIRAKILDIĞINDA) ateşlenseydi parmak artık bu
+                          // satırın üzerinde olmayabilirdi — öneri sessizce kaybolup başlık
+                          // hiç dolmazdı. onPressIn dokunuşun İLK anında ateşlenir, kaydırma
+                          // henüz başlamadan.
+                          onPressIn={() => { haptic.select(); setTitle(providerDisplayName(p, language)); setProviderSuggestions([]); }}
                           style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingVertical: S.smd, borderBottomWidth: 1, borderBottomColor: theme.separator }}
                           activeOpacity={0.7}
                         >
                           <AppIcon Icon={p.icon} color={p.color} size={28} radius={R.sm} iconSize={ICON.sm} />
-                          <Text style={{ fontSize: F.body, fontWeight: '500', color: theme.onSurface }}>{p.name}</Text>
+                          <Text style={{ fontSize: F.body, fontWeight: '500', color: theme.onSurface }}>{providerDisplayName(p, language)}</Text>
                         </Touchable>
                       ))}
                     </View>

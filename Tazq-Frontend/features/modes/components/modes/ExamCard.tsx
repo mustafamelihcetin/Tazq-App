@@ -57,6 +57,10 @@ function ExamDatePicker({ value, onPick, onClose }: { value: Date; onPick: (iso:
   const { isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const calendarScale = useCalScale();
+  // bkz. SporCard'daki SporDatePicker'daki aynı not: iOS inline takvim açılır
+  // açılmaz `value`'yu zaten seçili gösteriyor ama onChange kullanıcı dokunana
+  // kadar ateşlenmiyor — görünen ile kayıtlı durumu mount'ta eşitliyoruz.
+  useEffect(() => { onPick(toDateKey(value)); }, []);
   return (
     <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH * calendarScale, height: 320 * calendarScale, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: S.xs } : { alignSelf: 'center', marginVertical: S.xs }}>
       <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH, height: 320, transform: [{ scale: calendarScale }], justifyContent: 'center', alignItems: 'center' } : undefined}>
@@ -347,7 +351,16 @@ function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview
             <Touchable onPress={() => setExpanded(false)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
               <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
             </Touchable>
-            {complete && (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview({ templateId: levelTemplateIdFromMinutes(dailyMinutes ?? preset?.defaultDailyMinutes), examSlot: slot, examTipTr: preset?.tipTr, examTipEn: preset?.tipEn, examName: name, examDate: date }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><BookOpen size={ICON.xs} color={ACCENT_ON} /><Text style={{ color: ACCENT_ON, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
+            {/* Kurulum bitmediyse dugme SESSIZCE KAYBOLMAZ — ne eksik oldugu yazar (bkz. ana sınav slotundaki aynı düzeltme). */}
+            {complete ? (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview({ templateId: levelTemplateIdFromMinutes(dailyMinutes ?? preset?.defaultDailyMinutes), examSlot: slot, examTipTr: preset?.tipTr, examTipEn: preset?.tipEn, examName: name, examDate: date }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><BookOpen size={ICON.xs} color={ACCENT_ON} /><Text style={{ color: ACCENT_ON, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>) : (
+              <View style={{ flex: 2, alignItems: 'center', justifyContent: 'center', paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)' }}>
+                <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption }}>
+                  {!name.trim() || !preset ? (tr ? 'Önce sınavı seç' : 'Pick the exam first')
+                    : !date ? (tr ? 'Sınav tarihini seç' : 'Pick the exam date')
+                    : (tr ? 'Günlük süreni seç' : 'Pick your daily time')}
+                </Text>
+              </View>
+            )}
           </View>
         </FormReveal>
       )}

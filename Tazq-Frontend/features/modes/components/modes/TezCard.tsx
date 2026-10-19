@@ -4,10 +4,10 @@
  * Sadece UI state'i (expand, date picker) lokal. Önizleme/apply akışı modlar'da
  * merkezi olduğundan `onOpenPreview` prop'u ile tetiklenir.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Switch, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { ChevronRight, CalendarDays, GraduationCap, Sparkles } from 'lucide-react-native';
+import { ChevronRight, CalendarDays, GraduationCap, Sparkles, BookOpen } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '../../store/usePrefsStore';
@@ -36,7 +36,7 @@ import { TEZ_AREAS } from '@/shared/utils/weakAreas';
 const BASE_CALENDAR_WIDTH = 340;
 
 export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
-  const { accent: TEZ, accentText: TEZ_TX } = useModeAccent('tez');
+  const { accent: TEZ, accentText: TEZ_TX, onAccent: TEZ_ON } = useModeAccent('tez');
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
@@ -75,6 +75,12 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   // kaydedilenden bir gün ERKEN açılmış gösterirdi (bkz. planTaskOps.ts formatPlanDate notu).
   const dateObj = date ? parseDateKey(date) : new Date(Date.now() + 90 * 86400000);
   const accent = TEZ;
+  // bkz. SporCard/ExamCard/MulakatCard'daki aynı not: iOS inline takvim açılır
+  // açılmaz `dateObj`'u zaten seçili gösteriyor ama onChange kullanıcı dokunana
+  // kadar ateşlenmiyor — görünen ile kayıtlı durumu picker açılır açılmaz eşitliyoruz.
+  useEffect(() => {
+    if (showDatePicker && !date) setSeasonalPref('tezDate', toDateKey(dateObj));
+  }, [showDatePicker]);
 
   // Bugünkü ilerleme (alışkanlık + bugün vadeli/tamamlanan plan görevi).
   const todayKey = fmtDateKey();
@@ -252,19 +258,26 @@ clearPlanIds('tez');
                 placeholder={tr ? 'Eklemek istediğin bir şey var mı? (opsiyonel)' : 'Anything else to add? (optional)'}
                 maxLength={140}
               />
-              <Touchable
-                onPress={() => {
-                  haptic.select();
-                  setExpanded(false);
-                  if (isComplete && !hasPlan) {
-                    onOpenPreview();
-                  }
-                }}
-                style={{ alignSelf: 'flex-end', paddingHorizontal: S.md, paddingVertical: S.xs }}
-                activeOpacity={0.7}
-              >
-                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bitti' : 'Done'}</Text>
-              </Touchable>
+              <View style={{ flexDirection: 'row', gap: S.sm }}>
+                <Touchable onPress={() => setExpanded(false)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
+                  <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
+                </Touchable>
+                {/* Kurulum bitmediyse dugme SESSIZCE KAYBOLMAZ — ne eksik oldugu yazar (bkz. ExamCard'daki ayni duzeltme). */}
+                {hasPlan ? (
+                  <Touchable onPress={() => setExpanded(false)} style={{ flex: 2, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm + 2, backgroundColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }} activeOpacity={0.7}>
+                    <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Bitti' : 'Done'}</Text>
+                  </Touchable>
+                ) : isComplete ? (
+                  <Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview(); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: TEZ, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}>
+                    <BookOpen size={ICON.sm} color={TEZ_ON} />
+                    <Text style={{ color: TEZ_ON, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text>
+                  </Touchable>
+                ) : (
+                  <View style={{ flex: 2, alignItems: 'center', justifyContent: 'center', paddingVertical: S.sm + 2, borderRadius: R.full, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)' }}>
+                    <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption }}>{!name.trim() ? (tr ? 'Önce proje adı gir' : 'Enter the project name first') : (tr ? 'Teslim tarihini seç' : 'Pick the deadline')}</Text>
+                  </View>
+                )}
+              </View>
             </FormReveal>
           )}
         </View>

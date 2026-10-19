@@ -264,7 +264,7 @@ const ROLE_CEILING: Record<string, number> = {
   'features/modes/components/modes/RamazanCard.tsx': 2,
   'features/modes/components/modes/SporCard.tsx': 16,
   'features/modes/components/modes/TasarrufCard.tsx': 9, // +1 (2026-10-19): harcama-alanı çipi
-  'features/modes/components/modes/TezCard.tsx': 6,
+  'features/modes/components/modes/TezCard.tsx': 8, // +2 (2026-10-19): "Bitti" linki, TasarrufCard'daki gibi hep-görünür+nedenli "Planı Seç" butonuna çevrildi (Kapat + Planı Seç/ipucu)
   'features/modes/components/WeakAreaPicker.tsx': 1, // (2026-10-19): yeni ortak bileşen — zayıf-alan çipi
   'features/tasks/components/TaskFormModal.tsx': 22,
   'features/user/components/MomentumPulse.tsx': 3,

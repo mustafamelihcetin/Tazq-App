@@ -986,10 +986,10 @@ const TEMPLATE_MULAKAT_BEHAVIORAL = (company = 'Şirket'): StudyTemplate => ({
       priority: 'High' 
     },
     { 
-      titleTr: '5 adet STAR hikayesi yaz', 
-      titleEn: 'Write 5 STAR stories', 
-      descTr: 'Geçmiş projelerinizden başarı ve kriz durumlarını anlatan, STAR metoduna uygun 5 adet mülakat hikayesi hazırlayın.',
-      descEn: 'Draft 5 behavior stories using the STAR method highlighting leadership, conflict resolution, or success.',
+      titleTr: '5 adet STAR hikayesi yaz (Durum-Görev-Eylem-Sonuç)',
+      titleEn: 'Write 5 STAR stories (Situation-Task-Action-Result)',
+      descTr: 'Geçmiş projelerinizden 5 başarı/kriz anısını şu sırayla yazın: Durum (ne oldu) → Görev (senin sorumluluğun) → Eylem (ne yaptın) → Sonuç (ne değişti). Mülakatta sorulan "bir zamanlar zorlandığın..." tarzı sorulara bu hikayelerle cevap vereceksin.',
+      descEn: 'Write 5 success/crisis stories from your past, in this order: Situation (what happened) → Task (your responsibility) → Action (what you did) → Result (what changed). These answer "tell me about a time..." questions.',
       priority: 'High' 
     },
     { 
@@ -1115,7 +1115,7 @@ const TEMPLATE_MULAKAT_SPRINT = (company = 'Şirket'): StudyTemplate => ({
   dailyGoalMinutes: 60,
   habits: [
     { name: 'Mock Mülakat', nameTr: 'Günlük mock mülakat (sesli/video)', emoji: '🎙️', color: CategoryColors.red },
-    { name: 'STAR Tekrar', nameTr: 'STAR hikayelerini sesli tekrar et', emoji: '⭐', color: CategoryColors.amber },
+    { name: 'STAR Tekrar', nameTr: 'STAR hikayelerini (Durum-Görev-Eylem-Sonuç) sesli tekrar et', emoji: '⭐', color: CategoryColors.amber },
     { name: 'Şirket Tarama', nameTr: 'Son dakika şirket/sektör haberleri', emoji: '🔍', color: CategoryColors.green },
   ],
   tasks: [
@@ -1127,8 +1127,8 @@ const TEMPLATE_MULAKAT_SPRINT = (company = 'Şirket'): StudyTemplate => ({
       priority: 'High' 
     },
     { 
-      titleTr: '3 STAR hikayesini sesli prova et', 
-      titleEn: 'Rehearse 3 STAR stories', 
+      titleTr: '3 STAR hikayesini (Durum-Görev-Eylem-Sonuç) sesli prova et',
+      titleEn: 'Rehearse 3 STAR stories (Situation-Task-Action-Result)',
       descTr: 'En güvendiğiniz 3 adet STAR hikayesini sesli olarak anlatın ve mülakat süresine uygunluğunu (maksimum 2-3 dakika) süre tutarak test edin.',
       descEn: 'Practice telling your top 3 STAR stories out loud while timing them to ensure they stay under 3 minutes.',
       priority: 'High' 
@@ -1217,17 +1217,24 @@ export function localizeSporGoal(goal: string | null | undefined, tr: boolean): 
   return stripLeadingEmoji(g);
 }
 
+/*
+  Jargon TEK BAŞINA yetmiyor. "Push" / "Pull" / "Legs" fitness jargonuna aşina
+  olmayan bir kullanıcı için anlamsız — hangi hareketi yapacağını SÖYLEMİYOR.
+  3 günlük split parantez içinde kas grubunu zaten açıklıyordu, 4 ve 5 günlük
+  split'ler açıklamasızdı. Liste kartında SADECE başlık görünüyor (açıklama
+  yalnız göreve dokunulunca açılıyor), o yüzden açıklama başlığın İÇİNDE olmalı.
+*/
 // Returns the split label for a given day count and day index (0-based Mon)
 function splitDay(days: number, idx: number, lang: 'tr' | 'en'): string {
   const splits3 = lang === 'tr'
     ? ['Push (Göğüs·Omuz·Triceps)', 'Pull (Sırt·Biceps)', 'Legs (Bacak·Core)']
     : ['Push (Chest·Shoulders·Triceps)', 'Pull (Back·Biceps)', 'Legs (Legs·Core)'];
   const splits4 = lang === 'tr'
-    ? ['Push', 'Pull', 'Legs', 'Üst Vücut']
-    : ['Push', 'Pull', 'Legs', 'Upper Body'];
+    ? ['Push (Göğüs·Omuz·Triceps)', 'Pull (Sırt·Biceps)', 'Legs (Bacak·Core)', 'Üst Vücut (Göğüs·Sırt·Omuz)']
+    : ['Push (Chest·Shoulders·Triceps)', 'Pull (Back·Biceps)', 'Legs (Legs·Core)', 'Upper Body (Chest·Back·Shoulders)'];
   const splits5 = lang === 'tr'
-    ? ['Push', 'Pull', 'Legs', 'Push (hafif)', 'Pull (hafif)']
-    : ['Push', 'Pull', 'Legs', 'Push (light)', 'Pull (light)'];
+    ? ['Push (Göğüs·Omuz·Triceps)', 'Pull (Sırt·Biceps)', 'Legs (Bacak·Core)', 'Push (hafif, Göğüs·Omuz)', 'Pull (hafif, Sırt·Biceps)']
+    : ['Push (Chest·Shoulders·Triceps)', 'Pull (Back·Biceps)', 'Legs (Legs·Core)', 'Push (light, Chest·Shoulders)', 'Pull (light, Back·Biceps)'];
   const arr = days === 3 ? splits3 : days === 4 ? splits4 : splits5;
   return arr[idx % arr.length];
 }
@@ -1542,6 +1549,8 @@ function buildGucTemplate(inputs: SporInputs, days: number, goalType: SporType):
     {
       titleTr: `Split programını kaydet ve ilk seansı başlat: ${splitListTr} sırasıyla devam et`,
       titleEn: `Save your split program and start the first session: continue in order ${splitListEn}`,
+      descTr: `Push = İTEN hareketler (bench press, shoulder press, triceps pushdown). Pull = ÇEKEN hareketler (barfiks/lat pulldown, kürek çekme, biceps curl). Legs = BACAK/CORE hareketleri (squat, leg press, plank). Her ana harekette 3 set × 8-12 tekrar ile başla.`,
+      descEn: `Push = pushing moves (bench press, shoulder press, triceps pushdown). Pull = pulling moves (pull-ups/lat pulldown, rows, biceps curl). Legs = leg/core moves (squat, leg press, plank). Start each main lift with 3 sets × 8-12 reps.`,
       priority: 'High',
     },
     {
@@ -1570,6 +1579,8 @@ function buildGucTemplate(inputs: SporInputs, days: number, goalType: SporType):
     {
       titleTr: `Split programını kaydet: ${splitListTr} sırasıyla devam et`,
       titleEn: `Save your split program: continue in order ${splitListEn}`,
+      descTr: `Push = İTEN hareketler (bench press, shoulder press, triceps pushdown). Pull = ÇEKEN hareketler (barfiks/lat pulldown, kürek çekme, biceps curl). Legs = BACAK/CORE hareketleri (squat, leg press, plank). Her ana harekette 3 set × 8-12 tekrar ile başla.`,
+      descEn: `Push = pushing moves (bench press, shoulder press, triceps pushdown). Pull = pulling moves (pull-ups/lat pulldown, rows, biceps curl). Legs = leg/core moves (squat, leg press, plank). Start each main lift with 3 sets × 8-12 reps.`,
       priority: 'Medium',
     },
     {

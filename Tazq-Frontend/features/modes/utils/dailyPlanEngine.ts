@@ -234,7 +234,7 @@ const MULAKAT_POOLS: Record<MulakatBand, Pool> = {
     { tr: '{name}: temel teknik/konu çalışmasına 45 dk ayır', en: '{name}: spend 45 min on core technical/topic study' },
   ],
   mid: [
-    { tr: '{name}: bugün 1 STAR hikayesi yaz ve sesli anlat', en: '{name}: write and say aloud 1 STAR story today' },
+    { tr: '{name}: bugün 1 STAR hikayesi yaz (Durum-Görev-Eylem-Sonuç) ve sesli anlat', en: '{name}: write 1 STAR story (Situation-Task-Action-Result) today and say it aloud' },
     { tr: '{name}: olası mülakat sorularından 3\'üne yazılı cevap hazırla', en: '{name}: prep written answers to 3 likely interview questions' },
   ],
   near: [

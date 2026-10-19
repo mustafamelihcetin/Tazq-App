@@ -132,12 +132,12 @@ const BASELINE: Record<string, number> = {
   'features/modes/components/TurkishModeBanner.tsx': 103,
   'features/modes/components/WeightEntryModal.tsx': 11,
   'features/modes/components/modes/BirakmaCard.tsx': 34, // +2 (2026-10-19): "en büyük tetikleyicin ne?" sorusu + kişisel not placeholder'ı
-  'features/modes/components/modes/ExamCard.tsx': 64,
-  'features/modes/components/modes/MulakatCard.tsx': 37,
+  'features/modes/components/modes/ExamCard.tsx': 66, // +2 (2026-10-19): ikincil sınav slotunda "Planı Seç" butonu artık sessizce kaybolmuyor, eksik alanı nedenli söylüyor
+  'features/modes/components/modes/MulakatCard.tsx': 41, // +4 (2026-10-19): ana + ikincil mülakat slotlarında "Planı Seç" butonu artık sessizce kaybolmuyor, eksik alanı nedenli söylüyor
   'features/modes/components/modes/RamazanCard.tsx': 14, // +1 (2026-10-19): kişisel not placeholder'ı
-  'features/modes/components/modes/SporCard.tsx': 86, // +1 (2026-10-19): zayıf-alan sorusu etiketi
+  'features/modes/components/modes/SporCard.tsx': 100, // +1 (2026-10-19): zayıf-alan sorusu etiketi // +14 (2026-10-19): ana + ikincil spor slotlarında "Planı Seç" butonu artık sessizce kaybolmuyor, eksik alanı nedenli söylüyor
   'features/modes/components/modes/TasarrufCard.tsx': 44, // +2 (2026-10-19): "nerede fazladan harcıyorsun?" sorusu + kişisel not placeholder'ı // +1 (2026-10-19): "önce hedef türünü seç" hata ipucu düzeltmesi
-  'features/modes/components/modes/TezCard.tsx': 24,
+  'features/modes/components/modes/TezCard.tsx': 28, // +4 (2026-10-19): "Bitti" linki, TasarrufCard'daki gibi hep-görünür+nedenli "Planı Seç" butonuna çevrildi
   'features/modes/hooks/useActivityHealthSync.ts': 1,
   'features/modes/utils/dailyPlanEngine.ts': 1,
   'features/modes/utils/modeHelpers.ts': 7,
