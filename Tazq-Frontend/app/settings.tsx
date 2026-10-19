@@ -388,6 +388,14 @@ export default function SettingsScreen() {
       <ScreenHeader onBack={() => router.back()} title={catTitle} scrollY={scrollY} />
 
       <Animated.ScrollView ref={scrollRef} onScroll={onScroll} scrollEventThrottle={16} onContentSizeChange={tryScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl, width: '100%', maxWidth: contentW, alignSelf: 'center' }}>
+            {/*
+              ÖDEMELER BURADAN KALDIRILDI (2026-10-19) — bu ekranın `/settings` yolu
+              HER ZAMAN bir `section` parametresiyle çağrılıyor (Profil'deki 4 kategori
+              satırı, bkz. app/profile.tsx). Kapsamsız (`!section`) tam sayfa görünümü
+              UYGULAMANIN HİÇBİR YERİNDEN linklenmiyor — yani buraya konan her şey
+              fiilen ulaşılamaz. Gerçek giriş noktası artık Profil ekranındaki
+              "AYARLAR" listesinin 5. satırı (bkz. o dosyadaki not).
+            */}
             {show('notify') && (<>
             {/* ── BİLDİRİMLER ── */}
             <SectionHeader onLayout={e => markSection('notify', e.nativeEvent.layout.y)} title={language === 'tr' ? 'BİLDİRİMLER' : 'NOTIFICATIONS'} theme={theme} tr={language === 'tr'} />

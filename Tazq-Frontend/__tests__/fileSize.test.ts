@@ -67,7 +67,7 @@ const KNOWN_LARGE: Record<string, number> = {
   */
   // 860 → 870: misafirin "cihazdaki verileri sil" metinleri (iki dil).
   // 870 → 874: tasarruf ve bırakma da birer mod adı — özet ikisini hiç görmüyordu.
-  'shared/constants/i18n.ts': 968, // +38: onboarding "şu an neyle uğraşıyorsun?" sorusunun tr/en metinleri // +6: hızlı eklemede Bugün/Yarın chip metinleri // +50 (2026-10-18): payments sözlüğü (app/odemeler.tsx + PaymentsSummaryCard — i18nRatchet'in yeni-dosya kuralı yüzünden inline ternary yerine burada)
+  'shared/constants/i18n.ts': 990, // +38: onboarding "şu an neyle uğraşıyorsun?" sorusunun tr/en metinleri // +6: hızlı eklemede Bugün/Yarın chip metinleri // +50 (2026-10-18): payments sözlüğü (app/odemeler.tsx + PaymentsSummaryCard — i18nRatchet'in yeni-dosya kuralı yüzünden inline ternary yerine burada) // +18 (2026-10-19): ödeme ekleme formu baştan tasarımı (bölüm başlıkları, tostlar) + aciliyet kartı metinleri // +2 (2026-10-19): "ayın kaçında ödenir?" gün gridi sorusu // +2 (2026-10-19): "bu ay toplam" özet metni
   // 2820 → 2817: baştaki emojiyi silen üç ayrı uygulamadan ikisi (biri hatalıydı,
   // \p{Emoji} rakamları da yiyordu) shared/utils/emoji.ts'e indi.
   // 2817 → 2820: YKS/KPSS/Ramazan'ın DİL kapısı (İngilizce arayüzde takvimle
@@ -316,7 +316,7 @@ const KNOWN_LARGE: Record<string, number> = {
   */
   // 1233 → 1214: başlık işleyicisi taslak denetimine (features/tasks/nlp/draft) devredildi.
   // 1214 → 1215: hazır etiketlerin dili ortak yardımcıdan (langOf) — satır içi dil dallanması yok.
-  'features/tasks/components/TaskFormModal.tsx': 1257, // +42: yerel-gün tarih ayrıştırma, ay-sonu kenetleme, saat/tarih tutarlılığı, alt-görev mutasyon düzeltmesi
+  'features/tasks/components/TaskFormModal.tsx': 1269, // +42: yerel-gün tarih ayrıştırma, ay-sonu kenetleme, saat/tarih tutarlılığı, alt-görev mutasyon düzeltmesi // +12 (2026-10-19): başlık/açıklama/alt-görev kutularının HER YERİ odaklamalı (Pressable+ref, bkz. ModeField.tsx'teki aynı düzeltme)
   // 1150 → 1180: planın KULLANICI SEÇMEDEN başlamasını engelleyen kapı. Üretim koşulu
   // birçok modda yalnız "mod açık + ad + tarih" idi; tarih girilir girilmez plan uygulanmış
   // sayılıp kart bölüm değiştiriyor, yeniden kurulup kapanıyordu. Artış dokuz koşula
@@ -336,12 +336,12 @@ const KNOWN_LARGE: Record<string, number> = {
   // trophy ikonu tema token'larına bağlandı.
   // 899 → 919: başarım önizlemesi en son kazanılana göre sıralanıyor (recency),
   // kazanılmış madalyada kupa ışıltısı (MedalShine deseni).
-  'app/profile.tsx': 923, // +4: cinsiyet çipine yeniden dokunma avatarı ezmesin, çerçeve rengi erişilebilirlik durumu düzeltildi
+  'app/profile.tsx': 939, // +4: cinsiyet çipine yeniden dokunma avatarı ezmesin, çerçeve rengi erişilebilirlik durumu düzeltildi // +16 (2026-10-19): "AYARLAR" listesine Ödemeler satırı — gerçek, ulaşılabilir giriş noktası (bkz. o dosyadaki not)
   'shared/constants/legal.ts': 893,
   // İlk kez 800 satırı geçti: admin panelinin Ürün İçgörüleri tipleri
   // (AdminModeAdoption/AdminRetentionCohort/AdminVersionShare) + X-App-Version
   // başlığı eklendi. API katmanı doğası gereği büyür — her uç nokta bir satır.
-  'shared/services/api.ts': 929, // +19: anonim kurulum ping'i + admin audience istemcisi // +13: otomatik tekrar yalnız idempotent metodlarda (POST/PATCH çift kayıt riski) // +26: ERR_NETWORK için "çevrimdışı" demeden önce tek seferlik hızlı yeniden deneme (soğuk başlatma yarışı) // +39 (2026-10-18): PaymentService (ödeme takibi — görevlerden ayrı yüzey)
+  'shared/services/api.ts': 940, // +19: anonim kurulum ping'i + admin audience istemcisi // +13: otomatik tekrar yalnız idempotent metodlarda (POST/PATCH çift kayıt riski) // +26: ERR_NETWORK için "çevrimdışı" demeden önce tek seferlik hızlı yeniden deneme (soğuk başlatma yarışı) // +39 (2026-10-18): PaymentService (ödeme takibi — görevlerden ayrı yüzey) // +11 (2026-10-19): pingInstall'a eksik X-App-Signature başlığı eklendi (önceden var olan 403 hatası)
   // İlk kez 800 satırı geçti: duraklatma + geçmiş hedefler + bulut/yerel bozuk
   // veriye karşı tek nokta koruma (bkz. PLAN_ID_KEYS/sanitizePlanIds). Sözlük gibi
   // değil, bölünebilir — bir sonraki büyüme bu dosyayı gerçekten küçültmeli.
@@ -378,7 +378,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // 911 → 925: misafirde "Hesabımı Sil" yerine "Bu cihazdaki verileri sil" (onaylı).
   // 925 → 928: Admin Paneli düğmesindeki ham indigo hex, zaten var olan A.system
   // token'ına bağlandı (iki ayrı kopya aynı rengi taşıyordu).
-  'app/settings.tsx': 928,
+  'app/settings.tsx': 947, // +16 (2026-10-19): Ödemeler'e kalıcı giriş satırı (bkz. PaymentsSummaryCard'ın artık yalnız aciliyet anında görünmesi) // +3 (2026-10-19): satıra kendi bölüm başlığı — Bildirimler'in altına yapışık görünüyordu
   // Turun 5 sayfasının (dashboard/tasks/focus/modlar/cockpit) HER adımı için gerçek
   // bileşenlerden kurulan bir mockup çiziyor — doğası gereği uzun, bölünmesi bu
   // switch-case yapısını bozardı. 800'ü ilk kez geçti: turun güncellik denetiminde

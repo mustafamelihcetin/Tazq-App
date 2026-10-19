@@ -108,7 +108,7 @@ const BASELINE: Record<string, number> = {
   'app/mod-ozet.tsx': 22,
   'app/modlar.tsx': 66,
   'app/onboarding.tsx': 21,
-  'app/profile.tsx': 44,
+  'app/profile.tsx': 46, // +2 (2026-10-19): Ödemeler satırının label/sub metinleri
   // promo.tsx LİSTEDEN ÇIKTI (47 → 6 → 0): önce mock ekranların bütün metinleri tek
   // sözlüğe taşındı (COPY, bkz. PromoMock.tsx), sonra tanıtım kabuğunun kendi düğme
   // etiketleri de (UI). Slayt metinleri zaten SlideDef alanlarından geliyor.
@@ -136,7 +136,7 @@ const BASELINE: Record<string, number> = {
   'features/modes/components/modes/MulakatCard.tsx': 37,
   'features/modes/components/modes/RamazanCard.tsx': 14, // +1 (2026-10-19): kişisel not placeholder'ı
   'features/modes/components/modes/SporCard.tsx': 86, // +1 (2026-10-19): zayıf-alan sorusu etiketi
-  'features/modes/components/modes/TasarrufCard.tsx': 43, // +2 (2026-10-19): "nerede fazladan harcıyorsun?" sorusu + kişisel not placeholder'ı
+  'features/modes/components/modes/TasarrufCard.tsx': 44, // +2 (2026-10-19): "nerede fazladan harcıyorsun?" sorusu + kişisel not placeholder'ı // +1 (2026-10-19): "önce hedef türünü seç" hata ipucu düzeltmesi
   'features/modes/components/modes/TezCard.tsx': 24,
   'features/modes/hooks/useActivityHealthSync.ts': 1,
   'features/modes/utils/dailyPlanEngine.ts': 1,

@@ -77,6 +77,29 @@ describe('pickSubject — aralıklı tekrar', () => {
   it('returns null for an exam with no subjects', () => {
     expect(pickSubject({ id: 'x', subjects: [] }, {}, 0)).toBeNull();
   });
+
+  it('doubles weight for a subject containing a weak-marked topic — the SUBJECT itself surfaces more often, not just its topic', () => {
+    // Tüm dersler aynı gün çalışılmış (eşit eski) → yalnız ağırlık ayırt eder.
+    const allSameDay: Record<string, SubjectProgress> = {};
+    for (const s of kpss.subjects) allSameDay[s.id] = { lastStudied: '2026-06-20' };
+    let turkceHits = 0;
+    let totalHits = 0;
+    // 'kpss_turkce_paragraf' Türkçe dersinin bir konusu (bkz. BASELINE_CURRICULUM).
+    for (let d = 0; d < 90; d++) {
+      const picked = pickSubject(kpss, allSameDay, d, ['kpss_turkce_paragraf']);
+      if (picked) {
+        totalHits++;
+        if (picked.id === 'kpss_turkce') turkceHits++;
+      }
+    }
+    const expectedShareWithoutWeak = 1 / kpss.subjects.length;
+    expect(turkceHits / totalHits).toBeGreaterThan(expectedShareWithoutWeak);
+  });
+
+  it('weakTopicIds omitted/empty → identical behavior to before (backward compatible)', () => {
+    const progress: Record<string, SubjectProgress> = { kpss_turkce: { lastStudied: '2026-06-01' } };
+    expect(pickSubject(kpss, progress, 3, undefined)!.id).toBe(pickSubject(kpss, progress, 3, [])!.id);
+  });
 });
 
 describe('setCurriculum — sürüm geçişli remote override', () => {

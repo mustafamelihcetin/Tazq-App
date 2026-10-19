@@ -7,7 +7,7 @@ import { track } from '@/shared/utils/analytics';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, FileText, MessageSquare, Send, Settings } from 'lucide-react-native';
+import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, FileText, MessageSquare, Send, Settings, Wallet } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { AuthService, FocusService } from '@/shared/services/api';
 import { SleepHealth } from '@/shared/services/sleepHealth';
@@ -563,6 +563,22 @@ export default function ProfileScreen() {
                 label={language === 'tr' ? 'Hesap, Yasal & Destek' : 'Account, Legal & Support'}
                 sub={language === 'tr' ? 'Gizlilik, koşullar, çıkış, destek' : 'Privacy, terms, logout, support'}
                 onPress={() => router.push({ pathname: '/settings', params: { section: 'legal' } })}
+                theme={theme}
+              />
+              {/*
+                ÖDEMELER — bir AYAR değil, bir ÖZELLİK; yine de bu listenin dışında
+                gerçek bir giriş noktası yoktu (eski yer: /settings'in kapsamsız
+                görünümü — ulaşılamaz çıktı, bkz. app/settings.tsx'teki not). Buradaki
+                dört kategori satırı Profil'den TEK tıkla erişilen ŞEY bu; en doğal yer.
+                `/odemeler`e DİREKT gider — settings.tsx'in section mantığına girmez.
+              */}
+              <RowDivider theme={theme} />
+              <SettingItem
+                icon={<Wallet size={ICON.md} color="#FFFFFF" />}
+                bg={A.payments}
+                label={language === 'tr' ? 'Ödemeler' : 'Payments'}
+                sub={language === 'tr' ? 'Faturalar ve ödeme hatırlatıcıları' : 'Bills and payment reminders'}
+                onPress={() => router.push('/odemeler')}
                 theme={theme}
               />
             </SettingsCard>

@@ -296,6 +296,118 @@ export const CategoryColors = {
 export type CategoryColor = typeof CategoryColors[keyof typeof CategoryColors];
 
 /**
+ * Bilinen fatura/abonelik sağlayıcılarının AYIRT EDİCİ rengi (bkz. shared/utils/
+ * paymentProviders.ts). CategoryColors'tan farkı: on sabit ton yetmez — onlarca
+ * sağlayıcı, her biri kendi kimliğini taşımalı (İGDAŞ turuncu, Turkcell sarı,
+ * Netflix kırmızı…). Gerçek marka logosu DEĞİL (paymentProviders.ts başlığına bkz.)
+ * — yalnız kavram ikonunun rengi. Tek tondur (CategoryColors gibi, ModeAccents'in
+ * aksine açık/koyu ayrımı yok) çünkü kalıcı veriye yazılmaz, her render'da sağlayıcı
+ * id'sinden türer.
+ */
+export const PaymentProviderColors = {
+  // Doğalgaz — turuncu/kehribar ailesi
+  igdas: '#EA580C',
+  baskentgaz: '#EA580C',
+  kayserigaz: '#EA580C',
+  bursagaz: '#EA580C',
+  izgaz: '#EA580C',
+  // Elektrik — amber ailesi
+  bedas: '#D97706',
+  ayedas: '#D97706',
+  ckBogazici: '#D97706',
+  enerjisa: '#D97706',
+  baskentEdas: '#D97706',
+  akdenizElektrik: '#D97706',
+  osmangazi: '#D97706',
+  // Su — camgöbeği ailesi
+  iski: '#0891B2',
+  aski: '#0891B2',
+  buski: '#0891B2',
+  izsu: '#0891B2',
+  // Mobil hat
+  turkcell: '#EAB308',
+  vodafone: '#DC2626',
+  turkTelekom: '#2563EB',
+  // İnternet — mor/sarı/mavi (operatörden ayırmak için farklı aile)
+  turknet: '#7C3AED',
+  superonline: '#EAB308',
+  ttnet: '#2563EB',
+  millenicom: '#7C3AED',
+  vodafoneNet: '#DC2626',
+  // Video/TV aboneliği — kırmızı/mavi/koyu ailesi
+  netflix: '#DC2626',
+  disneyPlus: '#2563EB',
+  exxen: '#111827',
+  blutv: '#2563EB',
+  amazonPrime: '#2563EB',
+  youtubePremium: '#DC2626',
+  beinConnect: '#111827',
+  digiturk: '#111827',
+  gain: '#DC2626',
+  mubi: '#111827',
+  tabii: '#2563EB',
+  tivibu: '#2563EB',
+  sSport: '#DC2626',
+  dSmart: '#111827',
+  puhutv: '#EA580C',
+  // Müzik aboneliği — yeşil/kırmızı
+  spotify: '#16A34A',
+  appleMusic: '#DC2626',
+  youtubeMusic: '#DC2626',
+  fizy: '#16A34A',
+  // Bulut & üretkenlik — indigo/mor ailesi
+  icloud: '#2563EB',
+  googleOne: '#2563EB',
+  microsoft365: '#2563EB',
+  adobeCc: '#DC2626',
+  dropbox: '#2563EB',
+  canva: '#7C3AED',
+  notion: '#111827',
+  // Yapay zeka abonelikleri — mor/kehribar
+  chatgptPlus: '#16A34A',
+  claudePro: '#D97706',
+  geminiAdvanced: '#2563EB',
+  perplexityPro: '#0891B2',
+  githubCopilot: '#111827',
+  midjourney: '#111827',
+  // VPN / gizlilik abonelikleri
+  nordvpn: '#2563EB',
+  expressvpn: '#DC2626',
+  // Sesli kitap / podcast aboneliği
+  audible: '#EA580C',
+  storytel: '#7C3AED',
+  // Eğitim platformları (kurumsal/online)
+  coursera: '#2563EB',
+  linkedinLearning: '#2563EB',
+  // Bulut depolama
+  mega: '#DC2626',
+  pcloud: '#2563EB',
+  // Yayın hizmeti
+  hboMax: '#7C3AED',
+  // Mobil hat
+  pttcell: '#EAB308',
+  // Spor salonu zinciri
+  sportive: '#059669',
+  // Sigorta şirketleri
+  allianz: '#2563EB',
+  axaSigorta: '#DC2626',
+  turkiyeSigorta: '#DC2626',
+  // Oyun abonelikleri — indigo ailesi
+  playstationPlus: '#2563EB',
+  xboxGamePass: '#16A34A',
+  nintendoOnline: '#DC2626',
+  steam: '#111827',
+  // Alışveriş aboneliği
+  trendyolPremium: '#EA580C',
+  hepsiburadaPremium: '#EA580C',
+  // Spor/eğitim/sigorta — yaygın diğer abonelik türleri
+  gym: '#059669',
+  education: '#7C3AED',
+  udemy: '#7C3AED',
+  insurance: '#0891B2',
+} as const;
+
+/**
  * Mod vurgu renkleri — her dönemsel modun kimliği (Ramazan, YKS, Tez, Mülakat, Spor…).
  *
  * CategoryColors'tan farkı: bunlar KALICI VERİYE YAZILMIYOR, render sırasında moda göre

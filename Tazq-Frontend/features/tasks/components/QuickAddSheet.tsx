@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, Animated, TextInput, StyleSheet, ActivityIndicator, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, Modal, Animated, TextInput, StyleSheet, ActivityIndicator, Platform, Pressable } from 'react-native';
 import { Zap, Sparkles } from 'lucide-react-native';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
@@ -54,6 +54,9 @@ export const QuickAddSheet: React.FC<QuickAddSheetProps> = ({
   visible, onClose, onSave, onDetails, theme, isDark, language, t,
 }) => {
   const [draft, setDraft] = useState('');
+  // Kutunun her yeri odaklamalı, yalnız metnin üstü değil — bkz. ModeField.tsx'teki
+  // AYNI düzeltme (inputGroup'un paddingHorizontal'i TextInput'un kutusu dışında kalır).
+  const inputRef = useRef<TextInput>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [hint, setHint] = useState<NlpHint>(EMPTY_NLP_HINT);
   const [dayChoice, setDayChoice] = useState<DayChoice>(null);
@@ -143,8 +146,9 @@ export const QuickAddSheet: React.FC<QuickAddSheetProps> = ({
               </View>
             </View>
 
-            <View style={[styles.inputGroup, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
+            <Pressable onPress={() => inputRef.current?.focus()} accessible={false} style={[styles.inputGroup, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
               <TextInput
+                ref={inputRef}
                 style={[styles.input, { color: theme.onSurface }]}
                 placeholder={q.placeholder}
                 placeholderTextColor={theme.onSurfaceVariant + '99'}
@@ -156,7 +160,7 @@ export const QuickAddSheet: React.FC<QuickAddSheetProps> = ({
                 accessibilityLabel={q.title}
                 autoFocus
               />
-            </View>
+            </Pressable>
 
             {/* Ayrıştırıcının okudukları — hızlı ekleme kara kutu olmasın. */}
             <NlpHintRow hint={hint} theme={theme} />

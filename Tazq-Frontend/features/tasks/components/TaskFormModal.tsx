@@ -10,7 +10,7 @@
  * MANTIK HİÇ DEĞİŞMEDİ, yalnız yeri değişti.
  */
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Animated as RNAnimated, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Animated as RNAnimated, Keyboard, TouchableWithoutFeedback, Pressable } from 'react-native';
 import { Calendar, Target, Bell, X, Sparkles, Mic, Timer, Repeat, Trash2, Plus, Check } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
@@ -200,6 +200,15 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
   // Motorun bu taslakta neye dokunabileceği: elle seçilen alanlar ve reddedilen etiketler.
   const draftRef = useRef<DraftControl>(EMPTY_DRAFT);
+  /*
+    KUTUNUN HER YERİ ODAKLAMALI, YALNIZ METNİN ÜSTÜ DEĞİL — `inputGroup`'un kendi
+    `paddingHorizontal`i TextInput'un kutusunun DIŞINDA kalıyordu, o şerit hiçbir
+    zaman odaklamıyordu (bkz. ModeField.tsx'teki AYNI düzeltme). Çözüm: dış `View`'ı
+    `Pressable`e çevirip dokununca ref'ten `focus()` çağırmak.
+  */
+  const titleInputRef = useRef<TextInput>(null);
+  const descInputRef = useRef<TextInput>(null);
+  const subtaskInputRef = useRef<TextInput>(null);
   const touch = (...fields: OwnedField[]) => { draftRef.current = markManual(draftRef.current, ...fields); };
 
   // Populate form on edit/create toggle
@@ -506,8 +515,9 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
               </TouchableWithoutFeedback>
               {/* Title Section */}
               <View style={styles.section}>
-                <View style={[styles.inputGroup, { backgroundColor: fieldFill('title'), height: 60 }]}>
+                <Pressable onPress={() => titleInputRef.current?.focus()} accessible={false} style={[styles.inputGroup, { backgroundColor: fieldFill('title'), height: 60 }]}>
                   <TextInput
+                    ref={titleInputRef}
                     style={[styles.modalInput, { color: theme.onSurface, fontSize: F.body }]}
                     placeholder={isListeningTitle ? t.listeningLabel : t.taskTitle}
                     placeholderTextColor={theme.onSurfaceVariant + '99'}
@@ -530,7 +540,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                       <VoiceWave active={isListeningTitle} theme={theme} />
                     </Touchable>
                   </View>
-                </View>
+                </Pressable>
 
                 {hasNlpHint(nlpHint) ? (
                   <NlpHintRow hint={nlpHint} theme={theme} />
@@ -546,8 +556,9 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                 ) : null}
 
                 {/* Description */}
-                <View style={[styles.inputGroup, styles.modalTextArea, { backgroundColor: fieldFill('desc'), marginTop: S.sm, height: 100 }]}>
+                <Pressable onPress={() => descInputRef.current?.focus()} accessible={false} style={[styles.inputGroup, styles.modalTextArea, { backgroundColor: fieldFill('desc'), marginTop: S.sm, height: 100 }]}>
                   <TextInput
+                    ref={descInputRef}
                     style={[styles.modalInput, { color: theme.onSurface, paddingTop: S.sm, fontSize: F.body }]}
                     placeholder={isListeningDesc ? t.listeningLabel : t.taskDescription + '...'}
                     placeholderTextColor={theme.onSurfaceVariant + '99'}
@@ -569,7 +580,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                   >
                     <VoiceWave active={isListeningDesc} theme={theme} />
                   </Touchable>
-                </View>
+                </Pressable>
               </View>
 
               {/* Date & Time Selection */}
@@ -940,8 +951,9 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                 
                 {/* Add Subtask Input */}
                 <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.sm }}>
-                  <View style={[styles.inputGroup, { flex: 1, backgroundColor: fieldFill('subtask'), height: 44 }]}>
+                  <Pressable onPress={() => subtaskInputRef.current?.focus()} accessible={false} style={[styles.inputGroup, { flex: 1, backgroundColor: fieldFill('subtask'), height: 44 }]}>
                     <TextInput
+                      ref={subtaskInputRef}
                       style={{ flex: 1, fontSize: F.caption, color: theme.onSurface, fontWeight: '600' }}
                       placeholder={language === 'tr' ? 'Alt görev ekle...' : 'Add subtask...'}
                       placeholderTextColor={theme.onSurfaceVariant + '80'}
@@ -955,7 +967,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                         setNewSubtaskText('');
                       }}
                     />
-                  </View>
+                  </Pressable>
                   <Touchable
                     accessibilityRole="button"
                     accessibilityLabel={language === 'tr' ? 'Alt görev ekle' : 'Add subtask'}

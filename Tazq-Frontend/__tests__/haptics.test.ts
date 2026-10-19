@@ -182,7 +182,10 @@ describe('yoğunluk', () => {
      * onayı (commit), silme onayı (commit). Hepsi SEÇİM/TAAHHÜT eylemi, aynı desen.
      * → 317 (2026-10-19): TasarrufCard'daki harcama-alanı çipi + BirakmaCard'daki
      * tetikleyici çipi — aynı mantık (seçim anahtarları titreşir).
+     * → 318 (2026-10-19): odemeler.tsx'teki para birimi çipi — aynı mantık.
+     * → 319 (2026-10-19): odemeler.tsx'teki gün gridi çipi (1-31) — aynı mantık.
+     * → 320 (2026-10-19): odemeler.tsx'teki sağlayıcı önerisi satırı seçimi — aynı mantık.
      */
-    expect(hap).toBeLessThanOrEqual(317);
+    expect(hap).toBeLessThanOrEqual(320);
   });
 });

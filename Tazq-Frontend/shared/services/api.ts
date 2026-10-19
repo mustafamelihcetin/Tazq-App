@@ -851,9 +851,20 @@ export interface StoreChannelStatus {
   ratingCount: number | null;
 }
 
-/** Misafir kapısının DIŞINDA: anonim kurulum sayımı, misafirken de çalışmalı. */
+/**
+ * Misafir kapısının DIŞINDA: anonim kurulum sayımı, misafirken de çalışmalı.
+ *
+ * ÖNCEDEN VAR OLAN HATA (bu değişiklikle düzeltildi): sunucudaki imza middleware'i
+ * (Program.cs, production'da) `X-App-Signature` başlığı olmayan HER isteği 403'e
+ * düşürüyor — bu çağrı `api` örneğini değil ÇIPLAK `axios.post`u kullandığından
+ * başlık hiç eklenmiyordu. Sonuç sessizce yutuluyordu (`swallow('installPing', e)`),
+ * yani çökme yoktu ama misafir kurulum sayımı başından beri eksik kalıyordu.
+ */
 export async function pingInstall(installId: string, platform: 'ios' | 'android'): Promise<void> {
-  await axios.post(`${BASE_URL}/api/telemetry/install`, { installId, platform }, { timeout: 10000 });
+  await axios.post(`${BASE_URL}/api/telemetry/install`, { installId, platform }, {
+    timeout: 10000,
+    headers: { 'X-App-Signature': 'tazq-expo-frontend' },
+  });
 }
 
 export const AdminSystemService = {

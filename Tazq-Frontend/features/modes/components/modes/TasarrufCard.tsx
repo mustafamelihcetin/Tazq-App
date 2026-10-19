@@ -104,8 +104,10 @@ export function TasarrufCard() {
     (computedTarget > computedStart) // birikim: hedef, mevcut birikimden büyük olmalı
   );
   // "Planı Uygula" pasifse NEDENİNİ söyle — sessiz pasif buton kafa karıştırıyordu.
+  // SIRA ÖNEMLİ: tür seçilmeden süre/tutar ipuçları anlamsız — önce tür sorulur.
   const disabledHint = (() => {
     if (configValid) return '';
+    if (!budgetType) return tr ? 'Önce hedef türünü seç' : 'Pick a goal type first';
     if (!durationMonths) return tr ? 'Bir süre seç' : 'Pick a duration';
     if (budgetType === 'borc') return computedStart > 0 ? '' : (tr ? 'Borç tutarını gir' : 'Enter the debt amount');
     if (budgetType === 'acilfon') {
@@ -400,24 +402,32 @@ export function TasarrufCard() {
               )}
             </View>
           )}
-          <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant }}>{tr ? 'En çok nerede fazladan harcıyorsun? (opsiyonel)' : 'Where do you overspend the most? (optional)'}</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
-            {(['disarida_yemek', 'online_alisveris', 'abonelikler', 'eglence_hobi'] as const).map(key => {
-              const active = spendingArea === key;
-              return (
-                <Touchable key={key} onPress={() => { haptic.select(); setSpendingArea(active ? '' : key); }} style={{ paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
-                  <Text style={{ fontSize: F.caption, fontWeight: '500', color: active ? C : theme.onSurfaceVariant }}>{spendingAreaLabel(key, tr)}</Text>
-                </Touchable>
-              );
-            })}
-          </View>
-          <ModeField
-            accent={C}
-            value={planSpecs.tasarruf?.personalNote ?? ''}
-            onChangeText={(v) => setPersonalNote('tasarruf', v)}
-            placeholder={tr ? 'Eklemek istediğin bir şey var mı? (opsiyonel)' : 'Anything else to add? (optional)'}
-            maxLength={140}
-          />
+          {/* ÖNCE TÜR SEÇİLMELİ — bu soru ve not alanı, tür-özel alanlarla (birikim/borç/
+              acil fon) AYNI koşula bağlı. Eskiden koşulsuzdu: kullanıcı üstten hiçbir tür
+              seçmeden buraya gelip çip seçebiliyor, sonra "önce tür seç" demesi gereken
+              buton anlaşılmaz bir hata gösteriyordu (bkz. disabledHint düzeltmesi). */}
+          {!!budgetType && (
+            <>
+              <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant }}>{tr ? 'En çok nerede fazladan harcıyorsun? (opsiyonel)' : 'Where do you overspend the most? (optional)'}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
+                {(['disarida_yemek', 'online_alisveris', 'abonelikler', 'eglence_hobi'] as const).map(key => {
+                  const active = spendingArea === key;
+                  return (
+                    <Touchable key={key} onPress={() => { haptic.select(); setSpendingArea(active ? '' : key); }} style={{ paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
+                      <Text style={{ fontSize: F.caption, fontWeight: '500', color: active ? C : theme.onSurfaceVariant }}>{spendingAreaLabel(key, tr)}</Text>
+                    </Touchable>
+                  );
+                })}
+              </View>
+              <ModeField
+                accent={C}
+                value={planSpecs.tasarruf?.personalNote ?? ''}
+                onChangeText={(v) => setPersonalNote('tasarruf', v)}
+                placeholder={tr ? 'Eklemek istediğin bir şey var mı? (opsiyonel)' : 'Anything else to add? (optional)'}
+                maxLength={140}
+              />
+            </>
+          )}
           <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'Süre' : 'Duration'}</Text>
           <View style={{ flexDirection: 'row', gap: S.xs }}>
             {DURATIONS.map(m => {

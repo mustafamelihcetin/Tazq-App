@@ -252,7 +252,7 @@ const ROLE_CEILING: Record<string, number> = {
   'app/focus.tsx': 7, // 17 → 7: modlar/pomodoro sayfaları kendi dosyalarına taşındı (rolleriyle), süre seçenekleri ve sayaç adlandırıldı
   'app/profile.tsx': 4,
   'app/promo.tsx': 2,
-  'app/odemeler.tsx': 5, // (2026-10-18): yeni ekran — ekle davetiyesi, ödendi/geri al, sil, vazgeç/ekle
+  'app/odemeler.tsx': 8, // (2026-10-18): yeni ekran — ekle davetiyesi, ödendi/geri al, sil, vazgeç/ekle // +1 (2026-10-19): para birimi çipi // +1 (2026-10-19): gün gridi çipi (1-31, tek JSX çağrı noktası) // +1 (2026-10-19): sağlayıcı önerisi satırı
   'app/settings.tsx': 5,
   'app/tasks.tsx': 4,
   'features/focus/components/FocusIsland.tsx': 1,

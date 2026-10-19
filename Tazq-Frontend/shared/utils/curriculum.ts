@@ -813,12 +813,20 @@ export function findExamCurriculum(examName: string): ExamCurriculum | null {
  * 2) Eşitlikte ağırlığa göre deterministik tur (dayIndex ile) — yoğun dersler
  *    daha sık döner ama her ders kapsanır.
  *
+ * `weakTopicIds` (opsiyonel): kullanıcının kendi-kendine zayıf işaretlediği KONU
+ * id'leri (bkz. `pickTopic`). Bir dersin konularından biri bu listedeyse o ders
+ * 2x ağırlık alır — yoksa zayıf konu yalnız "dersin sırası gelince hangi konuya
+ * bakılacağını" etkiliyordu, dersin sırasının KENDİSİ hâlâ kör rotasyondaydı.
+ * Ağırlık yalnız EŞİT-ESKİLİKTEKİ adaylar arasında tur belirlerken devreye girer
+ * (pickTopic'teki aynı ilke) — "en uzun süredir çalışılmayan" adaleti bozulmaz.
+ *
  * Saf fonksiyon: aynı girdi → aynı çıktı (test edilebilir).
  */
 export function pickSubject(
   exam: ExamCurriculum,
   progress: Record<string, SubjectProgress>,
   dayIndex: number,
+  weakTopicIds?: string[] | null,
 ): Subject | null {
   const subjects = exam.subjects;
   if (!subjects.length) return null;
@@ -839,10 +847,14 @@ export function pickSubject(
 
   if (candidates.length === 1) return candidates[0];
 
+  const weakSet = new Set(weakTopicIds ?? []);
+  const hasWeakTopic = (s: Subject): boolean => (s.topics ?? []).some(t => weakSet.has(t.id));
+
   // Ağırlıklı deterministik tur: ağırlık kadar tekrarlanan diziden dayIndex ile seç.
   const expanded: Subject[] = [];
   for (const s of candidates) {
-    const w = Math.max(1, Math.round(s.weight ?? 1));
+    const base = Math.max(1, Math.round(s.weight ?? 1));
+    const w = hasWeakTopic(s) ? base * 2 : base;
     for (let i = 0; i < w; i++) expanded.push(s);
   }
   if (!expanded.length) return candidates[0];

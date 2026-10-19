@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { View, TextInput, StyleProp, ViewStyle, TextStyle, TextInputProps } from 'react-native';
+import React, { useState, useCallback, useRef } from 'react';
+import { View, TextInput, Pressable, StyleProp, ViewStyle, TextStyle, TextInputProps } from 'react-native';
 import { MotiView } from 'moti';
 import { S, R, F, B } from '@/shared/constants/tokens';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -57,6 +57,16 @@ export const ModeField: React.FC<ModeFieldProps> = ({
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
   const [focused, setFocused] = useState(false);
+  /*
+    KUTUNUN HER YERİ ODAKLAMALI, YALNIZ METNİN ÜSTÜ DEĞİL.
+    `TextInput` burada `flex: 1` ama kabuğun kendi `paddingHorizontal: S.md`'si
+    TextInput'un KENDİ kutusunun DIŞINDA kalıyor — o şerit (ve prefix/suffix'in
+    yanındaki boşluklar) hiçbir zaman odaklamıyordu, kullanıcı tam metnin üstüne
+    dokunmak zorunda kalıyordu. Çözüm: tüm satırı bir `Pressable`e sarıp dokununca
+    ref üzerinden `focus()` çağırmak — TextInput'un kendi alanına dokunmak hâlâ
+    normal çalışır (native responder), Pressable yalnız KALAN boşluğu kapatır.
+  */
+  const inputRef = useRef<TextInput>(null);
 
   // Olay tipleri RN sürümüne göre değişiyor (0.85'te FocusEvent/BlurEvent) — prop'un
   // kendi imzasından türetiliyor ki sürüm yükseldiğinde burası kırılmasın.
@@ -84,16 +94,23 @@ export const ModeField: React.FC<ModeFieldProps> = ({
         containerStyle,
       ]}
     >
-      {prefix}
-      <TextInput
-        {...rest}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        underlineColorAndroid="transparent"
-        placeholderTextColor={rest.placeholderTextColor ?? theme.onSurfaceVariant + '70'}
-        style={[{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '600', padding: 0 }, inputStyle]}
-      />
-      {suffix}
+      <Pressable
+        onPress={() => inputRef.current?.focus()}
+        accessible={false}
+        style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.xs }}
+      >
+        {prefix}
+        <TextInput
+          {...rest}
+          ref={inputRef}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          underlineColorAndroid="transparent"
+          placeholderTextColor={rest.placeholderTextColor ?? theme.onSurfaceVariant + '70'}
+          style={[{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '600', padding: 0 }, inputStyle]}
+        />
+        {suffix}
+      </Pressable>
     </MotiView>
   );
 };

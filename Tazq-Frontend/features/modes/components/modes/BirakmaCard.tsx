@@ -323,7 +323,9 @@ export function BirakmaCard() {
           {sel['ozel'] && (
             <ModeField accent={C} value={customName} onChangeText={setCustomName} placeholder={tr ? 'Ne? (ör. Kahve)' : 'What? (e.g. Coffee)'} maxLength={24} returnKeyType="done" />
           )}
-          {!applied && (
+          {/* ÖNCE en az bir tür seçilmeli — TasarrufCard'daki aynı düzeltme: bir soru,
+              üstte hiçbir seçim yapılmadan görünmemeli (bkz. o dosyadaki not). */}
+          {!applied && selectedKeys.length > 0 && (
             <>
               <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant }}>{tr ? 'En büyük tetikleyicin ne? (opsiyonel)' : "What's your biggest trigger? (optional)"}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>

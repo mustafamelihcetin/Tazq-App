@@ -37,6 +37,7 @@ export function settingsAccents(theme: AppTheme): Record<string, string> {
     system: CategoryColors.indigo,  // görünüm & dil — serin, sistemsel
     health: CategoryColors.teal,    // uyku & sağlık — sakinlik/dinlenme
     core: theme.primary,            // çekirdek davranış — uygulamanın sesi
+    payments: CategoryColors.green, // ödemeler — para ile anlamsal ilişki, zaten AA geçiyor
     streak: theme.streak,           // seri koruma — koruduğu kavramın rengi
     // yasal & gizlilik — nötr gri (onSurfaceMuted iki temada da #71717A, beyazla 4.83:1).
     // Renkli bir "özellik" değil; sessiz ama yine dolu kutu (Apple'ın gri kutuları gibi).

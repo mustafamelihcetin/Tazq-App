@@ -1070,10 +1070,13 @@ export function usePlanAdaptations() {
         let topicId: string | undefined;
         const curriculum = findExamCurriculum(slot.name);
         if (curriculum) {
-          const subject = pickSubject(curriculum, subjectProgress, subjectDayIndex);
+          const weakTopicIds = planSpecs[slot.mode]?.weakTopicIds;
+          // Zayıf konusu olan DERS de rotasyonda öne çıkar — eskiden yalnız
+          // `pickTopic`e gidiyordu, dersin KENDİSİNİN sırası kör rotasyondaydı
+          // (bkz. curriculum.ts'teki pickSubject notu).
+          const subject = pickSubject(curriculum, subjectProgress, subjectDayIndex, weakTopicIds);
           if (subject) {
             subjectId = subject.id;
-            const weakTopicIds = planSpecs[slot.mode]?.weakTopicIds;
             const topic = pickTopic(subject, subjectProgress, subjectDayIndex, weakTopicIds);
             topicId = topic?.id;
             planName = subjectExamLabel(slot.name, subject, lang, topic);
