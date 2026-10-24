@@ -3,6 +3,8 @@ import path from 'path';
 
 const ROOT = path.resolve(__dirname, '..');
 const TASKS = fs.readFileSync(path.join(ROOT, 'app/tasks.tsx'), 'utf8');
+/** Satır bileşeni kendi dosyasında; ekran yalnız ona prop hesaplar. */
+const TASK_ITEM = fs.readFileSync(path.join(ROOT, 'features/tasks/components/TaskListItem.tsx'), 'utf8');
 
 /**
  * LİSTE PERFORMANSI — ölçülmüş bir takılmanın koruması.
@@ -24,10 +26,10 @@ const TASKS = fs.readFileSync(path.join(ROOT, 'app/tasks.tsx'), 'utf8');
 describe('görev kartı store aboneliği taşımamalı', () => {
   /** `MemoizedTaskItem` bileşeninin gövdesi. */
   const cardBody = (() => {
-    const start = TASKS.indexOf('const MemoizedTaskItem = React.memo(');
+    const start = TASK_ITEM.indexOf('const MemoizedTaskItem = React.memo(');
     expect(start).toBeGreaterThan(-1);
     // Bileşenin sonu: bir sonraki üst düzey `const ... = ` tanımı.
-    const rest = TASKS.slice(start + 40);
+    const rest = TASK_ITEM.slice(start + 40);
     const end = rest.search(/\n(const|function|export) /);
     return rest.slice(0, end > 0 ? end : rest.length);
   })();

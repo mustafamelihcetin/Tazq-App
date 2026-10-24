@@ -18,7 +18,7 @@ namespace Tazq_Backend.Tests
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
                 .Options;
             _context = new AppDbContext(options);
-            _service = new AdminService(_context);
+            _service = new AdminService(_context, new Moq.Mock<IStoreMetricsService>().Object);
         }
 
         private async Task<User> SeedUserAsync(int id, string email, string role = "User")

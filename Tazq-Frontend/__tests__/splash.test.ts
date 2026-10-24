@@ -50,16 +50,19 @@ describe('açılış — sistem splash\'i ile aynı zemin', () => {
     expect(APP_JSON.expo.android.backgroundColor.toUpperCase()).toBe(Colors.light.background.toUpperCase());
   });
 
-  it('sistem splash\'i YALNIZCA renk — uygulama ikonu konmaz', () => {
+  it('sistem splash\'inde marka logosu var — uygulama ikonu konmaz', () => {
     /*
       Bir tur, devir teslim görünmesin diye sistem splash'ine uygulama ikonu konuldu ve
       bu ekran da aynı ikonu çizdi. Geri alındı: kullanıcı zaten o ikona basarak geldi,
-      açılışta ikinci kez göstermek fazlalık. Marka anı kelime işaretiyle kuruluyor.
+      açılışta ikinci kez göstermek fazlalık.
+
+      2026-10-20: sistem splash'ine ikon DEĞİL, ayrı marka logosu (splash_logo.png)
+      bilerek eklendi. Kural hâlâ geçerli: uygulama ikonu açılışta tekrar gösterilmez.
 
       (Android 12+ sistemin kendi başlatıcı ikonunu gösteriyor; o davranış bizde değil.)
     */
-    expect(splashPlugin.image).toBeUndefined();
-    expect(splashPlugin.dark.image).toBeUndefined();
+    expect(splashPlugin.image).toBe('./assets/brand/splash_logo.png');
+    expect(splashPlugin.image).not.toContain('icon.png');
     expect(SPLASH).not.toContain('icon.png');
   });
 

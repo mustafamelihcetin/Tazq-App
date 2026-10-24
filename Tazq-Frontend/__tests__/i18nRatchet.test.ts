@@ -100,7 +100,7 @@ const BASELINE: Record<string, number> = {
   'app/admin.tsx': 205,
   'app/archive.tsx': 8,
   'app/cockpit.tsx': 57, // 63 → 57: bu turun metinleri DAY_COPY sözlüğünde
-  'app/focus.tsx': 57,
+  'app/focus.tsx': 38, // 57 → 38 (ölçülen)
   'app/index.tsx': 45, // 63 → 46: komut paleti ve Zen/Core metin nesnelerine geçti; 46 → 45: selamlamadaki yer tutucu ad ("sen") kalktı
   'app/login.tsx': 47,
   // 27 → 22: mod adları ve özet hesabı ortak hook'a taşındı (useActiveModeSummary),
@@ -115,7 +115,7 @@ const BASELINE: Record<string, number> = {
   'app/register.tsx': 35,
   'app/report.tsx': 1, // 13 → 1: ekran yeniden yazıldı, metinler COPY sözlüğüne taşındı
   'app/settings.tsx': 84,
-  'app/tasks.tsx': 85,
+  'app/tasks.tsx': 58, // 85 → 58: satır bileşeni TaskListItem'a taşındı (11), ölü tarih/tekrar yardımcıları silindi
   'app/verify-email.tsx': 11,
   'features/dashboard/components/MyDayHabits.tsx': 5,
   // 3 → 1: yedi ayrı dallanma tek `copy(tr)` sözlüğüne toplandı. Satıra tamamlama
@@ -145,6 +145,7 @@ const BASELINE: Record<string, number> = {
   'features/modes/utils/turkishModes.ts': 5,
   'features/onboarding/components/TourFeaturePreview.tsx': 55,
   'features/tasks/components/TaskFormModal.tsx': 26,
+  'features/tasks/components/TaskListItem.tsx': 11, // tasks.tsx'ten taşındı
   'features/user/components/CelebrationOverlay.tsx': 1,
   'features/user/components/DeleteAccountModal.tsx': 1,
   'features/user/components/MomentumPulse.tsx': 23,

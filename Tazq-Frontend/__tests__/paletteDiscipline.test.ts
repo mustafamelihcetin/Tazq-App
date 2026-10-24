@@ -80,7 +80,7 @@ const CEILING: Record<string, number> = {
   'features/modes/components/modes/SporCard.tsx': 4,
   // 18 → 13: beş modalın elle yazılmış sayfa zemini ve süre seçicinin kenar solmaları
   // ortak cam yüzeyin ton rengine (tema token'ı) bağlandı.
-  'app/focus.tsx': 13,  // derin odak — Skia shader, kendi görsel dili
+  'app/focus.tsx': 9,  // derin odak — kendi görsel dili; 13 → 9: yıldız alanı + aurora FocusBackdrop'a taşındı
   // 5 → 0: son üç sabit hex de (iki sistem rengi + '#fff') tema token'larına bağlandı
   // (theme.streak/theme.success/theme.onPrimary) — ekran tamamen palet disiplininde.
   'shared/utils/achievementIcons.tsx': 15,  // her başarımın kimlik rengi
@@ -88,7 +88,7 @@ const CEILING: Record<string, number> = {
   'features/user/components/CelebrationOverlay.tsx': 12,
   'shared/components/ConfettiOverlay.tsx': 12,
   'features/onboarding/components/TourFeaturePreview.tsx': 12,
-  'app/tasks.tsx': 10,
+  'app/tasks.tsx': 1, // 10 → 1: kullanılmayan etiket paleti (8 hex) silindi, satır bileşeni TaskListItem'a taşındı
   // 10 → 7: trend/nokta/değerlendirme yeşilleri theme.success'e bağlandı (tema-kör #10B981'di)
   // 7 → 6: sayfa zemini (#1C1C1E) cam yüzeye geçti.
   'features/dashboard/components/StatusHubModal.tsx': 6,
@@ -131,6 +131,7 @@ const CEILING: Record<string, number> = {
   'shared/utils/lifeModePlans.ts': 2,
   // CustomAlert: temizlendi. Yıkıcı-eylem kırmızısı (#EF4444, iki temada da aynı; beyaz
   // yazı üstünde 3.3:1 AA'dan kalıyordu) theme.error'a bağlandı → dosya artık palet-temiz.
+  'features/focus/components/FocusBackdrop.tsx': 4, // focus.tsx'ten taşındı — yıldız renkleri, kendi görsel dili
   'features/focus/components/FocusIsland.tsx': 1,
   'features/habits/store/useHabitStore.ts': 1,
   'shared/components/GlassCard.tsx': 1,
@@ -216,7 +217,7 @@ describe('palet disiplini', () => {
   it('mod kategori renkleri palete bağlı kalmalı', () => {
     // turkishModes 270, planExtractor 26 sabit renk içeriyordu — hepsi CategoryColors'a
     // taşındı. Geri dönerse burası kırılır.
-    for (const f of ['features/modes/utils/turkishModes.ts', 'shared/utils/planExtractor.ts']) {
+    for (const f of ['features/modes/utils/turkishModes.ts', 'features/modes/utils/examContent.ts', 'shared/utils/planExtractor.ts']) {
       expect(counts[f] ?? 0).toBe(0);
     }
   });

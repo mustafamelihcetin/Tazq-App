@@ -1,36 +1,31 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, useWindowDimensions, Animated as RNAnimated, AppState, Keyboard, FlatList, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Platform, useWindowDimensions, Animated as RNAnimated, AppState, Alert } from 'react-native';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
-import { LinearGradient } from 'expo-linear-gradient';
 import { AppBlur } from '@/shared/components/AppBlur';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MotiView, MotiText, AnimatePresence } from 'moti';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MotiView, AnimatePresence } from 'moti';
 import Animated, { LinearTransition } from 'react-native-reanimated';
-import { Check, Timer, Plus, X, Pencil, Sparkles, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle, Mic, Search, SlidersHorizontal, CheckSquare, Scale, Target, Archive, ChevronUp, ChevronDown, CalendarDays } from 'lucide-react-native';
-import { SubtaskProgressRing } from '@/shared/components/SubtaskProgressRing';
-import { BentoCard } from '@/shared/components/BentoCard';
+import { Check, Plus, X, Pencil, Sparkles, Trash2, CheckCircle2, Search, SlidersHorizontal, Archive, CalendarDays } from 'lucide-react-native';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { WeightEntryModal } from '@/features/modes/components/WeightEntryModal';
 import { weightTaskAction, completeTaskOfflineFirst, isWeightEntryTask } from '@/features/modes/utils/weightCheckin';
 import { TaskFormModal } from '@/features/tasks/components/TaskFormModal';
-import { useTaskStore, visibleTextTags, translateTag, isInternalTag, ICON_TAGS, getLocalizedTaskTitle, getLocalizedTaskDescription, withSomedayResolved, isSomeday } from '@/features/tasks';
+import { useTaskStore, translateTag, getLocalizedTaskTitle, getLocalizedTaskDescription, withSomedayResolved, isSomeday } from '@/features/tasks';
 import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore, useAchievementStore, ACHIEVEMENTS } from '@/features/user';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore } from '@/features/focus';
-import { usePrefsStore, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
+import { usePrefsStore, getModeInfoForTask } from '@/features/modes';
 import { track } from '@/shared/utils/analytics';
 import { MagneticFAB } from '@/shared/components/MagneticFAB';
 import { useTabletLayout, useWideLayout } from '@/shared/components/ResponsiveColumns';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { TaskService, Priority, RecurrenceType, SubtaskItem } from '@/shared/services/api';
-import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
+import { TaskService } from '@/shared/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SwipeableItem } from '@/shared/components/SwipeableItem';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
@@ -49,8 +44,8 @@ import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
 import { useDemoGate, useTourGate } from '@/features/onboarding/utils/firstRun';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions, parseTimeParts } from '@/shared/utils/notifications';
-import { syncTaskToCalendar, deleteTaskFromCalendar } from '@/shared/utils/calendarSync';
-import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, contentMaxWidth, sideInset, navBarSpace, fabSafeBottom, topBarSpace, TOP_BAR_HEIGHT, MIN_TOUCH, HAIRLINE } from '@/shared/constants/tokens';
+import { syncTaskToCalendar } from '@/shared/utils/calendarSync';
+import { ICON, S, R, F, scale, verticalScale, moderateScale, B, contentMaxWidth, sideInset, fabSafeBottom, topBarSpace, MIN_TOUCH, HAIRLINE } from '@/shared/constants/tokens';
 import VoiceService from '@/shared/utils/voice';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
@@ -60,7 +55,6 @@ import { swallow } from '@/shared/utils/swallow';
 import { httpStatusOf, isNetworkError, errorMessage, httpDataOf } from '@/shared/utils/errors';
 import { playSoundEffect } from '@/shared/utils/soundEffects';
 import type { AppTheme } from '@/shared/constants/Colors';
-import { Separator } from '@/shared/components/Separator';
 import { haptic } from '@/shared/utils/haptics';
 import { savedLocallyMessage } from '@/shared/utils/saveFeedback';
 import { matchesTaskFilter, type TaskFilter } from '@/features/tasks/utils/taskFilter';
@@ -68,13 +62,9 @@ import { splitByHorizon, whenLabel, horizonCopy } from '@/features/tasks/utils/h
 import { LaterToggle } from '@/features/tasks/components/LaterToggle';
 import { newTaskKey, nextInstanceKey } from '@/features/tasks/utils/clientKey';
 import { langOf } from '@/shared/utils/lang';
-import { describeTask, rowHint, bulkSelectHint } from '@/shared/utils/a11y';
-import { toDateKey, calendarDayOf } from '@/shared/utils/dateKey';
+import { calendarDayOf } from '@/shared/utils/dateKey';
 
-// SWIPE_THRESHOLD KALDIRILDI: hiç okunmuyordu. Kaydırma eşiği SwipeableItem'ın
-// kendi içinde (hız tabanlı) — burada duran sayı, orayı değiştirenin yanlış yere
-// bakmasına yol açacak ölü bir ipucuydu.
-const TAG_COLORS_PALETTE = ['#3B82F6','#8B5CF6','#EC4899','#F59E0B','#10B981','#EF4444','#06B6D4','#F97316'];
+import { MemoizedTaskItem } from '@/features/tasks/components/TaskListItem';
 const PRIORITY_ORDER: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
 
 /**
@@ -115,367 +105,11 @@ const BulkAction = ({ Icon, label, onPress, disabled, tint, theme }: {
     </Touchable>
   );
 };
-const getTagColorStatic = (tag: string): string => {
-  let hash = 0;
-  for (let i = 0; i < tag.length; i++) hash = tag.charCodeAt(i) + ((hash << 5) - hash);
-  return TAG_COLORS_PALETTE[Math.abs(hash) % TAG_COLORS_PALETTE.length];
-};
-
-const VoiceWave = ({ active, theme }: { active: boolean; theme: AppTheme }) => (
-    <MotiView
-        from={{ scale: 1, opacity: 0 }}
-        animate={active ? { scale: [1, 1.5, 1], opacity: [0.3, 0.6, 0.3] } : { scale: 1, opacity: 0 }}
-        transition={{ loop: true, duration: 1500 }}
-        style={{
-            position: 'absolute',
-            width: 32,
-            height: 32,
-            borderRadius: R.full,
-            backgroundColor: theme.primary,
-            zIndex: -1,
-        }}
-    />
-);
 
 
 type FilterType = TaskFilter;
 
-const RECURRENCE_OPTIONS: { key: RecurrenceType; labelKey: string }[] = [
-  { key: 'None', labelKey: 'recurrenceNone' },
-  { key: 'Daily', labelKey: 'recurrenceDaily' },
-  { key: 'Weekly', labelKey: 'recurrenceWeekly' },
-  { key: 'Monthly', labelKey: 'recurrenceMonthly' },
-];
 
-/** Returns a human-readable "Next: ..." label for the next task recurrence date */
-function getNextOccurrenceLabel(dueDateStr: string | null | undefined, recurrence: RecurrenceType, lang: string): string {
-  if (!dueDateStr || recurrence === 'None') return '';
-  const base = new Date(dueDateStr);
-  if (isNaN(base.getTime())) return '';
-
-  const tr = lang === 'tr';
-  const formattedFirst = base.toLocaleDateString(tr ? 'tr-TR' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-
-  if (recurrence === 'Daily') {
-    return tr 
-      ? `İlk görev: ${formattedFirst} (Her gün tekrarlanır)` 
-      : `First due: ${formattedFirst} (Repeats daily)`;
-  }
-  
-  if (recurrence === 'Weekly') {
-    const weekday = base.toLocaleDateString(tr ? 'tr-TR' : 'en-US', { weekday: 'long' });
-    return tr 
-      ? `İlk görev: ${formattedFirst} (Her hafta ${weekday} günü tekrarlanır)` 
-      : `First due: ${formattedFirst} (Repeats every ${weekday})`;
-  }
-  
-  if (recurrence === 'Monthly') {
-    const dayNum = base.getDate();
-    return tr 
-      ? `İlk görev: ${formattedFirst} (Her ayın ${dayNum}. günü tekrarlanır)` 
-      : `First due: ${formattedFirst} (Repeats on the ${dayNum} of every month)`;
-  }
-
-  return '';
-}
-
-
-const MemoizedTaskItem = React.memo((props: any) => {
-    const { task, i, theme, isDark, highlightedId, isBulkMode, isSelected, language, t, showSwipePeek, priorityColor, handleDelete, handleToggleExpand, handleLongPress, handleBulkSelect, handleToggle, toggleSubtask, completingIds, expandedId, sortBy, onMoveUp, onMoveDown, modeInfo } = props;
-
-    /*
-      MOD BİLGİSİ ARTIK PROP — kart artık HİÇBİR store'a abone değil.
-
-      Burada `usePrefsStore()` SEÇİCİSİZ çağrılıyordu, yani her kart tüm tercih
-      store'una abone oluyordu. Sonuç, listedeki görev sayısı kadar abonelik ve
-      tercihlerde en ufak değişiklikte HEPSİNİN yeniden render edilmesi.
-
-      Görünüm tercihleri (filtre/sıralama/gizleme) kalıcı store'a taşınınca bu gizli
-      maliyet açığa çıktı: her filtre dokunuşu bütün kartları yeniden çiziyordu — ve
-      liste ne kadar uzunsa dokunuş o kadar geç cevap veriyordu.
-
-      Üstelik `React.memo` bu yüzden hiçbir işe yaramıyordu: prop'lar aynı kalsa bile
-      iç abonelik render'ı tetikliyor. `useMemo`nun `prefs` bağımlılığı da her store
-      değişiminde yeni nesne kimliği aldığı için sürekli bozuluyordu.
-
-      Hesap tek bir yere, ebeveyne alındı: N abonelik yerine 1, N hesap yerine 1 geçiş.
-    */
-
-    const finalLeftColor = modeInfo?.color || priorityColor(task.priority);
-
-    // Sesli ad: başlık + öncelik + durum (ekranda bunları yalnız RENK söylüyor).
-    const taskA11yLabel = describeTask(task, getLocalizedTaskTitle(task, language === 'tr'), language);
-    return (
-        <Animated.View>
-            <SwipeableItem
-                onDelete={() => handleDelete(task.id)}
-                disabled={isBulkMode}
-                showPeekHint={showSwipePeek && i === 0}
-            >
-                <View style={{ transform: [{ scale: isBulkMode && !isSelected ? 0.96 : 1 }] }}>
-                    <Touchable
-                        activeOpacity={0.9}
-                        accessibilityRole="button"
-                        accessibilityLabel={taskA11yLabel}
-                        accessibilityState={{ checked: !!task.isCompleted, selected: isBulkMode && isSelected }}
-                        accessibilityHint={isBulkMode ? bulkSelectHint(language) : rowHint(language)}
-                        onPress={() => {
-                            if (isBulkMode) {
-                                handleBulkSelect(task.id);
-                            } else if (isWeightEntryTask(task) && !task.isCompleted) {
-                                handleToggle(task.id);
-                            } else {
-                                handleToggleExpand(task.id);
-                            }
-                        }}
-                        onLongPress={() => handleLongPress(task.id)}
-                        style={[[styles.taskCard, { backgroundColor: isDark ? (modeInfo ? modeInfo.color + '0C' : theme.surfaceContainerLow) : (modeInfo ? modeInfo.color + '05' : theme.surfaceContainerLowest), flexDirection: 'column', alignItems: 'stretch' }], {
-                            borderColor: highlightedId === task.id ? theme.secondary : (isBulkMode && isSelected ? theme.primary : (modeInfo ? modeInfo.color + '40' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)'))),
-                            borderWidth: (highlightedId === task.id || (isBulkMode && isSelected) || modeInfo) ? 1.5 : 1,
-                        }]}
-                    >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', padding: S.md }}>
-                            {isBulkMode && (
-                                <View style={[{ width: 22, height: 22, borderRadius: R.full, borderWidth: 2, borderColor: isSelected ? theme.primary : theme.outline, backgroundColor: isSelected ? theme.primary : 'transparent', justifyContent: 'center', alignItems: 'center', marginRight: S.sm }]}>
-                                    {isSelected && <Check size={ICON.xs} color={theme.onPrimary || '#fff'} />}
-                                </View>
-                            )}
-                            <View style={[styles.priorityIndicator, { backgroundColor: finalLeftColor, width: S.xs, height: '100%', borderRadius: R.sm, marginRight: S.sm, opacity: task.isCompleted || completingIds.has(task.id) ? 0.3 : 1 }]} />
-                            
-                            <View style={styles.taskContent}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                                    <MotiView
-                                        animate={{ opacity: task.isCompleted || completingIds.has(task.id) ? 0.4 : 1, scale: task.isCompleted || completingIds.has(task.id) ? 0.97 : 1 }}
-                                        transition={{ type: 'timing', duration: 300 }}
-                                        style={{ flexShrink: 1 }}
-                                    >
-                                        <Text style={[
-                                            styles.taskTitleText,
-                                            { color: theme.onSurface, fontSize: F.body, flexShrink: 1 },
-                                            (task.isCompleted || completingIds.has(task.id)) && { textDecorationLine: 'line-through' }
-                                        ]} numberOfLines={expandedId === task.id ? 0 : 1}>
-                                            {getLocalizedTaskTitle(task, language === 'tr')}
-                                        </Text>
-                                    </MotiView>
-                                    {isWeightEntryTask(task) && (
-                                        <View style={{ backgroundColor: theme.primary + '15', paddingHorizontal: S.sm, paddingVertical: S.xxs, borderRadius: R.xs }}>
-                                            <Text style={{ fontSize: 10, fontWeight: '600', color: theme.primary }}>{language === 'tr' ? 'KİLO' : 'WEIGHT'}</Text>
-                                        </View>
-                                    )}
-                                    {task.tags && task.tags.includes('auto_generated') && (
-                                        <View style={{ backgroundColor: theme.tertiary + '15', paddingHorizontal: S.sm, paddingVertical: S.xxs, borderRadius: R.xs }}>
-                                            <Text style={{ fontSize: 10, fontWeight: '600', color: theme.tertiary }}>{language === 'tr' ? 'OTO' : 'AUTO'}</Text>
-                                        </View>
-                                    )}
-                                </View>
-
-                                {(getLocalizedTaskDescription(task, language === 'tr') || task.dueDate || task.dueTime || modeInfo || (task.subtasks && task.subtasks.length > 0)) && (() => {
-                                    const taskCountdown = getTaskRemainingTime(task.dueDate, task.dueTime, task.isCompleted, language === 'tr');
-                                    return (
-                                        <MotiView
-                                            animate={{ opacity: task.isCompleted || completingIds.has(task.id) ? 0.4 : 1 }}
-                                            transition={{ type: 'timing', duration: 300 }}
-                                            style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: S.sm, marginTop: S.xxs }}
-                                        >
-                                            {modeInfo && (
-                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: modeInfo.color + '1A', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
-                                                    <Sparkles size={ICON.xs} color={modeInfo.color} opacity={0.9} />
-                                                    <Text style={[{ fontSize: F.caption }, { color: modeInfo.color, fontWeight: '600' }]}>
-                                                        {language === 'tr' ? modeInfo.labelTr : modeInfo.labelEn}
-                                                    </Text>
-                                                </View>
-                                            )}
-                                            {taskCountdown && (() => {
-                                                const isOverdue = taskCountdown === 'Süresi geçti' || taskCountdown === 'Overdue';
-                                                return (
-                                                    <View style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: isOverdue ? theme.error + '15' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'), borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
-                                                        <Clock size={ICON.xs} color={isOverdue ? theme.error : theme.onSurfaceVariant} opacity={0.7} />
-                                                        <Text style={[{ fontSize: F.caption }, { color: isOverdue ? theme.error : theme.onSurfaceVariant, fontWeight: '600' }]}>
-                                                            {taskCountdown}
-                                                        </Text>
-                                                    </View>
-                                                );
-                                            })()}
-                                            {modeInfo && modeInfo.daysLeft !== undefined && (
-                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: modeInfo.color + '18', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
-                                                    <Target size={ICON.xs} color={modeInfo.color} opacity={0.9} />
-                                                    <Text style={[{ fontSize: F.caption }, { color: modeInfo.color, fontWeight: '600' }]}>
-                                                        {modeInfo.unit === 'clean_day'
-                                                            ? (modeInfo.daysLeft === 0
-                                                                ? (language === 'tr' ? '1. Gün' : 'Day 1')
-                                                                : (language === 'tr' ? `Temiz: ${modeInfo.daysLeft} gün` : `Clean: ${modeInfo.daysLeft} ${modeInfo.daysLeft === 1 ? 'day' : 'days'}`))
-                                                            : (language === 'tr' ? `Hedef: ${modeInfo.daysLeft} gün` : `Goal: ${modeInfo.daysLeft} days`)}
-                                                    </Text>
-                                                </View>
-                                            )}
-                                            {task.dueDate && !taskCountdown && (
-                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
-                                                    <Calendar size={ICON.xs} color={theme.onSurfaceVariant} opacity={0.7} />
-                                                    <Text style={[{ fontSize: F.caption }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
-                                                        {new Date(task.dueDate).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short' })}
-                                                    </Text>
-                                                </View>
-                                            )}
-                                            {task.dueTime && (
-                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
-                                                    <Clock size={ICON.xs} color={theme.onSurfaceVariant} opacity={0.7} />
-                                                    <Text style={[{ fontSize: F.caption }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
-                                                        {(() => {
-                                                            const date = new Date(task.dueTime);
-                                                            return isNaN(date.getTime())
-                                                                ? task.dueTime
-                                                                : date.toLocaleTimeString(language === 'tr' ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
-                                                        })()}
-                                                    </Text>
-                                                </View>
-                                            )}
-                                            {task.subtasks && task.subtasks.length > 0 && (
-                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
-                                                    <ListChecks size={ICON.xs} color={theme.onSurfaceVariant} opacity={0.7} />
-                                                    <Text style={[{ fontSize: F.caption }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
-                                                        {task.subtasks.filter((s: any) => s.done).length}/{task.subtasks.length}
-                                                    </Text>
-                                                </View>
-                                            )}
-                                            {/* User-facing text tags */}
-                                            {visibleTextTags(task.tags).map((tag, tagIdx) => (
-                                                <View key={tagIdx} style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
-                                                    <Tag size={ICON.xs} color={theme.onSurfaceVariant} opacity={0.7} />
-                                                    <Text style={[{ fontSize: F.caption }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
-                                                        {translateTag(tag, language as 'tr' | 'en')}
-                                                    </Text>
-                                                </View>
-                                            ))}
-                                        </MotiView>
-                                    );
-                                })()}
-                            </View>
-
-                            {sortBy === 'creation' && !isBulkMode && (
-                                <View style={{ flexDirection: 'column', gap: S.xxs, marginRight: S.sm, alignItems: 'center' }}>
-                                    <Touchable
-                                        disabled={!onMoveUp}
-                                        onPress={onMoveUp}
-                                        accessibilityRole="button"
-                                        accessibilityLabel={language === 'tr' ? 'Yukarı taşı' : 'Move up'}
-                                        accessibilityState={{ disabled: !onMoveUp }}
-                                        style={{ opacity: onMoveUp ? 0.8 : 0.15, padding: S.xxs }}
-                                        hitSlop={{ top: 8, bottom: 4, left: 8, right: 8 }}
-                                    >
-                                        <ChevronUp size={ICON.sm} color={theme.onSurfaceVariant} />
-                                    </Touchable>
-                                    <Touchable
-                                        disabled={!onMoveDown}
-                                        onPress={onMoveDown}
-                                        accessibilityRole="button"
-                                        accessibilityLabel={language === 'tr' ? 'Aşağı taşı' : 'Move down'}
-                                        accessibilityState={{ disabled: !onMoveDown }}
-                                        style={{ opacity: onMoveDown ? 0.8 : 0.15, padding: S.xxs }}
-                                        hitSlop={{ top: 4, bottom: 8, left: 8, right: 8 }}
-                                    >
-                                        <ChevronDown size={ICON.sm} color={theme.onSurfaceVariant} />
-                                    </Touchable>
-                                </View>
-                            )}
-
-                            <Touchable
-                                onPress={() => handleToggle(task.id)}
-                                accessibilityRole="checkbox"
-                                accessibilityState={{ checked: task.isCompleted || completingIds.has(task.id) }}
-                                accessibilityLabel={
-                                    (task.isCompleted || completingIds.has(task.id))
-                                        ? (language === 'tr' ? 'Görevi tamamlanmadı olarak işaretle' : 'Mark task as not done')
-                                        : (language === 'tr' ? 'Görevi tamamla' : 'Complete task')
-                                }
-                                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-                                style={[
-                                    { width: 24, height: 24, borderRadius: R.sm, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginLeft: S.sm },
-                                    {
-                                        backgroundColor: (task.isCompleted || completingIds.has(task.id)) ? theme.success : 'transparent',
-                                        borderColor: (task.isCompleted || completingIds.has(task.id)) ? theme.success : (isDark ? theme.outline : 'rgba(0,0,0,0.2)'),
-                                    }
-                                ]}
-                            >
-                                {(task.isCompleted || completingIds.has(task.id)) && <Check size={ICON.sm} color="white" />}
-                            </Touchable>
-                        </View>
-
-                        {/* Expanded Content */}
-                        <AnimatePresence>
-                            {expandedId === task.id && (
-                                <MotiView
-                                    from={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    transition={{ type: 'timing', duration: 250 }}
-                                    style={{ overflow: 'hidden', paddingHorizontal: S.md, paddingBottom: S.md }}
-                                >
-                                    <Separator theme={theme} />
-                                    {(() => {
-                                        const desc = getLocalizedTaskDescription(task, language === 'tr');
-                                        return desc ? (
-                                            <Text style={{ fontSize: F.subhead, color: theme.onSurfaceVariant, lineHeight: 20, marginBottom: S.sm }}>
-                                                {desc}
-                                            </Text>
-                                        ) : null;
-                                    })()}
-
-                                    {/* Subtasks */}
-                                    {task.subtasks && task.subtasks.length > 0 && (
-                                        <View style={{ gap: S.xs, marginTop: S.xs }}>
-                                            {task.subtasks.map((sub: any, sIndex: number) => (
-                                                <Touchable
-                                                    key={sIndex}
-                                                    onPress={() => {
-                                                        toggleSubtask(task.id, sIndex);
-                                                    }}
-                                                    style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: S.xs }}
-                                                >
-                                                    {sub.done 
-                                                        ? <CheckCircle2 size={ICON.sm} color={theme.tertiary} />
-                                                        : <Circle size={ICON.sm} color={theme.onSurfaceVariant} />
-                                                    }
-                                                    <Text style={{
-                                                        fontSize: F.body, fontWeight: '600', color: theme.onSurface,
-                                                        textDecorationLine: sub.done ? 'line-through' : 'none',
-                                                        opacity: sub.done ? 0.4 : 0.9
-                                                    }}>
-                                                        {sub.text}
-                                                    </Text>
-                                                </Touchable>
-                                            ))}
-                                        </View>
-                                    )}
-
-                                    {/* Recurrence Info */}
-                                    {task.recurrence && task.recurrence !== 'None' && (
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm }}>
-                                            <Repeat size={ICON.xs} color={theme.secondary} />
-                                            <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.secondary }}>
-                                                {(t as any)[`recurrence${task.recurrence}`] || task.recurrence}
-                                            </Text>
-                                        </View>
-                                    )}
-                                </MotiView>
-                            )}
-                        </AnimatePresence>
-                    </Touchable>
-                </View>
-            </SwipeableItem>
-        </Animated.View>
-    );
-}, (prevProps, nextProps) => {
-    return (
-        prevProps.task === nextProps.task &&
-        prevProps.isDark === nextProps.isDark &&
-        prevProps.highlightedId === nextProps.highlightedId &&
-        prevProps.isBulkMode === nextProps.isBulkMode &&
-        prevProps.isSelected === nextProps.isSelected &&
-        prevProps.completingIds === nextProps.completingIds &&
-        prevProps.language === nextProps.language &&
-        (prevProps.expandedId === prevProps.task.id) === (nextProps.expandedId === nextProps.task.id)
-    );
-});
 
 export default function ActionCenter() {
   const { theme, colorScheme } = useAppTheme();
@@ -734,61 +368,6 @@ export default function ActionCenter() {
     }
     setEditingId(id);
     setModalVisible(true);
-  };
-
-
-
-
-
-  const getDateColor = (dateStr: string | undefined | null, thm: typeof theme) => {
-    if (!dateStr || dateStr.startsWith('0001-01-01')) return thm.onSurfaceVariant;
-    const date = new Date(dateStr);
-    const now = new Date();
-    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
-    const dateStart = new Date(date); dateStart.setHours(0, 0, 0, 0);
-    const diffDays = Math.round((dateStart.getTime() - todayStart.getTime()) / 86400000);
-    if (diffDays < 0) return thm.priorityHigh;
-    if (diffDays === 0) return thm.priorityMedium;
-    return thm.onSurfaceVariant;
-  };
-
-  const estimateDuration = (task: any) => {
-    let base = task.priority === 'High' ? 45 : task.priority === 'Medium' ? 20 : 10;
-    base += (task.subtasks || []).length * 5;
-    return language === 'tr' ? `~${base} dk` : `~${base} min`;
-  };
-
-  const formatSmartDate = (dateStr?: string | null) => {
-    if (!dateStr || dateStr.startsWith('0001-01-01')) return t.waitingForAction;
-    const date = new Date(dateStr);
-    const now = new Date();
-    const isTR = language === 'tr';
-
-    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
-    const dateStart = new Date(date); dateStart.setHours(0, 0, 0, 0);
-    const diffDays = Math.round((dateStart.getTime() - todayStart.getTime()) / 86400000);
-
-    if (diffDays === 0) {
-      const diffMin = Math.round((date.getTime() - now.getTime()) / 60000);
-      if (diffMin > 0 && diffMin < 60) return isTR ? `${diffMin} dk sonra` : `In ${diffMin}m`;
-      if (diffMin >= 60 && diffMin < 1440) {
-        const h = Math.round(diffMin / 60);
-        return isTR ? `${h} saat sonra` : `In ${h}h`;
-      }
-      return isTR ? 'Bugün' : 'Today';
-    }
-    if (diffDays === 1) return isTR ? 'Yarın' : 'Tomorrow';
-    if (diffDays === -1) return isTR ? 'Dün' : 'Yesterday';
-    if (diffDays > 1 && diffDays <= 6) return isTR ? `${diffDays} gün sonra` : `In ${diffDays} days`;
-    if (diffDays < -1 && diffDays >= -6) return isTR ? `${Math.abs(diffDays)} gün önce` : `${Math.abs(diffDays)} days ago`;
-    if (diffDays === 7) return isTR ? 'Gelecek hafta' : 'Next week';
-
-    const locale = isTR ? 'tr-TR' : 'en-US';
-    const isCurrentYear = date.getFullYear() === now.getFullYear();
-    const options: Intl.DateTimeFormatOptions = isCurrentYear
-      ? { day: 'numeric', month: 'long' }
-      : { day: 'numeric', month: 'long', year: 'numeric' };
-    return date.toLocaleDateString(locale, options);
   };
 
   /**
@@ -1348,8 +927,6 @@ export default function ActionCenter() {
     if (p === 'Medium') return theme.priorityMedium;
     return theme.priorityLow;
   };
-
-  const getTagColor = getTagColorStatic;
 
   const filteredAndSortedTasks = useMemo(() => {
     // Örnek satırlar, GERÇEK görev yokken (bkz. useDemoGate — dört kuralın gerekçesi orada).
@@ -2490,10 +2067,6 @@ const styles = StyleSheet.create({
   bulkActions: { flexDirection: 'row', alignItems: 'flex-start' },
   listSection: { flex: 1 },
   sectionTitle: { fontWeight: '600', marginBottom: S.md },
-  taskCard: { borderRadius: R.lg, flexDirection: 'row', alignItems: 'center', borderWidth: 0 },
-  priorityIndicator: { height: verticalScale(32), borderRadius: R.sm, marginRight: S.md },
-  taskContent: { flex: 1 },
-  taskTitleText: { fontWeight: '600' },
   taskMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: S.xs },
   taskMetaText: { fontWeight: '600' },
   taskActions: { flexDirection: 'row', alignItems: 'center' },

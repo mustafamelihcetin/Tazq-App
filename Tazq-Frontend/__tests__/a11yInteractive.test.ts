@@ -35,6 +35,8 @@ function walk(dir: string): string[] {
 
 const FILES = ['app', 'shared', 'features'].flatMap(walk);
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+/** Görev satırı kendi bileşeninde (tasks.tsx'ten taşındı). */
+const TASK_ROW = 'features/tasks/components/TaskListItem.tsx';
 
 const OPENERS = /<(TouchableOpacity|TouchableHighlight|TouchableWithoutFeedback|Touchable|Pressable)\b/g;
 
@@ -160,22 +162,22 @@ describe('durum RENKTEN başka bir şeyle de söyleniyor', () => {
   });
 
   it('satırlar sözlüğü KULLANIYOR — kendi kopyalarını tutmuyor', () => {
-    for (const f of ['app/tasks.tsx', 'app/cockpit.tsx', 'features/habits/components/HabitBubble.tsx']) {
+    for (const f of [TASK_ROW, 'app/cockpit.tsx', 'features/habits/components/HabitBubble.tsx']) {
       expect(read(f)).toContain("from '@/shared/utils/a11y'");
     }
-    expect(read('app/tasks.tsx')).toContain('accessibilityLabel={taskA11yLabel}');
+    expect(read(TASK_ROW)).toContain('accessibilityLabel={taskA11yLabel}');
     expect(read('app/cockpit.tsx')).toContain('accessibilityLabel={describeHabit(');
     expect(read('features/habits/components/HabitBubble.tsx')).toContain('accessibilityLabel={describeHabit(');
   });
 
   it('durum makine tarafından da okunabilir (accessibilityState)', () => {
-    expect(read('app/tasks.tsx')).toContain('accessibilityState={{ checked: !!task.isCompleted');
+    expect(read(TASK_ROW)).toContain('accessibilityState={{ checked: !!task.isCompleted');
     expect(read('app/cockpit.tsx')).toContain('accessibilityState={{ checked: doneToday');
     expect(read('features/habits/components/HabitBubble.tsx')).toContain('accessibilityState={{ checked: !!isCompleted }}');
   });
 
   it('üç satırın üçü de ne yapacağını söyler (hint)', () => {
-    expect(read('app/tasks.tsx')).toContain('rowHint(language)');
+    expect(read(TASK_ROW)).toContain('rowHint(language)');
     expect(read('app/cockpit.tsx')).toContain('rowHint(language)');
     expect(read('features/habits/components/HabitBubble.tsx')).toContain('accessibilityHint');
   });
@@ -254,7 +256,7 @@ const ROLE_CEILING: Record<string, number> = {
   'app/promo.tsx': 2,
   'app/odemeler.tsx': 8, // (2026-10-18): yeni ekran — ekle davetiyesi, ödendi/geri al, sil, vazgeç/ekle // +1 (2026-10-19): para birimi çipi // +1 (2026-10-19): gün gridi çipi (1-31, tek JSX çağrı noktası) // +1 (2026-10-19): sağlayıcı önerisi satırı
   'app/settings.tsx': 5,
-  'app/tasks.tsx': 4,
+  'app/tasks.tsx': 3, // 4 → 3: satır bileşeni TaskListItem'a taşındı
   'features/focus/components/FocusIsland.tsx': 1,
   'features/modes/components/TurkishModeBanner.tsx': 19,
   'features/modes/components/WeightEntryModal.tsx': 1,
@@ -267,6 +269,7 @@ const ROLE_CEILING: Record<string, number> = {
   'features/modes/components/modes/TezCard.tsx': 8, // +2 (2026-10-19): "Bitti" linki, TasarrufCard'daki gibi hep-görünür+nedenli "Planı Seç" butonuna çevrildi (Kapat + Planı Seç/ipucu)
   'features/modes/components/WeakAreaPicker.tsx': 1, // (2026-10-19): yeni ortak bileşen — zayıf-alan çipi
   'features/tasks/components/TaskFormModal.tsx': 22,
+  'features/tasks/components/TaskListItem.tsx': 1, // tasks.tsx'ten taşındı
   'features/user/components/MomentumPulse.tsx': 3,
   'features/user/components/ProfileSetupModal.tsx': 4,
   'shared/components/ChromeShell.tsx': 1,

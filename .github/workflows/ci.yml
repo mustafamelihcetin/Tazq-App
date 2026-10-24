@@ -1,0 +1,39 @@
+# Her push ve PR'da iki tarafın da kalite kapısı: tip kontrolü + testler.
+# Backend test projesi bir constructor değişikliğiyle sessizce derlenmez hale gelmişti;
+# bu iş akışı o tür kırılmaları commit anında yakalamak için var.
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Tazq-Frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: Tazq-Frontend/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx jest --ci --silent
+
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet test Tazq-Backend.Tests --nologo
