@@ -36,6 +36,7 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { PremiumStatChip } from '@/shared/components/PremiumStatChip';
 import { useFocusStore } from '@/features/focus';
 import { useSporStore } from '@/features/modes/store/useSporStore';
+import { useSessionStore } from '@/shared/store/useSessionStore';
 import { StatusHub } from '@/features/dashboard/components/StatusHub';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getSmartInsight, generateWeeklyTips } from '@/shared/utils/insights';
@@ -162,6 +163,9 @@ export default function HomeScreen() {
   const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor, soundEffects, productivityHour, completedTours, setOnboardingCompleted, welcomeStatus, _hasHydrated: prefsHydrated } = usePrefsStore();
 
   const [profileSetupVisible, setProfileSetupVisible] = useState(false);
+  const isGuest = useSessionStore(s => s.isGuest);
+  const guestProfile = useSessionStore(s => s.guestProfile);
+  const setGuestProfile = useSessionStore(s => s.setGuestProfile);
   const isNamePlaceholder = user?.name === 'TAZQ Kullanıcısı' || !!(user?.email && user?.name && user?.name === user?.email.split('@')[0]);
 
   const scrollViewRef = useRef<ScrollView>(null);
@@ -192,7 +196,8 @@ export default function HomeScreen() {
 
   useEffect(() => {
     // Kullanıcı çıkışında bayrağı sıfırla (yeni/başka ilk-giriş kullanıcısı için tekrar gösterilebilsin)
-    if (!user) {
+    // Misafir de hoş geldini görür (bkz. useAuthStore.startGuest — yalnız YENİ girişte).
+    if (!user && !isGuest) {
       welcomeSetupShown = false;
       return;
     }
@@ -223,9 +228,37 @@ export default function HomeScreen() {
         Tur, hoş geldin kapanınca kendiliğinden açılır (bkz. useTourGate → blocked).
       */
     }
-  }, [user, prefsHydrated, welcomeStatus, isFirstLogin]);
+  }, [user, isGuest, prefsHydrated, welcomeStatus, isFirstLogin]);
+
+  /*
+    MİSAFİRDEN HESABA — hoş geldinde seçilen avatar/çerçeve/motto hesaba yazılır.
+    Ad kayıt formunda zaten soruldu (form misafirin adıyla dolu açılır); burada
+    yalnız formda olmayanlar taşınır. Başarılıysa yerel kopya silinir; başarısızsa
+    bir sonraki açılışta yeniden denenir (veri kaybolmaz).
+  */
+  useEffect(() => {
+    if (!user || !token || !guestProfile) return;
+    const { avatar, borderColor, motto } = guestProfile;
+    AuthService.updateProfile({ name: user.name, avatar, avatarBorderColor: borderColor, motto })
+      .then(() => AuthService.getCurrentUser(token))
+      .then((u) => { setUser(u); setGuestProfile(null); })
+      .catch((e) => swallow('dashboard.guestProfileMigrate', e));
+  }, [user?.id, token, guestProfile]);
 
   const handleProfileSetupSave = async (name: string, avatar: string, borderColor: string, motto: string, productivityHour: string, gender: 'male' | 'female' | '') => {
+    // MİSAFİR: sunucu yok — profil cihazda saklanır, tercihler yerelde (bkz. GuestProfile).
+    if (!user && isGuest) {
+      setGuestProfile({ name, avatar, borderColor, motto });
+      usePrefsStore.getState().setMotto(motto);
+      usePrefsStore.getState().setAvatarBorderColor(borderColor);
+      usePrefsStore.getState().setProductivityHour(productivityHour as 'morning' | 'afternoon' | 'evening' | 'night');
+      usePrefsStore.getState().setGender(gender);
+      useSporStore.getState().setGender(gender);
+      setOnboardingCompleted(true);
+      usePrefsStore.getState().setWelcomeStatus('done');
+      setProfileSetupVisible(false);
+      return;
+    }
     try {
       await AuthService.updateProfile({
         name,
@@ -1587,7 +1620,7 @@ export default function HomeScreen() {
                   }
               ]}
           >
-              <UserAvatar avatar={user?.avatar} size={TOP_AVATAR_SIZE} iconSize={ICON.sm} theme={theme} style={styles.avatar} />
+              <UserAvatar avatar={user?.avatar ?? guestProfile?.avatar} size={TOP_AVATAR_SIZE} iconSize={ICON.sm} theme={theme} style={styles.avatar} />
           </Touchable>
         }
         /*
@@ -1713,7 +1746,7 @@ export default function HomeScreen() {
             <View onLayout={(e) => setHeroHeight(e.nativeEvent.layout.height)}>
               <DashboardHero
                 greeting={getGreeting()}
-                name={(!isNamePlaceholder && user?.name?.split(' ')[0]) || ''}
+                name={(!isNamePlaceholder && user?.name?.split(' ')[0]) || guestProfile?.name?.split(' ')[0] || ''}
                 subGreeting={getSubGreeting()}
                 isSmallScreen={isSmallScreen}
                 theme={theme}
@@ -2164,7 +2197,8 @@ export default function HomeScreen() {
           language={language}
           t={t}
           currentName={user?.name || ''}
-          isNamePlaceholder={isNamePlaceholder}
+          // Misafirin adı yok → ad alanı zorunlu görünür.
+          isNamePlaceholder={isNamePlaceholder || !user}
           onSave={handleProfileSetupSave}
         />
 

@@ -4,6 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AppBlur } from '@/shared/components/AppBlur';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Circle } from 'react-native-svg';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { X } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -16,44 +17,91 @@ import { ACHIEVEMENT_ICONS, renderAchievementIcon } from '@/shared/utils/achieve
 import { BackButton } from '@/shared/components/BackButton';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
-import { DottedBackground } from '@/shared/components/DottedBackground';
-import { S, R, F, B, ICON, MIN_TOUCH , MAX_W} from '@/shared/constants/tokens';
+import { S, R, F, W, B, ICON, MIN_TOUCH, RSPRING } from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { haptic } from '@/shared/utils/haptics';
 import { upperFor } from '@/shared/utils/localeCase';
 
-// Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
-// shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
+/*
+  ── BAŞARILAR — Apple Fitness "Ödüller" ızgarası ──────────────────────────────────
+  Önceki hâl: 2 sütun, her rozet kendi kartında; 14 rozet ~4 ekran boyu kaydırma ve
+  10 gri kutu. Kilitli karelerin altında her biri FARKLI renkte (turuncu, kırmızı,
+  mavi, mor, yeşil) ilerleme çubukları — ekranın en canlı rengi henüz kazanılmamış
+  şeylerdeydi. Fitness'ın ödül ızgarasından alınan kurallar:
+    · kutu YOK — madalyanın kendisi nesne; 3 sütun (genişte 4), ekran yarıya iner
+    · renk yalnız KAZANILMIŞ madalyada; kilitli olan soluk, gri glif
+    · ilerleme madalyanın ETRAFINDA ince halka (TodayRings ile aynı dil), çubuk değil
+    · kazanılmışın altında "✓ Açıldı" yerine TARİH — ne zaman kazandığın hikâyedir
+*/
 
 // Kategoriler — vitrin bu sıra ve gruplarla gezilir (her aile bir "koleksiyon").
 const CATEGORIES = [
-  { key: 'streak', titleTr: 'Seri', titleEn: 'Streaks', ids: ['streak_3', 'streak_7', 'streak_14', 'streak_30', 'streak_100'] },
-  { key: 'momentum', titleTr: 'Momentum', titleEn: 'Momentum', ids: ['momentum_50', 'momentum_75', 'momentum_90', 'momentum_100'] },
-  { key: 'focus', titleTr: 'Odak', titleEn: 'Focus', ids: ['focus_first', 'focus_5h', 'focus_25h'] },
-  { key: 'milestone', titleTr: 'Kilometre Taşları', titleEn: 'Milestones', ids: ['first_task', 'daily_perfect'] },
-];
+  { key: 'streak', ids: ['streak_3', 'streak_7', 'streak_14', 'streak_30', 'streak_100'] },
+  { key: 'momentum', ids: ['momentum_50', 'momentum_75', 'momentum_90', 'momentum_100'] },
+  { key: 'focus', ids: ['focus_first', 'focus_5h', 'focus_25h'] },
+  { key: 'milestone', ids: ['first_task', 'daily_perfect'] },
+] as const;
+
+type CatKey = typeof CATEGORIES[number]['key'];
 
 /** Sözlük — satır içi `tr ? '...' : '...'` yerine (bkz. i18nRatchet). */
-const NEXT_UP_LABEL = { tr: 'Sıradaki', en: 'Next up' };
-
-// "Nasıl açılır" ipucu — eşiği id kodluyor.
-function hint(id: string, tr: boolean): string {
-  if (id.startsWith('streak_')) { const n = id.split('_')[1]; return tr ? `${n} günlük seri yakala` : `Reach a ${n}-day streak`; }
-  if (id.startsWith('momentum_')) { const n = id.split('_')[1]; return tr ? `Momentum'u %${n} seviyesine çıkar` : `Get momentum to ${n}%`; }
-  if (id === 'focus_first') return tr ? 'İlk odak seansını başlat' : 'Start your first focus session';
-  if (id === 'focus_5h') return tr ? 'Toplam 5 saat odaklan' : 'Focus for 5 hours total';
-  if (id === 'focus_25h') return tr ? 'Toplam 25 saat odaklan' : 'Focus for 25 hours total';
-  if (id === 'first_task') return tr ? 'İlk görevini tamamla' : 'Complete your first task';
-  if (id === 'daily_perfect') return tr ? "Bir günün tüm görevlerini bitir" : "Complete all of a day's tasks";
-  return '';
-}
+const COPY = {
+  tr: {
+    locale: 'tr-TR',
+    title: 'Başarılar',
+    cats: { streak: 'Seri', momentum: 'Momentum', focus: 'Odak', milestone: 'Kilometre taşları' } as Record<CatKey, string>,
+    nextUp: 'Sıradaki',
+    locked: 'Kilitli',
+    earnedBadge: '✓ Başarım açıldı',
+    close: 'Kapat',
+    howTo: 'Nasıl açılır',
+    none: 'İlk madalyan çok yakın.',
+    all: 'Koleksiyon tamamlandı. Efsane.',
+    some: (pct: number) => `Koleksiyonun %${pct} dolu`,
+    hint: (id: string): string => {
+      const n = id.split('_')[1];
+      if (id.startsWith('streak_')) return `${n} günlük seri yakala`;
+      if (id.startsWith('momentum_')) return `Momentum'u %${n} seviyesine çıkar`;
+      const fixed: Record<string, string> = {
+        focus_first: 'İlk odak seansını başlat',
+        focus_5h: 'Toplam 5 saat odaklan',
+        focus_25h: 'Toplam 25 saat odaklan',
+        first_task: 'İlk görevini tamamla',
+        daily_perfect: 'Bir günün tüm görevlerini bitir',
+      };
+      return fixed[id] ?? '';
+    },
+  },
+  en: {
+    locale: 'en-US',
+    title: 'Achievements',
+    cats: { streak: 'Streaks', momentum: 'Momentum', focus: 'Focus', milestone: 'Milestones' } as Record<CatKey, string>,
+    nextUp: 'Next up',
+    locked: 'Locked',
+    earnedBadge: '✓ Achievement earned',
+    close: 'Close',
+    howTo: 'How to unlock',
+    none: 'Your first medal is within reach.',
+    all: 'Collection complete. Legendary.',
+    some: (pct: number) => `Your collection is ${pct}% full`,
+    hint: (id: string): string => {
+      const n = id.split('_')[1];
+      if (id.startsWith('streak_')) return `Reach a ${n}-day streak`;
+      if (id.startsWith('momentum_')) return `Get momentum to ${n}%`;
+      const fixed: Record<string, string> = {
+        focus_first: 'Start your first focus session',
+        focus_5h: 'Focus for 5 hours total',
+        focus_25h: 'Focus for 25 hours total',
+        first_task: 'Complete your first task',
+        daily_perfect: "Complete all of a day's tasks",
+      };
+      return fixed[id] ?? '';
+    },
+  },
+};
 
 /**
  * KAZANILMIŞ MADALYAYA "KUPA" HİSSİ — köşeden çapraz geçen ince bir parlaklık.
- *
- * Önceden dolgu rengi + gölgeden ibaretti; renkli bir daireydi, kazanılmış bir
- * ödülden çok bir rozet-ikonundan farksızdı. Bu, ışığın metalden yansıması gibi
- * okunuyor — gerçek bir madalyanın vaat ettiği "değerli nesne" hissini taşıyor.
  * Yalnız KAZANILMIŞ madalyalarda: kilitli olan parlamaz, parlamak bir ÖDÜL.
  */
 function MedalShine() {
@@ -68,10 +116,15 @@ function MedalShine() {
   );
 }
 
+type Progress = { cur: number; target: number; unit?: string };
+
+const RING_W = 3;
+const RING_GAP = 4;
+
 export default function AchievementsScreen() {
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
-  const tr = language === 'tr';
+  const c = COPY[language];
   const router = useRouter();
   const insets = useSafeAreaInsets();
   /* Tablette içerik 600pt'lik şeride sıkışmasın — üç kademeli genişlik. */
@@ -97,13 +150,13 @@ export default function AchievementsScreen() {
 
   const [detail, setDetail] = useState<(Achievement & { earned: boolean }) | null>(null);
 
-  const allIds = CATEGORIES.flatMap(c => c.ids);
+  const allIds: string[] = CATEGORIES.flatMap(cat => [...cat.ids]);
   const total = allIds.length;
   const earnedCount = allIds.filter(id => unlocked.includes(id)).length;
   const pctAll = Math.round((earnedCount / total) * 100);
 
-  // İlerleme — profilden gelen metrikle (seri + odak saati). Momentum/görev metriği burada yok → ipucu.
-  const progressOf = (id: string): { cur: number; target: number; unit?: string } | null => {
+  // İlerleme — profilden gelen metrikle (seri + odak saati). Görev metriği burada yok → ipucu.
+  const progressOf = (id: string): Progress | null => {
     if (id.startsWith('streak_')) { const t = Number(id.split('_')[1]); return { cur: Math.min(streak, t), target: t }; }
     if (id.startsWith('momentum_')) { const t = Number(id.split('_')[1]); return { cur: Math.min(Math.round(momentum), t), target: t, unit: '%' }; }
     if (id === 'focus_5h') return { cur: Math.min(Math.round(focusHours), 5), target: 5 };
@@ -112,49 +165,68 @@ export default function AchievementsScreen() {
   };
 
   /*
-    SIRADAKİ HEDEF — kahraman bölümü eskiden yalnız "%X dolu" diyordu, somut bir
-    davet yoktu. En yakın (yüzdece en ileri) kilitli başarım burada bulunuyor;
-    ikili (evet/hayır) başarımlar (progressOf null döner) sayılmıyor çünkü
-    "%kaç kaldı" sorusuna cevapları yok.
+    SIRADAKİ HEDEF — en yakın (yüzdece en ileri) kilitli başarım. İkili (evet/hayır)
+    başarımlar sayılmıyor çünkü "%kaç kaldı" sorusuna cevapları yok.
   */
   const nearestIncomplete = allIds
     .filter(id => !unlocked.includes(id))
     .map(id => ({ id, p: progressOf(id) }))
-    .filter((x): x is { id: string; p: { cur: number; target: number; unit?: string } } => x.p !== null)
+    .filter((x): x is { id: string; p: Progress } => x.p !== null)
     .sort((a, b) => (b.p.cur / b.p.target) - (a.p.cur / a.p.target))[0] ?? null;
 
-  const colGap = S.md;
-  const tileW = (width - S.lg * 2 - colGap) / 2;
+  // Izgara: içerik genişliğinden (iPad'de pencere değil, içerik şeridi). Dar telefonda
+  // 3, geniş şeritte 4 sütun — madalya boyu her yerde aynı kalır, sütun sayısı artar.
+  const innerW = Math.min(width, contentW) - S.lg * 2;
+  const cols = innerW >= 520 ? 4 : 3;
+  const colGap = S.sm;
+  const tileW = Math.floor((innerW - colGap * (cols - 1)) / cols);
+  const medal = Math.min(76, tileW - (RING_W + RING_GAP) * 2 - S.xs);
 
   const open = (a: Achievement, earned: boolean) => { haptic.select(); setDetail({ ...a, earned }); };
+  const shortDate = (ts: number) => new Date(ts).toLocaleDateString(c.locale, { day: 'numeric', month: 'short' });
 
-  const Medal = ({ id, earned, size }: { id: string; earned: boolean; size: number }) => {
+  const Medal = ({ id, earned, size, progress }: { id: string; earned: boolean; size: number; progress?: Progress | null }) => {
     const color = ACHIEVEMENT_ICONS[id]?.color || theme.primary;
+    const box = size + (RING_W + RING_GAP) * 2;
+    const r = box / 2 - RING_W / 2;
+    const len = 2 * Math.PI * r;
+    const frac = progress ? Math.min(1, progress.cur / progress.target) : 0;
     return (
-      <View
-        style={[
-          {
-            width: size, height: size, borderRadius: R.full,
-            alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-            backgroundColor: earned ? color : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.035)'),
-            borderWidth: earned ? 0 : B.thin,
-            borderColor: theme.separator,
-          },
-          earned && {
-            shadowColor: color, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.30, shadowRadius: 14, elevation: 6,
-          },
-        ]}
-      >
-        {earned && <MedalShine />}
-        {renderAchievementIcon(id, Math.round(size * 0.42), !earned)}
+      <View style={{ width: box, height: box, alignItems: 'center', justifyContent: 'center' }}>
+        {/* İlerleme halkası yalnız kilitli rozette VE gerçekten ilerleme varken. 0'da çizilen
+            gri iz her kilitli madalyayı kalın çerçeveli bir diske çeviriyordu — ızgara
+            kalabalıklaşıyordu. İz rozetin kendi renginin soluğu (TodayRings kuralı). */}
+        {!earned && frac > 0 && (
+          <Svg width={box} height={box} style={StyleSheet.absoluteFill}>
+            <Circle cx={box / 2} cy={box / 2} r={r} fill="none" stroke={color + '33'} strokeWidth={RING_W} />
+            <Circle
+              cx={box / 2} cy={box / 2} r={r} fill="none" stroke={color} strokeWidth={RING_W}
+              strokeLinecap="round" strokeDasharray={`${len}`} strokeDashoffset={len * (1 - frac)}
+              transform={`rotate(-90 ${box / 2} ${box / 2})`}
+            />
+          </Svg>
+        )}
+        <View
+          style={[
+            {
+              width: size, height: size, borderRadius: R.full,
+              alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+              backgroundColor: earned ? color : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.035)'),
+            },
+            earned && { shadowColor: color, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6 },
+          ]}
+        >
+          {earned && <MedalShine />}
+          {renderAchievementIcon(id, Math.round(size * 0.42), !earned)}
+        </View>
       </View>
     );
   };
 
+  const nextUp = nearestIncomplete ? ACHIEVEMENTS[nearestIncomplete.id] : null;
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <DottedBackground color={theme.onBackground} opacity={isDark ? 0.05 : 0.08} size={24} dotSize={1} />
-
       <BackButton onPress={() => router.back()} style={{ position: 'absolute', top: insets.top + S.xs, left: S.md, zIndex: 20 }} />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
@@ -163,109 +235,83 @@ export default function AchievementsScreen() {
           contentContainerStyle={{ paddingHorizontal: S.lg, paddingTop: MIN_TOUCH + S.md, paddingBottom: insets.bottom + S.xxl, width: '100%', maxWidth: contentW, alignSelf: 'center' }}
         >
           {/* ── Kahraman: koleksiyon ilerlemesi ── */}
-          <View style={{ alignItems: 'center', marginBottom: S.xl }}>
-            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 1.5 }}>
-              {tr ? 'BAŞARILAR' : 'ACHIEVEMENTS'}
+          <View style={{ alignItems: 'center', marginBottom: S.lg }}>
+            <Text accessibilityRole="header" style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: W.semibold, letterSpacing: 1.2 }}>
+              {upperFor(c.title, language)}
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: S.xs, marginTop: S.sm }}>
-              <Text style={{ color: theme.onSurface, fontSize: F.hero, fontWeight: '700', letterSpacing: -1 }}>{earnedCount}</Text>
-              <Text style={{ color: theme.onSurfaceMuted, fontSize: F.title, fontWeight: '700' }}>/ {total}</Text>
+              <Text style={{ color: theme.onSurface, fontSize: F.hero, fontWeight: W.bold, letterSpacing: -1, fontVariant: ['tabular-nums'] }}>{earnedCount}</Text>
+              <Text style={{ color: theme.onSurfaceMuted, fontSize: F.title, fontWeight: W.semibold }}>/ {total}</Text>
             </View>
-            <View style={{ width: '62%', height: 6, borderRadius: R.full, backgroundColor: theme.separator, overflow: 'hidden', marginTop: S.md }}>
+            <View style={{ width: '56%', height: 6, borderRadius: R.full, backgroundColor: theme.tertiary + '29', overflow: 'hidden', marginTop: S.smd }}>
               <View style={{ width: `${Math.max(3, pctAll)}%`, height: '100%', backgroundColor: theme.tertiary, borderRadius: R.full }} />
             </View>
-            <Text style={{ color: theme.onSurfaceMuted, fontSize: F.footnote, fontWeight: '500', marginTop: S.sm, textAlign: 'center' }}>
-              {earnedCount === 0
-                ? (tr ? 'İlk madalyanı kazanmaya çok yakınsın.' : 'Your first medal is within reach.')
-                : earnedCount === total
-                  ? (tr ? 'Koleksiyon tamamlandı. Efsane.' : 'Collection complete. Legendary.')
-                  : (tr ? `Koleksiyonun %${pctAll} dolu — devam et.` : `Your collection is ${pctAll}% full — keep going.`)}
+            <Text style={{ color: theme.onSurfaceMuted, fontSize: F.footnote, fontWeight: W.medium, marginTop: S.sm, textAlign: 'center' }}>
+              {earnedCount === 0 ? c.none : earnedCount === total ? c.all : c.some(pctAll)}
             </Text>
-
-            {/* Sıradaki hedef — soyut yüzdeye somut bir davet ekliyor. */}
-            {nearestIncomplete && (() => {
-              const a = ACHIEVEMENTS[nearestIncomplete.id];
-              if (!a) return null;
-              const color = ACHIEVEMENT_ICONS[nearestIncomplete.id]?.color || theme.primary;
-              const { cur, target, unit } = nearestIncomplete.p;
-              const nextUpLabel = tr ? NEXT_UP_LABEL.tr : NEXT_UP_LABEL.en;
-              return (
-                <Touchable
-                  activeOpacity={0.8}
-                  onPress={() => open(a, false)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${nextUpLabel}: ${tr ? a.titleTr : a.titleEn}`}
-                  style={{
-                    flexDirection: 'row', alignItems: 'center', gap: S.xs,
-                    marginTop: S.md, paddingHorizontal: S.md, paddingVertical: S.xs,
-                    borderRadius: R.full, backgroundColor: color + (isDark ? '1C' : '14'),
-                  }}
-                >
-                  <Text style={{ fontSize: F.caption, fontWeight: '700', color }}>
-                    {nextUpLabel}
-                  </Text>
-                  <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant }}>
-                    {tr ? a.titleTr : a.titleEn} · {cur}/{target}{unit ?? ''}
-                  </Text>
-                </Touchable>
-              );
-            })()}
           </View>
+
+          {/* Sıradaki hedef — soyut yüzdeye somut bir davet. Pill yerine satır: madalyası,
+              adı ve ilerlemesi birlikte; dokununca detay. */}
+          {nearestIncomplete && nextUp && (
+            <Touchable
+              activeOpacity={0.8}
+              onPress={() => open(nextUp, false)}
+              accessibilityRole="button"
+              accessibilityLabel={`${c.nextUp}: ${language === 'tr' ? nextUp.titleTr : nextUp.titleEn}, ${nearestIncomplete.p.cur}/${nearestIncomplete.p.target}${nearestIncomplete.p.unit ?? ''}`}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: S.smd, padding: S.smd, marginBottom: S.xl,
+                borderRadius: R.lg, backgroundColor: theme.surfaceCard, borderWidth: isDark ? B.thin : 0, borderColor: theme.outline,
+              }}
+            >
+              <Medal id={nearestIncomplete.id} earned={false} size={40} progress={nearestIncomplete.p} />
+              <View style={{ flex: 1, gap: S.xxs }}>
+                <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: W.semibold }}>{c.nextUp}</Text>
+                <Text numberOfLines={1} style={{ color: theme.onSurface, fontSize: F.body, fontWeight: W.semibold }}>
+                  {language === 'tr' ? nextUp.titleTr : nextUp.titleEn}
+                </Text>
+              </View>
+              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.callout, fontWeight: W.semibold, fontVariant: ['tabular-nums'] }}>
+                {nearestIncomplete.p.cur}/{nearestIncomplete.p.target}{nearestIncomplete.p.unit ?? ''}
+              </Text>
+            </Touchable>
+          )}
 
           {/* ── Kategoriler ── */}
           {CATEGORIES.map(cat => (
             <View key={cat.key} style={{ marginBottom: S.xl }}>
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.footnote, fontWeight: '700', letterSpacing: 1.2, marginBottom: S.md }}>
-                {upperFor(tr ? cat.titleTr : cat.titleEn, tr)}
+              <Text accessibilityRole="header" style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: W.semibold, letterSpacing: 0.6, marginBottom: S.md }}>
+                {upperFor(c.cats[cat.key], language)}
               </Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: colGap }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: colGap, rowGap: S.lg }}>
                 {cat.ids.map(id => {
                   const a = ACHIEVEMENTS[id];
                   if (!a) return null;
                   const earned = unlocked.includes(id);
                   const p = !earned ? progressOf(id) : null;
-                  const color = ACHIEVEMENT_ICONS[id]?.color || theme.primary;
+                  const title = language === 'tr' ? a.titleTr : a.titleEn;
+                  const caption = earned
+                    ? (unlockedAt[id] ? shortDate(unlockedAt[id]) : '')
+                    : p ? `${p.cur}/${p.target}${p.unit ?? ''}` : c.locked;
                   return (
                     <Touchable
                       key={id}
-                      activeOpacity={0.85}
+                      activeOpacity={0.7}
                       onPress={() => open(a, earned)}
-                      style={{
-                        width: tileW,
-                        alignItems: 'center',
-                        paddingVertical: S.lg,
-                        paddingHorizontal: S.md,
-                        borderRadius: R.lg,
-                        borderWidth: B.thin,
-                        borderColor: earned ? color + '2E' : theme.separator,
-                        backgroundColor: earned
-                          ? color + (isDark ? '14' : '0D')
-                          : (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'),
-                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${title}, ${earned ? c.earnedBadge.replace('✓ ', '') : caption}`}
+                      style={{ width: tileW, alignItems: 'center' }}
                     >
-                      <Medal id={id} earned={earned} size={64} />
+                      <Medal id={id} earned={earned} size={medal} progress={p} />
                       <Text
                         numberOfLines={2}
-                        style={{ color: earned ? theme.onSurface : theme.onSurfaceVariant, fontSize: F.footnote, fontWeight: '700', textAlign: 'center', marginTop: S.md, lineHeight: 16 }}
+                        style={{ color: earned ? theme.onSurface : theme.onSurfaceVariant, fontSize: F.footnote, fontWeight: W.semibold, textAlign: 'center', marginTop: S.sm, lineHeight: 17 }}
                       >
-                        {tr ? a.titleTr : a.titleEn}
+                        {title}
                       </Text>
-                      {earned ? (
-                        <Text style={{ color: theme.tertiary, fontSize: F.caption, fontWeight: '700', marginTop: S.xs }}>
-                          {tr ? '✓ Açıldı' : '✓ Earned'}
-                        </Text>
-                      ) : p ? (
-                        <View style={{ width: '82%', marginTop: S.sm, gap: S.xxs }}>
-                          <View style={{ height: 4, borderRadius: R.full, backgroundColor: theme.separator, overflow: 'hidden' }}>
-                            <View style={{ width: `${Math.max(4, Math.min(100, Math.round((p.cur / p.target) * 100)))}%`, height: '100%', backgroundColor: color, borderRadius: R.full }} />
-                          </View>
-                          <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '700', textAlign: 'center' }}>
-                            {p.cur}/{p.target}{p.unit ?? ''}
-                          </Text>
-                        </View>
-                      ) : (
-                        <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600', marginTop: S.xs }}>
-                          {tr ? 'Kilitli' : 'Locked'}
+                      {!!caption && (
+                        <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: W.medium, marginTop: S.xxs, fontVariant: ['tabular-nums'] }}>
+                          {caption}
                         </Text>
                       )}
                     </Touchable>
@@ -299,7 +345,7 @@ export default function AchievementsScreen() {
                 <MotiView
                   from={{ opacity: 0, scale: 0.85, translateY: 12 }}
                   animate={{ opacity: 1, scale: 1, translateY: 0 }}
-                  transition={{ type: 'spring', damping: 15, stiffness: 180 }}
+                  transition={{ type: 'spring', ...RSPRING.pop }}
                   style={{
                     width: '100%', maxWidth: 340, alignItems: 'center',
                     borderColor: theme.separator, borderWidth: B.thin,
@@ -319,37 +365,37 @@ export default function AchievementsScreen() {
                     {renderAchievementIcon(detail.id, 52, !detail.earned)}
                   </View>
 
-                  <Text numberOfLines={2} style={{ color: theme.onSurface, fontSize: F.title, fontWeight: '700', letterSpacing: -0.4, textAlign: 'center', marginTop: S.lg }}>
-                    {tr ? detail.titleTr : detail.titleEn}
+                  <Text numberOfLines={2} style={{ color: theme.onSurface, fontSize: F.title, fontWeight: W.bold, letterSpacing: -0.4, textAlign: 'center', marginTop: S.lg }}>
+                    {language === 'tr' ? detail.titleTr : detail.titleEn}
                   </Text>
-                  <Text style={{ color: theme.onSurfaceMuted, fontSize: F.body, fontWeight: '500', textAlign: 'center', lineHeight: 21, marginTop: S.xs }}>
-                    {tr ? detail.subtitleTr : detail.subtitleEn}
+                  <Text style={{ color: theme.onSurfaceMuted, fontSize: F.body, fontWeight: W.medium, textAlign: 'center', lineHeight: 21, marginTop: S.xs }}>
+                    {language === 'tr' ? detail.subtitleTr : detail.subtitleEn}
                   </Text>
 
                   {detail.earned ? (
                     <View style={{ marginTop: S.lg, alignItems: 'center', gap: S.sm }}>
                       <View style={{ paddingHorizontal: S.md, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: theme.tertiary + '1C' }}>
-                        <Text style={{ color: theme.tertiary, fontSize: F.caption, fontWeight: '700', letterSpacing: 0.5 }}>
-                          {tr ? '✓ BAŞARIM AÇILDI' : '✓ ACHIEVEMENT EARNED'}
+                        <Text style={{ color: theme.tertiary, fontSize: F.caption, fontWeight: W.bold, letterSpacing: 0.5 }}>
+                          {upperFor(c.earnedBadge, language)}
                         </Text>
                       </View>
                       {unlockedAt[detail.id] && (
-                        <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '500' }}>
-                          {new Date(unlockedAt[detail.id]).toLocaleDateString(tr ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: W.medium }}>
+                          {new Date(unlockedAt[detail.id]).toLocaleDateString(c.locale, { day: 'numeric', month: 'long', year: 'numeric' })}
                         </Text>
                       )}
                     </View>
                   ) : (
                     <View style={{ marginTop: S.lg, width: '100%', alignItems: 'center', gap: S.sm }}>
-                      <Text style={{ color: theme.onSurfaceVariant, fontSize: F.footnote, fontWeight: '600', textAlign: 'center' }}>
-                        {tr ? `Nasıl açılır: ${hint(detail.id, true)}` : `How to unlock: ${hint(detail.id, false)}`}
+                      <Text style={{ color: theme.onSurfaceVariant, fontSize: F.footnote, fontWeight: W.semibold, textAlign: 'center' }}>
+                        {`${c.howTo}: ${c.hint(detail.id)}`}
                       </Text>
                       {p && (
                         <View style={{ width: '80%', gap: S.xxs }}>
-                          <View style={{ height: 6, borderRadius: R.full, backgroundColor: theme.separator, overflow: 'hidden' }}>
+                          <View style={{ height: 6, borderRadius: R.full, backgroundColor: color + '29', overflow: 'hidden' }}>
                             <View style={{ width: `${Math.max(4, Math.min(100, Math.round((p.cur / p.target) * 100)))}%`, height: '100%', backgroundColor: color, borderRadius: R.full }} />
                           </View>
-                          <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '700', textAlign: 'center' }}>
+                          <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: W.bold, textAlign: 'center', fontVariant: ['tabular-nums'] }}>
                             {p.cur} / {p.target}{p.unit ?? ''}
                           </Text>
                         </View>
@@ -360,7 +406,7 @@ export default function AchievementsScreen() {
                   <Touchable
                     onPress={() => setDetail(null)}
                     accessibilityRole="button"
-                    accessibilityLabel={tr ? 'Kapat' : 'Close'}
+                    accessibilityLabel={c.close}
                     style={{ marginTop: S.lg, width: MIN_TOUCH, height: MIN_TOUCH, borderRadius: R.full, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }}
                   >
                     <X size={ICON.md} color={theme.onSurfaceVariant} />

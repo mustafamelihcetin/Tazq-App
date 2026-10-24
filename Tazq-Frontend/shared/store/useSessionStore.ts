@@ -23,10 +23,26 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * Misafirlik uygulamayı kapatınca bitmemeli: kullanıcı denemeye devam ederken
  * uygulamayı kapatıp açtığında kendini giriş ekranında bulmamalı.
  */
+/** Misafirin hoş geldin ekranında girdiği profil — yalnız bu cihazda. */
+export interface GuestProfile {
+  name: string;
+  avatar: string;
+  borderColor: string;
+  motto: string;
+}
+
 interface SessionState {
   /** Hesapsız (yerel) kullanım. Gerçek oturumla aynı anda ASLA true olmaz. */
   isGuest: boolean;
   setGuest: (v: boolean) => void;
+  /**
+   * MİSAFİR PROFİLİ (2026-10-24). Hoş geldin eskiden yalnız hesabı olana açılıyordu;
+   * misafir hiç görmüyor, selamlama isimsiz kalıyordu. Ad/avatar sunucuya gidemez
+   * (misafir), burada saklanır. Hesap açılınca kayıt formu adı buradan doldurur,
+   * ana sayfa avatar/çerçeve/mottoyu hesaba yazar ve bunu temizler.
+   */
+  guestProfile: GuestProfile | null;
+  setGuestProfile: (p: GuestProfile | null) => void;
   _hasHydrated: boolean;
   setHasHydrated: (v: boolean) => void;
 }
@@ -36,13 +52,15 @@ export const useSessionStore = create<SessionState>()(
     (set) => ({
       isGuest: false,
       setGuest: (isGuest) => set({ isGuest }),
+      guestProfile: null,
+      setGuestProfile: (guestProfile) => set({ guestProfile }),
       _hasHydrated: false,
       setHasHydrated: (v) => set({ _hasHydrated: v }),
     }),
     {
       name: 'tazq-session-storage',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (s) => ({ isGuest: s.isGuest }) as SessionState,
+      partialize: (s) => ({ isGuest: s.isGuest, guestProfile: s.guestProfile }) as SessionState,
       onRehydrateStorage: () => (state) => state?.setHasHydrated(true),
     },
   ),

@@ -81,6 +81,7 @@ interface User {
 
 function clearLocalUserData() {
   const safe = (fn: () => void) => { try { fn(); } catch (e) { swallow('authStore.clearLocalUserData', e, { capture: true }); } };
+  safe(() => useSessionStore.getState().setGuestProfile(null));
   /*
     ── TANITIM SLAYTLARI CİHAZ BAŞINA — BİLİNÇLİ, ÖLÇÜLMÜŞ KARAR ────────────────
     Bayrak çıkışta SİLİNMİYOR. "Hesap başına olmalı mı?" sorusu bir kez daha soruldu ve
@@ -217,7 +218,19 @@ export const useAuthStore = create<AuthState>()(
           isFirstLogin: isFirstLogin ?? false
         });
       },
-      startGuest: () => useSessionStore.getState().setGuest(true),
+      startGuest: () => {
+        useSessionStore.getState().setGuest(true);
+        /*
+          HOŞ GELDİN MİSAFİRE DE (2026-10-24). Yalnız bu GİRİŞ ANINDA beklemeye alınır:
+          bugün misafir olarak kullanan biri güncellemeden sonra durduk yere hoş geldin
+          görmez (onun bayrağı 'unknown' kalır, startGuest bir daha çağrılmaz). Hoş
+          geldini daha önce bitirmiş biri ('done') tekrar görmez.
+        */
+        try {
+          const prefs = require('@/features/modes/store/usePrefsStore').usePrefsStore.getState();
+          if (prefs.welcomeStatus === 'unknown') prefs.setWelcomeStatus('pending');
+        } catch (e) { swallow('authStore.startGuestWelcome', e); }
+      },
       /*
         MİSAFİRLİK BİTERKEN YEREL VERİ SİLİNMEZ.
 

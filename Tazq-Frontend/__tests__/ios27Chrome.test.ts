@@ -230,22 +230,26 @@ describe('odak hapı sekme çubuğunun üstünde', () => {
   });
 });
 
-describe('Android bu turda DEĞİŞMEDİ', () => {
+/*
+  ANDROID (2026-10-24): bu blok eskiden "Android bu turda DEĞİŞMEDİ" idi — iOS 27 turu
+  Android'e dokunmamıştı. Sonra Android ayrıca ele alındı: M3 Expressive yüzen araç
+  çubuğu (bkz. floatingBars.test). Kurallar o kararı sabitliyor: cam yine YALNIZ iOS'ta.
+*/
+describe('Android: M3 yüzen çubuk — cam yalnız iOS\'ta', () => {
   const TOKENS = read('shared/constants/tokens.ts');
 
   it('geometri platforma göre dallanıyor — tek platforma çökmemiş', () => {
-    expect(TOKENS).toMatch(/NAV_BAR_LIFT = Platform\.OS === 'ios' \? 8 : 0/);
-    expect(TOKENS).toMatch(/NAV_BAR_SIDE_INSET = Platform\.OS === 'ios' \? 16 : 0/);
-    expect(TOKENS).toMatch(/NAV_BAR_RADIUS = Platform\.OS === 'ios' \? 999 : 0/);
+    expect(TOKENS).toMatch(/NAV_BAR_LIFT = Platform\.OS === 'ios' \? 8 : 12/);
+    expect(TOKENS).toMatch(/NAV_BAR_HEIGHT = Platform\.OS === 'ios' \? 49 : 64/);
   });
 
-  it('Android çubuğu opak kalır — cam yalnız iOS\'ta', () => {
-    expect(NAV).toMatch(/backgroundColor: IS_IOS \? 'transparent' : theme\.surfaceFloating/);
+  it('Android çubuğu OPAK tonal yüzey — cam yalnız iOS\'ta', () => {
+    expect(NAV).toMatch(/backgroundColor: theme\.surfaceCard/);
     expect(NAV).toMatch(/\{IS_IOS && <AppBlur material="chrome"/);
   });
 
-  it('ayraç çizgisi YALNIZ yapışık çubukta — yüzen kapsülde anlamsız', () => {
-    expect(NAV).toMatch(/borderTopWidth: IS_IOS \? 0 : HAIRLINE/);
+  it('yüzen kapsülde üst ayraç çizgisi yok — kabuk sınırı söylüyor', () => {
+    expect(NAV).not.toMatch(/borderTopWidth/);
   });
 
   it('cam/blur katmanı KENDİ yarıçapını bilir — köşeleri kabın dışına taşmaz', () => {

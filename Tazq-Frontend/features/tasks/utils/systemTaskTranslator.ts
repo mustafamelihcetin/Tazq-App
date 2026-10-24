@@ -13,7 +13,8 @@ import { getAllKnownModePairs } from '@/features/modes/utils/turkishModes';
 import { getAllLifeModePairs } from '@/shared/utils/lifeModePlans';
 import { useTaskStore } from '@/features/tasks/store/useTaskStore';
 import { useHabitStore } from '@/features/habits/store/useHabitStore';
-import { translateTag } from '@/features/tasks';
+// Barrel ('@/features/tasks') DEĞİL: dil deposuyla döngü kuruyordu (bkz. androidParity.test).
+import { translateTag } from '@/features/tasks/utils/taskTags';
 import { swallow } from '@/shared/utils/swallow';
 
 let trToEnMap: Map<string, string> | null = null;

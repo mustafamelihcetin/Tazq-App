@@ -34,6 +34,7 @@ import { validateRegister } from '@/shared/utils/validation';
 import { httpStatusOf, isNetworkError, errorMessage, errorCode, httpRawDataOf } from '@/shared/utils/errors';
 import { haptic } from '@/shared/utils/haptics';
 import { swallow } from '@/shared/utils/swallow';
+import { useSessionStore } from '@/shared/store/useSessionStore';
 
 const GoogleIcon = ({ color }: { color: string }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24">
@@ -62,7 +63,8 @@ export default function RegisterScreen() {
 
   const setAuth = useAuthStore(state => state.setAuth);
 
-  const [name, setName] = useState('');
+  // Misafirken hoş geldinde girilen ad (bkz. GuestProfile) — ikinci kez yazdırmayız.
+  const [name, setName] = useState(() => useSessionStore.getState().guestProfile?.name ?? '');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);

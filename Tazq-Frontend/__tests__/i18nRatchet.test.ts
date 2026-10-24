@@ -96,7 +96,7 @@ function countInline(rel: string): number {
  * geri gitmeyi imkânsız kılıyor.
  */
 const BASELINE: Record<string, number> = {
-  'app/achievements.tsx': 17,
+  // achievements.tsx LİSTEDEN ÇIKTI (17 → 0, 2026-10-24): metinler COPY sözlüğünde.
   'app/admin.tsx': 205,
   'app/archive.tsx': 8,
   'app/cockpit.tsx': 57, // 63 → 57: bu turun metinleri DAY_COPY sözlüğünde

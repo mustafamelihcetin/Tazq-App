@@ -72,17 +72,25 @@ describe('sekme cubugu geometrisi', () => {
     expect(NAV_BAR_HEIGHT).toBe(49);       // icerik yuksekligi DEGISMEDI
   });
 
-  it('ANDROID DEGISMIYOR — geometri platforma gore dallaniyor', () => {
+  it('ANDROID: M3 Expressive yuzen arac cubugu — cam degil, tonal kapsul', () => {
     /*
-      Android'in Material gezinme cubugu dibe yapisik, tam genislikte ve opaktir;
-      yuzen cam kapsul oraya tasinirsa platformun diline yabanci bir sey olur.
-      Jest iOS altinda kostugu icin Android degerleri calisma aninda okunamaz —
-      kaynaktaki DALLANMA sininiyor.
+      ESKI KURAL (2026-10-24'e kadar): "Android degismiyor, dibe yapisik opak cubuk".
+      Kullanici Android'de cubugu demode buldu; Material'in kendisi de M3 Expressive ile
+      yuzen arac cubuguna gecti (material-components-android FloatingToolbar.md:
+      16dp marj, %50 yuvarlak, tonal yuzey). Cam Android'e yine tasinmiyor.
+      Jest iOS altinda kostugu icin Android degerleri kaynaktaki DALLANMADAN sinaniyor.
     */
     const src = read('shared/constants/tokens.ts');
-    expect(src).toMatch(/NAV_BAR_LIFT = Platform\.OS === 'ios' \? 8 : 0/);
-    expect(src).toMatch(/NAV_BAR_SIDE_INSET = Platform\.OS === 'ios' \? 16 : 0/);
-    expect(src).toMatch(/NAV_BAR_RADIUS = Platform\.OS === 'ios' \? 999 : 0/);
+    expect(src).toMatch(/NAV_BAR_LIFT = Platform\.OS === 'ios' \? 8 : 12/);
+    expect(src).toMatch(/NAV_BAR_SIDE_INSET = Platform\.OS === 'ios' \? 16 : 16/);
+    expect(src).toMatch(/NAV_BAR_RADIUS = Platform\.OS === 'ios' \? 999 : 999/);
+    expect(src).toMatch(/NAV_BAR_HEIGHT = Platform\.OS === 'ios' \? 49 : 64/); // M3 Expressive 64dp
+    // iOS degerleri DEGISMEDI (bu test iOS altinda kosuyor).
+    expect(NAV_BAR_HEIGHT).toBe(49);
+    const bar = read('shared/components/BottomNavBar.tsx');
+    // Cam yalniz iOS'ta; Android'de opak tonal yuzey + M3 hap gostergesi.
+    expect(bar).toMatch(/\{IS_IOS && <AppBlur material="chrome"/);
+    expect(bar).toContain('NAV_INDICATOR_W');
   });
 
   it('kuculmus cubuk DAHA KISA ama bosluk TAM yukseklige gore ayrilir', () => {
@@ -141,8 +149,8 @@ describe('sekme cubugu geometrisi', () => {
     expect(src).toContain('NAV_BAR_MIN_INSET');
     expect(src).toContain('NAV_BAR_LIFT');
     expect(src).toContain('NAV_BAR_SIDE_INSET');
-    // Ayrac cizgisi YALNIZ Android'de (yapisik cubukta) anlamli.
-    expect(src).toMatch(/borderTopWidth: IS_IOS \? 0 : HAIRLINE/);
+    // Iki platformda da yuzen kapsul: ust ayrac cizgisi yok (kabuk siniri soyluyor).
+    expect(src).not.toMatch(/borderTopWidth/);
   });
 
   it('ARAMA CUBUKTA DEGIL — Gorevler ekraninda zaten var', () => {

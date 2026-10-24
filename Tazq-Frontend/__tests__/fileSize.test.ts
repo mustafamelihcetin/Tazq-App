@@ -67,7 +67,7 @@ const KNOWN_LARGE: Record<string, number> = {
   */
   // 860 → 870: misafirin "cihazdaki verileri sil" metinleri (iki dil).
   // 870 → 874: tasarruf ve bırakma da birer mod adı — özet ikisini hiç görmüyordu.
-  'shared/constants/i18n.ts': 996, // +2 (2026-10-24): Sıradaki kartı etiketi ("SIRADAKİ" — Aktif Görev + Günlük Hedef birleşti)
+  'shared/constants/i18n.ts': 1014, // +18 (2026-10-24): Ödemeler ay özeti + göreli vade metinleri (iki dil × 9) // +2 (2026-10-24): Sıradaki kartı etiketi ("SIRADAKİ" — Aktif Görev + Günlük Hedef birleşti)
   // 2820 → 2817: baştaki emojiyi silen üç ayrı uygulamadan ikisi (biri hatalıydı,
   // \p{Emoji} rakamları da yiyordu) shared/utils/emoji.ts'e indi.
   // 2817 → 2820: YKS/KPSS/Ramazan'ın DİL kapısı (İngilizce arayüzde takvimle
@@ -336,7 +336,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // trophy ikonu tema token'larına bağlandı.
   // 899 → 919: başarım önizlemesi en son kazanılana göre sıralanıyor (recency),
   // kazanılmış madalyada kupa ışıltısı (MedalShine deseni).
-  'app/profile.tsx': 950, // 2026-10-24: avatar resmi iç alana göre boyutlanır (88'lik kapta 110'luk resim kırpılıyordu) + Yenile/upperFor notları
+  'app/profile.tsx': 951, // +1 (2026-10-24): misafirin hoş geldinde seçtiği avatar (guestAvatar) // 2026-10-24: avatar resmi iç alana göre boyutlanır (88'lik kapta 110'luk resim kırpılıyordu) + Yenile/upperFor notları
   'shared/constants/legal.ts': 893,
   // İlk kez 800 satırı geçti: admin panelinin Ürün İçgörüleri tipleri
   // (AdminModeAdoption/AdminRetentionCohort/AdminVersionShare) + X-App-Version

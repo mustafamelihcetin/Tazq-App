@@ -162,6 +162,7 @@ export default function ProfileScreen() {
     görüyor ve tek anlamlı eylemi — verisini kaybetmeden hesap açmak — öne çıkıyor.
   */
   const isGuest = useSessionStore(s => s.isGuest);
+  const guestAvatar = useSessionStore(s => s.guestProfile?.avatar);
 
   const openEditModal = () => {
     prepareEdit();
@@ -386,7 +387,7 @@ export default function ProfileScreen() {
                 {(() => {
                   const inner = 88 - 2 * ((!avatarBorderColor || avatarBorderColor === 'transparent') ? 2 : 4) - 2 * S.xs;
                   // Resim kendi dairesini de taşır: kare köşeler iç boşluk halkasında görünmesin.
-                  return <UserAvatar avatar={user?.avatar} size={inner} iconSize={ICON.xxl} theme={theme} style={{ borderRadius: inner / 2, overflow: 'hidden' }} />;
+                  return <UserAvatar avatar={user?.avatar ?? guestAvatar} size={inner} iconSize={ICON.xxl} theme={theme} style={{ borderRadius: inner / 2, overflow: 'hidden' }} />;
                 })()}
             </MotiView>
             <View style={{ alignItems: 'center', marginTop: S.md }}>

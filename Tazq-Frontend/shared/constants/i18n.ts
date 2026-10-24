@@ -431,7 +431,7 @@ export const translations = {
       add: 'Add',
       emptyState: 'Track your bills separately, one tap at a time.',
       thisMonth: 'This Month',
-      upcoming: 'Upcoming',
+      upcoming: 'Later',
       markPaid: 'Mark as paid',
       undoPaid: 'Paid — undo',
       delete: 'Delete',
@@ -451,6 +451,15 @@ export const translations = {
       monthTotal: (count: number, amount: string) => `${count} payment${count === 1 ? '' : 's'} · ${amount} total`,
       urgentOverdue: (count: number, amount: string) => count === 1 ? `A payment is overdue — ${amount}` : `${count} payments are overdue — ${amount}`,
       urgentDueSoon: (count: number, amount: string) => count === 1 ? `A payment is due soon — ${amount}` : `${count} payments due soon — ${amount}`,
+      /** Ay özeti (Tremor KPI + ProgressBar deseni). */
+      leftThisMonth: 'Left this month',
+      paidOfTotal: (paid: string, total: string) => `${paid} paid · ${total} total`,
+      allPaid: 'Everything for this month is paid',
+      paidLabel: 'Paid',
+      dueToday: 'Due today',
+      dueTomorrow: 'Tomorrow',
+      dueIn: (n: number) => `In ${n} days`,
+      overdueBy: (n: number) => (n === 1 ? '1 day overdue' : `${n} days overdue`),
     },
     /** Mod adlarının varsayılanı — kullanıcı kendi adını girmediyse (bkz. useActiveModeSummary). */
     modeNames: {
@@ -889,7 +898,7 @@ export const translations = {
       add: 'Ekle',
       emptyState: 'Faturalarını görevlerden ayrı, tek dokunuşla takip et.',
       thisMonth: 'Bu Ay',
-      upcoming: 'Gelecek Ay',
+      upcoming: 'Daha sonra',
       markPaid: 'Ödendi işaretle',
       undoPaid: 'Ödendi — geri al',
       delete: 'Sil',
@@ -909,6 +918,15 @@ export const translations = {
       monthTotal: (count: number, amount: string) => `${count} ödeme · toplam ${amount}`,
       urgentOverdue: (count: number, amount: string) => count === 1 ? `Bir ödemenin vadesi geçti — ${amount}` : `${count} ödemenin vadesi geçti — ${amount}`,
       urgentDueSoon: (count: number, amount: string) => count === 1 ? `Bir ödemenin vadesi yaklaşıyor — ${amount}` : `${count} ödemenin vadesi yaklaşıyor — ${amount}`,
+      /** Ay özeti (Tremor KPI + ProgressBar deseni). */
+      leftThisMonth: 'Bu ay kalan',
+      paidOfTotal: (paid: string, total: string) => `${paid} ödendi · toplam ${total}`,
+      allPaid: 'Bu ayın ödemeleri tamam',
+      paidLabel: 'Ödendi',
+      dueToday: 'Bugün',
+      dueTomorrow: 'Yarın',
+      dueIn: (n: number) => `${n} gün sonra`,
+      overdueBy: (n: number) => `${n} gün gecikti`,
     },
     /** Mod adlarının varsayılanı — kullanıcı kendi adını girmediyse (bkz. useActiveModeSummary). */
     modeNames: {

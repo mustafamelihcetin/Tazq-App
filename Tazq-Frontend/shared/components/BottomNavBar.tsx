@@ -3,12 +3,16 @@ import { View, Text, StyleSheet, Platform, Keyboard, useWindowDimensions } from 
 import { LayoutGrid, CheckSquare, Sparkles, Layers, CalendarDays } from 'lucide-react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { MotiView } from 'moti';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { AppBlur } from '@/shared/components/AppBlur';
+import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import {
   S, HAIRLINE, MAX_W, NAV_BAR_HEIGHT, NAV_BAR_MIN_INSET, NAV_ICON_SIZE, NAV_LABEL_SIZE,
   NAV_BAR_LIFT, NAV_BAR_SIDE_INSET, NAV_BAR_RADIUS,
   NAV_BAR_MINIMIZED_HEIGHT, NAV_CAPSULE_PAD, NAV_LABEL_MIN_TAB_WIDTH,
+  NAV_INDICATOR_W, NAV_INDICATOR_H, RSPRING,
 } from '@/shared/constants/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Touchable } from '@/shared/components/Touchable';
@@ -30,8 +34,13 @@ import { TourTarget } from '@/shared/components/TourContext';
  * biçimli, içeriğin ÜZERİNDE yüzen bir cam şerit oldu ve kaydırmada ikon-only'ye
  * küçülüyor. Android'de böyle bir şey yok ve olmamalı.
  *
- * Bu yüzden geometri `tokens.ts` içinde platforma göre ayrıldı. Android bu turda
- * GÖRSEL OLARAK HİÇ DEĞİŞMİYOR: yükselti 0, yan boşluk 0, yarıçap 0, küçülme kapalı.
+ * Bu yüzden geometri `tokens.ts` içinde platforma göre ayrıldı.
+ *
+ * ANDROID (2026-10-24): M3 Expressive yüzen araç çubuğu — aynı kapsül biçimi, ama cam
+ * değil TONAL opak yüzey + 3dp elevation; aktif sekme M3'ün 56×32 hap göstergesiyle
+ * (react-bits PillNav gibi sekmeler arasında yayla kayar). Küçülme Android'de kapalı.
+ * Kapsülün altı tema zeminine sönümlenir: tuşlu telefonda sistem tuşlarının zemini
+ * sayfa içeriği değil tema rengi olur (çubuk kenardan kenara, saydam).
  *
  * ── ESKİ İTİRAZ VE NASIL ÇÖZÜLDÜĞÜ ────────────────────────────────────────────
  * Yüzen "pill" bir kez denenip geri alınmıştı; gerekçe kayıtlıydı ve haklıydı:
@@ -111,6 +120,19 @@ export const BottomNavBar = () => {
   const minimized = useChromeStore(s => s.minimized) && IS_IOS;
 
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  /*
+    HOOK'LAR ERKEN DÖNÜŞTEN ÖNCE. `useWindowDimensions` eskiden aşağıdaki
+    `return null`un ARKASINDAYDI: Android'de klavye açılınca bileşen daha az hook
+    çağırıyor ve React "Rendered fewer hooks" hatasıyla düşüyordu (iOS'ta klavye
+    dinlenmediği için hiç tetiklenmiyordu). Bkz. __tests__/androidParity.test.ts.
+  */
+  const { width: winW, fontScale } = useWindowDimensions();
+  const reduceMotion = useReduceMotion();
+  const indicatorX = useSharedValue(-1);
+  const indicatorStyle = useAnimatedStyle(() => ({
+    opacity: indicatorX.value < 0 ? 0 : 1,
+    transform: [{ translateX: Math.max(0, indicatorX.value) }],
+  }));
 
   useEffect(() => {
     if (Platform.OS !== 'android') return;
@@ -135,6 +157,18 @@ export const BottomNavBar = () => {
     gizleniyor (bkz. __tests__/liteMode.test.ts).
   */
   const tabs = (uiMode === 'lite' || isGuest) ? allTabs.filter(t => LITE_TAB_IDS.includes(t.id)) : allTabs;
+
+  const isActiveTab = (path: string) => pathname === path || (path === '/' && pathname === '/index');
+  const activeIndex = tabs.findIndex(t => isActiveTab(t.path));
+  // Gösterge sekme genişliğinden türetilir (aşağıdaki etiket hesabıyla AYNI genişlik).
+  const tabW = (Math.min(winW, MAX_W) - NAV_BAR_SIDE_INSET * 2 - NAV_CAPSULE_PAD * 2) / Math.max(tabs.length, 1);
+  const indicatorW = Math.min(NAV_INDICATOR_W, tabW - S.sm);
+  useEffect(() => {
+    if (IS_IOS || activeIndex < 0) { indicatorX.value = -1; return; }
+    const target = activeIndex * tabW + (tabW - indicatorW) / 2;
+    // İlk yerleşim ve "hareketi azalt" → yay yok, doğrudan yerine.
+    indicatorX.value = reduceMotion || indicatorX.value < 0 ? target : withSpring(target, RSPRING.snappy);
+  }, [activeIndex, tabW, indicatorW, reduceMotion]);
 
   const handlePress = (path: string) => {
     if (pathname === path) return;
@@ -162,18 +196,27 @@ export const BottomNavBar = () => {
     Sığmıyorsa KIRPILMAZ, gizlenir: "Ana Say…" hem daha az bilgi taşır hem daha
     kalabalık durur. Apple da dar alanda etiketi düşürür.
   */
-  const { width: winW, fontScale } = useWindowDimensions();
   const usableWidth = Math.min(winW, MAX_W) - NAV_BAR_SIDE_INSET * 2 - NAV_CAPSULE_PAD * 2;
   const perTabWidth = usableWidth / Math.max(tabs.length, 1);
   const labelFits = perTabWidth >= NAV_LABEL_MIN_TAB_WIDTH * Math.max(fontScale, 1);
   const showLabels = !minimized && labelFits;
 
   /** Kapsülün kabuk stili. */
-  const shellStyle = {
-    backgroundColor: IS_IOS ? 'transparent' : theme.surfaceFloating,
-    borderRadius: NAV_BAR_RADIUS,
-    overflow: 'hidden' as const,
-  };
+  const shellStyle = IS_IOS
+    ? { backgroundColor: 'transparent', borderRadius: NAV_BAR_RADIUS, overflow: 'hidden' as const }
+    : {
+        /*
+          ANDROID — M3 yüzen araç çubuğu: tonal yüzey (surfaceContainer karşılığı
+          surfaceCard: koyu temada zeminden bir ton açık), 3dp elevation (M3 gezinme
+          çubuğunun değeri), koyu temada saç teli çerçeve (gölge koyu zeminde görünmez).
+        */
+        backgroundColor: theme.surfaceCard,
+        borderRadius: NAV_BAR_RADIUS,
+        borderWidth: isDark ? HAIRLINE : 0,
+        borderColor: theme.outline,
+        elevation: 3,
+        shadowColor: '#000',
+      };
 
   return (
     <View
@@ -184,21 +227,29 @@ export const BottomNavBar = () => {
           // olduğu için davranış bugünküyle birebir aynı kalır.
           paddingBottom: Math.max(insets.bottom, NAV_BAR_MIN_INSET) + NAV_BAR_LIFT,
           paddingHorizontal: NAV_BAR_SIDE_INSET,
-          // Ayraç çizgisi YALNIZ dibe yapışık çubukta anlamlı. Yüzen kapsülde
-          // çizginin bağlanacağı bir kenar yok; kabuğun kendisi sınırı söylüyor.
-          borderTopWidth: IS_IOS ? 0 : HAIRLINE,
-          borderTopColor: theme.outlineVariant,
         },
       ]}
     >
       {/*
-        Geniş/foldable ekranda sekmeler sonsuza yayılmasın — kapsül içerikle aynı
-        sütunda kalır. ANDROID İSTİSNA: oradaki çubuk YÜZMÜYOR, dibe yapışık ve tam
-        genişlikte. 600pt'de kesilse tablette ekranın ortasına yapıştırılmış opak bir
-        şerit olurdu — üstelik ayraç çizgisi tam genişlikte olduğu için ikisi
-        birbirini yalanlardı. Telefonda ekran zaten 600'den dar: hiçbir şey değişmez.
+        ANDROID — ALTI TEMA ZEMİNİNE SÖNÜMLENİR. Sistem çubuğu saydam (kenardan kenara):
+        tuşlu telefonda tuşların arkasında kayan sayfa içeriği görünüyordu. Kapsülün
+        ortasından aşağısı tema zeminine geçiyor → tuşların zemini temanın rengi, içerik
+        kapsülün altında yumuşakça kayboluyor (sert bir şerit değil).
       */}
-      <View style={[styles.column, !IS_IOS && { maxWidth: undefined }]}>
+      {!IS_IOS && (
+        <LinearGradient
+          pointerEvents="none"
+          colors={[theme.background + '00', theme.background + 'F2', theme.background]}
+          locations={[0, 0.45, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
+      {/*
+        Geniş/foldable ekranda sekmeler sonsuza yayılmasın — kapsül içerikle aynı
+        sütunda kalır. Android de artık yüzen kapsül (M3 floating toolbar) olduğu için
+        aynı kural iki platformda geçerli.
+      */}
+      <View style={styles.column}>
         <View style={styles.row}>
 
           {/* ── SEKME KAPSÜLÜ ────────────────────────────────────────────── */}
@@ -210,9 +261,24 @@ export const BottomNavBar = () => {
             {/* Yarıçap MALZEMEYE de veriliyor: yuvarlak kabın `overflow:hidden`i
                 cam/blur katmanını güvenilir kırpmıyor (bkz. AppBlur radius notu). */}
             {IS_IOS && <AppBlur material="chrome" radius={NAV_BAR_RADIUS} />}
+            {/* ANDROID aktif göstergesi — M3 hap. Sekme satırının ALTINDA, ikonun arkasında. */}
+            {!IS_IOS && (
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.indicator,
+                  { width: indicatorW, left: NAV_CAPSULE_PAD, backgroundColor: theme.primaryContainer },
+                  indicatorStyle,
+                ]}
+              />
+            )}
             <View style={styles.tabsContainer} accessibilityRole="tablist">
               {tabs.map((tab) => {
-                const isActive = pathname === tab.path || (tab.path === '/' && pathname === '/index');
+                const isActive = isActiveTab(tab.path);
+                // Android: ikon göstergenin ÜSTÜNDE onPrimaryContainer (M3 onSecondaryContainer
+                // karşılığı), etiket onSurface. iOS: tek sinyal tint rengi (değişmedi).
+                const iconColor = isActive ? (IS_IOS ? theme.primary : theme.onPrimaryContainer) : theme.onSurfaceVariant;
+                const labelColor = isActive ? (IS_IOS ? theme.primary : theme.onSurface) : theme.onSurfaceVariant;
                 const Icon = tab.icon;
 
                 const content = (
@@ -225,13 +291,15 @@ export const BottomNavBar = () => {
                   // glifleri lekeye çeviriyor; onun yerine çizgi kalınlığı bir tık artıyor.
                   // Aynı ikon, biraz daha "orada" — farklı bir ikon değil.
                   <View style={styles.tabInner}>
+                    <View style={IS_IOS ? undefined : styles.iconSlot}>
                     <Icon
                       // ÖLÇEKLENMEZ: çubuk yüksekliği sabit olduğu için içerik de sabit
                       // olmalı. Ölçekli ikon büyük ekranda kabı taşırıyordu (bkz. tokens).
                       size={NAV_ICON_SIZE}
-                      color={isActive ? theme.primary : theme.onSurfaceVariant}
+                      color={iconColor}
                       strokeWidth={isActive ? 2.1 : 1.8}
                     />
+                    </View>
                     {/* Etiket iki durumda gizlenir: çubuk küçüldüğünde (Apple'ın
                         ikon-only pill'i) ve sığmadığında. İkisinde de İKON yerinde
                         kalır — dokunma hedefi kaymaz. */}
@@ -242,7 +310,7 @@ export const BottomNavBar = () => {
                         // veriliyor; buradaki kısa metin ikinci kez duyurulmasın.
                         accessibilityElementsHidden
                         importantForAccessibility="no"
-                        style={[styles.tabLabel, { color: isActive ? theme.primary : theme.onSurfaceVariant }]}
+                        style={[styles.tabLabel, { color: labelColor }]}
                       >
                         {tr ? TAB_SHORT[tab.id].tr : TAB_SHORT[tab.id].en}
                       </Text>
@@ -320,6 +388,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     // Apple'ın ikon–etiket aralığı ~2pt; yığın çubukta dikey ortalanır.
     gap: S.xxs,
+  },
+  // Android: ikon göstergeyle AYNI yükseklikte bir yuvada — hap ikonu tam ortalar.
+  iconSlot: {
+    height: NAV_INDICATOR_H,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Hap, ikon+etiket yığınının ikon yuvasına hizalanır: yığın = 32 + 2 + etiket satırı.
+  indicator: {
+    position: 'absolute',
+    top: (NAV_BAR_HEIGHT - (NAV_INDICATOR_H + 2 + NAV_LABEL_SIZE * 1.34)) / 2,
+    height: NAV_INDICATOR_H,
+    borderRadius: NAV_INDICATOR_H / 2,
   },
   tabLabel: {
     fontSize: NAV_LABEL_SIZE,

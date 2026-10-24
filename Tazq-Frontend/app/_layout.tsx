@@ -112,18 +112,18 @@ const safeSystemUI = async (color: string) => {
   }
 };
 
-const safeNavigationBar = async (style: 'light' | 'dark', bgColor: string) => {
-  if (Platform.OS !== 'android' || isExpoGo) return;
+/*
+  ANDROID ALT TUŞ ÇUBUĞU (expo-navigation-bar 56). Eski `setBackgroundColorAsync` /
+  `setButtonStyleAsync` bu sürümde YOK — koşul hep yanlıştı, çubuk temaya hiç uymuyordu.
+  Simge rengi `setStyle` ile; zemin arkadaki uygulama yüzeyi (bkz. BottomNavBar sönümü).
+*/
+const safeNavigationBar = (style: 'light' | 'dark') => {
+  if (Platform.OS !== 'android') return;
   try {
     const NavigationBar = require('expo-navigation-bar');
-    if (NavigationBar && NavigationBar.setBackgroundColorAsync) {
-      // Samsung devices ignore button style if background is transparent/absolute.
-      // Explicitly setting a solid background color forces the correct button style.
-      await NavigationBar.setBackgroundColorAsync(bgColor);
-      await NavigationBar.setButtonStyleAsync(style);
-    }
+    NavigationBar?.setStyle?.(style);
   } catch (e) {
-    // Silently ignore
+    // Sessiz: modülün olmaması bir hata değil.
   }
 };
 
@@ -131,9 +131,6 @@ const safeNavigationBar = async (style: 'light' | 'dark', bgColor: string) => {
 LogBox.ignoreLogs([
   'SafeAreaView has been deprecated',
   'Sending `onAnimatedValueUpdate` with no listeners registered',
-  '`setBackgroundColorAsync` is not supported',
-  '`setBehaviorAsync` is not supported',
-  '`setButtonStyleAsync` is not supported',
 ]);
 
 import {
@@ -419,6 +416,8 @@ export default function RootLayout() {
     let sub: any;
     try {
       const Notifs = require('expo-notifications');
+      // Expo Go (Android) modülü yükleyemiyor; ikinci `require` undefined dönüyor.
+      if (!Notifs) return;
       const handleResponse = (response: any) => {
         const reqId = response?.notification?.request?.identifier;
         if (reqId) {
@@ -780,9 +779,8 @@ export default function RootLayout() {
     */
     const dark = isDark;
     const backgroundColor = dark ? Colors.dark.background : '#FFFFFF';
-    const navStyle = dark ? 'light' : 'dark';
     safeSystemUI(backgroundColor);
-    safeNavigationBar(navStyle, backgroundColor);
+    safeNavigationBar(isDark ? 'dark' : 'light');
   }, [isDark]);
 
   if (showSplash || !fontsLoaded || !assetsLoaded) {

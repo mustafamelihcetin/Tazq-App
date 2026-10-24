@@ -24,6 +24,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { useLowPowerGraphics } from '@/shared/hooks/useLowPowerGraphics';
 import { Colors } from '@/shared/constants/Colors';
 import { getRandomQuote } from '@/shared/constants/Quotes';
 import { ICON, S, R, F, B, SPRING_SOFT } from '@/shared/constants/tokens';
@@ -410,6 +411,8 @@ export default function FocusScreen() {
   // OS "Hareketi Azalt" ayarını izle. Açıkken dekoratif hareket (aurora, halkalar,
   // yanıp sönme) durur → erişilebilirlik + gerçek meditatif sükûnet.
   const [reduceMotion, setReduceMotion] = useState(false);
+  // Zayıf Android'de aurora duraklar (tek kare) — bkz. useLowPowerGraphics. iOS'ta hep false.
+  const lowPowerGraphics = useLowPowerGraphics();
   useEffect(() => {
     let mounted = true;
     AccessibilityInfo.isReduceMotionEnabled().then(v => { if (mounted) setReduceMotion(v); }).catch(() => {});
@@ -1153,7 +1156,7 @@ export default function FocusScreen() {
                 c1={theme.primary}
                 c2={theme.tertiary}
                 c3={theme.secondary}
-                paused={!(zenMode && isActive) || reduceMotion}
+                paused={!(zenMode && isActive) || reduceMotion || lowPowerGraphics}
                 speedScale={0.45}
                 holdSV={holdBloom}
               />
@@ -1667,7 +1670,7 @@ export default function FocusScreen() {
                       c1={theme.primary}
                       c2={theme.tertiary}
                       c3={theme.secondary}
-                      paused={!auroraVisible || reduceMotion}
+                      paused={!auroraVisible || reduceMotion || lowPowerGraphics}
                       holdSV={holdBloom}
                     />
                   </MotiView>

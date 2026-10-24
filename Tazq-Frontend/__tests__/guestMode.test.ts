@@ -320,7 +320,8 @@ describe('avatar — kimseye sorulmadan kimlik giydirilmez', () => {
     expect(av).toContain('<UserRound');
     for (const f of ['app/index.tsx', 'app/profile.tsx']) {
       const src = stripComments(read(f));
-      expect(src).toContain('<UserAvatar avatar={user?.avatar}');
+      // Misafir yedeği serbest (hoş geldinde seçtiği avatar) — bileşen yine AYNI.
+      expect(src).toMatch(/<UserAvatar avatar=\{user\?\.avatar( \?\? guest\w*(\?\.avatar)?)?\}/);
       expect(src).not.toContain('getAvatarSource(user?.avatar');
     }
   });
@@ -329,5 +330,79 @@ describe('avatar — kimseye sorulmadan kimlik giydirilmez', () => {
     const src = stripComments(read('app/profile.tsx'));
     expect(src).not.toContain("user?.avatar || 'm1'");
     expect(src).toContain('avatar: selectedAvatar || undefined,');
+  });
+});
+
+describe('misafir hoş geldin — yalnız YENİ misafir girişinde, bir kez (2026-10-24)', () => {
+  /*
+    Kullanıcı kararı: hesapsız girene de "Hoş geldin, adın ne?" açılsın. Eskiden hoş
+    geldin yalnız `user` varken açılıyordu → misafir hiç görmüyor, selamlama isimsiz
+    kalıyordu. Ad cihazda (session store) saklanır; hesap açınca hesaba taşınır.
+  */
+  beforeEach(() => jest.resetModules());
+
+  it('startGuest hoş geldini beklemeye alır', () => {
+    const { useAuthStore } = require('@/features/user/store/useAuthStore');
+    const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
+    usePrefsStore.setState({ welcomeStatus: 'unknown' });
+    useAuthStore.getState().startGuest();
+    expect(usePrefsStore.getState().welcomeStatus).toBe('pending');
+  });
+
+  it('hoş geldini bitirmiş biri misafirliğe dönünce tekrar GÖRMEZ', () => {
+    const { useAuthStore } = require('@/features/user/store/useAuthStore');
+    const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
+    usePrefsStore.setState({ welcomeStatus: 'done' });
+    useAuthStore.getState().startGuest();
+    expect(usePrefsStore.getState().welcomeStatus).toBe('done');
+  });
+
+  it('misafir profili cihazda saklanır ve kalıcıdır', () => {
+    const { useSessionStore } = require('@/shared/store/useSessionStore');
+    useSessionStore.getState().setGuestProfile({ name: 'Ali', avatar: 'm2', borderColor: 'transparent', motto: '' });
+    expect(useSessionStore.getState().guestProfile?.name).toBe('Ali');
+    expect(read('shared/store/useSessionStore.ts')).toMatch(/partialize: \(s\) => \(\{ isGuest: s\.isGuest, guestProfile: s\.guestProfile \}\)/);
+  });
+
+  it('ana sayfa misafirde de hoş geldini açar ve sunucuya yazmadan kaydeder', () => {
+    const src = stripComments(read('app/index.tsx'));
+    expect(src).toMatch(/if \(!user && !isGuest\)/);
+    expect(src).toContain('setGuestProfile(');
+    // Selamlama ve avatar misafir profilini kullanır.
+    expect(src).toMatch(/guestProfile\?\.name/);
+    expect(src).toMatch(/user\?\.avatar \?\? guestProfile\?\.avatar/);
+  });
+
+  it('kayıt formu misafirin adıyla dolu başlar', () => {
+    expect(stripComments(read('app/register.tsx'))).toMatch(/useSessionStore\.getState\(\)\.guestProfile\?\.name/);
+  });
+});
+
+describe('tanıtımdan misafir çıkışı — başlangıç görevi KAYBOLMAZ (2026-10-24, cihazda bulundu)', () => {
+  /*
+    Android cihaz logu: `onboarding.quickStart.createTask: 401`. completeOnboarding önce
+    hedefi uyguluyor (başlangıç görevi), SONRA startGuest çağırıyordu. Misafir bayrağı
+    henüz kapalıyken istek token'sız sunucuya gitti, 401 döndü, yutuldu → görev yok.
+    Misafirlik ÖNCE açılırsa api kapısı isteği durdurur ve görev yerel kuyruğa düşer.
+  */
+  beforeEach(() => jest.resetModules());
+
+  it('misafirken başlangıç görevi cihaza yazılır ve kuyruğa girer', async () => {
+    const { useSessionStore } = require('@/shared/store/useSessionStore');
+    const { useTaskStore } = require('@/features/tasks/store/useTaskStore');
+    const { useOfflineQueue } = require('@/shared/store/useOfflineQueue');
+    const { quickStartWelcomeTask } = require('@/features/onboarding/utils/quickStart');
+    useSessionStore.getState().setGuest(true);
+    useTaskStore.setState({ tasks: [] });
+    await quickStartWelcomeTask(true);
+    expect(useTaskStore.getState().tasks).toHaveLength(1);
+    expect(useOfflineQueue.getState().ops.some((q: { type: string }) => q.type === 'create-task')).toBe(true);
+  });
+
+  it('completeOnboarding misafirliği hedeften ÖNCE açar', () => {
+    const src = stripComments(read('app/onboarding.tsx'));
+    const fn = src.slice(src.indexOf('const completeOnboarding'), src.indexOf('const nextSlide'));
+    expect(fn.indexOf('startGuest()')).toBeGreaterThan(-1);
+    expect(fn.indexOf('startGuest()')).toBeLessThan(fn.indexOf('await applyPickedGoal()'));
   });
 });

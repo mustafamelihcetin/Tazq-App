@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { F, S, ICON, R, B } from '@/shared/constants/tokens';
+import { F, S, ICON, R, B, trackingFor } from '@/shared/constants/tokens';
 import {
   View,
   Text,
@@ -224,6 +224,7 @@ export default function OnboardingScreen() {
     haptic.commit();
     // Kullanıcının cevabı: skor/seri görünecek mi? (Sade mod ivmeyi gizler.)
     usePrefsStore.getState().setUiMode(mode);
+    if (exit === 'guest') useAuthStore.getState().startGuest(); // hedeften ÖNCE: yoksa başlangıç görevi 401'le kaybolur (bkz. guestMode.test)
     await applyPickedGoal();
     try {
       await AsyncStorage.setItem('tazq-onboarding-done', 'true');
@@ -234,7 +235,6 @@ export default function OnboardingScreen() {
     track('onboarding_completed', { skipped: false, lastStep: currentIndex, guest: exit === 'guest', uiMode: mode });
 
     if (exit === 'guest') {
-      useAuthStore.getState().startGuest();
       router.replace('/');
       return;
     }
@@ -598,7 +598,7 @@ export default function OnboardingScreen() {
                             opacity: currentIndex === index ? 1 : 0, 
                             translateY: currentIndex === index ? 0 : 15 
                         }}
-                        style={[styles.title, { color: theme.onSurface, fontSize: isSmallDevice ? 32 : 44, lineHeight: isSmallDevice ? 32 : 44 }]}
+                        style={[styles.title, { color: theme.onSurface, fontSize: isSmallDevice ? 32 : 44, lineHeight: isSmallDevice ? 32 : 44, letterSpacing: Platform.OS === 'ios' ? -2.5 : trackingFor(isSmallDevice ? 32 : 44) }]}
                     >
                         {getText(item, true)}
                     </MotiText>
@@ -796,7 +796,7 @@ const styles = StyleSheet.create({
   floatingBadge: { marginTop: S.lg, flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.smd, paddingVertical: S.sm, borderRadius: R.lg, gap: S.xs },
   floatingBadgeText: { fontWeight: '700' },
   textContainer: { marginTop: S.smd, alignItems: 'center', gap: S.sm, paddingHorizontal: S.smd },
-  title: { fontFamily: 'Jakarta-ExtraBold', textAlign: 'center', letterSpacing: -2.5 },
+  title: { fontFamily: 'Jakarta-ExtraBold', textAlign: 'center' }, // harf aralığı kullanım yerinde, platforma göre (bkz. androidParity.test)
   sub: { fontWeight: '500', textAlign: 'center', lineHeight: 22, paddingHorizontal: S.xs },
   footer: { paddingHorizontal: S.slg, paddingBottom: Platform.OS === 'ios' ? 16 : 24, gap: S.md },
   indicatorContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: S.sm, position: 'relative', paddingRight: S.md },

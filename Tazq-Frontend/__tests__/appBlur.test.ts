@@ -46,21 +46,16 @@ describe('bulanık yüzey — tek giriş', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('Android blur gerçekten açık — varsayılan hiç bulanıklaştırmıyordu', () => {
-    const src = read(BLUR_HOME);
-    // SDK31+ varyantı: Android 12 altında sessizce eski davranışa döner. Düz
-    // `dimezisBlurView` eski cihazlarda kare düşürüyor (kütüphanenin kendi uyarısı).
-    expect(src).toContain('dimezisBlurViewSdk31Plus');
-  });
-
   /**
-   * Sistem çubuklarının arkasındaki içerik KAYAR: blur her karede yeniden hesaplanır,
-   * üstelik ekranda sürekli duran iki yüzeyde. Diğer malzemelerin arkası sabittir,
-   * blur bir kez hesaplanır. Bu ayrım performansın tamamı.
+   * DÜZELTME (2026-10-24): bu blok eskiden `dimezisBlurViewSdk31Plus` istendiğini
+   * doğruluyordu ve "Android blur açık" sanıyordu. Ölçüldü: expo-blur 56'da bu yöntem
+   * bir `blurTarget` (BlurTargetView) ister, yoksa native taraf 'none'a düşüp uyarı
+   * basar. Projede BlurTargetView yok — blur hiç çizilmiyordu. Doğru beklenti artık
+   * bunu AÇIKÇA söylemek: 'none' (görüntü aynı, uyarı yok). Bkz. androidParity.test.
    */
-  it('chrome malzemesi Android\'de bulanıklaştırmaz — bilinçli istisna', () => {
+  it('Android yöntemi açıkça "none" — BlurTargetView kurulmadan blur vaat edilmez', () => {
     const src = read(BLUR_HOME);
-    expect(src).toMatch(/blurMethod=\{material === 'chrome' \? 'none' : 'dimezisBlurViewSdk31Plus'\}/);
+    expect(src).toContain('blurMethod="none"');
   });
 
   it('malzeme seviyeleri kalınlığa göre SIRALI — thin < regular < thick', () => {

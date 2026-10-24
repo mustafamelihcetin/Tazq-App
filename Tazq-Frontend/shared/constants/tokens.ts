@@ -381,7 +381,9 @@ export const separatorInset = (leadingWidth: number, gap: number = S.smd) => lea
  * Ekstra "nefes payı" eklenmez; Apple da eklemez. Etiket 10pt/semibold (bkz. F.tabLabel),
  * ikon ~24-25pt, aktif sekmenin tek işareti tint rengidir.
  */
-export const NAV_BAR_HEIGHT = 49;     // UIKit UITabBar standart içerik yüksekliği
+// iOS: UIKit UITabBar standart içerik yüksekliği. Android: M3 Expressive gezinme
+// çubuğu (80dp → 64dp; material-components-android BottomNavigation.md).
+export const NAV_BAR_HEIGHT = Platform.OS === 'ios' ? 49 : 64;
 
 /**
  * ── iOS 26/27: ÇUBUK YÜZÜYOR ──────────────────────────────────────────────────
@@ -399,19 +401,26 @@ export const NAV_BAR_HEIGHT = 49;     // UIKit UITabBar standart içerik yüksek
  *   · Kaydırırken çubuk zaten ikon-only'ye küçülüyor; etiketler yalnız durağan
  *     hâlde görünüyor. Yani dar alan kalıcı bir durum değil.
  *
- * ANDROID DEĞİŞMİYOR. Material'ın kendi dili dibe yapışık, tam genişlikte, opak bir
- * gezinme çubuğudur ve Android'de blur zaten kapalı (bkz. AppBlur). Yüzen cam kapsül
- * oraya taşınırsa platformun diline yabancı bir şey olur. Değerler bu yüzden
- * platforma göre ayrıldı — tek bir "doğru" yok, iki platformun iki doğrusu var.
+ * ANDROID (2026-10-24 yeniden): eskiden "Material'ın dili dibe yapışık opak çubuk"
+ * diye Android hiç değişmiyordu. Kullanıcı Android'de çubuğu "demode" buldu ve haklı:
+ * Material'ın KENDİSİ de değişti. M3 Expressive (2025) yüzen araç çubuğu getirdi —
+ * kenarlardan 16dp içeride, tam yuvarlak, tonal yüzeyli, sistem çubuğunun ÜSTÜNDE
+ * (material-components-android FloatingToolbar.md). Yani yüzen kapsül artık Android'e
+ * yabancı değil; yabancı olan CAM'dı ve o yine yok (Android'de blur yok, yüzey opak).
+ * Aktif sekme M3'ün kendi işaretiyle: 56×32 hap gösterge (bkz. BottomNavBar).
  */
-export const NAV_BAR_LIFT = Platform.OS === 'ios' ? 8 : 0;
+export const NAV_BAR_LIFT = Platform.OS === 'ios' ? 8 : 12;
 export const NAV_BAR_MIN_INSET = 0;   // ekstra pay yok; alt boşluk güvenli alandan gelir
 
-/** Kapsülün ekran kenarlarından içeri alınması. Android'de 0 → tam genişlik. */
-export const NAV_BAR_SIDE_INSET = Platform.OS === 'ios' ? 16 : 0;
+/** Kapsülün ekran kenarlarından içeri alınması — iki platformda da 16 (M3 floating toolbar marjı). */
+export const NAV_BAR_SIDE_INSET = Platform.OS === 'ios' ? 16 : 16;
 
-/** Kapsül yarıçapı. Android'de 0 → düz çubuk. */
-export const NAV_BAR_RADIUS = Platform.OS === 'ios' ? 999 : 0;
+/** Kapsül yarıçapı — iki platformda da tam yuvarlak (M3: "50% rounded"). */
+export const NAV_BAR_RADIUS = Platform.OS === 'ios' ? 999 : 999;
+
+/** ANDROID aktif göstergesi — M3 BottomNavigation: 56 × 32, %50 yuvarlak. */
+export const NAV_INDICATOR_W = 56;
+export const NAV_INDICATOR_H = 32;
 
 /**
  * KAPSÜLÜN İÇ YAN BOŞLUĞU.
@@ -439,7 +448,8 @@ export const NAV_CAPSULE_PAD = 6;
  * sekmeden daha az bilgi taşır ve daha kalabalık görünür. Apple da dar alanda
  * etiketi düşürür.
  */
-export const NAV_LABEL_MIN_TAB_WIDTH = 54;
+// Android etiketi 12sp (M3 label) → "Ana Sayfa" ~58dp; eşik buna göre.
+export const NAV_LABEL_MIN_TAB_WIDTH = Platform.OS === 'ios' ? 54 : 62;
 
 /**
  * KÜÇÜLMÜŞ ÇUBUK — yalnız ikon, etiket yok.
@@ -468,7 +478,8 @@ export const NAV_BAR_MINIMIZED_HEIGHT = 36;
  * duruyor. 22, Apple'ın sembol yoğunluğuna denk düşer ve 6.3pt nefes payı bırakır.
  */
 export const NAV_ICON_SIZE = 22;
-export const NAV_LABEL_SIZE = 10;
+// iOS 10pt (UITabBar); Android 12sp (M3 Expressive label).
+export const NAV_LABEL_SIZE = Platform.OS === 'ios' ? 10 : 12;
 
 export const navBarSpace = (insetBottom: number) =>
   Math.max(insetBottom, NAV_BAR_MIN_INSET) + NAV_BAR_LIFT + NAV_BAR_HEIGHT;

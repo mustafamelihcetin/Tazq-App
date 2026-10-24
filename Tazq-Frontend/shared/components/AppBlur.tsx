@@ -268,13 +268,15 @@ export const AppBlur = ({ material = 'regular', tint, radius, glassTint, fadeBot
       intensity={level}
       tint={tint ?? colorScheme}
       /*
-        `chrome` Android'de BULANIKLAŞTIRMAZ — bilinçli. Sistem çubuklarının arkasındaki
-        içerik KAYAR, yani blur her karede yeniden hesaplanır; üstelik ekranda sürekli
-        duran iki yüzeyde (başlık + sekme çubuğu). Diğer malzemelerin arkası sabittir,
-        blur bir kez hesaplanır. Android'in kendi tasarım dili de opak app bar'dır;
-        çubukların zemini zaten opak `surfaceFloating` (bkz. Colors.ts).
+        ANDROID'DE BLUR YOK — ölçüldü (2026-10-24). expo-blur 56'da gerçek blur
+        (dimezis) bir `blurTarget` (BlurTargetView) ister; verilmezse native taraf
+        'none'a DÜŞER ve her çizimde konsola uyarı basar. Burada dimezis istenip hiç
+        çizilmiyordu: görüntü zaten 'none' idi, yalnız uyarı üretiyordu. 'none' vermek
+        piksel olarak aynı, yalan vaadi ve uyarıyı kaldırıyor. Gerçek Android blur'u
+        ekranlara BlurTargetView kurmayı gerektirir — ayrı, cihazda doğrulanacak iş.
+        iOS bu özelliği okumaz.
       */
-      blurMethod={material === 'chrome' ? 'none' : 'dimezisBlurViewSdk31Plus'}
+      blurMethod="none"
       style={[style ?? StyleSheet.absoluteFill, radius != null && { borderRadius: radius }]}
     >
       {tintLayer}

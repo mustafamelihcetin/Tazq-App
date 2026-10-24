@@ -1,4 +1,4 @@
-import { nextDueDateOf, cycleKeyOf, isPaidForCycle, activeCycleKeyOf } from '@/features/payments/utils/paymentDates';
+import { nextDueDateOf, cycleKeyOf, isPaidForCycle, activeCycleKeyOf, paymentView } from '@/features/payments/utils/paymentDates';
 import type { Payment } from '@/features/payments/store/usePaymentsStore';
 
 function makePayment(overrides: Partial<Payment>): Payment {
@@ -100,5 +100,47 @@ describe('cycleKeyOf / isPaidForCycle / activeCycleKeyOf', () => {
     const today = new Date(2026, 5, 1);
     const p = makePayment({ dueDay: 15 });
     expect(activeCycleKeyOf(p, today)).toBe('2026-06');
+  });
+});
+
+describe('Yearly — ilk vade gelecek yıl', () => {
+  it('Ekim\'de Mart 2027 seçilen yıllık ödeme bu yılın Mart\'ında gecikmiş SAYILMAZ', () => {
+    const p = makePayment({ recurrence: 'Yearly', nextDueDate: new Date(2027, 2, 15).toISOString() });
+    const due = nextDueDateOf(p, new Date(2026, 9, 24));
+    expect(due?.getFullYear()).toBe(2027);
+    expect(due?.getMonth()).toBe(2);
+  });
+});
+
+describe('paymentView', () => {
+  const today = new Date(2026, 9, 24); // 24 Ekim
+
+  it('bu dönem ödenmiş aylık ödeme kendi ayında "ödendi" kalır (Kasım\'a kaymaz)', () => {
+    const v = paymentView(makePayment({ dueDay: 1, lastPaidCycleKey: '2026-10' }), today);
+    expect(v?.status).toBe('paid');
+    expect(v?.thisMonth).toBe(true);
+    expect(v?.date.getMonth()).toBe(9);
+  });
+
+  it('vadesi geçmiş ödenmemiş ödeme gecikmiş ve "bu ay"da', () => {
+    const v = paymentView(makePayment({ dueDay: 2 }), today);
+    expect(v?.status).toBe('overdue');
+    expect(v?.days).toBe(-22);
+    expect(v?.thisMonth).toBe(true);
+  });
+
+  it('yaklaşan ödeme gün farkıyla gelir', () => {
+    const v = paymentView(makePayment({ dueDay: 27 }), today);
+    expect(v).toMatchObject({ status: 'due', days: 3, thisMonth: true });
+  });
+
+  it('sonraki aydaki tek seferlik ödeme "bu ay" değil', () => {
+    const v = paymentView(makePayment({ recurrence: 'Once', nextDueDate: new Date(2026, 10, 2).toISOString() }), today);
+    expect(v).toMatchObject({ status: 'due', thisMonth: false });
+  });
+
+  it('ödenmiş tek seferlik ödeme gösterilmez', () => {
+    const v = paymentView(makePayment({ recurrence: 'Once', nextDueDate: new Date(2026, 8, 2).toISOString(), lastPaidCycleKey: 'once' }), today);
+    expect(v).toBeNull();
   });
 });

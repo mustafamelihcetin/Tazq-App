@@ -39,7 +39,7 @@ import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { useActiveModeSummary } from '@/features/modes/hooks/useActiveModeSummary';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { Touchable } from '@/shared/components/Touchable';
-import { S, R, F } from '@/shared/constants/tokens';
+import { S, R, F, navBarSpace } from '@/shared/constants/tokens';
 import { haptic } from '@/shared/utils/haptics';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
@@ -482,7 +482,9 @@ export const HelpTourModal: React.FC<HelpTourModalProps> = ({ pageId }) => {
       )}
 
       {/* ── Alt kontroller (kutusuz, sahneye gömülü) ── */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
+      {/* Alt boşluk sekme çubuğunun GERÇEK yüksekliğinden: eskiden insets.bottom + 20'ydi ve
+          "Atla" karartılmış sekme çubuğunun tam üstüne biniyordu (Android cihazda görüldü). */}
+      <View style={[styles.footer, { paddingBottom: navBarSpace(insets.bottom) + S.md }]}>
         <View style={styles.dotsRow}>
           {steps.map((_, i) => (
             <MotiView
@@ -526,6 +528,13 @@ export const HelpTourModal: React.FC<HelpTourModalProps> = ({ pageId }) => {
 const styles = StyleSheet.create({
   root: {
     zIndex: 9990,
+    /*
+      ANDROID: çizim sırası önce ELEVATION'a göre kurulur, zIndex yalnız eşit Z'de sıra
+      belirler. Kayan düğmenin (MagneticFAB) elevation'ı 10 iken tur kökünde hiç yoktu;
+      düğme turun ÜSTÜNDE kalıyordu. Kökün zemini yok → gölge çizilmez, yalnız sıra
+      değişir. iOS bu özelliği tanımaz (bkz. __tests__/androidParity.test.ts).
+    */
+    elevation: 50,
   },
   stage: {
     flex: 1,

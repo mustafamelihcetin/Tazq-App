@@ -25,6 +25,9 @@ export function currentCycleDate(p: Payment, today: Date): Date {
   const anchor = p.nextDueDate ? new Date(p.nextDueDate) : today;
   if (p.recurrence === 'Once') return anchor;
   const y = today.getFullYear();
+  // İlk vade gelecek yıldaysa (Ekim'de "Mart 2027" seçildi) bu yılın Mart'ı bir dönem
+  // DEĞİL — eskiden öyle sayılıyordu ve yeni eklenen yıllık ödeme 7 ay gecikmiş görünüyordu.
+  if (anchor.getFullYear() > y) return anchor;
   const m = anchor.getMonth();
   const d = Math.min(anchor.getDate(), daysInMonth(y, m));
   return new Date(y, m, d);
@@ -71,4 +74,43 @@ export function nextDueDateOf(p: Payment, today: Date = new Date()): Date | null
 /** Bugünün dönem anahtarı — "Ödendi" basılırken gönderilecek değer budur. */
 export function activeCycleKeyOf(p: Payment, today: Date = new Date()): string {
   return cycleKeyOf(p, currentCycleDate(p, today));
+}
+
+export type PaymentStatus = 'paid' | 'overdue' | 'due';
+
+export interface PaymentView {
+  p: Payment;
+  /** Satırda gösterilen tarih: ödendiyse ödenen dönemin vadesi, değilse sıradaki vade. */
+  date: Date;
+  status: PaymentStatus;
+  /** Bugünden `date`e takvim günü (negatif = geçti). */
+  days: number;
+  /** "Bu ay" bölümüne mi düşer — bu ayın dönemi ya da gecikmiş. */
+  thisMonth: boolean;
+}
+
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+/**
+ * Ekranın TEK satır modeli. Eskiden ekran `nextDueDateOf` (ödendiyse SONRAKİ dönem)
+ * ile "ödendi mi" (BU dönem) bilgisini yan yana koyuyordu: Ekim kirası ödenince satır
+ * "1 Kas" tarihiyle "Gelecek ay" altına üstü çizili düşüyordu — Kasım ödenmiş gibi.
+ * Şimdi ödenen dönem kendi ayında "ödendi" olarak kalır (ayın toplamı tutarlı), gelecek
+ * ay dönemi gelince yeniden açılır. Gecikmiş ödeme "Bu ay"ın başına yükselir.
+ */
+export function paymentView(p: Payment, today: Date = new Date()): PaymentView | null {
+  const t0 = startOfDay(today);
+  const cycle = currentCycleDate(p, today);
+  const paid = isPaidForCycle(p, cycleKeyOf(p, cycle));
+  const sameMonth = (d: Date) => d.getFullYear() === t0.getFullYear() && d.getMonth() === t0.getMonth();
+  const daysTo = (d: Date) => Math.round((startOfDay(d).getTime() - t0.getTime()) / 86400000);
+
+  if (paid && sameMonth(cycle)) {
+    return { p, date: cycle, status: 'paid', days: daysTo(cycle), thisMonth: true };
+  }
+  const next = nextDueDateOf(p, today);
+  if (!next) return null;
+  const days = daysTo(next);
+  const status: PaymentStatus = days < 0 ? 'overdue' : 'due';
+  return { p, date: next, status, days, thisMonth: status === 'overdue' || sameMonth(next) };
 }

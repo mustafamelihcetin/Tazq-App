@@ -3,7 +3,7 @@ import { View, Text, Animated, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { Plus, Check, Trash2, Wallet } from 'lucide-react-native';
+import { Plus, Wallet } from 'lucide-react-native';
 import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -12,13 +12,16 @@ import { Touchable } from '@/shared/components/Touchable';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { ModeField, FormReveal } from '@/features/modes/components/ModeField';
-import { ICON, S, R, F, B, topBarSpace } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, MIN_TOUCH, topBarSpace } from '@/shared/constants/tokens';
+import { ChromeShell } from '@/shared/components/ChromeShell';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { haptic } from '@/shared/utils/haptics';
 import { usePaymentsStore, type Payment, type PaymentRecurrence } from '@/features/payments/store/usePaymentsStore';
 import { createPaymentAction, deletePaymentAction, markPaymentPaidAction, unmarkPaymentPaidAction, refreshPayments, type CreatePaymentResult } from '@/features/payments/utils/paymentActions';
-import { nextDueDateOf, activeCycleKeyOf, isPaidForCycle } from '@/features/payments/utils/paymentDates';
+import { nextDueDateOf, activeCycleKeyOf, paymentView, type PaymentView } from '@/features/payments/utils/paymentDates';
+import { PaymentRow } from '@/features/payments/components/PaymentRow';
+import { PaymentsMonthCard } from '@/features/payments/components/PaymentsMonthCard';
 import { schedulePaymentDueNotif, cancelPaymentDueNotif } from '@/shared/utils/notifications';
 import { formatPlanDate } from '@/features/modes/utils/planTaskOps';
 import { CURRENCIES, currencySymbol, defaultCurrencyFor, type CurrencyCode } from '@/shared/utils/currency';
@@ -61,8 +64,17 @@ export default function OdemelerScreen() {
       .sort((a, b) => a.due.getTime() - b.due.getTime());
   }, [payments]);
 
-  const thisMonth = rows.filter(r => r.due.getMonth() === today.getMonth() && r.due.getFullYear() === today.getFullYear());
-  const nextMonth = rows.filter(r => !thisMonth.includes(r));
+  // Ekranın satır modeli (bkz. paymentView): ödenen dönem kendi ayında kalır, gecikmiş
+  // ödeme "Bu ay"ın başına çıkar. Bildirim zamanlayıcı yukarıdaki `rows`u kullanmaya devam eder.
+  const views = useMemo(() => {
+    const order = { overdue: 0, due: 1, paid: 2 } as const;
+    return payments
+      .map(p => paymentView(p, today))
+      .filter((v): v is PaymentView => v != null)
+      .sort((a, b) => order[a.status] - order[b.status] || a.date.getTime() - b.date.getTime());
+  }, [payments]);
+  const thisMonth = views.filter(v => v.thisMonth);
+  const later = views.filter(v => !v.thisMonth);
 
   // Ödeme yoksa form BAŞTAN AÇIK — boş bir davet yerine doldurmaya hazır bir form
   // (ExamCard/TezCard'ın `expanded` init deseniyle AYNI mantık).
@@ -85,6 +97,8 @@ export default function OdemelerScreen() {
   const resetForm = () => {
     setTitle(''); setAmount(''); setRecurrence('Monthly'); setDueDayValue(new Date().getDate()); setAnchorDate(new Date()); setShowPicker(false); setProviderSuggestions([]);
   };
+
+  const openAdd = () => { haptic.select(); setShowAdd(true); };
 
   const canSave = title.trim() !== '' && parseFloat(amount.replace(',', '.')) > 0;
 
@@ -164,33 +178,31 @@ export default function OdemelerScreen() {
   const formatAmount = (n: number) => `${n.toLocaleString(locale, { maximumFractionDigits: 2 })} ${symbol}`;
   const formatDue = (d: Date) => d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 
-  const renderRow = (item: { p: Payment; due: Date }) => {
-    const { p, due } = item;
-    const cycleKey = activeCycleKeyOf(p, today);
-    const paid = isPaidForCycle(p, cycleKey);
-    // Sağlayıcı eşleşirse tanıdık bir ikon/renk — eşleşmezse jenerik cüzdan.
-    const provider = matchProvider(p.title);
-    return (
-      <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: S.sm, paddingHorizontal: S.md, borderRadius: R.md, backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
-        <Touchable
-          onPress={() => (paid ? unmarkPaymentPaidAction(p.id) : handleMarkPaid(p))}
-          style={{ width: 28, height: 28, borderRadius: R.full, borderWidth: B.medium, borderColor: paid ? theme.success : theme.onSurfaceVariant, backgroundColor: paid ? theme.success : 'transparent', alignItems: 'center', justifyContent: 'center' }}
-          accessibilityRole="button"
-          accessibilityLabel={paid ? t.undoPaid : t.markPaid}
-        >
-          {paid && <Check size={ICON.xs} color="#fff" strokeWidth={3} />}
-        </Touchable>
-        <AppIcon Icon={provider?.icon ?? Wallet} color={provider?.color ?? theme.onSurfaceVariant} size={32} radius={R.sm} iconSize={ICON.sm} />
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, textDecorationLine: paid ? 'line-through' : 'none' }} numberOfLines={1}>{p.title}</Text>
-          <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs }}>{formatDue(due)} · {formatAmount(p.amount)}</Text>
-        </View>
-        <Touchable onPress={() => handleDelete(p)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={t.delete}>
-          <Trash2 size={ICON.sm} color={theme.onSurfaceVariant} />
-        </Touchable>
-      </View>
-    );
-  };
+  const sum = (list: PaymentView[]) => list.reduce((acc, v) => acc + v.p.amount, 0);
+  const monthTotal = sum(thisMonth);
+  const monthPaid = sum(thisMonth.filter(v => v.status === 'paid'));
+  const overdueList = thisMonth.filter(v => v.status === 'overdue');
+
+  const renderGroup = (list: PaymentView[]) => (
+    <View>
+      {list.map((v, i) => (
+        <PaymentRow
+          key={v.p.id}
+          view={v}
+          position={list.length === 1 ? 'only' : i === 0 ? 'first' : i === list.length - 1 ? 'last' : 'middle'}
+          theme={theme}
+          t={t}
+          amountLabel={formatAmount(v.p.amount)}
+          dateLabel={formatDue(v.date)}
+          onToggle={() => (v.status === 'paid' ? unmarkPaymentPaidAction(v.p.id) : handleMarkPaid(v.p))}
+          onDelete={() => handleDelete(v.p)}
+        />
+      ))}
+    </View>
+  );
+  const sectionTitle = (text: string) => (
+    <Text style={{ color: theme.onSurfaceMuted, fontWeight: '600', fontSize: F.caption, letterSpacing: 0.6, marginLeft: S.md }}>{upperFor(text, language)}</Text>
+  );
 
   const recurrenceOptions: { key: PaymentRecurrence; label: string }[] = [
     { key: 'Monthly', label: t.recurrenceMonthly },
@@ -200,7 +212,24 @@ export default function OdemelerScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <ScreenHeader onBack={() => router.back()} title={t.title} scrollY={scrollY} />
+      <ScreenHeader
+        onBack={() => router.back()}
+        title={t.title}
+        scrollY={scrollY}
+        // Ekleme ÇUBUKTA (iOS: sağ üst "+") — eskiden sayfanın en değerli yerini tam
+        // genişlikte kesikli bir kutu kaplıyordu. Form açıkken düğme gizlenir.
+        right={showAdd ? undefined : (
+          <Touchable
+            onPress={openAdd}
+            accessibilityRole="button"
+            accessibilityLabel={t.addPayment}
+            style={{ width: MIN_TOUCH, height: MIN_TOUCH, alignItems: 'center', justifyContent: 'center', marginRight: -S.sm }}
+          >
+            <ChromeShell />
+            <Plus size={ICON.md} color={theme.primary} />
+          </Touchable>
+        )}
+      />
 
       <Animated.FlatList
         data={[] as never[]}
@@ -217,12 +246,7 @@ export default function OdemelerScreen() {
         renderItem={() => null}
         ListHeaderComponent={
           <View style={{ gap: S.md }}>
-            {!showAdd ? (
-              <Touchable onPress={() => { haptic.select(); setShowAdd(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.md }} activeOpacity={0.7}>
-                <Plus size={ICON.sm} color={theme.primary} />
-                <Text style={{ color: theme.primary, fontWeight: '600', fontSize: F.body }}>{t.addPayment}</Text>
-              </Touchable>
-            ) : (
+            {showAdd && (
               <FormReveal style={{ gap: S.md, padding: S.md, borderRadius: R.md, backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
                 <View style={{ gap: S.sm }}>
                   <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.3, textTransform: 'uppercase' }}>{upperFor(t.sectionWhat, language)}</Text>
@@ -232,7 +256,7 @@ export default function OdemelerScreen() {
                     // Öneriden seçilince (veya bilinen bir ada yazarken) kutunun İÇİNDE de
                     // aynı ikon görünür — altındaki öneri listesi kapandıktan sonra hangi
                     // sağlayıcıyı seçtiğini unutturmamak için (bkz. kayıtlı satırlardaki
-                    // AYNI matchProvider deseni, renderRow'daki kullanım).
+                    // AYNI matchProvider deseni, bkz. PaymentRow).
                     prefix={titleProvider ? <AppIcon Icon={titleProvider.icon} color={titleProvider.color} size={24} radius={R.sm} iconSize={ICON.xs} /> : undefined}
                     onChangeText={(v) => { setTitle(v); setProviderSuggestions(searchProviders(v)); }}
                     onBlur={() => {
@@ -365,26 +389,38 @@ export default function OdemelerScreen() {
                 <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, textAlign: 'center' }}>
                   {t.emptyState}
                 </Text>
+                <Touchable onPress={openAdd} accessibilityRole="button" style={{ marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: theme.primary + '1F' }}>
+                  <Text style={{ color: theme.primary, fontWeight: '600', fontSize: F.body }}>{`+ ${t.addPayment}`}</Text>
+                </Touchable>
               </View>
             )}
 
             {thisMonth.length > 0 && (
+              <PaymentsMonthCard
+                theme={theme}
+                isDark={isDark}
+                t={t}
+                language={language}
+                remaining={formatAmount(monthTotal - monthPaid)}
+                paid={formatAmount(monthPaid)}
+                total={formatAmount(monthTotal)}
+                progress={monthTotal > 0 ? monthPaid / monthTotal : 0}
+                allPaid={monthPaid >= monthTotal}
+                overdue={overdueList.length ? { count: overdueList.length, amount: formatAmount(sum(overdueList)) } : null}
+              />
+            )}
+
+            {thisMonth.length > 0 && (
               <View style={{ gap: S.sm }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <Text style={{ color: theme.onSurfaceMuted, fontWeight: '700', fontSize: F.caption, letterSpacing: 0.4, textTransform: 'uppercase' }}>{upperFor(t.thisMonth, language)}</Text>
-                  {/* Toplam — "bu ay param nereye gidiyor" sorusunu tek bakışta cevaplar. */}
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>
-                    {t.monthTotal(thisMonth.length, formatAmount(thisMonth.reduce((sum, r) => sum + r.p.amount, 0)))}
-                  </Text>
-                </View>
-                {thisMonth.map(r => renderRow(r))}
+                {sectionTitle(t.thisMonth)}
+                {renderGroup(thisMonth)}
               </View>
             )}
 
-            {nextMonth.length > 0 && (
+            {later.length > 0 && (
               <View style={{ gap: S.sm }}>
-                <Text style={{ color: theme.onSurfaceMuted, fontWeight: '700', fontSize: F.caption, letterSpacing: 0.4, textTransform: 'uppercase' }}>{upperFor(t.upcoming, language)}</Text>
-                {nextMonth.map(r => renderRow(r))}
+                {sectionTitle(t.upcoming)}
+                {renderGroup(later)}
               </View>
             )}
           </View>
