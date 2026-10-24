@@ -86,6 +86,7 @@ describe('animasyon ve renk', () => {
       Koyu temada palet daha AÇIK bir kırmızı kullanıyor (#F87171); beyaz glif orada
       kontrastı kaybediyor. Paletin `onPrimary` için yazdığı gerekçenin aynısı.
     */
-    expect(SRC).toContain("colorScheme === 'dark' ? theme.onPrimary : '#FFFFFF'");
+    // Artık paletin `onError` token'ı — kontrastı colorContrast.test.ts ölçüyor.
+    expect(SRC).toContain('color={theme.onError}');
   });
 });

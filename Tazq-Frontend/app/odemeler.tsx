@@ -23,6 +23,7 @@ import { schedulePaymentDueNotif, cancelPaymentDueNotif } from '@/shared/utils/n
 import { formatPlanDate } from '@/features/modes/utils/planTaskOps';
 import { CURRENCIES, currencySymbol, defaultCurrencyFor, type CurrencyCode } from '@/shared/utils/currency';
 import { matchProvider, searchProviders, providerDisplayName, type PaymentProvider } from '@/shared/utils/paymentProviders';
+import { upperFor } from '@/shared/utils/localeCase';
 
 /** Dil kodu → Intl locale. Ternary DEĞİL (bkz. __tests__/i18nRatchet.test.ts) — bu
  *  dosya metinlerini TAMAMEN `t.payments` sözlüğünden alıyor, sayı/tarih biçimi
@@ -224,7 +225,7 @@ export default function OdemelerScreen() {
             ) : (
               <FormReveal style={{ gap: S.md, padding: S.md, borderRadius: R.md, backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
                 <View style={{ gap: S.sm }}>
-                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.3, textTransform: 'uppercase' }}>{t.sectionWhat}</Text>
+                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.3, textTransform: 'uppercase' }}>{upperFor(t.sectionWhat, language)}</Text>
                   <ModeField
                     accent={theme.primary}
                     value={title}
@@ -271,7 +272,7 @@ export default function OdemelerScreen() {
                 </View>
 
                 <View style={{ gap: S.sm }}>
-                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.3, textTransform: 'uppercase' }}>{t.sectionHowMuch}</Text>
+                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.3, textTransform: 'uppercase' }}>{upperFor(t.sectionHowMuch, language)}</Text>
                   <ModeField accent={theme.primary} value={amount} onChangeText={setAmount} placeholder={t.amountPlaceholder} keyboardType="decimal-pad" suffix={<Text style={{ color: theme.onSurfaceVariant, fontWeight: '600' }}>{symbol}</Text>} />
                   {/* Para birimi TEK global tercih (ödeme başına değil) — bkz. currency.ts
                       başlığı. Uygulama TR'de daha çok indirilse de arayüzü İngilizce de
@@ -289,7 +290,7 @@ export default function OdemelerScreen() {
                 </View>
 
                 <View style={{ gap: S.sm }}>
-                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.3, textTransform: 'uppercase' }}>{t.sectionWhen}</Text>
+                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.3, textTransform: 'uppercase' }}>{upperFor(t.sectionWhen, language)}</Text>
                   <View style={{ flexDirection: 'row', gap: S.xs }}>
                     {recurrenceOptions.map(opt => {
                       const active = recurrence === opt.key;
@@ -370,7 +371,7 @@ export default function OdemelerScreen() {
             {thisMonth.length > 0 && (
               <View style={{ gap: S.sm }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <Text style={{ color: theme.onSurfaceMuted, fontWeight: '700', fontSize: F.caption, letterSpacing: 0.4, textTransform: 'uppercase' }}>{t.thisMonth}</Text>
+                  <Text style={{ color: theme.onSurfaceMuted, fontWeight: '700', fontSize: F.caption, letterSpacing: 0.4, textTransform: 'uppercase' }}>{upperFor(t.thisMonth, language)}</Text>
                   {/* Toplam — "bu ay param nereye gidiyor" sorusunu tek bakışta cevaplar. */}
                   <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>
                     {t.monthTotal(thisMonth.length, formatAmount(thisMonth.reduce((sum, r) => sum + r.p.amount, 0)))}
@@ -382,7 +383,7 @@ export default function OdemelerScreen() {
 
             {nextMonth.length > 0 && (
               <View style={{ gap: S.sm }}>
-                <Text style={{ color: theme.onSurfaceMuted, fontWeight: '700', fontSize: F.caption, letterSpacing: 0.4, textTransform: 'uppercase' }}>{t.upcoming}</Text>
+                <Text style={{ color: theme.onSurfaceMuted, fontWeight: '700', fontSize: F.caption, letterSpacing: 0.4, textTransform: 'uppercase' }}>{upperFor(t.upcoming, language)}</Text>
                 {nextMonth.map(r => renderRow(r))}
               </View>
             )}

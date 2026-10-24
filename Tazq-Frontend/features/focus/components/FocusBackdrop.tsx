@@ -198,7 +198,11 @@ const hexToRgb = (hex: string): [number, number, number] => {
  * pipeline'ı ilk çizimde oluşur ve bu maliyet doğaldır. O yüzden aurora ayrıca yumuşak
  * açılıyor (bkz. kullanım yeri): kalan gecikme "takılma" değil "beliriş" gibi okunsun.
  */
-const NEBULA_EFFECT = Skia.RuntimeEffect.Make(NEBULA_SKSL);
+// try: web'de CanvasKit yüklenmeden modül değerlendirilirse Skia'nın getter'ı fırlatır —
+// rota ağacının tamamını düşürmek yerine efekt yok sayılır (aşağıda `!NEBULA_EFFECT` → null).
+const NEBULA_EFFECT = (() => {
+  try { return Skia.RuntimeEffect.Make(NEBULA_SKSL); } catch { return null; }
+})();
 
 // size: kare (daire-içi kullanım). width/height verilirse tam-ekran (zen zemini). speedScale: akış hızı.
 export const Nebula = React.memo(({ size, width, height, c1, c2, c3, paused, speedScale = 1, holdSV }: { size: number; width?: number; height?: number; c1: string; c2: string; c3: string; paused: boolean; speedScale?: number; holdSV?: SharedValue<number> }) => {

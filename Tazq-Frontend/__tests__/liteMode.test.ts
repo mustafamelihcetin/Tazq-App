@@ -44,32 +44,26 @@ describe('ana ekran — oyunlaştırma gizlenir', () => {
 
   it('ivme skoru Sade modda çizilmez', () => {
     /*
-      Skor satırı artık TEK yerde tanımlı bir değişken (momentumRow) ve konumu duruma
-      göre değişiyor (bkz. dashboardZeroState.test.ts). Kapı da o tanımın başında:
-      Sade modda değişken `null` olur, iki konumda da hiçbir şey çizilmez.
+      Skor artık "Bugün" özetinin içinde (TodayRings footer) ve TEK yerde çiziliyor.
+      Kapı o yuvanın başında: Sade modda footer `null`, skor hiç çizilmez.
     */
-    const def = HOME.indexOf('const momentumRow = !isLite ?');
-    expect(def).toBeGreaterThan(-1);
-    const idx = HOME.indexOf('<MomentumPulse');
-    expect(idx).toBeGreaterThan(def);
-    // Kapı ile bileşen arasında başka bir kart girmemiş olmalı
-    expect(idx - def).toBeLessThan(200);
-    // Tek tanım: ikinci bir çizim yolu açılmamalı.
     expect((HOME.match(/<MomentumPulse/g) ?? [])).toHaveLength(1);
-  });
-
-  it('durum merkezi düğmesi Sade modda gizli', () => {
-    expect(HOME).toMatch(/isLite \? undefined : \(/);
+    const gate = HOME.indexOf('footer={!isLite ? (');
+    expect(gate).toBeGreaterThan(-1);
+    const idx = HOME.indexOf('<MomentumPulse');
+    expect(idx).toBeGreaterThan(gate);
+    expect(HOME.slice(gate, idx)).not.toMatch(/<(BentoCard|TodayRings)/);
   });
 
   it('çift dokunma tezahüratı Sade modda tetiklenmez', () => {
-    expect(HOME).toContain('highlight={!isLite && todayHighlight}');
+    expect(HOME).toContain('captionHighlight={!isLite && todayHighlight}');
+    expect(HOME).toContain('if (!isLite && todayHighlight) return todaySurprise;');
   });
 
   it('günlük ilerleme KALIR — işin durumu oyun değil', () => {
-    // TodayCard koşulsuz çiziliyor: halka ve sayı Sade modda da görünür
-    expect(HOME).toContain('<TodayCard');
-    expect(HOME).not.toMatch(/!isLite && \(\s*<TodayCard/);
+    // Halkalar koşulsuz çiziliyor: görev/odak/alışkanlık Sade modda da görünür
+    expect(HOME).toContain('<TodayRings');
+    expect(HOME).not.toMatch(/!isLite && \(\s*<TodayRings/);
   });
 });
 

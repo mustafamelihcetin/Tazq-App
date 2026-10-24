@@ -124,14 +124,14 @@ clearPlanIds('tez');
   };
 
   return (
-    <View style={[styles_modeCard, { backgroundColor: theme.surfaceCard, borderColor: seasonal.tezMode && isComplete ? (past ? theme.error + '40' : accent + '35') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }]}>
+    <View style={[styles_modeCard, { backgroundColor: theme.surfaceCard, borderColor: seasonal.tezMode && isComplete ? (past ? theme.error + '40' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)')) : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }]}>
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: seasonal.tezMode ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
           <AppIcon Icon={GraduationCap} color={seasonal.tezMode && isComplete ? (past ? theme.error : accent) : TEZ} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.body }}>{tr ? 'Tez / Proje' : 'Thesis / Project'}</Text>
-            {seasonal.tezMode && isComplete ? (
-              <Text style={{ color: past ? theme.error : accent, fontSize: F.caption, fontWeight: '500', marginTop: S.xxs }}>{past ? (tr ? 'Teslim tarihi geçti' : 'Deadline passed') : (tr ? `${daysLeft} gün kaldı` : `${daysLeft} days left`)}</Text>
+            {seasonal.tezMode && isComplete && past ? (
+              <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '500', marginTop: S.xxs }}>{past ? (tr ? 'Teslim tarihi geçti' : 'Deadline passed') : (tr ? `${daysLeft} gün kaldı` : `${daysLeft} days left`)}</Text>
             ) : (
               <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs }}>{tr ? 'Deadline odaklı akademik / proje planı' : 'Deadline-driven thesis or project plan'}</Text>
             )}
@@ -145,7 +145,7 @@ clearPlanIds('tez');
                 Alert.alert(tr ? 'Tez Modu Kapatılıyor' : 'Turning off Thesis Mode', tr ? 'Eklenen alışkanlıklar ve görevler kaldırılacak. Emin misin?' : 'Added habits and tasks will be removed. Are you sure?', [{ text: tr ? 'İptal' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat ve Temizle' : 'Turn Off & Remove', style: 'destructive', onPress: () => closeModeWithUndo('tez', closePlan, tr ? 'Tez modu kapatıldı' : 'Thesis mode closed', tr ? 'Geri al' : 'Undo') }]);
               } else if (v) { setSeasonalPref('tezMode', true); setExpanded(true); }
             }}
-            trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: TEZ }}
+            trackColor={{ false: theme.surfaceContainerHighest, true: theme.primary }}
             thumbColor={isDark && !seasonal.tezMode ? '#636366' : '#fff'}
           />
         </View>
@@ -162,15 +162,14 @@ clearPlanIds('tez');
             </Touchable>
           )}
 
+          {/* Hedef artık kart İÇİNDE kart değil: tinted zemin + çerçeve + 3pt şerit kaldırıldı; ayırıcı yeterli. */}
           {isComplete && !expanded && (
-            <View style={{ borderRadius: R.md, overflow: 'hidden', borderWidth: B.thin, borderColor: (past ? theme.error : accent) + '30', backgroundColor: (past ? theme.error : accent) + '08' }}>
-              <View style={{ height: 3, backgroundColor: past ? theme.error : accent }} />
-              <View style={{ padding: S.md }}>
+              <View>
+              <View style={{ paddingTop: S.xs }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>
-                  <AppIcon Icon={GraduationCap} color={accent} size={24} radius={R.sm} iconSize={ICON.sm} />
                   <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{name}</Text>
-                  <Touchable onPress={() => { haptic.surface(); onOpenPreview(); }} activeOpacity={0.7} style={{ backgroundColor: accent + (isDark ? '22' : '15'), paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full }}>
-                    <Text style={{ color: TEZ_TX, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (tr ? 'Planı Seç ›' : 'Choose Plan ›')}</Text>
+                  <Touchable onPress={() => { haptic.surface(); onOpenPreview(); }} activeOpacity={0.7} style={{ paddingVertical: S.xs, paddingHorizontal: S.xxs }}>
+                    <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (tr ? 'Planı Seç ›' : 'Choose Plan ›')}</Text>
                   </Touchable>
                   <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
                   <Touchable onPress={() => { haptic.select(); setExpanded(true); }} activeOpacity={0.7}>

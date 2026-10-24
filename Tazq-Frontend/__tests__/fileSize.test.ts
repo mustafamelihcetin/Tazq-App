@@ -67,7 +67,7 @@ const KNOWN_LARGE: Record<string, number> = {
   */
   // 860 → 870: misafirin "cihazdaki verileri sil" metinleri (iki dil).
   // 870 → 874: tasarruf ve bırakma da birer mod adı — özet ikisini hiç görmüyordu.
-  'shared/constants/i18n.ts': 990, // +38: onboarding "şu an neyle uğraşıyorsun?" sorusunun tr/en metinleri // +6: hızlı eklemede Bugün/Yarın chip metinleri // +50 (2026-10-18): payments sözlüğü (app/odemeler.tsx + PaymentsSummaryCard — i18nRatchet'in yeni-dosya kuralı yüzünden inline ternary yerine burada) // +18 (2026-10-19): ödeme ekleme formu baştan tasarımı (bölüm başlıkları, tostlar) + aciliyet kartı metinleri // +2 (2026-10-19): "ayın kaçında ödenir?" gün gridi sorusu // +2 (2026-10-19): "bu ay toplam" özet metni
+  'shared/constants/i18n.ts': 996, // +2 (2026-10-24): Sıradaki kartı etiketi ("SIRADAKİ" — Aktif Görev + Günlük Hedef birleşti)
   // 2820 → 2817: baştaki emojiyi silen üç ayrı uygulamadan ikisi (biri hatalıydı,
   // \p{Emoji} rakamları da yiyordu) shared/utils/emoji.ts'e indi.
   // 2817 → 2820: YKS/KPSS/Ramazan'ın DİL kapısı (İngilizce arayüzde takvimle
@@ -271,7 +271,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // +6 geri bakış bağlantısı · +96 gün seçimi ekranın tamamını kapsıyor (alışkanlıklar seçili güne yazılır), jestler sadeleşti, metinler DAY_COPY sözlüğüne taşındı
   // 1709 → 1715: planTaskIdSet/planHabitIdSet Tasarruf ve Bırakma'yı unutmuştu —
   // bu iki modun plan görevleri genel listede mod bölümüyle ÇİFT görünüyordu.
-  'app/cockpit.tsx': 1715,
+  'app/cockpit.tsx': 1737, // +22 (2026-10-24): şerit öğlen düzeltmesi, upperFor, gün halkası (Apple Activity), hedef+plan birleşimi ve tamamlanan alışkanlıklar gruplu listesi — gerekçe notlarıyla
   // 1358 → 1395: iki gerçek hatanın düzeltmesi. Kart konumları KENDİ bölümlerine göre
   // ölçülüyordu ama sayfa konumu sanılıp kullanılıyordu; aktif bir mod varken yeni mod
   // açılınca sayfa yanlış yere (yukarı) kayıyordu. Bölüm konumu da ölçülüp toplanıyor.
@@ -316,7 +316,7 @@ const KNOWN_LARGE: Record<string, number> = {
   */
   // 1233 → 1214: başlık işleyicisi taslak denetimine (features/tasks/nlp/draft) devredildi.
   // 1214 → 1215: hazır etiketlerin dili ortak yardımcıdan (langOf) — satır içi dil dallanması yok.
-  'features/tasks/components/TaskFormModal.tsx': 1269, // +42: yerel-gün tarih ayrıştırma, ay-sonu kenetleme, saat/tarih tutarlılığı, alt-görev mutasyon düzeltmesi // +12 (2026-10-19): başlık/açıklama/alt-görev kutularının HER YERİ odaklamalı (Pressable+ref, bkz. ModeField.tsx'teki aynı düzeltme)
+  'features/tasks/components/TaskFormModal.tsx': 1270, // +1 (2026-10-24): upperFor içe aktarımı (Türkçe büyük harf) // +42: yerel-gün tarih ayrıştırma, ay-sonu kenetleme, saat/tarih tutarlılığı, alt-görev mutasyon düzeltmesi // +12 (2026-10-19): başlık/açıklama/alt-görev kutularının HER YERİ odaklamalı (Pressable+ref, bkz. ModeField.tsx'teki aynı düzeltme)
   // 1150 → 1180: planın KULLANICI SEÇMEDEN başlamasını engelleyen kapı. Üretim koşulu
   // birçok modda yalnız "mod açık + ad + tarih" idi; tarih girilir girilmez plan uygulanmış
   // sayılıp kart bölüm değiştiriyor, yeniden kurulup kapanıyordu. Artış dokuz koşula
@@ -336,7 +336,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // trophy ikonu tema token'larına bağlandı.
   // 899 → 919: başarım önizlemesi en son kazanılana göre sıralanıyor (recency),
   // kazanılmış madalyada kupa ışıltısı (MedalShine deseni).
-  'app/profile.tsx': 939, // +4: cinsiyet çipine yeniden dokunma avatarı ezmesin, çerçeve rengi erişilebilirlik durumu düzeltildi // +16 (2026-10-19): "AYARLAR" listesine Ödemeler satırı — gerçek, ulaşılabilir giriş noktası (bkz. o dosyadaki not)
+  'app/profile.tsx': 950, // 2026-10-24: avatar resmi iç alana göre boyutlanır (88'lik kapta 110'luk resim kırpılıyordu) + Yenile/upperFor notları
   'shared/constants/legal.ts': 893,
   // İlk kez 800 satırı geçti: admin panelinin Ürün İçgörüleri tipleri
   // (AdminModeAdoption/AdminRetentionCohort/AdminVersionShare) + X-App-Version

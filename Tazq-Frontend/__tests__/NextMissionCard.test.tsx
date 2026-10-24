@@ -147,6 +147,26 @@ describe('NextMissionCard', () => {
     expect(onSeeAll2).not.toHaveBeenCalled();
   });
 
+  it('odak verilince ana düğme ODAKLANIR, görevi açmak başlığa geçer', () => {
+    // Ana sayfada "Başlat" ve "Göreve git" iki karttı; tek kartta birleşti.
+    const onFocus = jest.fn();
+    const onOpenTask = jest.fn();
+    const r = setup({ onFocus, onOpenTask });
+    fireEvent.press(r.getByTestId('mission-primary'));
+    expect(onFocus).toHaveBeenCalled();
+    expect(onOpenTask).not.toHaveBeenCalled();
+    fireEvent.press(r.getByTestId('mission-open'));
+    expect(onOpenTask).toHaveBeenCalled();
+  });
+
+  it('görev yokken odak verilse de ana düğme EKLEMEYE davet eder', () => {
+    const onFocus = jest.fn();
+    const onAdd = jest.fn();
+    fireEvent.press(setup({ task: null, onFocus, onAdd }).getByTestId('mission-primary'));
+    expect(onAdd).toHaveBeenCalled();
+    expect(onFocus).not.toHaveBeenCalled();
+  });
+
   it('“tümü” bağlantısı listeye götürür', () => {
     const onSeeAll = jest.fn();
     fireEvent.press(setup({ onSeeAll }).getByText('Tümü'));

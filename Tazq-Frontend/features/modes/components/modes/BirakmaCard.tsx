@@ -249,7 +249,7 @@ export function BirakmaCard() {
                 );
               }
             }}
-            trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: C }}
+            trackColor={{ false: theme.surfaceContainerHighest, true: theme.primary }}
             thumbColor="#fff"
           />
         </View>

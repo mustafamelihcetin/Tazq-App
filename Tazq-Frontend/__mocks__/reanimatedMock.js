@@ -43,6 +43,8 @@ module.exports = {
   ...Animated,
 
   useSharedValue,
+  // Testte hareket azaltılmış sayılmaz — animasyonlu dal çalışsın.
+  useReducedMotion: () => false,
   useAnimatedStyle: (fn) => {
     try { return typeof fn === 'function' ? fn() : {}; } catch { return {}; }
   },

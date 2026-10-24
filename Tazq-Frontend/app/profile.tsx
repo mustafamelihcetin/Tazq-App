@@ -43,6 +43,7 @@ import { SettingsCard, SettingItem, ToggleRow, RowDivider, settingsAccents } fro
 import { haptic } from '@/shared/utils/haptics';
 import { useSessionStore } from '@/shared/store/useSessionStore';
 import { UserAvatar } from '@/features/user/components/UserAvatar';
+import { upperFor } from '@/shared/utils/localeCase';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
 
@@ -376,11 +377,20 @@ export default function ProfileScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={[styles.header, { marginTop: S.md }]}>
-            <MotiView from={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.avatarLarge, { backgroundColor: theme.surfaceField, borderWidth: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 2 : 4, borderColor: (!avatarBorderColor || avatarBorderColor === 'transparent') ? (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)') : avatarBorderColor, width: 110, height: 110, borderRadius: R.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
-                <UserAvatar avatar={user?.avatar} size={110} iconSize={ICON.xxl} theme={theme} />
+            <MotiView from={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.avatarLarge, { backgroundColor: theme.surfaceField, borderWidth: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 2 : 4, borderColor: (!avatarBorderColor || avatarBorderColor === 'transparent') ? (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)') : avatarBorderColor, width: 88, height: 88, borderRadius: R.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
+                {/*
+                  Resim dairenin İÇ alanına göre boyutlanır: dış çap − 2×kenarlık − 2×iç boşluk.
+                  Sabit 110 yazılıydı; kap küçülünce (88) resim taşıp kırpılıyor, "yakınlaştırılmış"
+                  görünüyordu (eskiden de kenarlık+boşluk kadar hafifçe taşıyordu).
+                */}
+                {(() => {
+                  const inner = 88 - 2 * ((!avatarBorderColor || avatarBorderColor === 'transparent') ? 2 : 4) - 2 * S.xs;
+                  // Resim kendi dairesini de taşır: kare köşeler iç boşluk halkasında görünmesin.
+                  return <UserAvatar avatar={user?.avatar} size={inner} iconSize={ICON.xxl} theme={theme} style={{ borderRadius: inner / 2, overflow: 'hidden' }} />;
+                })()}
             </MotiView>
             <View style={{ alignItems: 'center', marginTop: S.md }}>
-                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.name, { color: theme.onSurface, fontSize: F.hero }]}>{isGuest ? t.guest.badge : (user?.name || '')}</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.name, { color: theme.onSurface, fontSize: F.display }]}>{isGuest ? t.guest.badge : (user?.name || '')}</Text>
                 {isGuest ? (
                   <Text style={[styles.email, { color: theme.onSurfaceMuted, fontSize: F.body, textAlign: 'center' }]}>{t.guest.settingsRow}</Text>
                 ) : !!user?.email && (
@@ -406,8 +416,9 @@ export default function ProfileScreen() {
                 <MotiView key={i} animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200, delay: i * 80 }} style={{ flex: 1, height: 52, borderRadius: R.md, backgroundColor: theme.surfaceContainerHigh }} />
               ))}
             </View>
-          ) : statsError ? (
-            <Touchable onPress={loadStats} style={{ marginTop: S.md, alignSelf: 'flex-start', paddingHorizontal: S.md, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: theme.surfaceContainerHigh }}>
+          ) : statsError && !isGuest ? (
+            // Misafirin sunucu istatistiği yok — "Yenile" ona hep görünüp hiçbir şey yapmıyordu.
+            <Touchable onPress={loadStats} accessibilityRole="button" style={{ marginTop: S.md, alignSelf: 'center', paddingHorizontal: S.md, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: theme.surfaceContainerHigh }}>
               <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption }}>
                 {language === 'tr' ? '↺ Yenile' : '↺ Retry'}
               </Text>
@@ -419,11 +430,11 @@ export default function ProfileScreen() {
                 { icon: <Target size={ICON.sm} color={theme.secondary} />, value: stats.completedTasksCount, label: language === 'tr' ? 'görev tamam' : 'tasks done' },
                 { icon: <Trophy size={ICON.sm} color={theme.streak} />, value: displayBestStreak, label: language === 'tr' ? 'en uzun seri' : 'best streak' },
               ].map((s, i) => (
-                <View key={i} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.xs + 2, paddingVertical: S.sm + 2, paddingHorizontal: S.sm + 2, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', borderRadius: R.md, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
+                <View key={i} style={{ flex: 1, flexDirection: 'column', alignItems: 'flex-start', gap: S.xs, paddingVertical: S.smd, paddingHorizontal: S.smd, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderRadius: R.md, borderWidth: isDark ? B.thin : 0, borderColor: isDark ? theme.outline : 'transparent' }}>
                   {s.icon}
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, lineHeight: 20 }}>{s.value}</Text>
-                    <Text style={{ fontSize: 10, color: theme.onSurfaceMuted, lineHeight: 13 }} numberOfLines={1}>{s.label}</Text>
+                    <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, lineHeight: 20, fontVariant: ['tabular-nums'] }}>{s.value}</Text>
+                    <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, lineHeight: 14 }} numberOfLines={1}>{s.label}</Text>
                   </View>
                 </View>
               ))}
@@ -452,7 +463,6 @@ export default function ProfileScreen() {
             };
             return (
               <View style={{ marginTop: S.md }}>
-                <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.separator, marginBottom: S.md }} />
                 <Touchable
                   activeOpacity={0.85}
                   onPress={goShowcase}
@@ -461,9 +471,11 @@ export default function ProfileScreen() {
                   style={{
                     padding: S.md,
                     borderRadius: R.lg,
-                    borderWidth: B.thin,
-                    borderColor: theme.separator,
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                    // Aşağıdaki Ayarlar kartıyla AYNI yüzey — eskiden gri zemin + çerçeveyle
+                    // aynı ekranda ikinci bir kart dili kuruyordu.
+                    backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest,
+                    borderColor: isDark ? theme.outline : 'transparent',
+                    borderWidth: isDark ? B.thin : 0,
                     gap: S.md,
                   }}
                 >
@@ -615,7 +627,7 @@ export default function ProfileScreen() {
                   {/* Name input */}
                   <View style={{ width: '100%', marginBottom: S.md }}>
                     <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>
-                      {t.editName || 'Display Name'}
+                      {upperFor(t.editName || 'Display Name', language)}
                     </Text>
                     <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow }]}>
                       <TextInput
@@ -633,7 +645,7 @@ export default function ProfileScreen() {
                   {/* Gender selection */}
                   <View style={{ width: '100%', marginBottom: S.md }}>
                     <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>
-                      {language === 'tr' ? 'Cinsiyet' : 'Gender'}
+                      {upperFor(language === 'tr' ? 'Cinsiyet' : 'Gender', language)}
                     </Text>
                     <View style={{ flexDirection: 'row', gap: S.xs }}>
                       {([
@@ -683,7 +695,7 @@ export default function ProfileScreen() {
 
                   {/* Avatar selection */}
                   <View style={{ width: '100%', marginBottom: S.md }}>
-                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>Avatar</Text>
+                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>{upperFor('Avatar', language)}</Text>
                     <ScrollView
                       horizontal
                       showsHorizontalScrollIndicator={false}
@@ -726,7 +738,7 @@ export default function ProfileScreen() {
                               color: isSelected ? theme.primary : theme.onSurfaceVariant,
                               opacity: isSelected ? 1 : 0.5,
                             }}>
-                              {config.name.toUpperCase()}
+                              {upperFor(config.name, language)}
                             </Text>
                           </Touchable>
                         );
@@ -737,7 +749,7 @@ export default function ProfileScreen() {
                   {/* Avatar Border Color */}
                   <View style={{ width: '100%', marginBottom: S.md }}>
                     <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>
-                      {language === 'tr' ? 'Profil Çerçeve Rengi' : 'Profile Border Color'}
+                      {upperFor(language === 'tr' ? 'Profil Çerçeve Rengi' : 'Profile Border Color', language)}
                     </Text>
                     <ScrollView
                       horizontal
@@ -821,7 +833,7 @@ export default function ProfileScreen() {
                   {/* Motto */}
                   <View style={{ width: '100%', marginBottom: S.lg }}>
                     <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>
-                      {language === 'tr' ? 'Kişisel Motto' : 'Personal Motto'}
+                      {upperFor(language === 'tr' ? 'Kişisel Motto' : 'Personal Motto', language)}
                     </Text>
                     <TextInput
                       value={newMotto}
@@ -837,7 +849,7 @@ export default function ProfileScreen() {
                   {/* Productivity hour */}
                   <View style={{ width: '100%', marginBottom: S.lg }}>
                     <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>
-                      {language === 'tr' ? 'En Verimli Olduğun Zaman' : 'Peak Productivity Time'}
+                      {upperFor(language === 'tr' ? 'En Verimli Olduğun Zaman' : 'Peak Productivity Time', language)}
                     </Text>
                     <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, marginBottom: S.sm }}>
                       {language === 'tr' ? 'Sabah özeti bu saate planlanır.' : 'Morning brief is scheduled around this time.'}
@@ -914,14 +926,13 @@ const styles = StyleSheet.create({
   statsGrid: { flexDirection: 'row' },
   statValue: { fontWeight: '700', marginTop: S.sm },
   settingsSection: { },
-  sectionTitle: { fontSize: F.caption, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: S.md },
-  sectionLabel: { fontSize: F.caption, fontWeight: '700', letterSpacing: 1, marginBottom: S.sm, textTransform: 'uppercase' },
+  sectionTitle: { fontSize: F.caption, fontWeight: '700', letterSpacing: 1, marginBottom: S.md },
+  // Büyük harf İÇERİKTE (upperFor): textTransform dili bilmez — "CINSIYET", "KIŞISEL" yazıyordu.
+  sectionLabel: { fontSize: F.caption, fontWeight: '700', letterSpacing: 1, marginBottom: S.sm },
   settingsCard: { borderRadius: R.lg, overflow: 'hidden' },
   settingItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   iconBox: { width: 32, height: 32, borderRadius: R.sm, alignItems: 'center', justifyContent: 'center' },
   settingLabel: { fontWeight: '700' },
-  skeletonCircle: { width: 24, height: 24, borderRadius: R.full },
-  skeletonLine: { height: 14, borderRadius: R.sm },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, borderRadius: R.lg },
   logoutText: { fontFamily: 'Jakarta-Bold', fontWeight: '700' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },

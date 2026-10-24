@@ -17,7 +17,7 @@ const ROOT = path.resolve(__dirname, '..');
 const SKIP_DIRS = ['node_modules', '__tests__', '__mocks__', '.expo', 'android', 'ios', 'dist'];
 const ANY = /\bas any\b|:\s*any\b|<any>|any\[\]/g;
 
-const CEILING = 278;
+const CEILING = 272; // 278 → 272 (2026-10-24): TaskListItem yeniden yazımı + TaskFormModal etiket başlığı
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {

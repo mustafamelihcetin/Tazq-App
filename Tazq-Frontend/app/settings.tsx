@@ -405,7 +405,7 @@ export default function SettingsScreen() {
                     label={t.notifications}
                     sub={language === 'tr' ? 'Sistem izinleri' : 'System permission'}
                     bg={A.notify}
-                    right={<Text style={{ color: notifEnabled ? theme.success : theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{notifEnabled ? t.notificationsEnabled : t.notificationsDisabled}</Text>}
+                    value={notifEnabled ? t.notificationsEnabled : t.notificationsDisabled}
                     onPress={toggleNotifications}
                     theme={theme}
                 />
@@ -469,7 +469,7 @@ export default function SettingsScreen() {
                     icon={<Moon size={ICON.md} color="#FFFFFF" />}
                     label={t.appearance}
                     bg={A.system}
-                    right={<Text style={{ color: theme.primary, fontWeight: '700', fontSize: F.caption }}>{((t as any)[`theme${currentSetting.charAt(0).toUpperCase() + currentSetting.slice(1)}`] || currentSetting).toUpperCase()}</Text>}
+                    value={(t as any)[`theme${currentSetting.charAt(0).toUpperCase() + currentSetting.slice(1)}`] || currentSetting}
                     onPress={toggleTheme}
                     theme={theme}
                 />
@@ -478,7 +478,7 @@ export default function SettingsScreen() {
                     icon={<Languages size={ICON.md} color="#FFFFFF" />}
                     label={t.language}
                     bg={A.system}
-                    right={<Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.caption }}>{language.toUpperCase()}</Text>}
+                    value={language === 'tr' ? 'Türkçe' : 'English'}
                     onPress={toggleLanguage}
                     theme={theme}
                 />
@@ -549,7 +549,7 @@ export default function SettingsScreen() {
                     label={language === 'tr' ? 'Focus Puanları' : 'Focus Points'}
                     sub={language === 'tr' ? `${focusPoints} XP · Her 100 puanda 1 kalkan kazanırsın` : `${focusPoints} XP · Gain 1 shield every 100 points`}
                     bg={A.core}
-                    right={<Text style={{ color: theme.primary, fontWeight: '700', fontSize: F.caption }}>{focusPoints}/100</Text>}
+                    value={`${focusPoints}/100`}
                     theme={theme}
                 />
                 <RowDivider theme={theme} />
@@ -602,7 +602,7 @@ export default function SettingsScreen() {
                             label={language === 'tr' ? 'Uyku Hedefi' : 'Sleep Goal'}
                             sub={language === 'tr' ? 'Hedefi tuttuğunda kutlanır' : 'Celebrated when you hit it'}
                             bg={A.health}
-                            right={<Text style={{ color: theme.onSurfaceVariant, fontWeight: W.semibold, fontSize: F.caption }}>{sleepGoalHours}{language === 'tr' ? ' saat' : 'h'}</Text>}
+                            value={`${sleepGoalHours}${language === 'tr' ? ' saat' : 'h'}`}
                             onPress={cycleSleepGoal}
                             theme={theme}
                         />
@@ -703,6 +703,17 @@ export default function SettingsScreen() {
                   {language === 'tr' ? 'Admin Paneli' : 'Admin Panel'}
                 </Text>
                 <ChevronRight size={ICON.sm} color={A.system} />
+              </Touchable>
+            )}
+
+            {__DEV__ && ( /* Bileşen galerisi — release'de çizilmez (bkz. app/dev-gallery.tsx). */
+              <Touchable
+                onPress={() => router.push('/dev-gallery')}
+                accessibilityRole="button"
+                style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: S.md, paddingHorizontal: S.md, marginTop: S.sm }}
+              >
+                <Text style={{ color: theme.onSurfaceMuted, fontSize: F.footnote, flex: 1 }}>Bileşen galerisi (dev)</Text>
+                <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} />
               </Touchable>
             )}
 
@@ -910,7 +921,7 @@ export default function SettingsScreen() {
                 <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? 'Vazgeç' : 'Cancel'}</Text>
               </Touchable>
               <Touchable onPress={performChangePassword} disabled={changingPw} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', opacity: changingPw ? 0.6 : 1 }}>
-                {changingPw ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? 'Kaydet' : 'Save'}</Text>}
+                {changingPw ? <ActivityIndicator size="small" color={theme.onPrimary} /> : <Text style={{ color: theme.onPrimary, fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? 'Kaydet' : 'Save'}</Text>}
               </Touchable>
             </View>
           </MotiView>

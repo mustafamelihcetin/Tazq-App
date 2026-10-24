@@ -12,6 +12,7 @@ import { Colors, modeAccent, modeAccentText } from '@/shared/constants/Colors';
 import { localizeSporGoal } from '@/features/modes/utils/turkishModes';
 import { swallow } from '@/shared/utils/swallow';
 import { getTazqWidgetBridge } from '@/modules/tazq-widget-bridge/src/TazqWidgetBridgeModule';
+import { daysLeftOf as sharedDaysLeftOf, isDatePast } from '@/features/modes/utils/planTaskOps';
 
 /**
  * Telefon → Ana Ekran Widget'ı ve Apple Watch köprüsü.
@@ -120,9 +121,9 @@ function nearestModeCountdowns(tr: boolean, isDark: boolean): ModeCountdownEntry
     // `new Date(dateStr)` DEĞİL — negatif ofsetli saat dilimlerinde (ör. ABD) bir
     // gün geri kayar, bkz. shared/utils/dateKey.ts'teki parseDateKey belgelemesi.
     // Aynı hatayı burada tekrar açmamak için o yardımcıyı kullanıyoruz.
-    const end = parseDateKey(dateStr).setHours(23, 59, 59, 999);
-    if (Number.isNaN(end) || end < Date.now()) return null;
-    return Math.max(0, Math.ceil((end - Date.now()) / 86400000));
+    // Uygulamadaki mod kartlarıyla AYNI sayaç (planTaskOps) — widget bir gün fazla diyordu.
+    if (Number.isNaN(parseDateKey(dateStr).getTime()) || isDatePast(dateStr)) return null;
+    return sharedDaysLeftOf(dateStr);
   };
 
   const fallback = (key: keyof typeof FALLBACK_MODE_LABEL) => tr ? FALLBACK_MODE_LABEL[key].tr : FALLBACK_MODE_LABEL[key].en;

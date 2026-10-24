@@ -63,6 +63,7 @@ const lightPalette = {
   onTertiary: '#FFFFFF',
 
   error: '#B91C1C',             // Red 700 — Red 600 (#DC2626) 4.43:1 ile kıl payı kalıyordu
+  onError: '#FFFFFF',           // 6.47:1 — dolu kırmızı (yıkıcı buton) üstündeki yazı/glif
   onBackground: '#18181B',      // Zinc 900
   onSurface: '#18181B',         // Zinc 900 — 16.12:1
   onSurfaceVariant: '#52525B',  // Zinc 600 — 7.03:1 (İKİNCİL metin)
@@ -182,7 +183,7 @@ const darkPalette = {
   // iOS burada beyaz kullanır ama kendi ölçümü 3.65:1 — AA'dan kalıyor. Okunabilirlik
   // "elit kalite"nin parçası, o yüzden AA tercih edildi (5.45:1).
   onPrimary: '#09090B',
-  onPrimaryContainer: '#C7D2FE',
+  onPrimaryContainer: '#BFDBFE', // Blue 200, hue 213 — eskiden #C7D2FE (Indigo 200, hue 228): konteyner 210 ailesindeyken yazısı indigoydu. 10.24:1
 
   secondary: '#A78BFA',         // Violet 400
   secondaryContainer: '#2D1B69',// Violet 950
@@ -193,6 +194,9 @@ const darkPalette = {
   onTertiary: '#052E16',        // 7.75:1 (eski #ECFDF5: 1.4:1 ✗)
 
   error: '#F87171',             // Red 400
+  // Koyu temada kırmızı AÇIK → yazı KOYU (onPrimary ile aynı kural). Token yokken yıkıcı
+  // butonlar '#FFFFFF' yazıyordu: 2.77:1 — "Hesabı sil" koyu temada okunmuyordu.
+  onError: '#18181B',           // 6.40:1
 
   onBackground: '#F4F4F5',      // Zinc 100
   onSurface: '#F4F4F5',         // 18.24:1
@@ -227,7 +231,10 @@ const darkPalette = {
 
   // Bkz. lightPalette.surfaceField — orada NEDEN kenar çizgisi OLMADIĞI anlatılıyor.
   // Kart #1C1C22, sayfa kabuğu #222228; alan ikisinden de koyu → aynı oyuk hissi.
-  surfaceField: '#16161B',
+  // #16161B idi: karttan farkı 1.06:1 — açık temada "alan görünmüyor" diye düzeltilen
+  // %2 sorununun koyu temadaki ikizi. Açık tema 1.17; burada 1.11 (daha koyuya inmek
+  // sayfa zeminine (#09090B) yapışır). Bkz. __tests__/colorContrast.test.ts → alan/kart.
+  surfaceField: '#111115',
 
   // Interaction overlays
   pressedOverlay: 'rgba(255, 255, 255, 0.08)',
@@ -454,17 +461,27 @@ export const PaymentProviderColors = {
  *
  * Doğrulama: __tests__/colorContrast.test.ts — her mod, kendi temasının zemininde >= 3:1.
  */
+/*
+  KOYU TEMA = RADIX 9. ADIM (@radix-ui/colors 3.0, scratchpad'den ölçüldü).
+  Radix'in kuralı: DOLGU tonu (9) iki temada AYNIDIR; koyuda değişen yalnız metin (11).
+  Eskiden koyu temada dolgular Tailwind 300 pastellerine dönüyordu (#FDBA74, #93C5FD):
+  soluk, birbirine yakın ("koyu temada mod renkleri çok kötü"). Pasteller büyük
+  sayıda/çubukta "yıkanmış" görünür; Radix 9 koyu zeminde 3.7–6.7:1 ile canlı kalır.
+  Açık tema DEĞİŞMEDİ: Radix 9 açık zeminde 2.7–3.0:1 (dolu buton için tasarlanmış);
+  bizde aksan ince çubuk/büyük sayıda da kullanıldığı için mevcut 500/600 tonları kalıyor.
+  Mülakat jade yerine GRASS: jade, tasarrufun teal'ından OKLab 0.023 uzaktı (eşik 0.03).
+*/
 export const ModeAccents = {
-  ramazan:  { light: '#6366F1', dark: '#A5B4FC' }, // Indigo
-  yks:      { light: '#3B82F6', dark: '#93C5FD' }, // Blue
-  exam:     { light: '#3B82F6', dark: '#93C5FD' }, // Blue — yks ile aynı aile (ikisi de sınav)
-  kpss:     { light: '#3B82F6', dark: '#93C5FD' }, // Blue
-  tez:      { light: '#8B5CF6', dark: '#C4B5FD' }, // Violet
-  mulakat:  { light: '#059669', dark: '#6EE7B7' }, // Emerald — açıkta 600 (500 = 2.31:1 ✗)
-  spor:     { light: '#EA580C', dark: '#FCA5A1' }, // Orange — açıkta 600 (500 = 2.55:1 ✗)
-  tasarruf: { light: '#0D9488', dark: '#5EEAD4' }, // Teal — mulakat yeşiliyle çakışmasın diye ayrı
-  birakma:  { light: '#EF4444', dark: '#FCA5A5' }, // Red
-  default:  { light: '#EC4899', dark: '#F9A8D4' }, // Pink
+  ramazan:  { light: '#6366F1', dark: '#3E63DD' }, // Indigo — Radix indigo-9
+  yks:      { light: '#3B82F6', dark: '#0090FF' }, // Blue — Radix blue-9
+  exam:     { light: '#3B82F6', dark: '#0090FF' }, // Blue — yks ile aynı aile (ikisi de sınav)
+  kpss:     { light: '#3B82F6', dark: '#0090FF' }, // Blue
+  tez:      { light: '#8B5CF6', dark: '#6E56CF' }, // Violet — Radix violet-9
+  mulakat:  { light: '#059669', dark: '#46A758' }, // Yeşil — Radix grass-9 (açıkta 600: 500 = 2.31:1 ✗)
+  spor:     { light: '#EA580C', dark: '#F76B15' }, // Orange — Radix orange-9 (açıkta 600: 500 = 2.55:1 ✗)
+  tasarruf: { light: '#0D9488', dark: '#12A594' }, // Teal — Radix teal-9
+  birakma:  { light: '#EF4444', dark: '#E5484D' }, // Red — Radix red-9
+  default:  { light: '#EC4899', dark: '#E93D82' }, // Pink — Radix crimson-9
 } as const;
 
 /**
@@ -485,16 +502,17 @@ export const ModeAccents = {
  * Doğrulama: __tests__/colorContrast.test.ts
  */
 export const ModeAccentsText = {
-  ramazan:  { light: '#4F46E5', dark: '#A5B4FC' },
-  yks:      { light: '#2563EB', dark: '#93C5FD' },
-  exam:     { light: '#2563EB', dark: '#93C5FD' },
-  kpss:     { light: '#2563EB', dark: '#93C5FD' },
-  tez:      { light: '#7C3AED', dark: '#C4B5FD' },
-  mulakat:  { light: '#047857', dark: '#6EE7B7' },
-  spor:     { light: '#C2410C', dark: '#FCA5A1' },
-  tasarruf: { light: '#0F766E', dark: '#5EEAD4' },
-  birakma:  { light: '#DC2626', dark: '#FCA5A5' },
-  default:  { light: '#DB2777', dark: '#F9A8D4' },
+  // Koyu: Radix 11. adım (düşük kontrastlı metin, koyu zeminde 8:1+). Açık: değişmedi.
+  ramazan:  { light: '#4F46E5', dark: '#9EB1FF' },
+  yks:      { light: '#2563EB', dark: '#70B8FF' },
+  exam:     { light: '#2563EB', dark: '#70B8FF' },
+  kpss:     { light: '#2563EB', dark: '#70B8FF' },
+  tez:      { light: '#7C3AED', dark: '#BAA7FF' },
+  mulakat:  { light: '#047857', dark: '#71D083' },
+  spor:     { light: '#C2410C', dark: '#FFA057' },
+  tasarruf: { light: '#0F766E', dark: '#0BD8B6' },
+  birakma:  { light: '#DC2626', dark: '#FF9592' },
+  default:  { light: '#DB2777', dark: '#FF92AD' },
 } as const;
 
 export type ModeAccentKey = keyof typeof ModeAccents;
@@ -519,8 +537,27 @@ export function modeAccent(type: string | undefined, isDark: boolean): string {
  * Ölçüm (koyu tema, #10131A yazı): exam 11.6 · tez 11.0 · mulakat 12.3 ·
  * spor 10.4 · ramazan 10.6 · tasarruf 13.1 · birakma 10.2 — hepsi AA ✓.
  */
-export function modeAccentOn(isDark: boolean): string {
-  return isDark ? '#10131A' : '#FFFFFF';
+export function modeAccentOn(isDark: boolean, fill?: string): string {
+  if (!isDark) return '#FFFFFF';
+  /*
+    Koyu dolgular artık Radix 9 (canlı) — tek bir koyu yazı hepsine uymuyor: indigo ve
+    violet beyaz ister (#10131A üstlerinde 3.5:1), turuncu/mavi/yeşil koyu ister (beyaz
+    2.97–3.26:1). Radix de aynısını söyler: "çoğu 9 beyazla, bazıları koyu yazıyla".
+    Dolgu verilirse yüksek kontrastlı olan seçilir.
+  */
+  if (fill && contrastOf('#FFFFFF', fill) > contrastOf('#10131A', fill)) return '#FFFFFF';
+  return '#10131A';
+}
+
+function luminanceOf(hex: string): number {
+  const c = hex.replace('#', '');
+  const f = (v: number) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+  const [r, g, b] = [0, 2, 4].map((i) => f(parseInt(c.substr(i, 2), 16) / 255));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function contrastOf(a: string, b: string): number {
+  const [hi, lo] = [luminanceOf(a), luminanceOf(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
 }
 
 /** Modun METİN rengi — caption/etiket gibi küçük yazılar için AA (4.5:1) garantili. */

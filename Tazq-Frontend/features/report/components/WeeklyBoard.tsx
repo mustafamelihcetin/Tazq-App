@@ -22,6 +22,7 @@ const COPY = {
     habitsTitle: 'Alışkanlıklar',
     noHabits: 'Henüz alışkanlık eklemedin.',
     empty: 'Bu hafta kayıt yok.',
+    noFocus: 'Bu hafta odak seansı yok — tamamlanan işler aşağıda.',
     today: 'bugün',
     dayA11y: (day: string, min: number, tasks: number) => `${day}: ${min} dakika odak, ${tasks} iş`,
     habitA11y: (name: string, done: number, total: number) => `${name}: ${total} günün ${done} günü`,
@@ -33,6 +34,7 @@ const COPY = {
     habitsTitle: 'Habits',
     noHabits: 'No habits yet.',
     empty: 'Nothing recorded this week.',
+    noFocus: 'No focus sessions this week — finished tasks below.',
     today: 'today',
     dayA11y: (day: string, min: number, tasks: number) => `${day}: ${min} minutes focus, ${tasks} tasks`,
     habitA11y: (name: string, done: number, total: number) => `${name}: ${done} of ${total} days`,
@@ -52,9 +54,17 @@ export const WeekChart: React.FC<WeekChartProps> = ({ summary, language, todayKe
   const labels = shortDayLabels(language);
   const max = Math.max(1, ...summary.focusPerDay);
   const hasAny = summary.totalFocusMin > 0 || summary.totalTasks > 0;
+  /*
+    ODAK YOKSA SÜTUN YOK. Odak 0, iş > 0 iken 110pt'lik alan 2%'lik görünmez sütunlarla
+    çiziliyordu: kartın üçte ikisi boş, tek bilgi en alttaki "1". Tremor'un kuralı: boş
+    seri çizilmez. Gün satırı ve iş sayıları kalır, grafik alanı yerini nota bırakır.
+  */
+  const hasFocus = summary.totalFocusMin > 0;
+  // Uygulamanın kart yüzeyi (bkz. SettingsCard) — eskiden gri zemin + çerçeveyle ayrı bir dil.
+  const cardStyle = { borderRadius: R.lg, borderWidth: isDark ? B.thin : 0, borderColor: theme.outline, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, padding: S.md, gap: S.sm } as const;
 
   return (
-    <View style={{ borderRadius: R.lg, borderWidth: B.thin, borderColor: theme.outlineVariant, backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, padding: S.md, gap: S.sm }}>
+    <View style={cardStyle}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{c.chartTitle}</Text>
         <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600' }}>{c.minutesShort}</Text>
@@ -63,7 +73,9 @@ export const WeekChart: React.FC<WeekChartProps> = ({ summary, language, todayKe
       {!hasAny ? (
         <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, paddingVertical: S.md }}>{c.empty}</Text>
       ) : (
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 110, gap: S.xs }}>
+        <>
+        {!hasFocus && <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{c.noFocus}</Text>}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: hasFocus ? 110 : undefined, gap: S.xs }}>
           {summary.focusPerDay.map((min, i) => {
             const dayKey = summary.range.days[i];
             const isToday = dayKey === todayKey;
@@ -78,17 +90,17 @@ export const WeekChart: React.FC<WeekChartProps> = ({ summary, language, todayKe
                 style={{ flex: 1, alignItems: 'center', gap: S.xxs }}
               >
                 {/* Dakika yazısı yalnız DOLU günlerde: boş günler sessiz kalsın. */}
-                <Text style={{ fontSize: F.caption, color: min > 0 ? theme.onSurfaceVariant : 'transparent', fontWeight: '700' }}>
+                {hasFocus && <Text style={{ fontSize: F.caption, color: min > 0 ? theme.onSurfaceVariant : 'transparent', fontWeight: '700' }}>
                   {min > 0 ? min : '0'}
-                </Text>
-                <View style={{ flex: 1, width: '100%', justifyContent: 'flex-end' }}>
+                </Text>}
+                {hasFocus && <View style={{ flex: 1, width: '100%', justifyContent: 'flex-end' }}>
                   <MotiView
                     from={{ height: 2 }}
                     animate={{ height: `${pct}%` as never }}
                     transition={{ type: 'timing', duration: 420, delay: i * 50 }}
                     style={{ width: '70%', alignSelf: 'center', borderRadius: R.xs, backgroundColor: isBest ? theme.primary : theme.primary + (min > 0 ? '66' : '1F') }}
                   />
-                </View>
+                </View>}
                 {/* Tamamlanan iş: grafiğin altında ikinci bir satır — sayı olarak. */}
                 <Text style={{ fontSize: F.caption, color: tasks > 0 ? theme.success : 'transparent', fontWeight: '700' }}>
                   {tasks > 0 ? `${tasks}` : '0'}
@@ -100,6 +112,7 @@ export const WeekChart: React.FC<WeekChartProps> = ({ summary, language, todayKe
             );
           })}
         </View>
+        </>
       )}
 
       {hasAny && (
@@ -126,7 +139,7 @@ export const HabitWeekList: React.FC<HabitWeekListProps> = ({ habits, summary, l
   const days = summary.range.days;
 
   return (
-    <View style={{ borderRadius: R.lg, borderWidth: B.thin, borderColor: theme.outlineVariant, backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, padding: S.md, gap: S.sm }}>
+    <View style={{ borderRadius: R.lg, borderWidth: isDark ? B.thin : 0, borderColor: theme.outline, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, padding: S.md, gap: S.sm }}>
       <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{c.habitsTitle}</Text>
       {habits.length === 0 ? (
         <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{c.noHabits}</Text>

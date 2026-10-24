@@ -31,6 +31,7 @@ import { swallow } from '@/shared/utils/swallow';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
 import { parseDateKey, calendarDayOf, toDateKey } from '@/shared/utils/dateKey';
+import { upperFor } from '@/shared/utils/localeCase';
 
 const SWIPE_THRESHOLD = -80;
 
@@ -589,7 +590,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                   <View style={styles.dateTimeRow}>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted, fontSize: F.caption, marginBottom: S.md }]}>
-                        {t.dueDate.toUpperCase()}
+                        {upperFor(t.dueDate, language)}
                       </Text>
                       <Touchable
                         onPress={openDatePicker}
@@ -603,7 +604,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted, fontSize: F.caption, marginBottom: S.md }]}>
-                        {t.dueTime.toUpperCase()}
+                        {upperFor(t.dueTime, language)}
                       </Text>
                       <Touchable
                         onPress={openTimePicker}
@@ -706,7 +707,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
               {/* Priority Selectors */}
               <View style={styles.section}>
-                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted }]}>{t.priority.toUpperCase()}</Text>
+                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted }]}>{upperFor(t.priority, language)}</Text>
                 <View style={[styles.priorityRow, { gap: S.sm }]}>
                   {([
                     { key: 'Low', label: t.filterLow },
@@ -736,7 +737,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
               {/* Recurrence Selectors */}
               <View style={styles.section}>
-                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted }]}>{t.recurrence.toUpperCase()}</Text>
+                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted }]}>{upperFor(t.recurrence, language)}</Text>
                 <View style={[styles.priorityRow, { gap: S.sm }]}>
                   {RECURRENCE_OPTIONS.map((r) => (
                     <Touchable
@@ -897,7 +898,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
               {/* Subtasks Editor */}
               <View style={styles.section}>
-                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted }]}>{t.subtasks.toUpperCase()}</Text>
+                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted }]}>{upperFor(t.subtasks, language)}</Text>
                 {form.subtasks.map((sub, i) => (
                   <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm }}>
                     <Touchable
@@ -985,7 +986,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
               {/* Tag Editor (Visual selector chips) */}
               <View style={styles.section}>
-                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted }]}>{(t as any).tags?.toUpperCase() || (language === 'tr' ? 'ETİKETLER' : 'TAGS')}</Text>
+                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted }]}>{upperFor((t as { tags?: string }).tags || (language === 'tr' ? 'Etiketler' : 'Tags'), language)}</Text>
                 <View style={{ flexDirection: 'row', gap: S.xs, flexWrap: 'wrap', marginBottom: S.sm }}>
                   {visibleTextTags(form.tags).map(tag => (
                     <View key={tag} style={{ backgroundColor: theme.primary + '1F', borderRadius: R.sm, paddingLeft: S.sm, paddingRight: S.xs, paddingVertical: S.xs, flexDirection: 'row', alignItems: 'center', gap: S.xs }}>

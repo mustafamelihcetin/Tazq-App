@@ -24,9 +24,7 @@ import { UserAvatar } from '@/features/user/components/UserAvatar';
 import { newTaskKey } from '@/features/tasks/utils/clientKey';
 import { langOf } from '@/shared/utils/lang';
 import { TazqLogo } from '@/shared/components/TazqLogo';
-import { TodayCard } from '@/features/dashboard/components/TodayCard';
 import { SectionHeader } from '@/shared/components/SectionHeader';
-import { NextMissionCard } from '@/features/dashboard/components/NextMissionCard';
 import { MyDayHabits } from '@/features/dashboard/components/MyDayHabits';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
 import { ArrowLeft, BarChart3, BrainCircuit, CalendarDays, Check, CheckCircle2, ChevronRight, Coffee, Flame, Plus, Rocket, Trash2, TrendingUp, Zap } from 'lucide-react-native';
@@ -63,7 +61,6 @@ import { QuickAddSheet, type DayChoice } from '@/features/tasks/components/Quick
 import { dateKeyFromNow } from '@/shared/utils/dateKey';
 import { ModeTodayCard } from '@/features/modes/components/ModeTodayCard';
 import { PaymentsSummaryCard } from '@/features/payments/components/PaymentsSummaryCard';
-import { useActiveModeSummary } from '@/features/modes/hooks/useActiveModeSummary';
 import { useAppShortcuts } from '@/shared/hooks/useAppShortcuts';
 import { ProfileSetupModal } from '@/features/user/components/ProfileSetupModal';
 import { DottedBackground } from '@/shared/components/DottedBackground';
@@ -88,11 +85,19 @@ import { haptic } from '@/shared/utils/haptics';
 import { useChromeMinimizeOnScroll } from '@/shared/hooks/useChromeMinimizeOnScroll';
 import { savedLocallyMessage } from '@/shared/utils/saveFeedback';
 import { celebrate } from '@/features/user/utils/celebrate';
+import { scopeDay } from '@/features/dashboard/utils/dayScope';
+import { TodayRings } from '@/features/dashboard/components/TodayRings';
 
 
 // Hoş geldin (profil kurulumu) oturum başına yalnızca bir kez — remount'ta sıfırlanmasın diye
 // component ref yerine modül seviyesinde tutulur; kullanıcı çıkışında sıfırlanır.
 let welcomeSetupShown = false;
+
+/** Bugün özeti + Sıradaki satırı metinleri — iki dil yan yana (i18nRatchet). */
+const RINGS_COPY = {
+  tr: { tasks: 'Görevler', focus: 'Odak', habits: 'Alışkanlıklar', min: 'dk', empty: 'Bugün için planın boş', allDone: 'Bugünkü görevlerin tamam', focusCta: 'Odaklan' },
+  en: { tasks: 'Tasks', focus: 'Focus', habits: 'Habits', min: 'min', empty: 'Nothing planned today', allDone: "Today's tasks are done", focusCta: 'Focus' },
+} as const;
 
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
@@ -633,58 +638,10 @@ export default function HomeScreen() {
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
   const todayEndMs = todayStart.getTime() + 86400000;
 
-  const dayScope = React.useMemo(() => {
-    /*
-      OKUNAMAYAN TARİH = TARİHSİZ.
-
-      `new Date('bozuk').getTime()` NaN döner ve NaN ile yapılan her karşılaştırma
-      yanlıştır: böyle bir görev ne "bugüne kadar vadesi gelmiş" listesine ne de
-      "tarihsiz" listesine giriyordu — yani ekrandan TAMAMEN kayboluyordu. Bir
-      uygulamanın en temel sözü, eklediğin şeyin orada durmasıdır; bozuk bir alan
-      o sözü bozmamalı.
-    */
-    const dueAt = (t: any) => {
-      // '0001-01-01' sunucunun "tarih yok" değeri (bkz. taskFilter) — yıl 1 sayılsaydı
-      // görev "bugüne kadar vadesi gelmiş" listesine girerdi.
-      if (!t?.dueDate || String(t.dueDate).startsWith('0001')) return null;
-      const ms = new Date(t.dueDate).getTime();
-      return Number.isNaN(ms) ? null : ms;
-    };
-    const dueThroughToday = (t: any) => {
-      const ms = dueAt(t);
-      return ms !== null && ms <= todayEndMs;
-    };
-    const today = todayKey();
-
-    const incomplete = tasks.filter(t => t && !t.isCompleted && dueThroughToday(t));
-    /*
-      BELKİ BİR GÜN tarihsiz ama "bugünün işi" değil: Zen onu bilerek günün dışına aldı.
-      Burada tarihsizlerle listelenseydi rafa kaldırılan iş ana sayfaya geri dönerdi.
-      Görevler ekranında etiketiyle duruyor.
-    */
-    const undated = tasks.filter(t => t && !t.isCompleted && dueAt(t) === null && !isSomeday(t));
-    /*
-      TAMAMLANANLAR: eski koşul KORUNUYOR, üstüne bir dal ekleniyor.
-
-      Eski koşul yalnız "vadesi bugün olan"ları alıyordu. Gecikmiş ya da tarihsiz bir
-      görev tamamlanınca ikisinin de dışında kalıyor ve ana sayfadan TAMAMEN yok
-      oluyordu — "Tamamlananlar" grubuna bile düşmüyordu. Kullanıcı için bu, işaretlediği
-      şeyin kaybolması demek.
-
-      Eklenen dal `completedAt`e bakıyor: bugün bitirilen her şey, vadesi ne olursa olsun
-      bugünün emeğidir. Eski dal yedek olarak duruyor çünkü sunucu `completedAt` tutmuyor
-      (bkz. useTaskStore.setTasks); kaldırsaydık o kayıtlar bu kez listeden düşerdi.
-    */
-    const completed = tasks.filter(t => {
-      if (!t?.isCompleted) return false;
-      if (wasCompletedOn(t, today)) return true;
-      const ms = dueAt(t);
-      return ms !== null && ms >= todayStart.getTime() && ms <= todayEndMs;
-    });
-
-    return { incomplete, undated, completed };
+  // Gün tanımı tek yerde — Günüm de aynısını okuyor (bkz. dayScope.ts).
+  const dayScope = React.useMemo(() => scopeDay(tasks), 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tasks, todayEndMs]);
+    [tasks, todayEndMs]);
 
   const todayTasksIncomplete = dayScope.incomplete;
   const undatedTasksIncomplete = dayScope.undated;
@@ -1514,6 +1471,13 @@ export default function HomeScreen() {
           dokunulamaz çiziliyor.
         */
         onCheck={isDemoId(item.id) ? undefined : () => handleCheckTask(item.id)}
+        // İlk bekleyen görev = SIRADAKİ: odak çağrısı satırın yanında (ayrı kart değil).
+        // Görevi odak ekranına SEÇİLİ götürür; seans başlamaz (bkz. startQuickFocus farkı).
+        onFocus={index === 0 && !item.isCompleted && !isDemoId(item.id) ? () => {
+          setCurrentTask(getLocalizedTaskTitle(item.original || item, tr), Number(item.id));
+          router.push('/focus');
+        } : undefined}
+        focusLabel={RINGS_COPY[language === 'en' ? 'en' : 'tr'].focusCta}
         priorityColor={priorityColor}
         prefs={usePrefsStore.getState()}
       />
@@ -1579,55 +1543,10 @@ export default function HomeScreen() {
 
 
   /*
-    EKRANIN KONUSU DURUMA GÖRE: aktif bir dönem (sınav, tez, spor, tasarruf…) varsa
-    ekranın cevapladığı soru "bugün ne var" değil, "PLANIMDA bugün ne var"dır.
-    Karar tek yerde; hangi modun en acil olduğunu hook söylüyor.
+    SKOR (momentum) artık "Bugün" özetinin İÇİNDE (TodayRings footer). Eskiden tek tanım,
+    iki konumdu (aktif dönem varsa eylemlerin altı) — kartsız satır iki ağır kartın
+    arasında öksüz kalıyordu. Aktif dönemde plan kartı (ModeTodayCard) yine özetten önce.
   */
-  const modeFirst = useActiveModeSummary().activeCount > 0;
-
-  /*
-    Skor satırı: tek tanım, iki olası konum (aşağıdaki nextMissionCard deseniyle aynı).
-    Konumu `modeFirst`e göre değişiyor — gerekçesi JSX'teki notta.
-  */
-  const momentumRow = !isLite ? (
-    <TourTarget id="momentum">
-      <MomentumPulse
-        score={momentum}
-        history={momentumHistory}
-        language={language}
-        loading={statsLoading}
-      />
-    </TourTarget>
-  ) : null;
-
-  /*
-    Tek tanım, iki olası konum. İki ayrı yere KOPYALANSAYDI props zamanla ayrışır ve
-    kartın davranışı sayfanın neresinde durduğuna göre değişirdi.
-  */
-  const nextMissionCard = !(tasks.length === 0 && habits.length === 0) ? (
-    <NextMissionCard
-      task={topTask ? { id: topTask.id, priority: topTask.priority } : null}
-      title={topTask ? getLocalizedTaskTitle(topTask, tr) : t.noTasksHint}
-      subtitle={topTask ? (getLocalizedTaskDescription(topTask, tr) || t.waitingForAction) : t.allTasksReady}
-      badgeLabel={t.activeTask.toLocaleUpperCase(tr ? 'tr-TR' : 'en-US')}
-      showUrgent={topTask?.priority === 'High' && !getModeInfoForTask(topTask, usePrefsStore.getState(), theme)}
-      urgentLabel={tr ? 'ACİL' : 'URGENT'}
-      primaryLabel={topTask ? (tr ? 'GÖREVE GİT' : 'GO TO TASK') : t.addTask.toLocaleUpperCase(tr ? 'tr-TR' : 'en-US')}
-      seeAllLabel={t.filterAll}
-      onOpenTask={() => router.push({ pathname: '/tasks', params: { highlightId: String(topTask?.id) } })}
-      onSeeAll={() => router.push('/tasks')}
-      /*
-        "GÖREV EKLE" gerçekten EKLEME açıyor. `action: 'add'` Aksiyon Merkezi'nde
-        tam formu açan mevcut kapı (Haftalık Merkez de aynı yolu kullanıyor);
-        artı işareti uygulamanın dilinde "yapılandırılmış ekleme" demek.
-      */
-      onAdd={() => router.push({ pathname: '/tasks', params: { action: 'add' } })}
-      priorityColor={priorityColor}
-      isSmallScreen={isSmallScreen}
-      theme={theme}
-      padding={isSmallScreen ? S.md : S.lg}
-    />
-  ) : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -1865,27 +1784,49 @@ export default function HomeScreen() {
               Aktif dönem varsa ekranın konusu PLAN oluyor; skor o zaman eylemlerin altına
               iniyor. Kart tek yerde tanımlı, yalnız KONUMU duruma göre değişiyor.
             */}
-            <WideCol>{!modeFirst && momentumRow}</WideCol>
 
             <WideCol>
-            <TodayCard
-              completed={todayCompleted}
-              goal={dailyGoal}
-              focusMinutes={todayFocusMinutes}
-              focusGoalMinutes={dailyGoalMinutes}
-              highlight={!isLite && todayHighlight}
-              surprise={todaySurprise}
-              burstKey={todayBurstKey}
-              onTap={todayTap.onTap}
-              onAddTask={() => setQuickDraftVisible(true)}
-              addLabel={t.quickAdd.title}
+            {/*
+              BUGÜN — ÜÇ HALKA + MOMENTUM (bkz. TodayRings). Eskiden Momentum kartı ve BUGÜN
+              kartı iki ayrı yüzeydi; alışkanlık ilerlemesi hiçbir özette yoktu. Vitrinin
+              ilk bloğu artık günün tamamını tek nesnede söylüyor.
+            */}
+            <TourTarget id="today">
+            <TodayRings
               label={t.todayLabel}
-              isSmallScreen={isSmallScreen}
-              isDark={isDark}
-              tr={language === 'tr'}
+              caption={(() => {
+                const c = RINGS_COPY[language === 'en' ? 'en' : 'tr'];
+                if (!isLite && todayHighlight) return todaySurprise;
+                if (dailyGoal === 0) return c.empty;
+                if (todayCompleted >= dailyGoal) return c.allDone;
+                // Olağan gün: cümle YOK — selamlama zaten "N görevin var" diyor; tekrar etmesin.
+                return '';
+              })()}
+              captionHighlight={!isLite && todayHighlight}
+              metrics={(() => {
+                const c = RINGS_COPY[language === 'en' ? 'en' : 'tr'];
+                const habitPool = (myDayHabits as Array<{ isSkipped?: boolean; isCompleted?: boolean }>).filter(h => !h.isSkipped);
+                const habitsDone = habitPool.filter(h => h.isCompleted).length;
+                return [
+                  { label: c.tasks, value: dailyGoal > 0 ? `${todayCompleted}/${dailyGoal}` : '—', progress: dailyGoal > 0 ? todayCompleted / dailyGoal : 0, reached: dailyGoal > 0 && todayCompleted >= dailyGoal, color: theme.primary },
+                  { label: c.focus, value: `${todayFocusMinutes}/${dailyGoalMinutes} ${c.min}`, progress: dailyGoalMinutes > 0 ? todayFocusMinutes / dailyGoalMinutes : 0, reached: dailyGoalMinutes > 0 && todayFocusMinutes >= dailyGoalMinutes, color: theme.streak },
+                  { label: c.habits, value: habitPool.length > 0 ? `${habitsDone}/${habitPool.length}` : '—', progress: habitPool.length > 0 ? habitsDone / habitPool.length : 0, reached: habitPool.length > 0 && habitsDone >= habitPool.length, color: theme.tertiary },
+                ];
+              })()}
+              footer={!isLite ? (
+                <TourTarget id="momentum">
+                  <MomentumPulse score={momentum} history={momentumHistory} language={language} loading={statsLoading} embedded />
+                </TourTarget>
+              ) : null}
+              // "+ GÖREV EKLE" gerçekten EKLEME açar (`action: 'add'` — tam form kapısı).
+              onAdd={() => router.push({ pathname: '/tasks', params: { action: 'add' } })}
+              addLabel={t.addTask}
+              showAdd={dailyGoal === 0 && !demoGate(tasks.length)}
+              onTap={todayTap.onTap}
               theme={theme}
               padding={bentoPad}
             />
+            </TourTarget>
             </WideCol>
 
             {/* Unified My Day Bento Card — geniş ekranda SAĞ sütunun tepesi. */}
@@ -2092,10 +2033,13 @@ export default function HomeScreen() {
             </WideCol>
 
             {/* Aktif dönem varsa skor BURADA — eylemlerin altında (yukarıdaki nota bkz.). */}
-            <WideCol>{modeFirst && momentumRow}</WideCol>
 
             {/* Focus Widget */}
-            <WideCol><DynamicIsland /></WideCol>
+            {/*
+              Odak kartı YALNIZ SEANS SÜRERKEN (canlı sayaç + görev). Boştaki hâli ("Başlamaya
+              hazır · Başlat") aşağıdaki Sıradaki kartının "Odaklan"ıyla aynı niyetti — iki çağrı.
+            */}
+            <WideCol>{isActive && <DynamicIsland />}</WideCol>
 
             {/* İlk açılış — soğuk başlangıç kartı: görev ve alışkanlık yokken kullanıcıya net 3 giriş noktası sunar */}
             {/*
@@ -2143,7 +2087,6 @@ export default function HomeScreen() {
                 eylemle açılsın) ama SAYFANIN RİTMİNİ bozdu: momentum satırı kartsızdır ve
                 eskiden selamlamayla kartlar arasında yumuşak bir geçiş kuruyordu. Üstüne
                 bir kart konunca iki ağır kartın arasında sıkışıp öksüz kaldı. */}
-            <WideCol>{nextMissionCard}</WideCol>
 
             {/* ── Turkish Mode Banner (opt-in) ── */}
             <WideCol col="right">

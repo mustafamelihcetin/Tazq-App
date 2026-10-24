@@ -46,6 +46,7 @@ const CHECKS: Check[] = [
   ['birincil buton yazısı', 'onPrimary', 'primary', 4.5],
   ['ikincil buton yazısı', 'onSecondary', 'secondary', 4.5],
   ['üçüncül buton yazısı', 'onTertiary', 'tertiary', 4.5],
+  ['yıkıcı buton yazısı', 'onError', 'error', 4.5],
 
   // primary METİN olarak da kullanılıyor (bölüm başlıkları, etkileşimli yazı),
   // sadece ikon/çerçeve olarak değil. Bu yüzden eşiği 3.0 değil 4.5.
@@ -64,6 +65,10 @@ const CHECKS: Check[] = [
   ['öncelik: orta', 'priorityMedium', 'surface', 3.0],
   ['öncelik: düşük', 'priorityLow', 'surface', 3.0],
   ['seri rozeti', 'streak', 'surface', 3.0],
+
+  // Form alanı ile üstünde durduğu kart arasındaki ZEMİN farkı — kenar çizgisi yok,
+  // alanın sınırını yalnız bu fark söylüyor. Koyu tema 1.06'da kalmıştı (alan görünmüyordu).
+  ['form alanı / kart', 'surfaceField', 'surfaceCard', 1.1],
 ];
 
 describe.each([

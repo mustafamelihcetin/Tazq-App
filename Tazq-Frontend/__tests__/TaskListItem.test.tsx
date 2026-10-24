@@ -14,6 +14,8 @@ import { rowHint, bulkSelectHint } from '@/shared/utils/a11y';
  */
 
 const theme = Colors.light;
+/** Tek kimlik: memo karşılaştırıcısı kimliğe bakar, her render'da yeni Set onu hep 'değişti' sanar. */
+const NO_COMPLETING = new Set<number>();
 const baseTask: Task = {
   id: 7,
   title: 'Sunumu bitir',
@@ -45,7 +47,7 @@ const setup = (over: Partial<React.ComponentProps<typeof MemoizedTaskItem>> = {}
       t={translations.tr}
       showSwipePeek={false}
       priorityColor={() => theme.priorityHigh}
-      completingIds={new Set()}
+      completingIds={NO_COMPLETING}
       expandedId={null}
       sortBy="creation"
       modeInfo={null}
@@ -74,6 +76,29 @@ describe('TaskListItem', () => {
     fireEvent.press(getByRole('button', { name: /Sunumu bitir/ }));
     expect(handleBulkSelect).toHaveBeenCalledWith(7);
     expect(handleToggleExpand).not.toHaveBeenCalled();
+  });
+
+  it('açık kilo görevine dokunmak kilo girişini açar — satırı genişletmez', () => {
+    const { getByRole, handleToggle, handleToggleExpand } = setup({ task: { ...baseTask, tags: ['weight_entry'] } });
+    fireEvent.press(getByRole('button', { name: /Sunumu bitir/ }));
+    expect(handleToggle).toHaveBeenCalledWith(7);
+    expect(handleToggleExpand).not.toHaveBeenCalled();
+  });
+
+  it('seçim değişince satır yeniden çizilir — memo karşılaştırıcısı onu yutmaz', () => {
+    const { getByRole, rerender } = setup({ isBulkMode: true });
+    const props = (isSelected: boolean) => (
+      <MemoizedTaskItem
+        task={baseTask} i={0} theme={theme} isDark={false} highlightedId={null}
+        isBulkMode isSelected={isSelected} language="tr" t={translations.tr}
+        showSwipePeek={false} priorityColor={() => theme.priorityHigh}
+        completingIds={NO_COMPLETING} expandedId={null} sortBy="creation" modeInfo={null}
+        handleDelete={jest.fn()} handleToggleExpand={jest.fn()} handleLongPress={jest.fn()}
+        handleBulkSelect={jest.fn()} handleToggle={jest.fn()} toggleSubtask={jest.fn()}
+      />
+    );
+    rerender(props(true));
+    expect(getByRole('button', { name: /Sunumu bitir/ }).props.accessibilityState).toMatchObject({ selected: true });
   });
 
   it('uzun basış toplu seçimi başlatır', () => {

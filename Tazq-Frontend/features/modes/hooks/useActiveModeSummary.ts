@@ -6,8 +6,9 @@ import { useActiveTasks } from '@/features/tasks';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { modeAccent, modeAccentText } from '@/shared/constants/Colors';
-import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
+import { toDateKey } from '@/shared/utils/dateKey';
 import { planProgressFor } from '@/features/modes/utils/planProgress';
+import { daysLeftOf as sharedDaysLeftOf, isDatePast } from '@/features/modes/utils/planTaskOps';
 
 /**
  * AKTİF MODLARIN ÖZETİ — tek kaynak.
@@ -75,11 +76,16 @@ function thisWeekKeys(): Set<string> {
   return keys;
 }
 
+/*
+  TEK SAYAÇ: planTaskOps.daysLeftOf. Burada hedefi 23:59:59'a kurup yukarı yuvarlayan
+  eski kopya duruyordu — modeHelpers ve turkishModes'ta aynı hata daha önce bulunup
+  düzeltilmişti ("kart 61, satır 60"), bu dosya atlanmıştı: durum kartı "46 GÜN",
+  hemen altındaki Spor kartı "45 gün kaldı" diyordu.
+*/
 function daysLeftOf(dateStr: string | null): number | null {
   if (!dateStr) return null;
-  const end = parseDateKey(dateStr).setHours(23, 59, 59, 999);
-  if (end < Date.now()) return -1; // geçmiş
-  return Math.max(0, Math.ceil((end - Date.now()) / 86400000));
+  if (isDatePast(dateStr)) return -1; // geçmiş
+  return sharedDaysLeftOf(dateStr);
 }
 
 export function useActiveModeSummary(): ModeSummary {

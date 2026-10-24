@@ -23,9 +23,26 @@ interface Props {
   history: DayScore[];
   language: string;
   loading?: boolean;
+  /**
+   * Başka bir kartın İÇİNDE çizilir (ana sayfa "Bugün" özeti): kendi kartı ve dış
+   * boşluğu yok. Isı şeridi, bilgi penceresi ve trend aynen kalır.
+   */
+  embedded?: boolean;
 }
 
-export const MomentumPulse: React.FC<Props> = ({ score, history, language, loading }) => {
+/** Gömülüyken düz kap, değilken kendi kartı — modül düzeyinde ki her render'da yeniden kurulmasın. */
+const CardBox = ({ embedded, children }: { embedded?: boolean; children: React.ReactNode }) =>
+  embedded
+    ? <View style={{ overflow: 'hidden' }}>{children}</View>
+    : <BentoCard index={0} style={{ padding: S.md, overflow: 'hidden' }}>{children}</BentoCard>;
+
+/** İlk gün (tek veri noktası) grafiğin yerine geçen cümle — iki dil yan yana (i18nRatchet). */
+const FIRST_DAY = {
+  tr: 'Gidişatın yarından itibaren burada çizilecek.',
+  en: 'Your trend starts drawing here tomorrow.',
+} as const;
+
+export const MomentumPulse: React.FC<Props> = ({ score, history, language, loading, embedded }) => {
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
   const [infoVisible, setInfoVisible] = useState(false);
@@ -142,7 +159,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
       Dolgu kartın varsayılanından (S.lg) küçük: içerik tek satır yüksekliğinde, tam
       dolgu kartı boş gösterirdi.
     */}
-    <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
+    <View style={embedded ? undefined : { paddingHorizontal: S.lg, marginBottom: S.lg }}>
     {/*
       ISI ŞERİDİ — kaldırılan "aura"nın yerine.
 
@@ -165,7 +182,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
       Okunur, ölçülebilir ve değer değiştiğinde bir kez yumuşakça büyür — dinamik ama
       gürültüsüz. Parlama yok, sonsuz döngü yok.
     */}
-    <BentoCard index={0} style={{ padding: S.md, overflow: 'hidden' }}>
+    <CardBox embedded={embedded}>
       {engineHeat > 0 && (
         <MotiView
           from={{ width: '0%' }}
@@ -254,6 +271,18 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
 
       {/* Sparkline */}
       <View style={{ flex: 1, gap: S.xs }}>
+        {/*
+          İLK GÜN GRAFİK YOK, CÜMLE VAR. Tek veri noktasıyla grafik yedi boş kesik çizgi +
+          bir çubuktu: yeni kullanıcının ilk gördüğü şey "boş bir grafik" oluyordu.
+          İkinci günden itibaren çubuklar ve "N. gün · grafik doluyor" altyazısı (aşağıda)
+          aynen sürüyor — "henüz dolmamış" fikri korunuyor, yalnız boş anı sözle anlatılıyor.
+        */}
+        {daysWithData <= 1 ? (
+          <Text style={{ fontSize: F.footnote, fontWeight: '500', color: theme.onSurfaceVariant, lineHeight: 18 }}>
+            {FIRST_DAY[language === 'en' ? 'en' : 'tr']}
+          </Text>
+        ) : (
+        <>
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: S.xs, height: 24 }}>
           {displayHistory.map((day, i) => {
             const has = day.score >= 0;
@@ -333,6 +362,8 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
             ? (tr ? `${daysWithData}. gün · grafik doluyor` : `day ${daysWithData} · chart filling up`)
             : (tr ? 'son 7 gün' : 'last 7 days')}
         </Text>
+        </>
+        )}
       </View>
 
       {/* Trend */}
@@ -359,7 +390,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
         </MotiView>
       )}
     </View>
-    </BentoCard>
+    </CardBox>
     </View>
 
     {/* Momentum formula info modal */}

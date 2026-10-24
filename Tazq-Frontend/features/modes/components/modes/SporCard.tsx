@@ -421,14 +421,14 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
   const spor2Complete = (seasonal.spor2Goal || '').trim() !== '' && !!seasonal.spor2Date;
 
   return (
-    <View style={{ borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', backgroundColor: theme.surfaceCard, borderColor: seasonal.sporMode && sporIsComplete ? (past ? theme.error + '40' : SPOR + '35') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }}>
+    <View style={{ borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', backgroundColor: theme.surfaceCard, borderColor: seasonal.sporMode && sporIsComplete ? (past ? theme.error + '40' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)')) : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }}>
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: seasonal.sporMode ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
           <AppIcon Icon={Dumbbell} color={SPOR} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.body }}>{tr ? 'Spor / Fiziksel Hedef' : 'Sport / Physical Goal'}</Text>
-            {seasonal.sporMode && sporIsComplete ? (
-              <Text style={{ color: past ? theme.error : SPOR, fontSize: F.caption, fontWeight: '500', marginTop: S.xxs }}>{past ? (tr ? 'Hedef tarihi geçti' : 'Goal date passed') : (tr ? `${daysLeft} gün kaldı` : `${daysLeft} days left`)}</Text>
+            {seasonal.sporMode && sporIsComplete && past ? (
+              <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '500', marginTop: S.xxs }}>{past ? (tr ? 'Hedef tarihi geçti' : 'Goal date passed') : (tr ? `${daysLeft} gün kaldı` : `${daysLeft} days left`)}</Text>
             ) : (
               <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs }}>{tr ? 'Uzman destekli antrenman & beslenme planı' : 'Expert-backed training & nutrition plan'}</Text>
             )}
@@ -441,7 +441,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                 Alert.alert(tr ? 'Spor Modu Kapatılıyor' : 'Turning off Sport Mode', tr ? 'Eklenen alışkanlıklar ve görevler kaldırılacak. Emin misin?' : 'Added habits and tasks will be removed. Are you sure?', [{ text: tr ? 'İptal' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat ve Temizle' : 'Turn Off & Remove', style: 'destructive', onPress: () => closeModeWithUndo('spor', closePlan, tr ? 'Spor modu kapatıldı' : 'Fitness mode closed', tr ? 'Geri al' : 'Undo') }]);
               } else if (v) { setSeasonalPref('sporMode', true); setExpanded(true); }
             }}
-            trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: SPOR }} thumbColor={isDark && !seasonal.sporMode ? '#636366' : '#fff'} />
+            trackColor={{ false: theme.surfaceContainerHighest, true: theme.primary }} thumbColor={isDark && !seasonal.sporMode ? '#636366' : '#fff'} />
         </View>
       </View>
 
@@ -458,14 +458,14 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
 
           {sporIsComplete && !expanded && (
             <View style={{ gap: S.sm }}>
-              <View style={{ borderRadius: R.md, overflow: 'hidden', borderWidth: B.thin, borderColor: (past ? theme.error : SPOR) + '30', backgroundColor: (past ? theme.error : SPOR) + '08' }}>
-                <View style={{ height: 3, backgroundColor: past ? theme.error : SPOR }} />
-                <View style={{ padding: S.md }}>
+              {/* Hedef artık kart İÇİNDE kart değil: tinted zemin + çerçeve + 3pt şerit kaldırıldı; ayırıcı yeterli. */}
+                <View>
+                <View style={{ paddingTop: S.xs }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>
                     {renderModeEmojiIcon(goalEmoji(sporType), 16, SPOR)}
                     <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{stripEmojiPrefix(goal)}</Text>
-                    <Touchable onPress={() => { haptic.surface(); onOpenPreview('spor'); }} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={hasPlan ? (tr ? 'Spor planı içgörü ve önizleme' : 'Fitness plan insight and preview') : (tr ? 'Spor planını seç' : 'Choose fitness plan')} style={{ backgroundColor: SPOR + (isDark ? '22' : '15'), paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full }}>
-                      <Text style={{ color: SPOR_TX, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (tr ? 'Planı Seç ›' : 'Choose Plan ›')}</Text>
+                    <Touchable onPress={() => { haptic.surface(); onOpenPreview('spor'); }} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={hasPlan ? (tr ? 'Spor planı içgörü ve önizleme' : 'Fitness plan insight and preview') : (tr ? 'Spor planını seç' : 'Choose fitness plan')} style={{ paddingVertical: S.xs, paddingHorizontal: S.xxs }}>
+                      <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (tr ? 'Planı Seç ›' : 'Choose Plan ›')}</Text>
                     </Touchable>
                     <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
                     <Touchable onPress={() => { haptic.select(); setExpanded(true); }} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={tr ? 'Spor hedefini düzenle' : 'Edit fitness goal'}>

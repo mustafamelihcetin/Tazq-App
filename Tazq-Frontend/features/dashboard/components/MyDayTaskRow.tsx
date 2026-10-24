@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { Check, ChevronRight } from 'lucide-react-native';
+import { Check, ChevronRight, Play } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { ICON, R, S, F, HAIRLINE, B, touchSlop } from '@/shared/constants/tokens';
 import { getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
@@ -23,6 +23,13 @@ export interface MyDayTaskRowProps {
    * önizleme gerçek ekrandan farklı görünmemeli.
    */
   onCheck?: () => void;
+  /**
+   * SIRADAKİ satırın odak çağrısı. Verilirse sondaki ok yerine "Odaklan" hapı çizilir
+   * (ayrı dokunma hedefi). Eskiden bu iş ayrı bir "Sıradaki" kartındaydı ve listenin
+   * ilk satırını tekrarlıyordu — çağrı artık görevin yanında.
+   */
+  onFocus?: () => void;
+  focusLabel?: string;
   priorityColor: (p: string) => string;
   prefs: any;
 }
@@ -114,7 +121,7 @@ const copy = (tr: boolean) => tr
       goal: (d: number) => `Goal: ${d} days`,
     };
 
-export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme, isDark, tr, onPress, onCheck, priorityColor, prefs }) => {
+export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme, isDark, tr, onPress, onCheck, onFocus, focusLabel, priorityColor, prefs }) => {
   const modeInfo = getModeInfoForTask(item.original, prefs, theme);
   const title = getLocalizedTaskTitle(item.original || item, tr);
   const c = copy(tr);
@@ -132,6 +139,9 @@ export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme
         ? `${title} — ${c.doneSuffix}`
         : title}
       accessibilityHint={c.openHint}
+      // Ekran okuyucu satırı TEK öğe okur; içindeki "Odaklan" hapına ulaşamaz → satırın eylemi.
+      accessibilityActions={onFocus && !item.isCompleted && focusLabel ? [{ name: 'focus', label: focusLabel }] : undefined}
+      onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'focus') onFocus?.(); }}
       style={{
         flexDirection: 'row', alignItems: 'center',
         // Dikey boşluk BİLEREK burada değil, içerik bloğunda: ayırıcı satırın alt
@@ -266,7 +276,21 @@ export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme
         söylüyor, aynı bilgiyi satırın iki ucunda tekrar etmeye gerek yok. Ayrıca
         ikonun sabit kalması, işaretlenince satırın sağ ucunun oynamasını önlüyor.
       */}
-      <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.3} style={{ marginLeft: S.sm }} />
+      {onFocus && !item.isCompleted ? (
+        <Touchable
+          testID="row-focus"
+          onPress={onFocus}
+          hitSlop={touchSlop(28)}
+          accessibilityRole="button"
+          accessibilityLabel={`${focusLabel ?? ''} — ${title}`}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginLeft: S.sm, paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: theme.primary }}
+        >
+          <Play size={ICON.xs} color={theme.onPrimary} fill={theme.onPrimary} />
+          <Text style={{ fontSize: F.footnote, fontWeight: '600', color: theme.onPrimary }}>{focusLabel}</Text>
+        </Touchable>
+      ) : (
+        <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.3} style={{ marginLeft: S.sm }} />
+      )}
       </View>
     </Touchable>
   );

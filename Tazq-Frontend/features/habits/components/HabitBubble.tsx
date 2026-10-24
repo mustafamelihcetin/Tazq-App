@@ -177,7 +177,7 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
           fontWeight: '700',
           color: isCompleted ? theme.onSurfaceMuted : theme.onSurface,
           textAlign: 'center',
-          textDecorationLine: isCompleted ? 'line-through' : 'none',
+          // Üstü ÇİZİLMEZ: alışkanlık 'iptal' değil 'yapıldı' — tik rozeti bunu söylüyor (bkz. cockpit).
           width: '100%',
         }}
         numberOfLines={2}

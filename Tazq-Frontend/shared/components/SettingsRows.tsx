@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Switch, StyleSheet } from 'react-native';
+import { View, Text, Switch, StyleSheet, Platform } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { Separator } from '@/shared/components/Separator';
@@ -115,12 +115,19 @@ export interface SettingItemProps {
   label: string;
   sub?: string;
   right?: React.ReactNode;
+  /**
+   * Satırın mevcut DEĞERİ ("Aydınlık", "Türkçe", "Kapalı") — iOS Ayarlar biçimi:
+   * ikincil renk, gövde punto, normal ağırlık, büyük harf YOK. Eskiden her satır kendi
+   * `right` metnini yazıyordu ve üç ayrı stil oluşmuştu (mavi "AYDINLIK", siyah "TR",
+   * yeşil/gri "Kapalı"). Değer bir durumdur, eylem değil — renklenmez.
+   */
+  value?: string;
   onPress?: () => void;
   theme: AppTheme;
   bg?: string;
 }
 
-export function SettingItem({ icon, label, sub, right, onPress, theme, bg }: SettingItemProps) {
+export function SettingItem({ icon, label, sub, right, value, onPress, theme, bg }: SettingItemProps) {
   return (
     /*
       Basılamayan satır DÜĞME gibi duyurulmaz.
@@ -144,6 +151,7 @@ export function SettingItem({ icon, label, sub, right, onPress, theme, bg }: Set
         </View>
       </View>
       <View style={styles.rowRight}>
+        {!!value && <Text style={[styles.value, { color: theme.onSurfaceMuted }]} numberOfLines={1}>{value}</Text>}
         {right}
         {/* Chevron ÜÇÜNCÜL renkte, opacity YOK — eskiden onSurfaceVariant + opacity 0.3
             idi (ölçülü rengi kısmak). Affordans olarak muted seviyesi daha okunur. */}
@@ -190,10 +198,15 @@ export function ToggleRow({ icon, bg, title, subtitle, value, onValueChange, the
         disabled={disabled}
         accessibilityRole="switch"
         accessibilityState={{ checked: value, disabled: !!disabled }}
-        // Kapalı iz + kapatık düğme palet token'larından; açık iz marka mavisi (alfa hex).
-        // #FFFFFF meşru (renkli düğme üzerindeki nötr), palet dışı değil.
-        trackColor={{ false: theme.surfaceContainerHighest, true: theme.primary + '80' }}
-        thumbColor={value ? theme.primary : isDark ? theme.onSurfaceMuted : '#FFFFFF'}
+        /*
+          Her platform KENDİ anahtarını çizer. iOS: tam renkli iz + beyaz topuz (UISwitch).
+          Eskiden iki platformda da Material'in "yarım alfa iz + renkli topuz" deseni
+          vardı — iOS'ta yabancı duruyordu ve devre dışı + açık anahtar (opacity 0.45
+          ile) ne açık ne kapalı okunuyordu. Android'de Material 3 kalıyor.
+        */
+        trackColor={{ false: theme.surfaceContainerHighest, true: Platform.OS === 'ios' ? theme.primary : theme.primary + '80' }}
+        thumbColor={Platform.OS === 'ios' ? undefined : value ? theme.primary : isDark ? theme.onSurfaceMuted : '#FFFFFF'}
+        ios_backgroundColor={theme.surfaceContainerHighest}
       />
     </View>
   );
@@ -227,4 +240,5 @@ const styles = StyleSheet.create({
   // iOS Ayarlar satır etiketi: NORMAL ağırlık. 700 değil.
   label: { fontWeight: W.regular, fontSize: F.body, lineHeight: F.body * LH.tight },
   sub: { fontSize: F.caption, marginTop: S.xxs, lineHeight: F.caption * LH.normal },
+  value: { fontSize: F.body, fontWeight: W.regular, maxWidth: 140 },
 });

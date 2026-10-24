@@ -24,6 +24,7 @@ export function useModeAccent(type: string) {
   return useMemo(() => ({
     accent: modeAccent(type, isDark),
     accentText: modeAccentText(type, isDark),
-    onAccent: modeAccentOn(isDark),
+    // Dolgu verilir: koyuda indigo/violet beyaz, turuncu/mavi/yeşil koyu yazı ister (bkz. modeAccentOn).
+    onAccent: modeAccentOn(isDark, modeAccent(type, isDark)),
   }), [type, isDark]);
 }

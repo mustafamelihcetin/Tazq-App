@@ -294,7 +294,8 @@ describe('Haftalık Merkez — gün seçimi EKRANIN TAMAMINI kapsar', () => {
   });
 
   it('"bugüne dön" gün seçiminin yapıldığı yerde ve yalnız gerektiğinde', () => {
-    const strip = COCKPIT.slice(COCKPIT.indexOf("'BU HAFTA'"), COCKPIT.indexOf('styles.weekRow'));
+    // Kartın "BU HAFTA" etiketi kaldırıldı (bölüm başlığıyla tekrar ediyordu) — şerit artık tur hedefinden başlar.
+    const strip = COCKPIT.slice(COCKPIT.indexOf('<TourTarget id="weekStrip">'), COCKPIT.indexOf('styles.weekRow'));
     expect(strip).toContain('{!isSelectedToday && (');
     expect(strip).toContain('setSelectedDay(todayKey)');
   });

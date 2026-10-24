@@ -188,7 +188,7 @@ export function DeleteAccountModal({
               accessibilityState={{ disabled: !canConfirm || deleting, busy: deleting }}
               style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: theme.error, alignItems: 'center', justifyContent: 'center', opacity: (canConfirm && !deleting) ? 1 : 0.4 }}
             >
-              {deleting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: F.body }}>{t.submit}</Text>}
+              {deleting ? <ActivityIndicator size="small" color={theme.onError} /> : <Text style={{ color: theme.onError, fontWeight: '700', fontSize: F.body }}>{t.submit}</Text>}
             </Touchable>
           </View>
         </GlassSheet>

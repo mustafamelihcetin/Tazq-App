@@ -290,6 +290,30 @@ export const SPRING = { type: 'spring', mass: 1, stiffness: 140, damping: 18 } a
 export const SPRING_SNAPPY = { type: 'spring', mass: 0.7, stiffness: 220, damping: 22 } as const; // hızlı/keskin (buton/sheet)
 export const SPRING_SOFT = { type: 'spring', mass: 1.1, stiffness: 90, damping: 18 } as const;    // yumuşak (büyük katman)
 
+/*
+  AYNI YAYLAR, REANIMATED İÇİN — `withSpring(hedef, RSPRING.x)`.
+
+  Moti token'ları `type: 'spring'` taşıyor; Reanimated'in SpringConfig'i bu anahtarı
+  tanımıyor. O yüzden worklet'lerde herkes kendi sayısını yazmıştı (damping 9/15/18/20,
+  stiffness 100/120/200 — beş farklı yay). Sonuç: aynı uygulamanın satırları farklı
+  "ağırlıkta" kayıyordu. Renkte yapılan disiplinin harekette karşılığı bu tablo.
+  Bkz. __tests__/motionTokens.test.ts — satır içi yay yazılırsa test kırılır.
+
+  Jest bitişinde `velocity: e.velocityX` geçin (motion'ın "gesture → spring hız
+  devri" ilkesi): parmak hızı yaya aktarılmazsa satır bırakıldığı an durup yeniden
+  hızlanıyor, "kopukluk" hissi buradan geliyor.
+*/
+export const RSPRING = {
+  default: { mass: SPRING.mass, stiffness: SPRING.stiffness, damping: SPRING.damping },
+  snappy: { mass: SPRING_SNAPPY.mass, stiffness: SPRING_SNAPPY.stiffness, damping: SPRING_SNAPPY.damping },
+  soft: { mass: SPRING_SOFT.mass, stiffness: SPRING_SOFT.stiffness, damping: SPRING_SOFT.damping },
+  // Ödül/ikon zıplaması — bilinçli olarak az sönümlü (bir kez esner).
+  pop: { mass: 0.8, stiffness: 260, damping: 12 },
+} as const;
+
+// Kısa durum geçişleri (opaklık, renk) için süreler — yaya uygun olmayan işler.
+export const DURATION = { fast: 180, base: 280, slow: 420 } as const;
+
 // Punto → optik tracking eşlemesi (genel kullanım).
 export const trackingFor = (fontSize: number): number =>
   fontSize >= 30 ? TRACKING.hero

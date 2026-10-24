@@ -45,12 +45,6 @@ const COPY = {
     a11yToday: (d: number, t: number) => (t === 0 ? 'bugün planlı iş yok' : `bugün ${d} / ${t} tamamlandı`),
     inviteTitle: 'Bir hedef seç, gerisini bize bırak',
     inviteBody: 'Sınav, tez, mülakat ya da spor — birini aç, hazır plan otomatik olarak Haftalık Merkez ve görevlerine düşsün.',
-    inviteRows: [
-      { q: 'Bir tarihe yetişmen mi gerekiyor?', pick: 'Sınav ya da Tez' },
-      { q: 'Bedeninle ilgili bir hedefin mi var?', pick: 'Spor & Fiziksel' },
-      { q: 'Bir şeyi bırakmak mı istiyorsun?', pick: 'Bırakma' },
-    ],
-    inviteNote: 'Tek seferde bir hedefle başlamanı öneririz — sonra ekleyebilirsin.',
   },
   en: {
     unit: (d: number) => (d === 0 ? 'TODAY' : 'DAYS'),
@@ -68,12 +62,6 @@ const COPY = {
     a11yToday: (d: number, t: number) => (t === 0 ? 'nothing planned today' : `today ${d} of ${t} done`),
     inviteTitle: 'Pick a goal, leave the rest to us',
     inviteBody: 'Exam, thesis, interview or fitness — turn one on and a ready plan flows into your Weekly Hub and tasks automatically.',
-    inviteRows: [
-      { q: 'Racing a deadline?', pick: 'Exam or Thesis' },
-      { q: 'A goal for your body?', pick: 'Fitness & Health' },
-      { q: 'Trying to quit something?', pick: 'Quit Habit' },
-    ],
-    inviteNote: 'We suggest starting with one goal — you can add more later.',
   },
 };
 
@@ -119,18 +107,12 @@ export const ModeStatusCard: React.FC<ModeStatusCardProps> = ({
           <Sparkles size={ICON.md} color={theme.primary} />
           <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{c.inviteTitle}</Text>
         </View>
-        <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '500', marginTop: S.sm, lineHeight: 18 }}>{c.inviteBody}</Text>
-
-        <View style={{ marginTop: S.md, gap: S.sm }}>
-          {c.inviteRows.map((row) => (
-            <View key={row.pick} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-              <View style={{ width: 5, height: 5, borderRadius: R.full, backgroundColor: theme.primary }} />
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, flex: 1 }} numberOfLines={1}>{row.q}</Text>
-              <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }} numberOfLines={1}>{row.pick}</Text>
-            </View>
-          ))}
-          <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs }}>{c.inviteNote}</Text>
-        </View>
+        <Text style={{ color: theme.onSurfaceVariant, fontSize: F.footnote, marginTop: S.xs, lineHeight: 18 }}>{c.inviteBody}</Text>
+        {/*
+          "Sınav ya da Tez / Spor / Bırakma" yönlendirme satırları KALDIRILDI: hemen altındaki
+          keşif listesini tekrar ediyordu ve mavi metinleri tıklanabilir görünüp
+          dokunulamıyordu ("renk = anlam" kuralı — mavi yalnız etkileşim söyler).
+        */}
       </MotiView>
     );
   }
@@ -141,8 +123,10 @@ export const ModeStatusCard: React.FC<ModeStatusCardProps> = ({
       animate={{ opacity: 1 }}
       transition={{ type: 'timing', duration: 250 }}
       style={[styles.card, {
-        backgroundColor: nearest ? (isDark ? nearest.color + '1A' : nearest.color + '12') : theme.surfaceCard,
-        borderColor: nearest ? nearest.color + (isDark ? '40' : '30') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)'),
+        // Yüzey diğer kartlarla AYNI; mod rengi yalnız anlam taşıyan yerde (sayı, ikon).
+        // Kartın tamamı en yakın hedefin rengine boyanıyordu — sayfanın en baskın lekesi.
+        backgroundColor: theme.surfaceCard,
+        borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)',
         padding: S.md,
       }]}
       /*
@@ -164,8 +148,9 @@ export const ModeStatusCard: React.FC<ModeStatusCardProps> = ({
           {greeting.icon}
           <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{greeting.text}</Text>
         </View>
-        <View style={{ backgroundColor: (nearest?.color ?? fallbackColor) + (isDark ? '26' : '1A'), paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
-          <Text style={{ color: nearest?.textColor ?? fallbackTextColor, fontSize: F.caption, fontWeight: '700' }}>{activeCount} {c.modes}</Text>
+        {/* Sayı bir DURUM, kimlik değil — nötr hap (eskiden en yakın modun rengindeydi). */}
+        <View style={{ backgroundColor: theme.surfaceField, paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
+          <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700' }}>{activeCount} {c.modes}</Text>
         </View>
       </View>
 

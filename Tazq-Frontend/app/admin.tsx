@@ -1841,7 +1841,7 @@ export default function AdminScreen() {
                 disabled={deleting || deleteConfirmText.trim().toLocaleUpperCase(tr ? 'tr-TR' : 'en-US') !== DELETE_WORD}
                 style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: theme.error, alignItems: 'center', justifyContent: 'center', opacity: (deleting || deleteConfirmText.trim().toLocaleUpperCase(tr ? 'tr-TR' : 'en-US') !== DELETE_WORD) ? 0.5 : 1 }}
               >
-                {deleting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: F.body }}>{tr ? 'Kalıcı Sil' : 'Delete'}</Text>}
+                {deleting ? <ActivityIndicator size="small" color={theme.onError} /> : <Text style={{ color: theme.onError, fontWeight: '700', fontSize: F.body }}>{tr ? 'Kalıcı Sil' : 'Delete'}</Text>}
               </Touchable>
             </View>
           </MotiView>

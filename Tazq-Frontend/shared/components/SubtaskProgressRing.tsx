@@ -2,6 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import Animated, { useAnimatedProps, withSpring } from 'react-native-reanimated';
+import { RSPRING } from '@/shared/constants/tokens';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -29,7 +30,7 @@ export const SubtaskProgressRing: React.FC<SubtaskProgressRingProps> = ({
   const strokeDashoffset = circumference * (1 - progress);
 
   const animatedProps = useAnimatedProps(() => ({
-    strokeDashoffset: withSpring(strokeDashoffset, { damping: 15, stiffness: 100 }),
+    strokeDashoffset: withSpring(strokeDashoffset, RSPRING.default),
   }));
 
   if (total === 0) return null;

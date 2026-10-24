@@ -1,11 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Modal } from 'react-native';
 import { MotiView } from 'moti';
 import { CheckCircle2, Sparkles, Check, Clock } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { Separator } from '@/shared/components/Separator';
-import { S, F, R, B, ICON } from '@/shared/constants/tokens';
+import { S, F, R, B, ICON, RSPRING } from '@/shared/constants/tokens';
+import { AnimatedNumber } from '@/shared/components/AnimatedNumber';
+import { LottieAnimation } from '@/shared/components/LottieAnimation';
+import { buildDoneBurst } from '@/features/focus/celebrationLottie';
+import { useReducedMotion } from 'react-native-reanimated';
 import { track } from '@/shared/utils/analytics';
 import { haptic } from '@/shared/utils/haptics';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -103,7 +107,27 @@ export const SessionSummary: React.FC<SessionSummaryProps> = ({
 
   const c = COPY[language];
   const goalPct = dailyGoal > 0 ? Math.min(1, dailyMinutes / dailyGoal) : 0;
+  const prevPct = dailyGoal > 0 ? Math.min(1, Math.max(0, dailyMinutes - minutes) / dailyGoal) : 0;
+  const reduceMotion = useReducedMotion();
   const accent = completed ? theme.primary : theme.secondary;
+  // Renkler temadan — Lottie dosyası değil, koddan üretilen sahne (koyu temada da doğru ton).
+  const doneBurst = useMemo(() => buildDoneBurst(theme.primary, theme.onPrimary, theme.primary), [theme.primary, theme.onPrimary]);
+  const staticIcon = (
+    <MotiView
+      from={{ scale: 0.8, opacity: 0, rotate: '-10deg' }}
+      animate={{ scale: 1, opacity: 1, rotate: '0deg' }}
+      transition={{ type: 'spring', ...RSPRING.pop, delay: 100 }}
+      style={{
+        width: 72, height: 72, borderRadius: R.full,
+        backgroundColor: completed ? theme.primaryContainer : theme.secondaryContainer,
+        alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+      }}
+    >
+      {completed
+        ? <CheckCircle2 size={ICON.xl} color={theme.primary} strokeWidth={2.2} />
+        : <Sparkles size={ICON.xl} color={theme.secondary} strokeWidth={2.2} />}
+    </MotiView>
+  );
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -111,33 +135,33 @@ export const SessionSummary: React.FC<SessionSummaryProps> = ({
         <MotiView
           from={{ opacity: 0, scale: 0.88 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'spring', damping: 18, stiffness: 280 }}
+          transition={{ type: 'spring', ...RSPRING.snappy }}
           style={{ width: '100%', borderRadius: R.sheet, padding: S.xl, alignItems: 'center', gap: S.md }}
         >
           <GlassSurface radius={R.sheet} />
-          <MotiView
-            from={{ scale: 0.8, opacity: 0, rotate: '-10deg' }}
-            animate={{ scale: 1, opacity: 1, rotate: '0deg' }}
-            transition={{ type: 'spring', damping: 15, stiffness: 250, delay: 100 }}
-            style={{
-              width: 72, height: 72, borderRadius: R.full,
-              backgroundColor: completed ? theme.primaryContainer : theme.secondaryContainer,
-              alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-            }}
-          >
-            {completed
-              ? <CheckCircle2 size={ICON.xl} color={theme.primary} strokeWidth={2.2} />
-              : <Sparkles size={ICON.xl} color={theme.secondary} strokeWidth={2.2} />}
-          </MotiView>
+          {/*
+            KUTLAMA (Lottie → Skia Skottie): tamamlanan seansta daire belirir, tik çizilir,
+            halka ve ışınlar bir kez yayılır (bkz. features/focus/celebrationLottie). Renkler
+            temadan. Yarıda kalan seansta ve oynatıcı yoksa (web) eski ikon kalır.
+          */}
+          {completed ? (
+            <LottieAnimation key={visible ? 'on' : 'off'} source={doneBurst} size={112} fallback={staticIcon} />
+          ) : staticIcon}
 
           <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: F.title, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5, textAlign: 'center' }}>
             {completed ? t.summaryGreatWork : t.summaryGoodStart}
           </Text>
 
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: S.xs }}>
-            <Text style={{ fontSize: 52, fontWeight: '700', color: theme.primary, letterSpacing: -2, lineHeight: 56 }}>
-              {minutes}
-            </Text>
+            {/* Dakika SAYARAK gelir (magicui number-ticker → AnimatedNumber): emeğin karşılığı
+                bir anda değil, "toplanarak" görünür. Sakin mod'da anında yazılır. */}
+            <AnimatedNumber
+              key={visible ? 'on' : 'off'}
+              value={minutes}
+              from={0}
+              duration={reduceMotion ? 0 : 900}
+              style={{ fontSize: 52, fontWeight: '700', color: theme.primary, letterSpacing: -2, lineHeight: 56 }}
+            />
             <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurfaceVariant, marginBottom: S.xs }}>
               {t.summaryMinFocused}
             </Text>
@@ -152,7 +176,17 @@ export const SessionSummary: React.FC<SessionSummaryProps> = ({
               </Text>
             </View>
             <View style={{ height: 6, borderRadius: R.xs, backgroundColor: theme.onSurface + '14', overflow: 'hidden' }}>
-              <View style={{ width: `${Math.round(goalPct * 100)}%`, height: '100%', borderRadius: R.xs, backgroundColor: theme.primary }} />
+              {/*
+                Çubuk seans ÖNCESİNDEN başlayıp yeni değere dolar: bu seansın güne kattığı pay
+                gözle görülür. Eskiden son hâl anında çiziliyordu — katkı görünmüyordu.
+              */}
+              <MotiView
+                key={visible ? 'on' : 'off'}
+                from={{ width: `${Math.round(prevPct * 100)}%` }}
+                animate={{ width: `${Math.round(goalPct * 100)}%` }}
+                transition={reduceMotion ? { type: 'timing', duration: 0 } : { type: 'timing', duration: 700, delay: 250 }}
+                style={{ height: '100%', borderRadius: R.xs, backgroundColor: goalPct >= 1 ? theme.tertiary : theme.primary }}
+              />
             </View>
           </View>
 

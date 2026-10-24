@@ -5,7 +5,7 @@ import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { MotiView, AnimatePresence } from 'moti';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BookOpen, ChevronRight, CalendarDays, X, Info, BarChart3, Flame, Zap, Sparkles, Target, CheckCircle2, Dumbbell, Activity, FileText, Briefcase, PiggyBank, Ban, Trophy } from 'lucide-react-native';
+import { BookOpen, GraduationCap, ChevronRight, CalendarDays, X, Info, BarChart3, Flame, Zap, Sparkles, Target, CheckCircle2, Dumbbell, Activity, FileText, Briefcase, PiggyBank, Ban, Trophy } from 'lucide-react-native';
 import { AppIcon } from '@/shared/components/AppIcon';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -29,6 +29,7 @@ import {
 import { ICON, S, R, F, B, HAIRLINE, TRACKING, SPRING, MAX_W, MAX_W_WIDE, contentMaxWidth, sideInset, navBarSpace, topBarSpace, TOP_BAR_HEIGHT } from '@/shared/constants/tokens';
 import { useTabletLayout, useWideLayout } from '@/shared/components/ResponsiveColumns';
 import { useTourGate } from '@/features/onboarding/utils/firstRun';
+import { SectionHeader } from '@/shared/components/SectionHeader';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { useSporStore, getThisWeekEntry } from '@/features/modes/store/useSporStore';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
@@ -110,7 +111,7 @@ import { TasarrufCard } from '@/features/modes/components/modes/TasarrufCard';
 import { BirakmaCard } from '@/features/modes/components/modes/BirakmaCard';
 import { TezCard } from '@/features/modes/components/modes/TezCard';
 import { MulakatCard } from '@/features/modes/components/modes/MulakatCard';
-import { RamazanCard } from '@/features/modes/components/modes/RamazanCard';
+import { RamazanCard, isRamazanCardVisible } from '@/features/modes/components/modes/RamazanCard';
 import { ExamCard } from '@/features/modes/components/modes/ExamCard';
 import { SporCard } from '@/features/modes/components/modes/SporCard';
 import { retireModeTasksByTag, formatPlanDate } from '@/features/modes/utils/planTaskOps';
@@ -120,9 +121,11 @@ import { PlanRefreshContext } from '@/features/modes/hooks/usePlanLifecycle';
 import { ModeStatusCard } from '@/features/modes/components/ModeStatusCard';
 import { Touchable } from '@/shared/components/Touchable';
 import { ChromeShell } from '@/shared/components/ChromeShell';
-import { modeAccent as resolveModeAccent, modeAccentText as resolveModeAccentText } from '@/shared/constants/Colors';
+import { modeAccent as resolveModeAccent, modeAccentText as resolveModeAccentText, ModeAccents } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
 import { dateKeyFromNow, parseDateKey } from '@/shared/utils/dateKey';
+import { upperFor } from '@/shared/utils/localeCase';
+import { daysLeftOf as planDaysLeftOf, isDatePast } from '@/features/modes/utils/planTaskOps';
 
 const MarsIcon = ({ size = 16, color = 'currentColor', strokeWidth = 2.5 }: { size?: number; color?: string; strokeWidth?: number }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
@@ -421,7 +424,7 @@ export default function ModlarScreen() {
   const latestWeight = weightLog.length > 0 ? weightLog[0].weight : null;
 
   const sporDatePast = effectiveSporDate ? parseDateKey(effectiveSporDate).setHours(23, 59, 59, 999) < Date.now() : false;
-  const sporDaysLeft = effectiveSporDate && !sporDatePast ? Math.max(0, Math.ceil((parseDateKey(effectiveSporDate).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
+  const sporDaysLeft = effectiveSporDate && !sporDatePast ? planDaysLeftOf(effectiveSporDate) : 0;
   // Mod renkleri MERKEZİ PALETTEN. Eskiden bu dosya #F97316/#10B981 gibi ham hex'ler
   // yazıyordu — üstelik paletin kontrast yetersizliği yüzünden REDDETTİĞİ tonları
   // (spor #F97316 = 2.80:1, mulakat #10B981 = 2.54:1 — büyük metin eşiğinin bile
@@ -693,8 +696,10 @@ export default function ModlarScreen() {
   const statusCands: Array<{ days: number; label: string; color: string; textColor: string; emoji: string }> = [];
   // Decouple: tarih/ad LOCAL input yerine KALICI `seasonal`'dan okunur (mod çıkarımının
   // önünü açar; past/days dateStr'den içeride hesaplanır). Yalnız uygulanmış modlar sayılır.
-  const dPast = (d?: string | null) => !!d && parseDateKey(d).setHours(23, 59, 59, 999) < Date.now();
-  const dLeft = (d?: string | null) => (d && !dPast(d)) ? Math.max(0, Math.ceil((parseDateKey(d).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
+  // TEK SAYAÇ (planTaskOps): buradaki 23:59:59 + yukarı yuvarlama kopyası kartın
+  // hemen altındaki mod kartından bir gün FAZLA diyordu ("46 GÜN" / "45 gün kaldı").
+  const dPast = (d?: string | null) => isDatePast(d);
+  const dLeft = (d?: string | null) => (d && !dPast(d)) ? planDaysLeftOf(d) : 0;
   const pushCand = (on: boolean, dateStr: string | null, label: string, color: string, textColor: string, emoji: string) => {
     if (on && dateStr && !dPast(dateStr)) statusCands.push({ days: dLeft(dateStr), label: stripEmoji(label) || label, color, textColor, emoji });
   };
@@ -816,7 +821,7 @@ export default function ModlarScreen() {
 
   const appliedCards = [...modeCards.filter(m => m.applied), ...(seasonal.ramazan && ramazanApplied ? [ramazanCard] : [])].map((m, i) => wrapCard('applied')(m, i));
   const pendingCards = modeCards.filter(m => !m.applied).map((m, i) => wrapCard('pending')(m, i));
-  const upcomingCards = (!seasonal.ramazan || !ramazanApplied) ? [wrapCard('upcoming')(ramazanCard, 0)] : [];
+  const upcomingCards = (!seasonal.ramazan || !ramazanApplied) && isRamazanCardVisible(!!seasonal.ramazan, ramadanStatus) ? [wrapCard('upcoming')(ramazanCard, 0)] : [];
 
   const sectionsToRender: Array<{ id: string; title: string; hint?: string; color: string; Icon: any; cards: React.ReactNode }> = [];
   if (appliedCards.length > 0) {
@@ -1052,9 +1057,11 @@ export default function ModlarScreen() {
                 style={{ gap: S.md, marginTop: S.sm }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginLeft: S.xs }}>
-                  <section.Icon size={ICON.sm} color={section.color} />
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' }}>
-                    {section.title}
+                  {/* Bölüm ikonu NÖTR: renk mod kimliğidir, bölüm başlığı bir mod değil. */}
+                  <section.Icon size={ICON.sm} color={theme.onSurfaceVariant} />
+                  {/* textTransform: 'uppercase' dili bilmez — iOS'ta da "AKTIF" yazıyordu. */}
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 1 }}>
+                    {upperFor(section.title, language)}
                   </Text>
                   {section.hint ? (
                     <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '500', flex: 1 }} numberOfLines={1}>
@@ -1112,7 +1119,7 @@ export default function ModlarScreen() {
                   title: language === 'tr' ? 'Tez / Proje' : 'Thesis / Project',
                   desc: language === 'tr' ? 'Deadline odaklı bitirme akışı' : 'Deadline-driven project plan',
                   icon: '📝',
-                  Icon: FileText,
+                  Icon: GraduationCap, // kartın kendi ikonuyla AYNI (TezCard) — keşifte 📄, kartta 🎓 idi
                   color: tezUrgencyColor,
                   textColor: tezTextColor,
                   load: language === 'tr' ? '2-3 alışkanlık · günde 1-2 görev' : '2-3 habits · 1-2 tasks/day',
@@ -1163,78 +1170,51 @@ export default function ModlarScreen() {
               if (discoveryItems.length === 0) return null;
 
               /*
-                Sütun sayısı ekrana göre: telefonda 2, tablette 4. Hesap İÇERİK KABININ
-                genişliğinden (innerW) türüyor — ham `screenWidth` kullanılınca tablette
-                kartlar kabı taşırıyordu.
-              */
-              const gridCols = wide ? 4 : tablet ? 3 : 2;
-              const cardW = (innerW - S.md * (gridCols - 1)) / gridCols;
+                ── GRUPLU LİSTE, IZGARA DEĞİL ──────────────────────────────────────
+                İkili ızgarada her kart ~370pt'ti ve dört satırının İKİSİ kesikti
+                ("günde 1…", "Örn: 30 dk tempolu yür…") — okunamayan bilgi, bilgi
+                değildir. Altı mod için ekran ~1200pt kaydırma istiyordu. Her kartta
+                ayrıca "Kur ›" hapı ve başlıkta "Dokun & Başla" vardı: kartın tamamı
+                zaten dokunulabilirken aynı şeyi iki kez söylüyordu.
 
+                Aksiyon Merkezi ile aynı dil (Ayarlar/Things deseni): tek yüzey, satır
+                başına renkli ikon, tam genişlik metin — hiçbir satır kesilmiyor.
+              */
               return (
-                <View style={{ gap: S.md, marginTop: statusActiveCount > 0 ? S.lg : S.sm }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.xs }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                      <Sparkles size={ICON.sm} color={tezUrgencyColor} />
-                      <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' }}>
-                        {language === 'tr' ? 'Yeni Hedef Keşfet' : 'Discover New Goals'}
-                      </Text>
-                    </View>
-                    <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600' }}>
-                      {language === 'tr' ? 'Dokun & Başla' : 'Tap to Start'}
-                    </Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.md }}>
-                    {discoveryItems.map((item) => (
+                <View style={{ gap: S.sm, marginTop: statusActiveCount > 0 ? S.lg : 0 }}>
+                  <SectionHeader title={language === 'tr' ? 'Yeni hedef keşfet' : 'Discover new goals'} theme={theme} tr={language === 'tr'} />
+                  <View style={{ backgroundColor: theme.surfaceCard, borderRadius: R.lg, overflow: 'hidden', borderWidth: isDark ? B.thin : 0, borderColor: theme.outline }}>
+                    {discoveryItems.map((item, idx) => (
                       <Touchable
                         key={item.key}
                         accessibilityRole="button"
                         accessibilityLabel={`${item.title} — ${language === 'tr' ? 'kurulumu başlat' : 'start setup'}`}
-                        accessibilityHint={item.desc}
+                        accessibilityHint={`${item.desc}. ${item.load}`}
                         onPress={() => {
                           haptic.select();
                           item.onActivate();
                         }}
-                        style={{
-                          width: cardW,
-                          backgroundColor: theme.surfaceCard,
-                          borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)',
-                          borderWidth: B.thin,
-                          borderRadius: R.lg,
-                          padding: S.md,
-                          gap: S.sm,
-                          justifyContent: 'space-between',
-                          minHeight: 140,
-                        }}
-                        activeOpacity={0.7}
+                        style={{ flexDirection: 'row', alignItems: 'flex-start', paddingLeft: S.md }}
+                        activeOpacity={0.6}
                       >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <AppIcon Icon={item.Icon} color={item.color} size={42} radius={R.md} iconSize={ICON.md} />
-                          {/* "+ Ekle" YANLIŞ VAATTİ: dokunmak hiçbir şey eklemiyor, sadece
-                              bir anahtarı açıp kurulum formuna götürüyor. Kullanıcı "ekledim"
-                              sanıp çıkınca elinde yarım, plansız bir mod kalıyordu. Fiil
-                              artık akışın tamamıyla aynı: Kur → Planı Seç → Başlat. */}
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xxs, backgroundColor: item.color + '15', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
-                            <Text style={{ color: item.textColor, fontSize: F.caption, fontWeight: '700' }}>{language === 'tr' ? 'Kur' : 'Set up'}</Text>
-                            <ChevronRight size={ICON.xs} color={item.textColor} strokeWidth={2.5} />
-                          </View>
+                        <View style={{ paddingTop: S.smd }}>
+                          {/* İkon kutusu iki temada da DOYGUN ton: koyu temanın pastel vurgusu (ör. #FDBA74)
+                              beyaz glifi ~1.6:1'e düşürüyordu. Apple'ın Ayarlar ikonları da koyuda doygun kalır. */}
+                          <AppIcon Icon={item.Icon} color={ModeAccents[item.key as keyof typeof ModeAccents]?.light ?? item.color} size={34} radius={R.sm} iconSize={ICON.sm} />
                         </View>
-                        <View style={{ gap: S.xs, marginTop: S.sm }}>
-                          <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }} numberOfLines={1}>{item.title}</Text>
-                          <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, lineHeight: 15 }} numberOfLines={2}>{item.desc}</Text>
-                          {/* GÜNLÜK YÜK — "bunu açarsam ne kadar iş gelecek?"
-                              Kullanıcı toplam yükü ancak plan uygulandıktan SONRA
-                              öğreniyordu; iki mod açınca görev listesi beklenmedik
-                              şekilde şişiyordu. Beklenti önden kuruluyor. */}
-                          <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600', marginTop: S.xxs }} numberOfLines={1}>
-                            {item.load}
-                          </Text>
-                          {/* ÖRNEK BİR GÜN — vaadi somutlaştırır.
-                              Kart "2-3 alışkanlık · günde 1-3 görev" diyordu: doğru ama
-                              soyut. Planın içinde ne olduğunu görmek için önce anahtarı
-                              açmak gerekiyordu, yani satın almadan bakılamıyordu. */}
-                          <Text style={{ color: item.textColor, fontSize: F.caption, fontWeight: '500' }} numberOfLines={1}>
-                            {item.sample}
-                          </Text>
+                        {/* Ayırıcı ikonun sağından başlar (bkz. MyDayTaskRow). */}
+                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: S.md, paddingVertical: S.smd, paddingRight: S.md, borderBottomWidth: idx < discoveryItems.length - 1 ? HAIRLINE : 0, borderBottomColor: theme.separator }}>
+                          <View style={{ flex: 1, gap: S.xxs }}>
+                            <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body }}>{item.title}</Text>
+                            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.footnote }}>{item.desc}</Text>
+                            {/* GÜNLÜK YÜK — "bunu açarsam ne kadar iş gelecek?" Beklenti önden kurulur. */}
+                            <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs }}>{item.load}</Text>
+                            {/* ÖRNEK BİR GÜN — soyut yükü somutlaştırır (bkz. DISCOVERY_SAMPLE). */}
+                            <Text style={{ color: item.textColor, fontSize: F.caption, fontWeight: '500' }}>{item.sample}</Text>
+                          </View>
+                          {/* Fiil dili korunur: Kur → Planı Seç → Planı Başlat (bkz. uxConsistency). Hap değil, iOS liste eylem metni. */}
+                          <Text style={{ color: theme.primary, fontSize: F.footnote, fontWeight: '600', marginLeft: S.sm }}>{language === 'tr' ? 'Kur' : 'Set up'}</Text>
+                          <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} style={{ marginLeft: S.xxs }} />
                         </View>
                       </Touchable>
                     ))}
@@ -1257,8 +1237,8 @@ export default function ModlarScreen() {
               <View style={{ gap: S.md, marginTop: S.lg }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.xs }}>
                   <Trophy size={ICON.sm} color={theme.onSurfaceVariant} />
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', flex: 1 }}>
-                    {HISTORY_COPY[language === 'en' ? 'en' : 'tr'].title}
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 1, flex: 1 }}>
+                    {upperFor(HISTORY_COPY[language === 'en' ? 'en' : 'tr'].title, language)}
                   </Text>
                   <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600' }}>
                     {HISTORY_COPY[language === 'en' ? 'en' : 'tr'].count(goalHistory.length)}

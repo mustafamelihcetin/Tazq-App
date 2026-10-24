@@ -28,48 +28,34 @@ describe('dashboard sırası', () => {
    * kartlar arasında yumuşak bir geçiş kuruyordu; üstüne kart konunca iki ağır kartın
    * arasında sıkışıp öksüz kaldı. Doğru mantık, yanlış sonuç.
    */
-  it('eylem çağrısı kartların arasında — koşullu sıra YOK', () => {
-    expect(src).not.toContain('dayNotStarted');
-    expect(src).toContain('{nextMissionCard}');
-  });
-
-  it('kart TEK yerde tanımlı — iki konuma kopyalanmadı', () => {
-    expect((src.match(/<NextMissionCard/g) ?? [])).toHaveLength(1);
-  });
-
   /*
-    ── SIRA ARTIK DURUMA GÖRE ────────────────────────────────────────────────────
-    Yukarıdaki ders (momentum satırı selamlamayla kartlar arasında yumuşak bir geçiş
-    kurar; üstüne kart konunca öksüz kalır) DURUYOR — ama yalnız aktif dönemi olmayan
-    kullanıcı için.
-
-    Aktif bir dönem varsa (sınav, tez, spor, tasarruf…) ekranın cevapladığı soru
-    değişiyor: "bugün ne var" değil, "planımda bugün ne var". O zaman ilk kart PLAN
-    oluyor, skor da eylemlerin altına iniyor — skor bir eylem değil, bir sonuçtur.
-
-    Kart yine TEK yerde tanımlı; değişen sadece konumu.
+    ── 2026-10-24: VİTRİN YENİDEN KURULDU ─────────────────────────────────────────
+    Ayrı "Sıradaki" kartı ve kartsız momentum satırı kalktı. Eski dersler korunuyor:
+     · koşullu sıra YOK (gün açılmamışken eylem en üste taşınmıyor),
+     · momentum ÖKSÜZ kalmıyor — artık "Bugün" özetinin içinde,
+     · aktif dönem varsa plan kartı özetten ÖNCE.
   */
-  it('skor TEK yerde tanımlı, iki olası konumda', () => {
-    expect((src.match(/const momentumRow =/g) ?? [])).toHaveLength(1);
-    expect((src.match(/\{!modeFirst && momentumRow\}/g) ?? [])).toHaveLength(1);
-    expect((src.match(/\{modeFirst && momentumRow\}/g) ?? [])).toHaveLength(1);
+  it('eylem çağrısı listenin ilk bekleyen satırında — ayrı kart ve koşullu sıra YOK', () => {
+    expect(src).not.toContain('dayNotStarted');
+    expect(src).not.toContain('<NextMissionCard');
+    expect(src).toContain('onFocus={index === 0 && !item.isCompleted');
   });
 
-  it('mod YOKKEN skor selamlamanın hemen ardında — geçiş satırı korunuyor', () => {
+  it('skor TEK yerde ve özetin içinde', () => {
+    expect((src.match(/<MomentumPulse/g) ?? [])).toHaveLength(1);
+    const rings = src.indexOf('<TodayRings');
+    const pulse = src.indexOf('<MomentumPulse');
+    expect(rings).toBeGreaterThan(-1);
+    expect(pulse).toBeGreaterThan(rings);
+    expect(src).toContain('embedded');
+  });
+
+  it('selamlama → (plan kartı) → bugün özeti', () => {
     const hero = src.indexOf('<DashboardHero');
-    const topSlot = src.indexOf('{!modeFirst && momentumRow}');
-    const today = src.indexOf('<TodayCard');
-    expect(hero).toBeLessThan(topSlot);
-    expect(topSlot).toBeLessThan(today);
-  });
-
-  it('mod VARSA ilk kart plan kartı, skor aşağıda', () => {
     const modeCard = src.indexOf('<ModeTodayCard');
-    const today = src.indexOf('<TodayCard');
-    const lowSlot = src.indexOf('{modeFirst && momentumRow}');
-    expect(modeCard).toBeGreaterThan(-1);
-    expect(modeCard).toBeLessThan(today);
-    expect(today).toBeLessThan(lowSlot);
+    const rings = src.indexOf('<TodayRings');
+    expect(hero).toBeLessThan(modeCard);
+    expect(modeCard).toBeLessThan(rings);
   });
 
   it('plan kartı mod yoksa HİÇ çizilmez — boş bir kutu bırakmaz', () => {

@@ -228,7 +228,7 @@ describe('mod kurulum formları', () => {
       const whites = src.split('\n').filter(l => /color: '#fff'|color="#fff"|: '#fff'/.test(l) && !l.includes('thumbColor'));
       expect([name, whites]).toEqual([name, []]);
     }
-    expect(read('shared/hooks/useModeAccent.ts')).toContain('onAccent: modeAccentOn(isDark)');
+    expect(read('shared/hooks/useModeAccent.ts')).toContain('onAccent: modeAccentOn(isDark, modeAccent(type, isDark))');
   });
 
   it('form açılırken süzülür (kartların geri kalanıyla aynı dil)', () => {

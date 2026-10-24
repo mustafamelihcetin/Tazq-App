@@ -12,6 +12,8 @@ interface Props {
 
 // easeOutExpo: başta hızlı, sonda yumuşakça duran eğri. Sayının "yerine oturduğu"
 // hissini veren şey son %20'deki yavaşlama — lineer sayım ucuz ve mekanik durur.
+const TABULAR: TextStyle = { fontVariant: ['tabular-nums'] };
+
 const easeOutExpo = (t: number) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t));
 
 /**
@@ -70,5 +72,10 @@ export const AnimatedNumber = React.memo(function AnimatedNumber({ value, durati
     };
   }, [value, duration]);
 
-  return <Text style={style}>{display}</Text>;
+  /*
+    Sabit genişlikli rakam: orantılı rakamlarda "1" dardır, "8" geniştir — sayım sırasında
+    metin her karede daralıp genişliyor ve yanındaki birim/etiket titriyordu. Tremor'un
+    bütün değer gösterimleri aynı sebeple tabular-nums kullanır. Çağıran stil üstüne yazabilir.
+  */
+  return <Text style={[TABULAR, style]}>{display}</Text>;
 });

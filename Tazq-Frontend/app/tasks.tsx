@@ -1378,7 +1378,7 @@ export default function ActionCenter() {
                 </Touchable>
             ) : (
                 // Sol: Sırala & Filtrele. Sağ: Ara (büyüteç). Back butonu YOK — alt navigasyondan gezilir.
-                <Touchable onPress={() => { setShowSortMenu(!showSortMenu); import('expo-haptics').then(Haptics => haptic.surface()); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sırala ve filtrele' : 'Sort and filter'}>
+                <Touchable onPress={() => { setShowSortMenu(!showSortMenu); haptic.surface(); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sırala ve filtrele' : 'Sort and filter'}>
                     <ChromeShell />
                     <View>
                         <SlidersHorizontal size={ICON.md} color={(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) ? theme.primary : theme.onSurface} />
@@ -1424,7 +1424,7 @@ export default function ActionCenter() {
                     <ChromeShell />
                     <CalendarDays size={ICON.md} color={theme.onSurface} />
                 </Touchable>
-                <Touchable onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); import('expo-haptics').then(Haptics => haptic.surface()); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Ara' : 'Search'}>
+                <Touchable onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); haptic.surface(); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Ara' : 'Search'}>
                     <ChromeShell />
                     <Search size={ICON.md} color={showSearch ? theme.primary : theme.onSurface} />
                 </Touchable>
@@ -1494,7 +1494,7 @@ export default function ActionCenter() {
 
                 {/* Hide Completed Toggle */}
                 <Touchable
-                    onPress={() => { setHideCompleted(!hideCompleted); import('expo-haptics').then(Haptics => haptic.surface()); }}
+                    onPress={() => { setHideCompleted(!hideCompleted); haptic.surface(); }}
                     style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: StyleSheet.hairlineWidth }]}
                 >
                     <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>
@@ -1522,7 +1522,7 @@ export default function ActionCenter() {
                 {([['creation', t.sortByCreation], ['priority', t.sortByPriority], ['date', t.sortByDate]] as const).map(([key, label]) => (
                   <Touchable
                     key={key}
-                    onPress={() => { setSortBy(key); setShowSortMenu(false); import('expo-haptics').then(Haptics => haptic.select()); }}
+                    onPress={() => { setSortBy(key); setShowSortMenu(false); haptic.select(); }}
                     style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: key === 'date' ? 0 : StyleSheet.hairlineWidth }]}
                   >
                     <Text style={[{ color: sortBy === key ? theme.primary : theme.onSurface, fontSize: F.body, fontWeight: sortBy === key ? '700' : '400' }]}>
@@ -1616,7 +1616,7 @@ export default function ActionCenter() {
             maxToRenderPerBatch={10}
             windowSize={5}
             removeClippedSubviews={false} // Must be false for itemLayoutAnimation to work when items jump large distances
-            contentContainerStyle={{ gap: S.sm, paddingBottom: fabSafeBottom(insets.bottom), paddingTop: topBarSpace(insets.top) + S.lg, paddingHorizontal: S.lg, width: '100%', maxWidth: contentMaxWidth(width), alignSelf: 'center' }}
+            contentContainerStyle={{ gap: listCols > 1 ? S.sm : 0, paddingBottom: fabSafeBottom(insets.bottom), paddingTop: topBarSpace(insets.top) + S.lg, paddingHorizontal: S.lg, width: '100%', maxWidth: contentMaxWidth(width), alignSelf: 'center' }}
             extraData={{ highlightedId, isBulkMode, selectedIds, completingIds, language, expandedId }}
             onScroll={onScroll}
             scrollEventThrottle={16}
@@ -1624,7 +1624,8 @@ export default function ActionCenter() {
         <React.Fragment>
             <MotiView animate={{ height: showSearch ? 52 : 0 }} transition={{ type: 'timing', duration: 250 }} />
             <View style={{ paddingBottom: S.md }}>
-<Text style={[styles.subHeadline, { color: theme.onSurfaceMuted }]}>{t.allTasksReady}</Text>
+{/* Sabit "Her şey hazır!" yazıyordu — listede bekleyen görev varken bile. */}
+<Text style={[styles.subHeadline, { color: theme.onSurfaceMuted }]}>{(() => { const n = filteredTasks.filter((x: { isCompleted?: boolean }) => !x.isCompleted).length; return n > 0 ? t.tasksPending.replace('{n}', String(n)) : t.allTasksReady; })()}</Text>
 
           {/*
             FİLTRE ŞERİTLERİ EKRANDAN KALDIRILDI — ODAK GÖREVLERDE.
@@ -1805,17 +1806,19 @@ export default function ActionCenter() {
                     handleDelete={handleDelete}
                     handleToggleExpand={handleToggleExpand}
                     sortBy={sortBy}
+                    // Tek sütunda satırlar TEK yüzeyde birleşir (gruplu liste); ızgarada her biri kart.
+                    position={listCols === 1 ? (filteredTasks.length === 1 ? 'only' : i === 0 ? 'first' : i === filteredTasks.length - 1 ? 'last' : 'middle') : undefined}
                     onMoveUp={i > 0 && sortBy === 'creation' ? () => handleMoveTask(i, 'up') : undefined}
                     onMoveDown={i < filteredTasks.length - 1 && sortBy === 'creation' ? () => handleMoveTask(i, 'down') : undefined}
                     handleLongPress={(id: number) => {
                         if (!isBulkMode) {
-                            import('expo-haptics').then(Haptics => haptic.commit());
+                            haptic.commit();
                             setIsBulkMode(true);
                             setSelectedIds(new Set([id]));
                         }
                     }}
                     handleBulkSelect={(id: number) => {
-                        import('expo-haptics').then(Haptics => haptic.select());
+                        haptic.select();
                         setSelectedIds(prev => {
                             const next = new Set(prev);
                             next.has(id) ? next.delete(id) : next.add(id);

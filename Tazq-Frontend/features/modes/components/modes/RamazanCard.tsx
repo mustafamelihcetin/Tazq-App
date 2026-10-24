@@ -31,6 +31,24 @@ import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { PlanLifecycleRow } from '@/features/modes/components/PlanPauseRow';
 import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 
+
+/**
+ * Kart görünecek mi — TEK karar. Modlar ekranı bölüm başlığını ("Yaklaşan Dönem")
+ * buna bakarak çiziyor; eskiden başlık koşulsuz eklenip kart null dönünce altı
+ * boş bir başlık kalıyordu.
+ */
+export function calendarSuggestsRamazan(ramadanStatus = getCurrentRamadanStatus()): boolean {
+  return (
+    isTurkeySeasonalEnabled() &&
+    !!ramadanStatus.period &&
+    (ramadanStatus.isActive || ramadanStatus.daysUntilStart <= 7)
+  );
+}
+
+export function isRamazanCardVisible(enabled: boolean, ramadanStatus = getCurrentRamadanStatus()): boolean {
+  return enabled || calendarSuggestsRamazan(ramadanStatus);
+}
+
 export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
@@ -67,10 +85,7 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
     KULLANICI KENDİ AÇTIYSA (`seasonal.ramazan`) kart HER DİLDE görünür — açık bir
     tercihi dil yüzünden geri almak, kullanıcının kararını ezmek olurdu.
   */
-  const calendarSuggests =
-    isTurkeySeasonalEnabled() &&
-    !!ramadanStatus.period &&
-    (ramadanStatus.isActive || ramadanStatus.daysUntilStart <= 7);
+  const calendarSuggests = calendarSuggestsRamazan(ramadanStatus);
   if (!(seasonal.ramazan || calendarSuggests)) return null;
 
   // Bugünkü ilerleme.
@@ -135,7 +150,7 @@ clearPlanIds('ramazan');
                 }
               }
             }}
-            trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: accent }}
+            trackColor={{ false: theme.surfaceContainerHighest, true: theme.primary }}
             thumbColor={isDark && !seasonal.ramazan ? '#636366' : '#fff'}
           />
         </View>

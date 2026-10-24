@@ -1,0 +1,15 @@
+tts/.venv/
+tts/*.log
+tts/_take.wav
+video/node_modules/
+out/check/
+
+# Üretilen çıktılar — kaynaktan (narrate.py / music.py / render.sh) yeniden üretilir.
+# Kaynak (SENARYO.md, betikler, video/src) repoda KALIR.
+video/public/audio/
+tts/report.txt
+tts/*.wav
+tts/*.mp3
+out/
+*.mp4
+*.mov

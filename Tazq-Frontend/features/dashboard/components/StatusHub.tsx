@@ -1,6 +1,6 @@
 import React from 'react';
 import { S, ICON, R, B, MIN_TOUCH, TOP_ITEM_SIZE } from '@/shared/constants/tokens';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View, Platform } from 'react-native';
 import { MotiView } from 'moti';
 import { useFocusStore } from '@/features/focus/store/useFocusStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -50,17 +50,20 @@ export const StatusHub = ({ onPress }: { onPress: () => void }) => {
           : (tr ? 'Haftalık skorunu ve öneriyi açar.' : 'Opens your weekly score and suggestion.')
       }
     >
-      <MotiView
-        from={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        style={[styles.container, { borderColor: theme.outline }]}
-      >
+      {/*
+        ANDROID'DE GÖRÜNMÜYORDU (iOS'ta görünüyordu). Soldaki profil düğmesinden iki farkı
+        vardı: (1) opaklığı 0'dan başlayan giriş animasyonu — çalışmazsa düğme görünmez
+        kalır; (2) bulanık katman. expo-blur 56'da Android'de gerçek blur bir BlurTargetView
+        ister, projede yok → katman orada hiçbir şey katmıyor, yalnız risk. Artık giriş
+        animasyonu yok; Android'de zemin profil düğmesiyle aynı opak yüzey.
+      */}
+      <View style={[styles.container, { borderColor: theme.outline, backgroundColor: Platform.OS === 'ios' ? 'transparent' : theme.surfaceField }]}>
         {/*
           Yarıçap MALZEMEYE veriliyor, yalnız kaba değil. Yuvarlak kabın
           `overflow: 'hidden'`i bulanık/cam katmanı güvenilir biçimde kırpmıyordu;
           katman kare çiziliyor ve köşeleri dairenin içinde görünüyordu.
         */}
-        <AppBlur material="thin" radius={HUB / 2} />
+        {Platform.OS === 'ios' && <AppBlur material="thin" radius={HUB / 2} />}
 
         <MotiView
           animate={{
@@ -80,7 +83,7 @@ export const StatusHub = ({ onPress }: { onPress: () => void }) => {
             <Gauge size={ICON.md} color={theme.onSurface} strokeWidth={2} />
           )}
         </MotiView>
-      </MotiView>
+      </View>
     </Touchable>
   );
 };

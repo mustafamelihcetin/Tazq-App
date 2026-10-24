@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Platform, useWindowDimensions, Modal, AppState, Animated, ScrollView, BackHandler, InteractionManager, AccessibilityInfo } from 'react-native';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import Svg, { Circle, G, Path } from 'react-native-svg';
@@ -49,6 +49,10 @@ import type { AppTheme } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
 
 import { Starfield, Nebula } from '@/features/focus/components/FocusBackdrop';
+import { RollingDigits } from '@/shared/components/RollingDigits';
+import { FocusWeekStrip } from '@/features/focus/components/FocusWeekStrip';
+import { recentFocus } from '@/features/focus/focusStreak';
+import { useFocusHistoryStore } from '@/features/report/useFocusHistoryStore';
 
 
 // ── Saniyeye bağlı izole render'lar ───────────────────────────────────────────
@@ -71,15 +75,12 @@ const CountdownText = React.memo(({ timerSize, colonColor, reduceMotion, a11yLab
   */
   return (
     <View accessible accessibilityRole="timer" accessibilityLabel={a11yLabel(Math.ceil(seconds / 60))} style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <Text style={[styles.timerText, styles.timerGlow, { color: '#FFFFFF', fontSize: big }]}>
-        {Math.floor(seconds / 60).toString().padStart(2, '0')}
-      </Text>
+      {/* Rakamlar KAYAR (react-bits Counter → RollingDigits); Sakin mod'da kaymaz. */}
+      <RollingDigits value={Math.floor(seconds / 60).toString().padStart(2, '0')} fontSize={big} textStyle={[styles.timerText, styles.timerGlow, { color: '#FFFFFF' }]} reduceMotion={reduceMotion} />
       {/* ':' rakamlarla DİKEY ORTALI — satır 'center', böylece küçük iki nokta tabana düşmez.
           Küçük hizalama payı: optik olarak tam ortaya oturması için minik yukarı nudge. */}
       <Text style={[styles.timerText, { color: colonColor, fontSize: mid, marginHorizontal: S.xxs, opacity: colonOpacity, includeFontPadding: false, textAlignVertical: 'center' }]}>:</Text>
-      <Text style={[styles.timerText, styles.timerGlow, { color: '#FFFFFF', fontSize: big }]}>
-        {(seconds % 60).toString().padStart(2, '0')}
-      </Text>
+      <RollingDigits value={(seconds % 60).toString().padStart(2, '0')} fontSize={big} textStyle={[styles.timerText, styles.timerGlow, { color: '#FFFFFF' }]} reduceMotion={reduceMotion} />
     </View>
   );
 });
@@ -116,6 +117,10 @@ const FOCUS_COPY = {
     remaining: (m: number) => `Kalan süre ${m} dakika`,
     notifOff: 'Bildirimler kapalı — süre bitince haber veremeyiz.',
     presetLabel: (name: string, m: number) => `${name}, ${m} dakika`,
+    streak: (n: number) => `${n} gün seri`,
+    weekA11y: (mins: number[], streak: number) => `Son 7 gün odak dakikaları: ${mins.join(', ')}. Seri ${streak} gün.`,
+    custom: 'Özel',
+    customLabel: 'Özel süre',
   },
   en: {
     pickTask: 'Topic',
@@ -130,6 +135,10 @@ const FOCUS_COPY = {
     remaining: (m: number) => `${m} minutes remaining`,
     notifOff: 'Notifications are off — we cannot tell you when time is up.',
     presetLabel: (name: string, m: number) => `${name}, ${m} minutes`,
+    streak: (n: number) => `${n}-day streak`,
+    weekA11y: (mins: number[], streak: number) => `Focus minutes, last 7 days: ${mins.join(', ')}. Streak ${streak} days.`,
+    custom: 'Custom',
+    customLabel: 'Custom duration',
   },
 };
 
@@ -261,6 +270,9 @@ export default function FocusScreen() {
   const L = FOCUS_COPY[language === 'en' ? 'en' : 'tr'];
   const isPaused = sessionStarted && !isActive && !atZero;
   const dayProgress = dailyGoalMinutes > 0 ? Math.min(1, dailyFocusToday / dailyGoalMinutes) : 0;
+  // Son 7 günün odak dakikaları + seri — Haftalık Geri Bakış'la aynı gün kuralı (focusStreak).
+  const focusSessions = useFocusHistoryStore(st => st.sessions);
+  const recent = useMemo(() => recentFocus(focusSessions, dailyFocusToday), [focusSessions, dailyFocusToday]);
   /*
     Bitiş alarmı bildirim iznine bağlı. İzin kapalıysa kullanıcı "süre bitince haber
     verir" sanıp telefonu bırakıyor ve seansın bittiğini çok sonra öğreniyor.
@@ -1293,13 +1305,17 @@ export default function FocusScreen() {
               ilerleme ifadesi, sayıyı okumadan da "ne kadar yol aldım" görünüyor.
             */}
             {!sessionStarted && !pomodoroMode && dailyGoalMinutes > 0 && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm }}>
-                <View style={{ width: 56, height: 2, borderRadius: R.xs, backgroundColor: 'rgba(255,255,255,0.14)', overflow: 'hidden' }}>
-                  <View style={{ width: `${Math.round(dayProgress * 100)}%`, height: '100%', backgroundColor: dayProgress >= 1 ? theme.tertiary : theme.primary, opacity: 0.9 }} />
-                </View>
-                <Text style={{ fontSize: F.caption, fontWeight: '600', color: 'rgba(255,255,255,0.42)', letterSpacing: 0.3 }}>
-                  {dayProgress >= 1 ? L.todayDone : L.todayProgress(dailyFocusToday, dailyGoalMinutes)}
-                </Text>
+              // Son 7 gün + seri (bkz. FocusWeekStrip). Eskiden yalnız bugünün çizgisi vardı.
+              <View style={{ marginBottom: S.md }}>
+                <FocusWeekStrip
+                  days={recent.days}
+                  goal={dailyGoalMinutes}
+                  caption={(dayProgress >= 1 ? L.todayDone : L.todayProgress(dailyFocusToday, dailyGoalMinutes)) + (recent.streak >= 2 ? ` · ${L.streak(recent.streak)}` : '')}
+                  a11yLabel={L.weekA11y(recent.days.map(d => d.minutes), recent.streak)}
+                  todayColor={theme.primary}
+                  doneColor={theme.tertiary}
+                  reduceMotion={reduceMotion}
+                />
               </View>
             )}
             {pomodoroMode ? (
@@ -1319,32 +1335,35 @@ export default function FocusScreen() {
                     animate={{ opacity: 1, translateY: 0 }}
                     exit={{ opacity: 0, translateY: -6 }}
                     transition={{ type: 'timing', duration: 220 }}
+                    // Kap içeriği kadar daralırsa segment sıkışır — tam genişlik, okunur sınırla.
+                    style={{ width: '100%', maxWidth: 360, alignSelf: 'center' }}
                   >
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      style={{ marginHorizontal: -S.lg, marginBottom: S.md }}
-                      contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.lg }}
-                    >
+                    {/*
+                      SEGMENTLİ SEÇİCİ — kaydırmalı haplar DEĞİL.
+                      Haplar ortalayan bir kabın içinde genişliksiz bir ScrollView'daydı: satır
+                      içeriği kadar genişleyip ortalanıyor, sol ucu ekran dışında kalıyordu
+                      ("rint 15" — ve oraya kaydırılamıyordu). Beş seçenek telefonda sığmıyordu.
+                      Bedtime/Headspace (can-it-be-done) süreyi tek, ekrana oturan bir kontrolle
+                      seçtirir: eşit genişlik, yalnız dakika; ad ekran okuyucuda kalır.
+                    */}
+                    <View style={[styles.segment, { marginBottom: S.md }]}>
                       {PRESETS.map((preset) => {
                         const isSelected = totalSeconds === preset.workMins * 60;
                         return (
                           <Touchable
                             key={preset.key}
+                            style={{ flex: 1 }}
                             accessibilityRole="button"
                             accessibilityState={{ selected: isSelected }}
                             accessibilityLabel={L.presetLabel(language === 'tr' ? preset.labelTr : preset.labelEn, preset.workMins)}
                             onPress={() => { haptic.select(); setSelectedPreset(preset.key); setDuration(preset.workMins); }}
                           >
                             <MotiView
-                              animate={{ backgroundColor: isSelected ? theme.primary : 'rgba(255,255,255,0.06)' }}
-                              transition={{ type: 'timing', duration: 220 }}
-                              style={{ flexDirection: 'row', alignItems: 'baseline', gap: S.xs, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full }}
+                              animate={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0)' }}
+                              transition={{ type: 'timing', duration: 200 }}
+                              style={styles.segmentItem}
                             >
-                              <Text style={{ fontSize: F.footnote, fontWeight: isSelected ? '700' : '600', color: isSelected ? '#fff' : 'rgba(255,255,255,0.72)', letterSpacing: 0.2 }}>
-                                {language === 'tr' ? preset.labelTr : preset.labelEn}
-                              </Text>
-                              <Text style={{ fontSize: 10.5, fontWeight: '700', color: isSelected ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.38)' }}>
+                              <Text style={{ fontSize: F.body, fontWeight: isSelected ? '700' : '600', color: isSelected ? '#fff' : 'rgba(255,255,255,0.6)', fontVariant: ['tabular-nums'] }}>
                                 {preset.workMins}
                               </Text>
                             </MotiView>
@@ -1354,20 +1373,26 @@ export default function FocusScreen() {
                       {(() => {
                         const isCustom = !PRESETS.some(p => p.workMins * 60 === totalSeconds) && totalSeconds > 0;
                         return (
-                          <Touchable onPress={() => { prepareCustom(); haptic.select(); setCustomVisible(true); }}>
+                          <Touchable
+                            style={{ flex: 1 }}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: isCustom }}
+                            accessibilityLabel={L.customLabel}
+                            onPress={() => { prepareCustom(); haptic.select(); setCustomVisible(true); }}
+                          >
                             <MotiView
-                              animate={{ backgroundColor: isCustom ? theme.primary : 'rgba(255,255,255,0.06)' }}
-                              transition={{ type: 'timing', duration: 220 }}
-                              style={{ paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full }}
+                              animate={{ backgroundColor: isCustom ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0)' }}
+                              transition={{ type: 'timing', duration: 200 }}
+                              style={styles.segmentItem}
                             >
-                              <Text style={{ fontSize: F.footnote, fontWeight: isCustom ? '700' : '600', color: isCustom ? '#fff' : 'rgba(255,255,255,0.72)', letterSpacing: 0.2 }}>
-                                {language === 'tr' ? 'Özel' : 'Custom'}
+                              <Text style={{ fontSize: F.footnote, fontWeight: isCustom ? '700' : '600', color: isCustom ? '#fff' : 'rgba(255,255,255,0.6)' }}>
+                                {isCustom ? Math.round(totalSeconds / 60) : L.custom}
                               </Text>
                             </MotiView>
                           </Touchable>
                         );
                       })()}
-                    </ScrollView>
+                    </View>
                   </MotiView>
                 )}
               </AnimatePresence>
@@ -1779,8 +1804,10 @@ export default function FocusScreen() {
               style={[styles.controlsRow, { gap: S.xl }]}
             >
             <View style={{ width: 56, height: 56 }}>
+              {/* Sıfırlanacak bir şey yokken (seans başlamamış) düğme hiç çizilmez — yeri
+                  korunur ki oynat düğmesi kaymasın. Eskiden %30 opaklıkla "ölü" duruyordu. */}
               <AnimatePresence>
-                {!isActive && (
+                {!isActive && sessionStarted && (
                   <MotiView
                     key="reset-btn"
                     from={{ opacity: 0, scale: 0.85 }}
@@ -1793,7 +1820,7 @@ export default function FocusScreen() {
                       disabled={!sessionStarted}
                       accessibilityRole="button"
                       accessibilityLabel={language === 'tr' ? 'Sıfırla' : 'Reset'}
-                      style={[styles.secondaryBtn, { backgroundColor: theme.surfaceContainerLow, width: 56, height: 56, borderRadius: R.lg, opacity: sessionStarted ? 1 : 0.3 }]}
+                      style={[styles.secondaryBtn, { backgroundColor: 'rgba(255,255,255,0.08)', width: 56, height: 56, borderRadius: R.full }]}
                     >
                       <RotateCcw size={ICON.lg} color={theme.onSurfaceVariant} />
                     </Touchable>
@@ -2315,6 +2342,8 @@ export default function FocusScreen() {
 }
 
 const styles = StyleSheet.create({
+  segment: { flexDirection: 'row', width: '100%', padding: S.xxs, borderRadius: R.full, backgroundColor: 'rgba(255,255,255,0.06)' },
+  segmentItem: { alignItems: 'center', justifyContent: 'center', paddingVertical: S.sm, borderRadius: R.full, minHeight: 36 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: S.lg },
   closeBtn: { width: 44, height: 44, borderRadius: R.lg, alignItems: 'center', justifyContent: 'center' },
   badge: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full },

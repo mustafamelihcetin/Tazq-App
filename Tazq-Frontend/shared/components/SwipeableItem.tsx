@@ -14,7 +14,7 @@ import { Trash2 } from 'lucide-react-native';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
-import { ICON, S, R } from '@/shared/constants/tokens';
+import { ICON, S, R, RSPRING } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { haptic } from '@/shared/utils/haptics';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -24,6 +24,8 @@ interface Props {
   onDelete: () => void;
   disabled?: boolean;
   showPeekHint?: boolean;
+  /** Gruplu listede satırlar bitişik durur — alt boşluk yok. */
+  flush?: boolean;
 }
 
 // Worklet-safe: called via runOnJS so haptics fires from JS thread
@@ -31,9 +33,9 @@ function triggerLightHaptic() {
   haptic.surface();
 }
 
-export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint }: Props) => {
+export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint, flush }: Props) => {
   const { language } = useLanguageStore();
-  const { theme, colorScheme } = useAppTheme();
+  const { theme } = useAppTheme();
   /*
     ── SATIR AÇIK MI — JS TARAFININ DA BİLMESİ GEREKİYOR ────────────────────────
     Silme düğmesinin görünürlüğü yalnız UI iş parçacığındaki `deleteOpacity` ile
@@ -58,7 +60,7 @@ export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint }: Pr
     const timer = setTimeout(() => {
       translateX.value = withSequence(
         withTiming(-44, { duration: 380 }),
-        withDelay(500, withSpring(0, { damping: 18, stiffness: 120 }))
+        withDelay(500, withSpring(0, RSPRING.default))
       );
       deleteOpacity.value = withSequence(
         withTiming(1, { duration: 380 }),
@@ -90,12 +92,12 @@ export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint }: Pr
       const isOpened = total < -40;
 
       if (isFastSwipe || isOpened) {
-        translateX.value = withSpring(-80, { damping: 15, stiffness: 100 });
+        translateX.value = withSpring(-80, { ...RSPRING.default, velocity: e.velocityX });
         deleteOpacity.value = withTiming(1);
         runOnJS(triggerLightHaptic)();
         runOnJS(setIsOpen)(true);
       } else {
-        translateX.value = withSpring(0, { damping: 20, stiffness: 120 });
+        translateX.value = withSpring(0, { ...RSPRING.snappy, velocity: e.velocityX });
         deleteOpacity.value = withTiming(0);
         runOnJS(setIsOpen)(false);
       }
@@ -103,7 +105,7 @@ export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint }: Pr
     .onFinalize(() => {
       // Snap back if gesture was cancelled mid-swipe (interrupted by scroll or system gesture)
       if (translateX.value > -40 && translateX.value < 0) {
-        translateX.value = withSpring(0, { damping: 20, stiffness: 120 });
+        translateX.value = withSpring(0, RSPRING.snappy);
         deleteOpacity.value = withTiming(0);
         runOnJS(setIsOpen)(false);
       }
@@ -125,7 +127,7 @@ export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint }: Pr
   }));
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, flush && { marginBottom: 0 }]}>
       <View
         style={[StyleSheet.absoluteFill, styles.deleteZone]}
         // Kapalıyken ne dokunulur ne okunur (yukarıdaki nota bkz.).
@@ -148,7 +150,7 @@ export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint }: Pr
               beyaz glif orada kontrastı kaybediyor; paletin `onPrimary` için yazdığı
               gerekçenin aynısı (bkz. Colors → onPrimary notu).
             */}
-            <Trash2 size={ICON.lg} color={colorScheme === 'dark' ? theme.onPrimary : '#FFFFFF'} />
+            <Trash2 size={ICON.lg} color={theme.onError} />
           </Touchable>
         </Animated.View>
       </View>

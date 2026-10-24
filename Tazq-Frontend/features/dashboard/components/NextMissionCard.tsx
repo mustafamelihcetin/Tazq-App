@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
-import { Rocket, Zap, ChevronRight, Plus } from 'lucide-react-native';
+import { Rocket, Zap, ChevronRight, Plus, Play } from 'lucide-react-native';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { Touchable } from '@/shared/components/Touchable';
 import { F, S, R, W, ICON, MIN_TOUCH, trackingFor } from '@/shared/constants/tokens';
@@ -46,6 +46,13 @@ export interface NextMissionCardProps {
    */
   onAdd: () => void;
   onOpenTask: () => void;
+  /**
+   * Verilirse ANA düğme göreve ODAKLANIR (görev odak ekranına seçili gider; süre ve sesi
+   * kullanıcı seçer — seans kendiliğinden başlamaz). Görevi açmak başlığa dokunmaya taşınır.
+   * Ana sayfada "Günlük hedef · Başlat" ile "Göreve git" iki ayrı karttı; aynı niyet
+   * (şimdi bir şeye başla) iki çağrıya bölünüyordu — tek kartta birleşti.
+   */
+  onFocus?: () => void;
   onSeeAll: () => void;
   /** Önceliği renge çeviren TEK kaynak. */
   priorityColor: (p: string) => string;
@@ -57,7 +64,7 @@ export interface NextMissionCardProps {
 export const NextMissionCard = React.memo<NextMissionCardProps>(
   ({
     task, title, subtitle, badgeLabel, showUrgent, urgentLabel, primaryLabel, seeAllLabel,
-    onOpenTask, onSeeAll, onAdd, priorityColor, isSmallScreen, theme, padding,
+    onOpenTask, onFocus, onSeeAll, onAdd, priorityColor, isSmallScreen, theme, padding,
   }) => {
     // TEK kaynak: gradyan, rozet ve rozet yazısı hep bunu kullanır. Eskiden gradyan
     // önceliği kendi if/else'iyle renge çeviriyordu, rozet ise priorityColor() ile —
@@ -125,7 +132,14 @@ export const NextMissionCard = React.memo<NextMissionCardProps>(
               )}
             </View>
 
-            <View style={styles.content}>
+            <Touchable
+              testID="mission-open"
+              disabled={!task || !onFocus}
+              onPress={onOpenTask}
+              accessibilityRole={task && onFocus ? 'button' : 'text'}
+              accessibilityLabel={title}
+              style={styles.content}
+            >
               <Text
                 testID="mission-title"
                 adjustsFontSizeToFit
@@ -138,12 +152,12 @@ export const NextMissionCard = React.memo<NextMissionCardProps>(
               <Text style={[styles.sub, { color: theme.onSurfaceMuted }]} numberOfLines={2}>
                 {subtitle}
               </Text>
-            </View>
+            </Touchable>
 
             <View style={styles.footer}>
               <Touchable
                 testID="mission-primary"
-                onPress={task ? onOpenTask : onAdd}
+                onPress={task ? (onFocus ?? onOpenTask) : onAdd}
                 accessibilityRole="button"
                 accessibilityLabel={primaryLabel}
                 style={[
@@ -164,7 +178,9 @@ export const NextMissionCard = React.memo<NextMissionCardProps>(
                   solunda durup metne doğru bakıyordu. Ok "ileri" der; solda durunca
                   gösterdiği yer etiketin kendisi olur ve anlamı kaybolur.
                 */}
-                {task && <ChevronRight size={ICON.md} color={theme.onPrimary} />}
+                {task && (onFocus
+                  ? <Play size={ICON.sm} color={theme.onPrimary} fill={theme.onPrimary} />
+                  : <ChevronRight size={ICON.md} color={theme.onPrimary} />)}
               </Touchable>
 
               <Touchable

@@ -119,9 +119,7 @@ const CEILING: Record<string, number> = {
   // yazılıydı ve koyu temada ikon ile zemin FARKLI iki kehribar oluyordu (#FBBF24 vs
   // #D97706). Üçü de `theme.warning`a bağlandı; rozet çerçevesi de `surfaceCard`a.
   // Kalan #FFFFFF'ler renkli rozet üstündeki yazı — kural gereği serbest.
-  'features/modes/components/modes/BirakmaCard.tsx': 3,
   'features/habits/components/SwipeableHabitItem.tsx': 3,
-  'features/modes/components/modes/TasarrufCard.tsx': 3,
   'features/user/components/ReviewPromptModal.tsx': 2,
   // AnimatedSplash LİSTEDEN ÇIKTI (2 → 0): splash zemini elle yazılıydı
   // (#F8F8F7 / #0A0A0A) ve uygulamanın zemininden FARKLIYDI (açıkta 4,4,2 RGB).

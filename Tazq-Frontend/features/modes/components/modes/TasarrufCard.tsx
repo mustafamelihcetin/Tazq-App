@@ -32,6 +32,7 @@ import { PlanLifecycleRow } from '@/features/modes/components/PlanPauseRow';
 import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 import { haptic } from '@/shared/utils/haptics';
 import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
+import { daysLeftOf as planDaysLeftOf } from '@/features/modes/utils/planTaskOps';
 
 const fmtMoney = (n: number) => n.toLocaleString('tr-TR');
 
@@ -78,7 +79,8 @@ export function TasarrufCard() {
   const pct = goalAmt > 0 ? Math.min(100, Math.round((doneAmt / goalAmt) * 100)) : 0;
 
   const dateObj = seasonal.tasarrufDate ? new Date(seasonal.tasarrufDate) : null;
-  const daysLeft = dateObj ? Math.max(0, Math.ceil((parseDateKey(seasonal.tasarrufDate!).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
+  // Tek sayaç (planTaskOps) — diğer mod kartlarıyla aynı gün sayısı.
+  const daysLeft = dateObj ? planDaysLeftOf(seasonal.tasarrufDate!) : 0;
   const datePast = dateObj ? parseDateKey(seasonal.tasarrufDate!).setHours(23, 59, 59, 999) < Date.now() : false;
 
   const canLog = (() => {
@@ -293,7 +295,7 @@ export function TasarrufCard() {
                 );
               } else { setSeasonalPref('tasarrufMode', false); setExpanded(false); }
             }}
-            trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: C }}
+            trackColor={{ false: theme.surfaceContainerHighest, true: theme.primary }}
             thumbColor="#fff"
           />
         </View>

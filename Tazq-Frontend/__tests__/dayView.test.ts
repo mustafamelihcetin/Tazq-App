@@ -69,8 +69,8 @@ describe('Bugün ekranı — günün saat ekseni', () => {
   it('jest kuralı kullanıcıya TEK cümleyle söyleniyor', () => {
     expect(DAY).toContain('d.gestureHint');
     const i18n = read('shared/constants/i18n.ts');
-    expect(i18n).toContain("gestureHint: 'Dokun: taşı · Basılı tut: menü'");
-    expect(i18n).toContain("gestureHint: 'Tap to move · Hold for options'");
+    expect(i18n).toContain("gestureHint: 'Halka: tamamla · Dokun: taşı · Basılı tut: menü'");
+    expect(i18n).toContain("gestureHint: 'Ring: complete · Tap: move · Hold: options'");
   });
 
   it('yerleştirme SÜRÜKLEMEYLE değil iki dokunuşla', () => {
@@ -80,7 +80,9 @@ describe('Bugün ekranı — günün saat ekseni', () => {
     */
     expect(DAY).toContain('placingId');
     expect(DAY).toMatch(/const place = \(hour: number\)/);
-    expect(DAY).toContain('setTaskDue(placingId, { dueTime: timeAtHour(hour) })');
+    expect(DAY).toContain('{ dueTime: timeAtHour(hour) }');
+    // Gecikmiş iş saate konunca tarihi de bugüne gelir — yoksa dünün tarihinde kaybolurdu.
+    expect(DAY).toContain('{ dueDate: localDateISO(0), dueTime: timeAtHour(hour) }');
   });
 });
 

@@ -27,6 +27,8 @@ const stripComments = (src: string) =>
     .join('\n');
 
 const INDEX = stripComments(read('app/index.tsx'));
+// Gün tanımı ana ekrandan ortak modüle taşındı (Günüm de aynısını okuyor).
+const DAYSCOPE = stripComments(read('features/dashboard/utils/dayScope.ts'));
 const PORTAL = stripComments(read('features/dashboard/components/CommandPortal.tsx'));
 const ROW = stripComments(read('features/dashboard/components/MyDayTaskRow.tsx'));
 const HUB = stripComments(read('features/dashboard/components/StatusHubModal.tsx'));
@@ -249,7 +251,7 @@ describe('tek bir "bugün" tanımı', () => {
       yarısını geçtiğinde dünün dakikaları bugün gösteriliyordu.
     */
     expect(INDEX).toContain('const todayFocusMinutes = dailyFocusDate === todayKey() ? dailyFocusMinutes : 0;');
-    expect(INDEX).toContain('focusMinutes={todayFocusMinutes}');
+    expect(INDEX).toContain('progress: dailyGoalMinutes > 0 ? todayFocusMinutes / dailyGoalMinutes : 0');
   });
 });
 
@@ -311,7 +313,8 @@ describe('halka ile liste AYNI kümeyi sayıyor', () => {
       Eski koşul yalnız "vadesi bugün olan"ları alıyordu; gecikmiş ya da tarihsiz bir
       görev tamamlanınca iki listenin de dışında kalıp ekrandan siliniyordu.
     */
-    expect(INDEX).toMatch(/wasCompletedOn\(t, today\)/);
+    expect(DAYSCOPE).toMatch(/wasCompletedOn\(t, today\)/);
+    expect(INDEX).toContain('scopeDay(tasks)');
   });
 });
 
@@ -539,10 +542,10 @@ describe('hiçbir görev SESSİZCE kaybolmuyor', () => {
       yanlıştır: böyle bir görev ne "vadesi gelmiş" ne "tarihsiz" listesine giriyor,
       yani ekrandan tamamen kayboluyordu.
     */
-    expect(INDEX).toContain('return Number.isNaN(ms) ? null : ms;');
-    expect(INDEX).toMatch(/const undated = tasks\.filter\(t => t && !t\.isCompleted && dueAt\(t\) === null && !isSomeday\(t\)\);/);
+    expect(DAYSCOPE).toContain('return Number.isNaN(ms) ? null : ms;');
+    expect(DAYSCOPE).toMatch(/const undated = tasks\.filter\(t => t && !t\.isCompleted && dueAt\(t\) === null && !isSomeday\(t\)\);/);
     // Sunucunun "tarih yok" değeri de tarihsiz — yıl 1 "vadesi gelmiş" sayılmasın.
-    expect(INDEX).toContain("String(t.dueDate).startsWith('0001')) return null;");
+    expect(DAYSCOPE).toContain("String(t.dueDate).startsWith('0001')) return null;");
   });
 });
 

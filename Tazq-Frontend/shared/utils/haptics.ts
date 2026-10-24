@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+import { requireOptionalNativeModule } from 'expo';
 import * as Expo from 'expo-haptics';
 
 /**
@@ -45,39 +47,79 @@ function enabled(): boolean {
 
 const safe = (p: Promise<void>) => { p.catch(() => {}); };
 
+/*
+  ── NATIVE MODÜL GERÇEKTEN VAR MI ────────────────────────────────────────────
+  expo-haptics yamalı (patches/expo-haptics+56.0.3.patch): modül yoksa hata
+  fırlatmak yerine SESSİZCE dönüyor. Üstüne `safe()` da yutunca, haptik modülü
+  derlenmemiş bir ikilide 320 çağrının hepsi iz bırakmadan boşa gidiyordu —
+  "titreşim açık ama hiçbir şey titremiyor" şikâyetinin teşhis edilemeyen hâli.
+  Artık geliştirmede bir kez söyleniyor; galeri ekranı da durumu gösteriyor.
+*/
+export const hapticsAvailable = (): boolean => requireOptionalNativeModule('ExpoHaptics') != null;
+let warned = false;
+const checkAvailable = () => {
+  if (warned || !__DEV__) return;
+  warned = true;
+  if (!hapticsAvailable()) console.warn("[haptics] ExpoHaptics native modülü bu ikilide YOK — titreşimler çalışmaz. Dev client'ı yeniden derleyin.");
+};
+
+/*
+  ── ANDROID: SİSTEMİN KENDİ DOKUNSAL DİLİ ────────────────────────────────────
+  expo-haptics'in impact/selection'ı Android'de ham motor titreşimi üretir:
+  50 ms, genlik 30/255. Modern LRA motorlarda bu neredeyse hissedilmez — ve
+  çağrıların %70'i (select + surface) tam bu ikisi. Expo dokümanının önerdiği
+  `performAndroidHapticsAsync`, View.performHapticFeedback'i, yani Android'in
+  HapticFeedbackConstants standardını kullanır: kalibre edilmiş, sistemin
+  "dokunma titreşimi" ayarına saygılı, iOS'a en yakın his.
+  Bazı sabitler API 30/34+; desteklenmeyende fırlatır → her yerde olan yedeğe düş.
+*/
+type AndroidKind = 'segment-tick' | 'clock-tick' | 'context-click' | 'long-press' | 'confirm' | 'reject' | 'virtual-key';
+const androidFeedback = (primary: AndroidKind, fallback: AndroidKind) => {
+  const perform = (Expo as unknown as { performAndroidHapticsAsync?: (t: string) => Promise<void> }).performAndroidHapticsAsync;
+  if (!perform) return;
+  perform(primary).catch(() => perform(fallback).catch(() => {}));
+};
+
+/** iOS'ta Taptic Engine API'si; Android'de sistemin eşdeğer sabiti. */
+const play = (ios: () => Promise<void>, android: AndroidKind, androidFallback: AndroidKind) => {
+  checkAvailable();
+  if (Platform.OS === 'android') androidFeedback(android, androidFallback);
+  else safe(ios());
+};
+
 export const haptic = {
   /**
    * SEÇİM DEĞİŞTİ — çip, sekme, switch, radyo, tarih.
    * En hafif geri bildirim; "kaydettim" demez, "duydum" der.
    */
-  select: () => { if (enabled()) safe(Expo.selectionAsync()); },
+  select: () => { if (enabled()) play(() => Expo.selectionAsync(), 'segment-tick', 'clock-tick'); },
 
   /**
    * BİR ŞEY AÇILDI/KAPANDI — sheet, modal, genişleyen kart, gezinme.
    * Yüzeyin hareket ettiğini söyler.
    */
-  surface: () => { if (enabled()) safe(Expo.impactAsync(Expo.ImpactFeedbackStyle.Light)); },
+  surface: () => { if (enabled()) play(() => Expo.impactAsync(Expo.ImpactFeedbackStyle.Light), 'context-click', 'virtual-key'); },
 
   /**
    * ONAY GEREKTİREN EYLEM BAŞLADI — plan önizleme, uzun basma, sürükleme kilidi.
    * Kullanıcının "bir şeyi başlattığını" bilmesi gereken an.
    */
-  commit: () => { if (enabled()) safe(Expo.impactAsync(Expo.ImpactFeedbackStyle.Medium)); },
+  commit: () => { if (enabled()) play(() => Expo.impactAsync(Expo.ImpactFeedbackStyle.Medium), 'long-press', 'long-press'); },
 
   /** İŞLEM BAŞARILI — kaydedildi, tamamlandı, uygulandı. */
-  success: () => { if (enabled()) safe(Expo.notificationAsync(Expo.NotificationFeedbackType.Success)); },
+  success: () => { if (enabled()) play(() => Expo.notificationAsync(Expo.NotificationFeedbackType.Success), 'confirm', 'context-click'); },
 
   /** İŞLEM BAŞARISIZ — doğrulama hatası, ağ hatası, reddedildi. */
-  error: () => { if (enabled()) safe(Expo.notificationAsync(Expo.NotificationFeedbackType.Error)); },
+  error: () => { if (enabled()) play(() => Expo.notificationAsync(Expo.NotificationFeedbackType.Error), 'reject', 'long-press'); },
 
   /** YIKICI İŞLEM ONAYLANDI — silindi, mod kapatıldı, plan kaldırıldı. */
-  destructive: () => { if (enabled()) safe(Expo.notificationAsync(Expo.NotificationFeedbackType.Warning)); },
+  destructive: () => { if (enabled()) play(() => Expo.notificationAsync(Expo.NotificationFeedbackType.Warning), 'reject', 'long-press'); },
 
   /**
    * KUTLAMA — başarım açıldı, seri tamamlandı. NADİR olmalı.
    * Tek yerde tutuluyor ki "her tamamlamada kutlama" cazibesine kapılınmasın.
    */
-  celebrate: () => { if (enabled()) safe(Expo.notificationAsync(Expo.NotificationFeedbackType.Success)); },
+  celebrate: () => { if (enabled()) play(() => Expo.notificationAsync(Expo.NotificationFeedbackType.Success), 'confirm', 'long-press'); },
 };
 
 /**

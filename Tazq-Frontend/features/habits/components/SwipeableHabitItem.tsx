@@ -12,7 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Trash2, Coffee } from 'lucide-react-native';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
-import { ICON, S, R } from '@/shared/constants/tokens';
+import { ICON, S, R, RSPRING } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { haptic } from '@/shared/utils/haptics';
 
@@ -47,7 +47,7 @@ export const SwipeableHabitItem = ({
     const timer = setTimeout(() => {
       translateX.value = withSequence(
         withTiming(-50, { duration: 380 }),
-        withDelay(500, withSpring(0, { damping: 18, stiffness: 120 }))
+        withDelay(500, withSpring(0, RSPRING.default))
       );
       actionsOpacity.value = withSequence(
         withTiming(1, { duration: 380 }),
@@ -77,17 +77,17 @@ export const SwipeableHabitItem = ({
 
       if (isFastSwipe || isOpened) {
         // Snap open to show both buttons (108px total width)
-        translateX.value = withSpring(-116, { damping: 15, stiffness: 100 });
+        translateX.value = withSpring(-116, { ...RSPRING.default, velocity: e.velocityX });
         actionsOpacity.value = withTiming(1);
         runOnJS(triggerLightHaptic)();
       } else {
-        translateX.value = withSpring(0, { damping: 20, stiffness: 120 });
+        translateX.value = withSpring(0, { ...RSPRING.snappy, velocity: e.velocityX });
         actionsOpacity.value = withTiming(0);
       }
     })
     .onFinalize(() => {
       if (translateX.value > -60 && translateX.value < 0) {
-        translateX.value = withSpring(0, { damping: 20, stiffness: 120 });
+        translateX.value = withSpring(0, RSPRING.snappy);
         actionsOpacity.value = withTiming(0);
       }
     });
@@ -98,18 +98,20 @@ export const SwipeableHabitItem = ({
 
   const actionStyle = useAnimatedStyle(() => ({
     opacity: actionsOpacity.value,
-    transform: [{ scale: withSpring(actionsOpacity.value > 0.5 ? 1 : 0.8) }],
+    // Stil içinde withSpring her karede yeni yay kurar ve ikon titrer (SwipeableItem'daki
+    // aynı hata, orada düzeltilmişti) — ölçek doğrudan opaklıktan türetiliyor.
+    transform: [{ scale: 0.8 + actionsOpacity.value * 0.2 }],
   }));
 
   const handleSkipPress = () => {
     // Snap back habit card
-    translateX.value = withSpring(0, { damping: 20, stiffness: 120 });
+    translateX.value = withSpring(0, RSPRING.snappy);
     actionsOpacity.value = withTiming(0);
     onSkip();
   };
 
   const handleDeletePress = () => {
-    translateX.value = withSpring(0, { damping: 20, stiffness: 120 });
+    translateX.value = withSpring(0, RSPRING.snappy);
     actionsOpacity.value = withTiming(0);
     onDelete();
   };

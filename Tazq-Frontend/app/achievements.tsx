@@ -20,6 +20,7 @@ import { DottedBackground } from '@/shared/components/DottedBackground';
 import { S, R, F, B, ICON, MIN_TOUCH , MAX_W} from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { haptic } from '@/shared/utils/haptics';
+import { upperFor } from '@/shared/utils/localeCase';
 
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
@@ -214,8 +215,8 @@ export default function AchievementsScreen() {
           {/* ── Kategoriler ── */}
           {CATEGORIES.map(cat => (
             <View key={cat.key} style={{ marginBottom: S.xl }}>
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.footnote, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: S.md }}>
-                {tr ? cat.titleTr : cat.titleEn}
+              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.footnote, fontWeight: '700', letterSpacing: 1.2, marginBottom: S.md }}>
+                {upperFor(tr ? cat.titleTr : cat.titleEn, tr)}
               </Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: colGap }}>
                 {cat.ids.map(id => {

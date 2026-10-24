@@ -9,7 +9,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { MotiView } from 'moti';
-import { R, S, F, B } from '@/shared/constants/tokens';
+import { R, S, F, B, RSPRING } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
@@ -80,7 +80,7 @@ export const PremiumStatChip = React.memo(function PremiumStatChip({
       rippleOpacity.value = withTiming(0, { duration: 450, easing: Easing.out(Easing.quad) });
 
       iconScale.value = 1.3;
-      iconScale.value = withSpring(1, { damping: 9, stiffness: 200 });
+      iconScale.value = withSpring(1, RSPRING.pop);
     }
 
     setTimeout(() => { setBurst(false); setSurprise(null); }, 1900);
@@ -175,7 +175,7 @@ export const PremiumStatChip = React.memo(function PremiumStatChip({
           {/* Value */}
           <Text style={{
             fontSize: F.title, fontWeight: '700', letterSpacing: -1,
-            color, lineHeight: 26,
+            color, lineHeight: 26, fontVariant: ['tabular-nums'],
           }}>
             {value}
           </Text>

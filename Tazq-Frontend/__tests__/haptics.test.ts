@@ -185,7 +185,9 @@ describe('yoğunluk', () => {
      * → 318 (2026-10-19): odemeler.tsx'teki para birimi çipi — aynı mantık.
      * → 319 (2026-10-19): odemeler.tsx'teki gün gridi çipi (1-31) — aynı mantık.
      * → 320 (2026-10-19): odemeler.tsx'teki sağlayıcı önerisi satırı seçimi — aynı mantık.
+     * → 321 (2026-10-24): Günüm'deki tamamla halkası — çekirdek eylem (görev bitirme)
+     *   başka her listede success titreşiyor; burada sessiz kalması tutarsızlıktı.
      */
-    expect(hap).toBeLessThanOrEqual(320);
+    expect(hap).toBeLessThanOrEqual(321);
   });
 });

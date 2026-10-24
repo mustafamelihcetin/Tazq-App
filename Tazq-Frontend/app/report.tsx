@@ -63,7 +63,8 @@ const COPY = {
     goal: (done: number, target: number) => `Haftalık hedef · ${done} / ${target} dk`,
     goalDone: 'Haftalık hedefin tamam ✦',
     offline: 'Odak geçmişi henüz indirilemedi. Görev ve alışkanlık verisi cihazından geliyor.',
-    hour: (h: number, m: number) => (h > 0 ? `${h}s ${m}d` : `${m}d`),
+    // "0d" gün gibi okunuyordu; aynı ekranın hedef satırı zaten "dk" diyor.
+    hour: (h: number, m: number) => (h > 0 ? `${h} sa ${m} dk` : `${m} dk`),
     plan: (done: number, total: number) => `Plan görevleri · ${done} / ${total}`,
     closeTitle: 'Haftayı kapat',
     closeBody: 'Gelecek hafta için günlük odak hedefini seç.',
@@ -86,7 +87,7 @@ const COPY = {
     goal: (done: number, target: number) => `Weekly goal · ${done} / ${target} min`,
     goalDone: 'Weekly goal reached ✦',
     offline: 'Focus history not downloaded yet. Task and habit data comes from your device.',
-    hour: (h: number, m: number) => (h > 0 ? `${h}h ${m}m` : `${m}m`),
+    hour: (h: number, m: number) => (h > 0 ? `${h}h ${m}m` : `${m} min`),
     plan: (done: number, total: number) => `Plan tasks · ${done} / ${total}`,
     closeTitle: 'Close the week',
     closeBody: 'Pick your daily focus goal for next week.',
@@ -184,7 +185,7 @@ export default function ReportScreen() {
     : null;
 
   const Stat = ({ icon, value, label, color }: { icon: React.ReactNode; value: string; label: string; color: string }) => (
-    <View style={[styles.stat, { backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, borderColor: theme.outlineVariant }]}>
+    <View style={[styles.stat, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderColor: isDark ? theme.outline : 'transparent' }]}>
       <View style={{ width: 30, height: 30, borderRadius: R.sm, backgroundColor: color + '1F', alignItems: 'center', justifyContent: 'center', marginBottom: S.xxs }}>
         {icon}
       </View>
@@ -195,7 +196,7 @@ export default function ReportScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <ScreenHeader onBack={() => router.back()} title={c.title} subtitle={weekLabel(summary.range, lang)} subtitleColor={theme.primary} />
+      <ScreenHeader onBack={() => router.back()} title={c.title} subtitle={weekLabel(summary.range, lang)} />
       <ScrollView
         contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xxl, gap: S.md, width: '100%', maxWidth: contentW, alignSelf: 'center' }}
         showsVerticalScrollIndicator={false}
@@ -318,7 +319,7 @@ export default function ReportScreen() {
           seçtiriyor; hedef zaten odak ekranının kullandığı günlük hedef.
         */}
         {isCurrentWeek && (
-          <View style={[styles.close, { borderColor: theme.outlineVariant, backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow }]}>
+          <View style={[styles.close, { borderColor: isDark ? theme.outline : 'transparent', backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest }]}>
             {weekClosed ? (
               <Text style={{ color: theme.primary, fontSize: F.body, fontWeight: '700' }}>{c.closed}</Text>
             ) : (

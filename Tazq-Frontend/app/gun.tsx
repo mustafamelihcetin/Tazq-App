@@ -9,7 +9,7 @@ import { DottedBackground } from '@/shared/components/DottedBackground';
 import { PeekMenu, type PeekItem } from '@/shared/components/PeekMenu';
 import { Touchable } from '@/shared/components/Touchable';
 import { BentoCard } from '@/shared/components/BentoCard';
-import { S, R, F, B, ICON, MAX_W, HAIRLINE, topBarSpace } from '@/shared/constants/tokens';
+import { S, R, F, B, ICON, MAX_W, HAIRLINE, topBarSpace, touchSlop } from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -19,6 +19,7 @@ import { completeTask, setTaskDue, archiveTask, localDateISO, timeAtHour } from 
 import { useFocusStore } from '@/features/focus';
 import { haptic } from '@/shared/utils/haptics';
 import { langOf } from '@/shared/utils/lang';
+import { scopeDay, isOverdueBefore } from '@/features/dashboard/utils/dayScope';
 
 /**
  * BUGÜN — günün SAAT ekseni.
@@ -65,10 +66,9 @@ const LONG_PRESS_MS = 320;
 
 /** Eksenin varsayılan penceresi — işler daha erken/geç ise kendiliğinden genişler. */
 const DAY_START_HOUR = 8;
+/** Tamamla halkası — Aksiyon Merkezi ile aynı ölçü (22pt görsel, 44pt dokunma). */
+const RING = 22;
 const DAY_END_HOUR = 22;
-
-const isSameDay = (a: Date, b: Date) =>
-  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
 const hourOf = (iso?: string | null): number | null => {
   if (!iso) return null;
@@ -80,6 +80,7 @@ export default function GunScreen() {
   const { theme, isDark } = useAppTheme();
   const { t, language } = useLanguageStore();
   const d = t.dayView;
+  const priorityTone = (p?: string) => p === 'High' ? theme.priorityHigh : p === 'Medium' ? theme.priorityMedium : theme.priorityLow;
   // Dil kodu tek yerden daraltılıyor — bu bir METİN seçimi değil (bkz. langOf).
   const lang = langOf(language);
   const tr = lang === 'tr';
@@ -102,14 +103,17 @@ export default function GunScreen() {
   const [menuTask, setMenuTask] = useState<Task | null>(null);
 
   const now = new Date();
-  const today = useMemo(() => tasks.filter(task => {
-    if (!task.dueDate) return false;
-    const due = new Date(task.dueDate);
-    return !isNaN(due.getTime()) && isSameDay(due, now);
-  }), [tasks]);
+  /*
+    GÜNÜN TANIMI ana ekranla AYNI (bkz. dayScope.ts). Eskiden yalnız vadesi tam bugün
+    olanlar sayılıyordu: ana ekran "1/5" derken burası "1/4" diyordu ve dünden kalan
+    iş bu ekranda hiç görünmüyordu — yani tam da "günü kapat"ın işi olan iş.
+  */
+  const scope = useMemo(() => scopeDay(tasks, now), [tasks]);
+  const today = useMemo(() => [...scope.incomplete, ...scope.completed], [scope]);
 
-  const timed = today.filter(task => hourOf(task.dueTime) != null);
-  const untimed = today.filter(task => hourOf(task.dueTime) == null && !task.isCompleted);
+  // Gecikmiş iş saat eksenine dünkü saatiyle çizilmez — yerleştirilmeyi bekler.
+  const timed = today.filter(task => hourOf(task.dueTime) != null && !isOverdueBefore(task, now));
+  const untimed = today.filter(task => !task.isCompleted && (hourOf(task.dueTime) == null || isOverdueBefore(task, now)));
   const unfinished = today.filter(task => !task.isCompleted);
   const doneCount = today.length - unfinished.length;
 
@@ -133,7 +137,12 @@ export default function GunScreen() {
   const place = (hour: number) => {
     if (placingId == null) return;
     haptic.commit();
-    setTaskDue(placingId, { dueTime: timeAtHour(hour) });
+    // Gecikmiş işi bir saate koymak onu BUGÜNE almak demek; yalnız saat değişirse dünün
+    // tarihinde kalıp ekrandan kaybolurdu.
+    const picked = today.find(task => task.id === placingId);
+    setTaskDue(placingId, picked && isOverdueBefore(picked, now)
+      ? { dueDate: localDateISO(0), dueTime: timeAtHour(hour) }
+      : { dueTime: timeAtHour(hour) });
     setPlacingId(null);
   };
 
@@ -334,32 +343,44 @@ export default function GunScreen() {
           <View style={{ gap: S.sm }}>
             <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>{d.unplannedTitle}</Text>
             <Text style={[styles.sectionHint, { color: theme.onSurfaceMuted }]}>{d.gestureHint}</Text>
-            <View style={{ gap: S.xs }}>
-              {untimed.map(task => (
-                <Touchable
-                  key={task.id}
-                  onPress={() => pickUp(task)}
-                  onLongPress={() => openMenu(task)}
-                  delayLongPress={LONG_PRESS_MS}
-                  accessibilityRole="button"
-                  accessibilityLabel={getLocalizedTaskTitle(task, tr)}
-                  accessibilityHint={d.gestureHint}
-                  accessibilityState={{ selected: placingId === task.id }}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow,
-                      borderColor: placingId === task.id ? theme.primary : theme.outlineVariant,
-                      borderWidth: placingId === task.id ? B.medium : B.thin,
-                    },
-                  ]}
-                >
-                  <View style={[styles.dot, { backgroundColor: theme.primary }]} />
-                  <Text numberOfLines={1} style={[styles.chipText, { color: theme.onSurface }]}>
-                    {getLocalizedTaskTitle(task, tr)}
-                  </Text>
-                </Touchable>
-              ))}
+            {/*
+              GRUPLU LİSTE — Aksiyon Merkezi ve ana ekranla aynı satır dili: solda öncelik
+              renkli halka (dokun = tamamla), başlık, gerekirse "Süresi geçti". Eskiden her
+              iş ayrı bir haptı ve tamamlamak yalnız basılı tutma menüsündeydi.
+              Satıra dokunmak bu ekrana özgü işi yapar: eline al, saate yerleştir.
+            */}
+            <View style={[styles.group, { backgroundColor: theme.surfaceCard, borderColor: theme.outline, borderWidth: isDark ? B.thin : 0 }]}>
+              {untimed.map((task, idx) => {
+                const picked = placingId === task.id;
+                const overdue = isOverdueBefore(task, now);
+                const title = getLocalizedTaskTitle(task, tr);
+                return (
+                  <Touchable
+                    key={task.id}
+                    onPress={() => pickUp(task)}
+                    onLongPress={() => openMenu(task)}
+                    delayLongPress={LONG_PRESS_MS}
+                    accessibilityRole="button"
+                    accessibilityLabel={overdue ? `${title}, ${d.overdue}` : title}
+                    accessibilityHint={d.gestureHint}
+                    accessibilityState={{ selected: picked }}
+                    style={[styles.row, { backgroundColor: picked ? theme.primaryContainer : 'transparent' }]}
+                  >
+                    <Touchable
+                      onPress={() => { haptic.success(); completeTask(task.id); }}
+                      hitSlop={touchSlop(RING)}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: false }}
+                      accessibilityLabel={`${title} — ${d.actionComplete}`}
+                      style={[styles.ring, { borderColor: priorityTone(task.priority) }]}
+                    />
+                    <View style={[styles.rowBody, { borderBottomWidth: idx < untimed.length - 1 ? HAIRLINE : 0, borderBottomColor: theme.separator }]}>
+                      <Text numberOfLines={1} style={[styles.chipText, { color: theme.onSurface }]}>{title}</Text>
+                      {overdue && <Text style={{ color: theme.warning, fontSize: F.caption, fontWeight: '500' }}>{d.overdue}</Text>}
+                    </View>
+                  </Touchable>
+                );
+              })}
             </View>
           </View>
         )}
@@ -486,6 +507,10 @@ const styles = StyleSheet.create({
   nowText: { fontSize: 10, fontWeight: '700', marginTop: S.xxs },
   hourLane: { flex: 1, gap: S.xs },
   chip: { flexDirection: 'row', alignItems: 'center', gap: S.sm, borderRadius: R.md, paddingHorizontal: S.smd, paddingVertical: S.sm },
+  group: { borderRadius: R.lg, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', paddingLeft: S.md },
+  ring: { width: RING, height: RING, borderRadius: R.full, borderWidth: B.medium, marginRight: S.md },
+  rowBody: { flex: 1, paddingVertical: S.smd, paddingRight: S.md, minHeight: 48, justifyContent: 'center', gap: S.xxs },
   chipText: { fontSize: F.body, fontWeight: '600', flex: 1 },
   chipMinutes: { fontSize: F.caption, fontWeight: '700' },
   dot: { width: 6, height: 6, borderRadius: R.full },

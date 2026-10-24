@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
 import Svg, { Circle, G, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
-import { Zap, CheckCircle2 } from 'lucide-react-native';
+import { CheckCircle2 } from 'lucide-react-native';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { Touchable } from '@/shared/components/Touchable';
 import { F, S, R, W, ICON, METRIC, LH, trackingFor } from '@/shared/constants/tokens';
@@ -19,7 +19,14 @@ import type { AppTheme } from '@/shared/constants/Colors';
  */
 
 /** Halka geometrisi — hepsi tek ölçüden türer, böylece boyut değişince bozulmaz. */
-const RING = 90;
+/*
+  İKİ HALKA (Apple Activity — can-it-be-done/season3/AppleActivity): dış halka GÖREV,
+  iç halka ODAK. Odak dakikası eskiden kartın altında ayrı bir çizgiydi: halkayla aynı
+  dili konuşmuyordu, kart iki ayrı ilerleme görseli taşıyordu. Artık tek nesne, iki
+  ölçü; soldaki nokta iç halkanın neyi anlattığını söyler. Orta yazı (hedef/yüzde)
+  korunur — ona yer kalsın diye çap 90 → 104 (kalınlık oranı ~%12.5, aşağıdaki not).
+*/
+const RING = 104;
 /**
  * ÇİZGİ KALINLIĞI ÇAPIN ~%14'Ü. Önceden 9pt'ydi, yani %10 — o oranda çizilen şey
  * "halka" değil "ince çember" gibi okunur ve kartın sağında zayıf kalır.
@@ -32,8 +39,11 @@ const RING = 90;
  */
 const RING_STROKE = 13;
 const RING_C = RING / 2;
-const RING_R = RING_C - RING_STROKE / 2 - 3.5; // 37 — çizgi kalınlığı + optik pay
+const RING_R = RING_C - RING_STROKE / 2 - 3.5; // 42 — çizgi kalınlığı + optik pay
 const RING_LEN = 2 * Math.PI * RING_R;
+const FOCUS_STROKE = 7;
+const FOCUS_R = RING_R - RING_STROKE / 2 - 2.5 - FOCUS_STROKE / 2; // 29.5
+const FOCUS_LEN = 2 * Math.PI * FOCUS_R;
 
 export interface TodayCardProps {
   /** Bugün tamamlanan görev sayısı. */
@@ -101,6 +111,11 @@ export const TodayCard = React.memo<TodayCardProps>(
     const accent = !hasGoal ? theme.onSurfaceVariant : reached ? theme.tertiary : theme.primary;
     const pct = hasGoal ? Math.round((completed / goal) * 100) : 0;
     const ringFill = hasGoal ? Math.min(completed / goal, 1) : 0;
+    const focusFill = focusGoalMinutes > 0 ? Math.min(focusMinutes / focusGoalMinutes, 1) : 0;
+    // Odak halkası AYRI bir ton (Apple'ın halkaları da ayrı renktir): görev mavisiyle aynı
+    // olsaydı iki halka tek kalın yay gibi okunurdu. MOR DEĞİL — bu kartta mor ilerleme
+    // bilinçli olarak kaldırıldı (bkz. uxConsistency "çapraz-hue"); turuncu = enerji/odak.
+    const focusColor = theme.streak;
     const metricSize = isSmallScreen ? METRIC.sm : METRIC.md;
 
     return (
@@ -200,16 +215,9 @@ export const TodayCard = React.memo<TodayCardProps>(
                   </View>
                 </MotiView>
 
-                {/* Odak dakikası — ikincil metrik, ince çubuk. */}
+                {/* Odak dakikası — iç halkanın göstergesi: aynı renkte nokta (eski çubuk halkaya taşındı). */}
                 <View style={styles.focusRow}>
-                  <Zap size={ICON.xs} color={theme.primary} fill={theme.primary} />
-                  <View style={[styles.track, { backgroundColor: theme.outline }]}>
-                    <MotiView
-                      animate={{ width: `${Math.min((focusMinutes / Math.max(focusGoalMinutes, 1)) * 100, 100)}%` }}
-                      transition={{ type: 'timing', duration: 900 }}
-                      style={[styles.fill, { backgroundColor: theme.primary }]}
-                    />
-                  </View>
+                  <View style={[styles.legendDot, { backgroundColor: focusColor }]} />
                   {/*
                     PAYDA GÖSTERİLİYOR — "0dk" yerine "0/60dk".
 
@@ -223,8 +231,8 @@ export const TodayCard = React.memo<TodayCardProps>(
                     başlamadın" değil "60'ın 0'ındasın" der. Kartın ana satırındaki
                     `1 /5` deseniyle de aynı dili konuşuyor.
                   */}
-                  <Text style={[styles.focusText, { color: theme.onSurfaceMuted }]}>
-                    {focusMinutes}/{focusGoalMinutes}{tr ? 'dk' : 'm'}
+                  <Text style={[styles.focusText, { color: theme.onSurfaceMuted, fontVariant: ['tabular-nums'] }]}>
+                    {focusMinutes}/{focusGoalMinutes}{tr ? 'dk odak' : 'm focus'}
                   </Text>
                 </View>
               </View>
@@ -273,6 +281,21 @@ export const TodayCard = React.memo<TodayCardProps>(
                       strokeDasharray={`${RING_LEN}`}
                       strokeDashoffset={`${RING_LEN * (1 - ringFill)}`}
                     />
+                    {/* İç halka: odak dakikası / günlük odak hedefi. */}
+                    <Circle
+                      cx={RING_C} cy={RING_C} r={FOCUS_R} fill="none"
+                      stroke={focusColor + '1A'} strokeWidth={FOCUS_STROKE}
+                    />
+                    {focusFill > 0 && (
+                      <Circle
+                        cx={RING_C} cy={RING_C} r={FOCUS_R} fill="none"
+                        stroke={focusColor}
+                        strokeWidth={FOCUS_STROKE}
+                        strokeLinecap="round"
+                        strokeDasharray={`${FOCUS_LEN}`}
+                        strokeDashoffset={`${FOCUS_LEN * (1 - focusFill)}`}
+                      />
+                    )}
                   </G>
                 </Svg>
                 <View style={styles.ringCenter}>
@@ -333,8 +356,7 @@ const styles = StyleSheet.create({
   addPill: { alignSelf: 'flex-start', marginTop: S.xs, paddingHorizontal: S.sm, paddingVertical: S.xxs, borderRadius: R.full },
   addPillText: { fontSize: F.caption2, fontWeight: W.bold },
   focusRow: { flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.xxs },
-  track: { flex: 1, height: 3, borderRadius: R.xs, overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: R.xs },
+  legendDot: { width: 8, height: 8, borderRadius: R.full },
   focusText: { fontSize: F.caption, fontWeight: W.semibold },
   ringBox: { width: RING, height: RING },
   ringCenter: {

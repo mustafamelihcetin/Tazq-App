@@ -182,6 +182,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   actionText: {
+    fontVariant: ['tabular-nums'], // saniye işlerken rakam genişliği sabit kalsın (Tremor değer deseni)
     fontSize: F.footnote,
     fontFamily: 'Jakarta-ExtraBold',
     letterSpacing: -0.2,

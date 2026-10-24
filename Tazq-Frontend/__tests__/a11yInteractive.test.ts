@@ -250,9 +250,9 @@ describe('arka planlar ağacın dışında', () => {
 const ROLE_CEILING: Record<string, number> = {
   'app/achievements.tsx': 1,
   'app/admin.tsx': 25,
-  'app/cockpit.tsx': 13,
-  'app/focus.tsx': 7, // 17 → 7: modlar/pomodoro sayfaları kendi dosyalarına taşındı (rolleriyle), süre seçenekleri ve sayaç adlandırıldı
-  'app/profile.tsx': 4,
+  'app/cockpit.tsx': 11, // 13 → 11 (2026-10-24): Bugün satırı + tamamlanan alışkanlık satırına rol
+  'app/focus.tsx': 6, // 7 → 6 (2026-10-24): Özel süre seçeneğine rol · // 17 → 7: modlar/pomodoro sayfaları kendi dosyalarına taşındı (rolleriyle), süre seçenekleri ve sayaç adlandırıldı
+  'app/profile.tsx': 3, // 4 → 3 (2026-10-24): Yenile düğmesine rol
   'app/promo.tsx': 2,
   'app/odemeler.tsx': 8, // (2026-10-18): yeni ekran — ekle davetiyesi, ödendi/geri al, sil, vazgeç/ekle // +1 (2026-10-19): para birimi çipi // +1 (2026-10-19): gün gridi çipi (1-31, tek JSX çağrı noktası) // +1 (2026-10-19): sağlayıcı önerisi satırı
   'app/settings.tsx': 5,
@@ -269,7 +269,6 @@ const ROLE_CEILING: Record<string, number> = {
   'features/modes/components/modes/TezCard.tsx': 8, // +2 (2026-10-19): "Bitti" linki, TasarrufCard'daki gibi hep-görünür+nedenli "Planı Seç" butonuna çevrildi (Kapat + Planı Seç/ipucu)
   'features/modes/components/WeakAreaPicker.tsx': 1, // (2026-10-19): yeni ortak bileşen — zayıf-alan çipi
   'features/tasks/components/TaskFormModal.tsx': 22,
-  'features/tasks/components/TaskListItem.tsx': 1, // tasks.tsx'ten taşındı
   'features/user/components/MomentumPulse.tsx': 3,
   'features/user/components/ProfileSetupModal.tsx': 4,
   'shared/components/ChromeShell.tsx': 1,

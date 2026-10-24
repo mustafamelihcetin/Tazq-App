@@ -157,12 +157,12 @@ describe('TodayCard', () => {
    * (`0/5` ve `%0`ın yanında `0dk`). `0/60` bir eksiklik değil, bir başlangıç noktasıdır.
    */
   it('odak dakikasını HEDEFİYLE birlikte gösterir', () => {
-    expect(setup().getByText('20/60dk')).toBeTruthy();
-    expect(setup({ tr: false }).getByText('20/60m')).toBeTruthy();
+    expect(setup().getByText('20/60dk odak')).toBeTruthy();
+    expect(setup({ tr: false }).getByText('20/60m focus')).toBeTruthy();
   });
 
   it('odak sıfırken de payda görünür', () => {
-    expect(setup({ focusMinutes: 0 }).getByText('0/60dk')).toBeTruthy();
+    expect(setup({ focusMinutes: 0 }).getByText('0/60dk odak')).toBeTruthy();
   });
 
   it('dokunmayı iletir — çift dokunma kolay yumurtası buna bağlı', () => {

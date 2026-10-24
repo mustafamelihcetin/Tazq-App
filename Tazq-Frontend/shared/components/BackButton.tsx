@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleProp, ViewStyle, StyleSheet, Platform } from 'react-native';
+import { StyleProp, ViewStyle, StyleSheet, Platform, View } from 'react-native';
 import { AppBlur } from '@/shared/components/AppBlur';
 import { ChevronLeft } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
@@ -55,7 +55,10 @@ export function BackButton({
       {Platform.OS !== 'android' && (
         <AppBlur material="regular" />
       )}
-      <ChevronLeft size={ICON.lg} color={theme.onSurface} />
+      {/* zIndex: web'de mutlak konumlu blur katmanı akıştaki ikonun ÜSTÜNE boyanıyordu (ok görünmüyordu). */}
+      <View style={{ zIndex: 1 }}>
+        <ChevronLeft size={ICON.lg} color={theme.onSurface} />
+      </View>
     </Touchable>
   );
 }

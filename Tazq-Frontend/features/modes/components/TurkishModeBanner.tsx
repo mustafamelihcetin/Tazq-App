@@ -690,7 +690,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
     Koyu temada aksan pastele dönüyor; üstünde SABİT beyaz yazı 1.4:1 kalıyordu —
     yani "Planı Başlat" düğmesi okunmuyordu (bkz. modeAccentOn).
   */
-  const onAccent = modeAccentOn(isDark);
+  const onAccent = modeAccentOn(isDark, modeAccent);
   // Kurulum anında söylenecek MEVCUT yük — tek kaynaktan (bkz. useActiveModeSummary).
   const activeLoad = useActiveModeSummary();
 
@@ -711,8 +711,8 @@ export const TurkishModeBanner: React.FC<Props> = ({
       }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.xs }}>
           <Zap size={ICON.xs} color={modeAccent} fill={modeAccent} strokeWidth={0} />
-          <Text style={{ fontSize: F.caption, fontWeight: '700', color: modeAccent, letterSpacing: 0.5, textTransform: 'uppercase' }}>
-            {tr ? 'Akıllı Sistem Mantığı' : 'Smart Engine Logic'}
+          <Text style={{ fontSize: F.caption, fontWeight: '700', color: modeAccent, letterSpacing: 0.5 }}>
+            {tr ? 'AKILLI SİSTEM MANTIĞI' : 'SMART ENGINE LOGIC'}
           </Text>
         </View>
         <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, lineHeight: 15.5, fontWeight: '500' }}>

@@ -5,7 +5,7 @@ import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
 import {
-  Plus, Check, Flame, Clock, Target,
+  Plus, Check, Flame, Clock,
   ChevronRight, Sparkles, CalendarDays, Trash2, ArrowLeft, BarChart3, Coffee,
   RefreshCw, CalendarCheck, Sunrise,
 } from 'lucide-react-native';
@@ -18,6 +18,7 @@ import { useToastStore } from '@/shared/store/useToastStore';
 import { useTaskStore, useActiveTasks, getLocalizedTaskTitle } from '@/features/tasks';
 import { useFocusStore } from '@/features/focus';
 import { useHabitStore, Habit, fmtDateKey } from '@/features/habits';
+import { calendarDayOf } from '@/shared/utils/dateKey';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { describeHabit, rowHint } from '@/shared/utils/a11y';
 import { celebrate } from '@/features/user/utils/celebrate';
@@ -27,7 +28,7 @@ import { BentoCard } from '@/shared/components/BentoCard';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
-import { ICON, S, R, F, B, TRACKING, MAX_W, contentMaxWidth, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT , sheetMaxHeight} from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, TRACKING, MAX_W, contentMaxWidth, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT , sheetMaxHeight, touchSlop } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { WideSplit, WideCol } from '@/shared/components/ResponsiveColumns';
@@ -41,6 +42,8 @@ import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { swallow } from '@/shared/utils/swallow';
 import { playSoundEffect } from '@/shared/utils/soundEffects';
 import { haptic } from '@/shared/utils/haptics';
+import { upperFor } from '@/shared/utils/localeCase';
+import { SubtaskProgressRing } from '@/shared/components/SubtaskProgressRing';
 
 // Alışkanlık odaklı kalmalı — mantıklı üst sınır (plan + manuel toplam).
 const MAX_HABITS = 15;
@@ -84,7 +87,13 @@ function getWeekDays(startDay: 0 | 1 = 1): Date[] {
   const diff = (day - startDay + 7) % 7;
   const weekStart = new Date(today);
   weekStart.setDate(today.getDate() - diff);
-  weekStart.setHours(0, 0, 0, 0);
+  /*
+    ÖĞLEN, gece yarısı DEĞİL. Günler `fmtDateKey` ile anahtarlanıyor ve o, gece
+    kuşları için 3 saat geri alıyor: 00:00 → önceki günün 21:00'i. Şerit bu yüzden
+    BİR GÜN KAYIKTI — Pazar sütunu "bugün" sanılıyor, her günün noktası bir önceki
+    günün görevlerini gösteriyordu. Öğlen ±3 saatten etkilenmez (bkz. dateKey notları).
+  */
+  weekStart.setHours(12, 0, 0, 0);
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(weekStart);
     d.setDate(weekStart.getDate() + i);
@@ -377,7 +386,7 @@ export default function CockpitScreen() {
     return weekDays.map((d) => {
       const key = fmtDateKey(d);
       const dayTasks = personalTasks.filter(
-        (t) => t.dueDate && fmtDateKey(new Date(t.dueDate)) === key
+        (t) => calendarDayOf(t.dueDate) === key
       );
       const isPast = d < todayMidnight;
       const isFuture = key > todayKey;
@@ -410,7 +419,7 @@ export default function CockpitScreen() {
 
   // Tasks for selected day
   const selectedDayTasks = useMemo(() =>
-    personalTasks.filter((t) => t.dueDate && fmtDateKey(new Date(t.dueDate)) === selectedDay),
+    personalTasks.filter((t) => calendarDayOf(t.dueDate) === selectedDay),
     [personalTasks, selectedDay]
   );
 
@@ -619,14 +628,14 @@ export default function CockpitScreen() {
   const focusMins = weeklyFocusMin % 60;
   const focusLabel = weeklyFocusMin >= 60
     ? `${focusHrs}${tr ? 'sa' : 'h'}${focusMins > 0 ? `${focusMins}${tr ? 'dk' : 'm'}` : ''}`
-    : `${weeklyFocusMin}${tr ? 'dk' : 'm'}`;
+    : `${weeklyFocusMin} ${tr ? 'dk' : 'min'}`;
 
   const selectedDayObj = weekData.find((d) => d.key === selectedDay);
   const selectedDayLabel = selectedDayObj?.isToday
     ? (tr ? 'BUGÜN' : 'TODAY')
     : selectedDayObj?.date.toLocaleDateString(tr ? 'tr-TR' : 'en-US', {
         weekday: 'long', day: 'numeric',
-      }).toUpperCase() ?? '';
+      }) ?? '';
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -664,9 +673,8 @@ export default function CockpitScreen() {
             </Touchable>
           }
           title={tr ? 'Haftalık Merkez' : 'Weekly Hub'}
-          subtitle={`${weekDays[0].getDate()} – ${weekDays[6].getDate()} ${weekDays[6].toLocaleString(tr ? 'tr-TR' : 'en-US', { month: 'short' }).toUpperCase()}`}
+          subtitle={`${weekDays[0].getDate()} – ${weekDays[6].getDate()} ${upperFor(weekDays[6].toLocaleString(tr ? 'tr-TR' : 'en-US', { month: 'short' }), tr)}`}
           scrollY={scrollY}
-          subtitleColor={theme.primary}
           right={
             <Touchable
               onPress={() => router.push('/report')}
@@ -693,10 +701,9 @@ export default function CockpitScreen() {
           {/* ── WEEK STRIP ── */}
           <TourTarget id="weekStrip">
           <BentoCard index={0} style={{ padding: compactPad, marginBottom: S.md }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
-                {tr ? 'BU HAFTA' : 'THIS WEEK'}
-              </Text>
+            {/* Kartın "BU HAFTA" etiketi kaldırıldı: hemen aşağıdaki bölüm de "BU HAFTA" diyordu ve
+                başlık çubuğu zaten "19 – 25 EKİ". Satır yalnız "Bugün"e dön / ipucu için duruyor. */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minHeight: isSelectedToday && !showDayHint ? 0 : undefined }}>
               {/*
                 BUGÜNE DÖN — gün seçiminin YAPILDIĞI yerde ve yalnız gerektiğinde.
                 Bu düğme önce başlık çubuğundaydı; bugün seçiliyken işlevi olmadığı için
@@ -776,15 +783,23 @@ export default function CockpitScreen() {
                         {day.date.getDate()}
                       </Text>
                     </View>
-                    <View style={[
-                      styles.taskDot,
-                      {
-                        backgroundColor: hasTasks
-                          ? allDone ? theme.success : (day.isPast ? theme.onSurfaceVariant : theme.primary)
-                          : 'transparent',
-                        opacity: day.isPast && !day.isToday ? 0.4 : 1,
-                      },
-                    ]} />
+                    {/*
+                      GÜNÜN HALKASI (Apple Activity — can-it-be-done/AppleActivity): nokta yalnız
+                      "iş var" diyordu; halka "ne kadarı bitti" diyor. Hafta tek bakışta okunur.
+                      Tamamlanan gün yeşil kapanır; işi olmayan gün boş kalır.
+                    */}
+                    <View style={{ width: 16, height: 16, alignItems: 'center', justifyContent: 'center', opacity: day.isPast && !day.isToday && !allDone ? 0.55 : 1 }}>
+                      {hasTasks && (
+                        <SubtaskProgressRing
+                          total={day.total}
+                          completed={day.completed}
+                          size={16}
+                          strokeWidth={3}
+                          activeColor={allDone ? theme.success : theme.primary}
+                          inactiveColor={theme.onSurfaceVariant}
+                        />
+                      )}
+                    </View>
                   </Touchable>
                 );
               })}
@@ -806,7 +821,7 @@ export default function CockpitScreen() {
           <TourTarget id="dailySection">
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>
-              {selectedDayLabel.toUpperCase()}
+              {upperFor(selectedDayLabel, tr)}
             </Text>
             <Touchable
               onPress={() => {
@@ -869,23 +884,34 @@ export default function CockpitScreen() {
                     onPress={() => {
                       router.push({ pathname: '/tasks', params: { highlightId: String(task.id) } });
                     }}
+                    accessibilityRole="button"
+                    accessibilityLabel={getLocalizedTaskTitle(task, tr)}
+                    accessibilityState={{ checked: !!task.isCompleted }}
                     activeOpacity={0.7}
                     style={[
                       styles.dayTaskRow,
                       {
-                        borderTopColor: theme.outline,
-                        borderTopWidth: idx === 0 ? 0 : 1,
+                        borderTopColor: theme.separator,
+                        borderTopWidth: idx === 0 ? 0 : HAIRLINE,
                       },
                     ]}
                   >
+                    {/*
+                      Halka öncelik rengini TAŞIR — Aksiyon Merkezi, ana ekran ve Günüm ile
+                      aynı dil. Eskiden halka gri, öncelik sağda ayrı bir noktaydı: aynı
+                      satırda iki işaret, biri anlamsız.
+                    */}
                     <View style={[
                       styles.miniCheck,
                       {
-                        borderColor: task.isCompleted ? theme.success : theme.outline,
-                        backgroundColor: task.isCompleted ? theme.success + '18' : 'transparent',
+                        borderColor: task.isCompleted ? theme.success
+                          : task.priority === 'High' ? theme.priorityHigh
+                          : task.priority === 'Medium' ? theme.priorityMedium
+                          : theme.priorityLow,
+                        backgroundColor: task.isCompleted ? theme.success : 'transparent',
                       },
                     ]}>
-                      {task.isCompleted && <Check size={ICON.xs} color={theme.success} strokeWidth={3} />}
+                      {task.isCompleted && <Check size={ICON.xs} color={theme.onPrimary} strokeWidth={3} />}
                     </View>
                     <Text
                       style={[
@@ -899,15 +925,6 @@ export default function CockpitScreen() {
                     >
                       {getLocalizedTaskTitle(task, tr)}
                     </Text>
-                    <View style={[
-                      styles.priorityPip,
-                      {
-                        backgroundColor:
-                          task.priority === 'High' ? theme.priorityHigh
-                          : task.priority === 'Medium' ? theme.priorityMedium
-                          : theme.priorityLow,
-                      },
-                    ]} />
                   </Touchable>
                 ))}
                 {selectedDayTasks.length > 5 && (
@@ -947,7 +964,7 @@ export default function CockpitScreen() {
           <TourTarget id="weeklyReview">
           <View style={[styles.sectionHeader, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
             <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>
-              {tr ? 'Bu Hafta' : 'This Week'}
+              {tr ? 'BU HAFTA' : 'THIS WEEK'}
             </Text>
             <Touchable
               onPress={() => router.push('/report')}
@@ -998,7 +1015,8 @@ export default function CockpitScreen() {
                   ]}
                 >
                   {stat.icon}
-                  <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.statValue, { color: stat.accent }]}>
+                  {/* Sayı NÖTR (Tremor KPI): renk yalnız küçük ikonda. Üç sayı üç renkteydi. */}
+                  <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.statValue, { color: theme.onSurface, fontVariant: ['tabular-nums'] }]}>
                     {stat.value}
                   </Text>
                   <Text style={[styles.statLabel, { color: theme.onSurfaceMuted }]}>
@@ -1008,22 +1026,10 @@ export default function CockpitScreen() {
               ))}
             </View>
 
-            {/* Weekly goal chip */}
-            {!!weeklyGoal && (
-              <View style={[
-                styles.goalChip,
-                { backgroundColor: theme.primary + '12', borderColor: theme.primary + '25' },
-              ]}>
-                <Target size={ICON.xs} color={theme.primary} />
-                <Text style={[styles.goalText, { color: theme.primary }]} numberOfLines={2}>
-                  {weeklyGoal}
-                </Text>
-                <Touchable accessibilityRole="button" accessibilityLabel={tr ? 'Haftalık planı aç' : 'Open weekly plan'} onPress={() => { setPlanGoal(weeklyGoal); preparePlan(); setPlanVisible(true); }}>
-                  <ChevronRight size={ICON.sm} color={theme.primary} />
-                </Touchable>
-              </View>
-            )}
-
+            {/*
+              HEDEF + PLAN TEK SATIR. Hedef ayrı, mavi zeminli bir "çip"teydi (buton gibi görünüyor,
+              metin olduğu hâlde) ve hemen altındaki Planla düğmesi AYNI ekranı açıyordu.
+            */}
             {/* Plan / Goal button */}
             <Touchable
               onPress={() => {
@@ -1038,11 +1044,18 @@ export default function CockpitScreen() {
               ]}
             >
               <Sparkles size={ICON.sm} color={theme.primary} />
-              <Text style={[styles.planBtnText, { color: theme.onSurface, flex: 1 }]}>
-                {showPlanButton
-                  ? (tr ? 'Gelecek Haftayı Planla' : 'Plan Next Week')
-                  : (tr ? 'Haftalık Hedefi Güncelle' : 'Update Weekly Goal')}
-              </Text>
+              <View style={{ flex: 1, gap: S.xxs }}>
+                <Text style={[styles.planBtnText, { color: theme.onSurface }]}>
+                  {showPlanButton
+                    ? (tr ? 'Gelecek Haftayı Planla' : 'Plan Next Week')
+                    : (tr ? 'Haftalık Hedefi Güncelle' : 'Update Weekly Goal')}
+                </Text>
+                {!!weeklyGoal && (
+                  <Text numberOfLines={2} style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>
+                    {weeklyGoal}
+                  </Text>
+                )}
+              </View>
               <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} />
             </Touchable>
           </BentoCard>
@@ -1305,42 +1318,52 @@ export default function CockpitScreen() {
                 });
                 if (doneHabits.length === 0) return null;
                 return (
-                  <View style={{ gap: S.xs, marginTop: S.xs }}>
-                    <Text style={{ fontSize: 10, fontWeight: '600', color: theme.success, letterSpacing: 1, paddingHorizontal: S.sm }}>
-                      {tr ? `✓ BUGÜN TAMAMLANDI (${doneHabits.length})` : `✓ DONE TODAY (${doneHabits.length})`}
+                  <View style={{ gap: S.sm, marginTop: S.sm }}>
+                    <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant, letterSpacing: 1, paddingHorizontal: S.xs }}>
+                      {tr ? `BUGÜN TAMAMLANDI · ${doneHabits.length}` : `DONE TODAY · ${doneHabits.length}`}
                     </Text>
-                    {doneHabits.map(habit => (
+                    {/*
+                      TEK GRUPLU YÜZEY — her biri ayrı yeşil kart değil (Görevler/Ana sayfa ile aynı dil).
+                      Üstü ÇİZİLMEZ: alışkanlık "iptal" değil "yapıldı"; Hatırlatıcılar da yalnız soldurur.
+                      Bitti bilgisini sağdaki dolu yeşil halka verir (görev satırlarıyla aynı işaret).
+                    */}
+                    <View style={{ borderRadius: R.lg, overflow: 'hidden', backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderWidth: isDark ? B.thin : 0, borderColor: theme.outline }}>
+                    {doneHabits.map((habit, hi) => (
                       <View
                         key={habit.id}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingHorizontal: S.md, paddingVertical: S.smd, borderRadius: R.lg,
-                          backgroundColor: theme.success + (isDark ? '12' : '0D'),
-                          borderWidth: B.thin, borderColor: theme.success + '18' }}
+                        style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: S.md }}
                       >
                         <Touchable
                           onPress={() => handleLongPressHabit(habit.id, habit.name)}
                           onLongPress={() => handleLongPressHabit(habit.id, habit.name)}
+                          accessibilityRole="button"
+                          accessibilityLabel={habit.name}
                           style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.md }}
-                          activeOpacity={0.8}
+                          activeOpacity={0.7}
                         >
-                          <View style={{ width: 32, height: 32, borderRadius: R.full, backgroundColor: (habit.color ?? theme.success) + '22', alignItems: 'center', justifyContent: 'center' }}>
+                          <View style={{ width: 32, height: 32, borderRadius: R.full, backgroundColor: (habit.color ?? theme.success) + '22', alignItems: 'center', justifyContent: 'center', opacity: 0.7 }}>
                             {renderModeEmojiIcon(habit.emoji ?? '📌', 16, habit.color ?? theme.success)}
                           </View>
-                          <Text style={{ flex: 1, fontSize: F.body, fontWeight: '500', color: theme.onSurfaceMuted, textDecorationLine: 'line-through' }} numberOfLines={2}>
-                            {habit.name}
-                          </Text>
+                          <View style={{ flex: 1, paddingVertical: S.smd, borderBottomWidth: hi < doneHabits.length - 1 ? HAIRLINE : 0, borderBottomColor: theme.separator }}>
+                            <Text style={{ fontSize: F.body, fontWeight: '500', color: theme.onSurfaceMuted }} numberOfLines={2}>
+                              {habit.name}
+                            </Text>
+                          </View>
                         </Touchable>
                         <Touchable
                           accessibilityRole="checkbox"
                           accessibilityState={{ checked: true }}
                           accessibilityLabel={tr ? `${habit.name} — tamamlandı, geri al` : `${habit.name} — done, undo`}
                           onPress={() => handleToggleHabit(habit.id)}
-                          style={{ padding: S.xs }}
+                          hitSlop={touchSlop(22)}
+                          style={{ width: 22, height: 22, borderRadius: R.full, backgroundColor: theme.success, alignItems: 'center', justifyContent: 'center', marginHorizontal: S.md }}
                           activeOpacity={0.7}
                         >
-                          <Check size={ICON.sm} color={theme.success} strokeWidth={3} />
+                          <Check size={ICON.xs} color={theme.onPrimary} strokeWidth={3} />
                         </Touchable>
                       </View>
                     ))}
+                    </View>
                   </View>
                 );
               })()}
@@ -1639,10 +1662,9 @@ const styles = StyleSheet.create({
   // Day tasks card
   dayTasksCard: { borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden' },
   dayTasksHeading: { fontSize: F.caption, fontWeight: '600', letterSpacing: 1, padding: S.md, paddingBottom: S.sm },
-  dayTaskRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingVertical: S.smd },
-  miniCheck: { width: 18, height: 18, borderRadius: R.full, borderWidth: B.medium, alignItems: 'center', justifyContent: 'center' },
+  dayTaskRow: { flexDirection: 'row', alignItems: 'center', gap: S.md, paddingHorizontal: S.md, paddingVertical: S.smd },
+  miniCheck: { width: 22, height: 22, borderRadius: R.full, borderWidth: B.medium, alignItems: 'center', justifyContent: 'center' },
   dayTaskText: { flex: 1, fontSize: F.body, fontWeight: '600' },
-  priorityPip: { width: 6, height: 6, borderRadius: R.full },
 
   // Section headers
   sectionHeader: {

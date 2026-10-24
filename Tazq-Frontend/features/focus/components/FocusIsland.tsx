@@ -155,6 +155,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   time: {
+    fontVariant: ['tabular-nums'], // saniye işlerken rakam genişliği sabit kalsın
     fontSize: F.body,
     fontWeight: '700',
     letterSpacing: -0.5,

@@ -254,7 +254,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
               <Text style={[styles.insightHeaderTitle, { color: theme.onSurfaceVariant }]}>
                 TAZQ INSIGHTS
               </Text>
-              <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceMuted, marginTop: S.xxs }}>
+              <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceMuted, marginTop: S.xxs }}>
                 {language === 'tr' ? 'Haftalık odaklanma ve alışkanlık gelişimi analitiği' : 'Weekly focus and habit growth analytics'}
               </Text>
             </View>
@@ -319,10 +319,10 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
 
                 {/* Score Description */}
                 <View style={{ flex: 1, gap: S.xs }}>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.8, textTransform: 'uppercase' }}>
                     {language === 'tr' ? 'HAFTALIK ODAK SKORU' : 'WEEKLY FOCUS SCORE'}
                   </Text>
-                  <Text style={{ fontSize: 12.5, fontWeight: '600', color: theme.onSurface, lineHeight: 17 }}>
+                  <Text style={{ fontSize: F.footnote, fontWeight: '600', color: theme.onSurface, lineHeight: 17 }}>
                     {focusEvaluation}
                   </Text>
                   <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceMuted }}>
@@ -338,12 +338,13 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
               <View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm }}>
                   <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: theme.success }} />
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primary, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.8, textTransform: 'uppercase' }}>
                     {language === 'tr' ? 'AKILLI ODAK ÖNERİSİ' : 'SMART FOCUS ADVICE'}
                   </Text>
                 </View>
-                <Text style={[styles.insightMainText, { color: theme.onSurface, fontSize: F.footnote, fontWeight: '500', lineHeight: 18.5, fontStyle: 'italic' }]}>
-                  "{insight}"
+                {/* İtalik + tırnak kaldırıldı: uygulamada başka hiçbir yerde yok; öneri bir alıntı değil. */}
+                <Text style={[styles.insightMainText, { color: theme.onSurface, fontSize: F.footnote, fontWeight: '500', lineHeight: 18.5 }]}>
+                  {insight}
                 </Text>
               </View>
             </View>
@@ -351,7 +352,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
             {/* SECTION 1: Haftalık Odaklanma Analizi (Chart + Trend metrics side-by-side) */}
             <View style={{ gap: S.sm }}>
               <View>
-                <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.8, textTransform: 'uppercase' }}>
                   {language === 'tr' ? 'HAFTALIK ODAK HACMİ' : 'WEEKLY FOCUS VOLUME'}
                 </Text>
                 <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceMuted }}>
@@ -473,10 +474,10 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
               }}>
                 <AppIcon Icon={Sparkles} color={theme.primary} size={28} radius={R.full} iconSize={ICON.sm} />
                 <View style={{ flex: 1, gap: S.xxs }}>
-                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.primary, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.8, textTransform: 'uppercase' }}>
                     {language === 'tr' ? 'ALIŞKANLIK & ODAK SİNERJİSİ' : 'HABIT & FOCUS SYNERGY'}
                   </Text>
-                  <Text style={{ fontSize: 11.5, fontWeight: '600', color: theme.onSurface, lineHeight: 16 }}>
+                  <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurface, lineHeight: 16 }}>
                     {language === 'tr'
                       ? 'Alışkanlıklarını aksatmadığın günlerde odaklanma süren ortalama %45 daha yüksek seyrediyor. Alışkanlıkların odağını doğrudan tetikliyor!'
                       : 'On days you complete your rituals, your focus duration is on average 45% higher. Your habits directly fuel your focus!'}
@@ -489,7 +490,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
             {habits && habits.length > 0 && (
               <View style={{ gap: S.sm }}>
                 <View>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.8, textTransform: 'uppercase' }}>
                     {language === 'tr' ? 'ALIŞKANLIK ZİNCİRİ' : 'HABIT CONSISTENCY'}
                   </Text>
                   <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceMuted }}>
@@ -572,7 +573,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
             {weeklyTips && weeklyTips.length > 0 && (
               <View style={{ gap: S.sm }}>
                 <View>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: S.xxs }}>
+                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: S.xxs }}>
                     {language === 'tr' ? 'HAFTALIK AKSİYON ÖNERİLERİ' : 'WEEKLY ACTIONABLE TIPS'}
                   </Text>
                   <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceMuted }}>
