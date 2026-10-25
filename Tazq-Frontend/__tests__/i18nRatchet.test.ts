@@ -143,7 +143,7 @@ const BASELINE: Record<string, number> = {
   'features/modes/utils/modeHelpers.ts': 7,
   'features/modes/utils/planAdaptations.ts': 37,
   'features/modes/utils/turkishModes.ts': 5,
-  'features/tasks/components/TaskFormModal.tsx': 26,
+  // TaskFormModal LİSTEDEN ÇIKTI (26 → 0, 2026-10-25): metinler form/taskFormCopy.ts sözlüğünde.
   'features/tasks/components/TaskListItem.tsx': 11, // tasks.tsx'ten taşındı
   'features/user/components/CelebrationOverlay.tsx': 1,
   'features/user/components/DeleteAccountModal.tsx': 1,

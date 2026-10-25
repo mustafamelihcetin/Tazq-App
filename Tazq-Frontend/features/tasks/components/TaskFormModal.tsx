@@ -6,12 +6,28 @@
  *
  * `shared` en alt katman: yukarıdaki hiçbir şeyi bilmemeli. Buradaki her `features`
  * içe aktarımı, alt katmanın üst katmandan bilgi çekmesi demekti — modülerliği
- * bozar ve dosyayı tek başına test edilemez kılar. Taşınmasıyla yön düzeldi;
- * MANTIK HİÇ DEĞİŞMEDİ, yalnız yeri değişti.
+ * bozar ve dosyayı tek başına test edilemez kılar. Taşınmasıyla yön düzeldi.
+ *
+ * ── YENİDEN TASARIM (2026-10-25) ────────────────────────────────────────────────
+ * Ölçülen sorunlar ve karşılıkları:
+ *  · Başlığın altında DOKUNULAMAYAN üç "özellik" yongası (Tarih/Öncelik/Hatırlatıcı)
+ *    düğme gibi görünüp hiçbir şey yapmıyordu → kaldırıldı.
+ *  · Kaydet formun EN DİBİNDEYDİ (kaydırmadan görünmüyordu) → başlık çubuğunun sağında,
+ *    klavye açıkken de erişilebilir (iOS sayfa düzeni: kapat · başlık · ekle; M3 tam
+ *    ekran iletişim kutusu da aynı: X · başlık · Kaydet). Başlık boşken pasif.
+ *  · Tarih ham "2026-10-25", seçimi ▲/▼ → kısayol yongaları + platformun kendi
+ *    seçicisi (bkz. ScheduleSection).
+ *  · Öncelik/tekrar dolu doygun renkle boyanıyordu → nötr bölümlü seçici, anlam rengi
+ *    yalnız noktada (bkz. SegmentedControl).
+ *  · Silme ONAYSIZDI; kaydedilmemiş değişiklik kaydırınca/X'le SESSİZCE gidiyordu →
+ *    ikisi de onay soruyor (HIG: yıkıcı eylem ve veri kaybı onaylanır).
+ *  · Tablette sayfa 1024 pt'ye yayılıyordu → ortada, en çok 600 pt bir form sayfası.
+ *  · iOS'ta klavye sayfanın altını örtüyordu → sayfa klavyenin üstüne çıkar (QuickAddSheet ile aynı).
+ *  · Koyu temada kayıt göstergesi siyahtı, hatırlatıcı anahtarı rolsüz bir resimdi.
  */
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Animated as RNAnimated, Keyboard, TouchableWithoutFeedback, Pressable } from 'react-native';
-import { Calendar, Target, Bell, X, Sparkles, Mic, Timer, Repeat, Trash2, Plus, Check } from 'lucide-react-native';
+import { View, Text, StyleSheet, Modal, TextInput, Platform, ActivityIndicator, ScrollView, Animated as RNAnimated, Keyboard, Pressable, useWindowDimensions } from 'react-native';
+import { X, Sparkles, Mic, Repeat, Trash2, Plus, Check } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
@@ -19,11 +35,11 @@ import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import VoiceService from '@/shared/utils/voice';
 import { parseTaskHint, visibleTextTags, translateTag } from '@/features/tasks';
-import { ICON, S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, HAIRLINE, MIN_TOUCH, TABLET_MIN, scale } from '@/shared/constants/tokens';
 import { buildNlpChips } from '@/features/tasks/utils/nlpChips';
 import { EMPTY_DRAFT, applyHint, markManual, rejectTag, visibleHint, type DraftControl, type OwnedField } from '@/features/tasks/nlp/draft';
 import { CATEGORY_TAGS, type CategoryId } from '@/features/tasks/nlp/lexicon';
-import { langOf } from '@/shared/utils/lang';
+import { langOf, localeOf } from '@/shared/utils/lang';
 import { NlpHintRow, hasNlpHint, EMPTY_NLP_HINT, type NlpHint } from '@/features/tasks/components/NlpHintRow';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Priority, RecurrenceType, SubtaskItem } from '@/shared/services/api';
@@ -32,9 +48,10 @@ import type { AppTheme } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
 import { parseDateKey, calendarDayOf, toDateKey } from '@/shared/utils/dateKey';
 import { upperFor } from '@/shared/utils/localeCase';
-
-const SWIPE_THRESHOLD = -80;
-
+import { defaultReminderSlot, isFormDirty } from '@/features/tasks/utils/taskFormDates';
+import { taskFormCopy, type TaskFormCopy } from '@/features/tasks/components/form/taskFormCopy';
+import { SegmentedControl } from '@/features/tasks/components/form/SegmentedControl';
+import { ScheduleSection } from '@/features/tasks/components/form/ScheduleSection';
 
 interface TaskForm {
   title: string;
@@ -48,16 +65,16 @@ interface TaskForm {
   reminderEnabled: boolean;
 }
 
-const EMPTY_FORM: TaskForm = { 
-  title: '', 
-  description: '', 
-  priority: 'Medium', 
-  dueDate: '', 
-  dueTime: null, 
-  tags: [], 
-  subtasks: [], 
+const EMPTY_FORM: TaskForm = {
+  title: '',
+  description: '',
+  priority: 'Medium',
+  dueDate: '',
+  dueTime: null,
+  tags: [],
+  subtasks: [],
   recurrence: 'None',
-  reminderEnabled: false 
+  reminderEnabled: false,
 };
 
 const RECURRENCE_OPTIONS: { key: RecurrenceType; labelKey: string }[] = [
@@ -67,9 +84,13 @@ const RECURRENCE_OPTIONS: { key: RecurrenceType; labelKey: string }[] = [
   { key: 'Monthly', labelKey: 'recurrenceMonthly' },
 ];
 
-function getNextOccurrenceLabel(dueDateStr: string | null | undefined, recurrence: RecurrenceType, lang: string): string {
+const CATEGORY_IDS: CategoryId[] = ['work', 'education', 'personal', 'shopping', 'health', 'fitness', 'finance', 'home', 'social'];
+
+/** Tablette form sayfası ortada ve bu genişliği aşmaz (iPad form sheet ≈ 540–620 pt). */
+const SHEET_MAX_W = 600;
+
+function getNextOccurrenceLabel(dueDateStr: string | null | undefined, recurrence: RecurrenceType, lang: string, c: TaskFormCopy): string {
   if (!dueDateStr) return '';
-  const isTR = lang === 'tr';
   // YEREL GÜN — dueDateStr 'YYYY-MM-DD'; ham new Date() UTC gece yarısı okur ve
   // negatif UTC-fark saat dilimlerinde "Sonraki: …" bir gün erken gösterilirdi.
   const dateObj = parseDateKey(dueDateStr);
@@ -93,23 +114,13 @@ function getNextOccurrenceLabel(dueDateStr: string | null | undefined, recurrenc
   }
 
   const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
-  const formatted = nextDate.toLocaleDateString(isTR ? 'tr-TR' : 'en-US', options);
-  return isTR ? `Sonraki: ${formatted}` : `Next: ${formatted}`;
+  return c.next(nextDate.toLocaleDateString(localeOf(lang), options));
 }
 
 const VoiceWave = ({ active, theme }: { active: boolean; theme: AppTheme }) => (
-  <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
+  <View style={styles.voiceWave}>
     <RNAnimated.View
-      style={{
-        position: 'absolute',
-        width: 32,
-        height: 32,
-        borderRadius: R.full,
-        backgroundColor: theme.primary,
-        opacity: active ? 0.35 : 0,
-        transform: [{ scale: active ? 1.4 : 1 }],
-        zIndex: -1,
-      }}
+      style={[styles.voiceHalo, { backgroundColor: theme.primary, opacity: active ? 0.35 : 0, transform: [{ scale: active ? 1.4 : 1 }] }]}
     />
     <Mic size={ICON.md} color={active ? theme.primary : theme.onSurfaceVariant} />
   </View>
@@ -148,47 +159,53 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
   t,
 }) => {
   const insets = useSafeAreaInsets();
+  const { width: winW, height: winH } = useWindowDimensions();
+  const isTablet = winW >= TABLET_MIN;
+  const c = taskFormCopy(language);
   const [form, setForm] = useState<TaskForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [titleError, setTitleError] = useState(false);
-  const [dateError, setDateError] = useState(false);
   const [nlpHint, setNlpHint] = useState<NlpHint>(EMPTY_NLP_HINT);
-  const [showSmartHint, setShowSmartHint] = useState(true);
-  
+
   const [isListeningTitle, setIsListeningTitle] = useState(false);
   const [isListeningDesc, setIsListeningDesc] = useState(false);
-  
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  
-  const [pickerDate, setPickerDate] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1, day: new Date().getDate() });
-  const [pickerTime, setPickerTime] = useState({ hour: 9, minute: 0 });
   const [newSubtaskText, setNewSubtaskText] = useState('');
 
   /*
-    ODAKLANILAN ALAN — kenar rengi buradan çıkar.
-
-    Alanın kenarı normalde nötr bir saç teli; içine yazılırken markanın mavisine
-    döner. İki işi birden yapıyor: hangi kutunun klavyeyi dinlediğini söylüyor
-    (formda üç ayrı yazı alanı var ve klavye açıkken hepsi birbirine benziyordu)
-    ve dokunmatik olmayan girişte (donanım klavyesi, iPad) odağın nerede olduğunu
-    görünür kılıyor — bu bir ERİŞİLEBİLİRLİK gereği, süs değil.
-
-    KENAR ÇİZGİSİYLE DEĞİL. Önce odaklanan alana mavi bir kenar verildi ve geri
-    alındı — kutu çizmek kaba duruyordu, Apple da formlarda öyle yapmıyor. Alan
-    bunun yerine markanın mavisiyle hafifçe YIKANIYOR: sınır yok, düzen oynamıyor,
-    hangi kutunun canlı olduğu yine bir bakışta belli.
+    ODAKLANILAN ALAN — hangi kutunun klavyeyi dinlediği, markanın mavisiyle hafif bir
+    YIKAMA olarak görünür (kenar çizgisi kaba duruyordu, düzeni de oynatıyordu).
+    Dokunmatik olmayan girişte (donanım klavyesi, iPad) odağın yeri — erişilebilirlik gereği.
   */
   const [focusedField, setFocusedField] = useState<'title' | 'desc' | 'subtask' | null>(null);
   const fieldFill = (f: 'title' | 'desc' | 'subtask') =>
     focusedField === f ? theme.primary + '1A' : theme.surfaceField;
-  // Ortak hook (bkz. useKeyboardHeight) — dinleyici uc dosyada kopyalanmisti.
+  // Ortak hook (bkz. useKeyboardHeight). Android `resize` modunda pencere zaten küçülür.
   const keyboardHeight = useKeyboardHeight();
+  const iosKeyboard = Platform.OS === 'ios' ? keyboardHeight : 0;
+
+  /*
+    KAPATMA TEK KAPIDAN — X, arka plan, geri tuşu ve aşağı kaydırma aynı yolu izler.
+    Kaydırma kancası PanResponder'ı BİR KEZ kurar; kapanıştaki `form` bayat kalırdı.
+    Bu yüzden kapı bir ref üzerinden çağrılıyor ve her çizimde güncelleniyor.
+  */
+  const initialRef = useRef<TaskForm>(EMPTY_FORM);
+  const requestCloseRef = useRef<() => void>(() => {});
 
   const { panResponder, animatedStyle: taskSlide, prepare: prepareTask, slideIn: taskSlideIn } = useSwipeToDismiss({
-    onDismiss: () => !saving && onClose(),
+    onDismiss: () => requestCloseRef.current(),
   });
 
+  const requestClose = () => {
+    if (saving) return;
+    if (!isFormDirty(form, initialRef.current)) { onClose(); return; }
+    Keyboard.dismiss();
+    Alert.alert(c.discardTitle, c.discardBody, [
+      // Kaydırarak kapatıldıysa sayfa ekranın dışında: geri getir.
+      { text: c.keepEditing, style: 'cancel', onPress: taskSlideIn },
+      { text: c.discard, style: 'destructive', onPress: onClose },
+    ]);
+  };
+  requestCloseRef.current = requestClose;
 
   // Stop voice recognition when modal is hidden
   useEffect(() => {
@@ -202,10 +219,8 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
   // Motorun bu taslakta neye dokunabileceği: elle seçilen alanlar ve reddedilen etiketler.
   const draftRef = useRef<DraftControl>(EMPTY_DRAFT);
   /*
-    KUTUNUN HER YERİ ODAKLAMALI, YALNIZ METNİN ÜSTÜ DEĞİL — `inputGroup`'un kendi
-    `paddingHorizontal`i TextInput'un kutusunun DIŞINDA kalıyordu, o şerit hiçbir
-    zaman odaklamıyordu (bkz. ModeField.tsx'teki AYNI düzeltme). Çözüm: dış `View`'ı
-    `Pressable`e çevirip dokununca ref'ten `focus()` çağırmak.
+    KUTUNUN HER YERİ ODAKLAMALI, YALNIZ METNİN ÜSTÜ DEĞİL — dış `View` bir `Pressable`;
+    dokununca ref'ten `focus()` çağrılır (bkz. ModeField.tsx'teki AYNI düzeltme).
   */
   const titleInputRef = useRef<TextInput>(null);
   const descInputRef = useRef<TextInput>(null);
@@ -219,14 +234,11 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
       prepareTask();
       setSaving(false);
       setTitleError(false);
-      setDateError(false);
       setNlpHint(EMPTY_NLP_HINT);
-      setShowDatePicker(false);
-      setShowTimePicker(false);
       setNewSubtaskText('');
-      
+
       if (task) {
-        setForm({
+        const loaded: TaskForm = {
           title: task.title,
           description: task.description || '',
           priority: (task.priority as Priority) || 'Medium',
@@ -234,24 +246,29 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
           // yerel gün UTC'den farklıysa (gece kuşağı) form yanlış günle açılıp, tarihe hiç
           // dokunmadan kaydedilince tarihi sessizce bir gün kaydırıyordu.
           dueDate: calendarDayOf(task.dueDate) ?? '',
-          dueTime: task.dueTime || '',
+          dueTime: task.dueTime || null,
           tags: task.tags || [],
           subtasks: task.subtasks || [],
           recurrence: (task.recurrence as RecurrenceType) || 'None',
-          reminderEnabled: task.tags?.includes('hatırlatıcı') || task.tags?.includes('reminder') || false
-        });
+          reminderEnabled: task.tags?.includes('hatırlatıcı') || task.tags?.includes('reminder') || false,
+        };
+        initialRef.current = loaded;
+        setForm(loaded);
       } else if (initialTitle) {
         /*
           HIZLI EKLEMEDEN GELDİ. Yalnız başlığı taşımak yetmez: kullanıcı "yarın 15:00"
           yazdıysa o bilgi zaten cümlede var; forma boş tarih/saatle gelmek onu AYNI
           şeyi ikinci kez girmeye zorlardı. Aynı ayrıştırıcı burada da çalışıyor.
+          Taban BOŞ form: hızlı eklemede yazılan cümle de kaybedilmemesi gereken bir değişiklik.
         */
         const parsed = parseTaskHint(initialTitle, language as 'tr' | 'en');
         const applied = applyHint({ ...EMPTY_FORM, title: initialTitle }, parsed, EMPTY_DRAFT);
         draftRef.current = applied.draft;
+        initialRef.current = EMPTY_FORM;
         setForm(applied.form);
         setNlpHint({ message: '', chips: buildNlpChips(parsed, language) });
       } else {
+        initialRef.current = EMPTY_FORM;
         setForm(EMPTY_FORM);
       }
     }
@@ -302,7 +319,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
   const toggleVoice = async (field: 'title' | 'description') => {
     const isActive = field === 'title' ? isListeningTitle : isListeningDesc;
-    
+
     if (isActive) {
       await VoiceService.stop();
       field === 'title' ? setIsListeningTitle(false) : setIsListeningDesc(false);
@@ -319,7 +336,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
     field === 'title' ? setIsListeningTitle(true) : setIsListeningDesc(true);
 
     await VoiceService.start({
-      language: language === 'tr' ? 'tr-TR' : 'en-US',
+      language: localeOf(language),
       initialText: field === 'title' ? form.title : form.description,
       onResults: (results: string[]) => {
         if (results.length > 0) {
@@ -334,21 +351,8 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
       onError: (err: any) => {
         const msg = err?.message ?? String(err);
         field === 'title' ? setIsListeningTitle(false) : setIsListeningDesc(false);
-        if (msg === 'permission-denied') {
-          Alert.alert(
-            language === 'tr' ? 'Mikrofon İzni Gerekli' : 'Microphone Permission Required',
-            language === 'tr'
-              ? 'Lütfen uygulama ayarlarından mikrofon iznini etkinleştirin.'
-              : 'Please enable microphone permission in your device settings.'
-          );
-        } else if (msg === 'not-available') {
-          Alert.alert(
-            language === 'tr' ? 'Desteklenmiyor' : 'Not Supported',
-            language === 'tr'
-              ? 'Ses tanıma bu ortamda desteklenmiyor.'
-              : 'Voice recognition is not supported in this environment.'
-          );
-        }
+        if (msg === 'permission-denied') Alert.alert(c.micTitle, c.micBody);
+        else if (msg === 'not-available') Alert.alert(c.voiceNaTitle, c.voiceNaBody);
       },
       onEnded: () => {
         field === 'title' ? setIsListeningTitle(false) : setIsListeningDesc(false);
@@ -356,69 +360,42 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
     });
   };
 
-  const openDatePicker = () => {
-    // YEREL GÜN — form.dueDate 'YYYY-MM-DD'; ham new Date() UTC gece yarısı okur ve
-    // negatif UTC-fark saat dilimlerinde seçici bir gün ÖNCEKİ günle açılırdı. Kullanıcı
-    // dokunmadan "Kaydet"e basarsa tarih sessizce bir gün geri kayardı.
-    const base = form.dueDate ? parseDateKey(form.dueDate) : new Date();
-    setPickerDate({ year: base.getFullYear(), month: base.getMonth() + 1, day: base.getDate() });
-    setShowDatePicker(true);
+  const setReminder = (on: boolean) => {
+    // Anahtar tarih ve saati de kuruyor — üçü de artık kullanıcının.
+    touch('reminder', 'dueDate', 'dueTime');
+    setForm(f => (on ? { ...f, ...defaultReminderSlot(f, new Date()), reminderEnabled: true } : { ...f, reminderEnabled: false }));
   };
 
-  const openTimePicker = () => {
-    const base = form.dueTime ? new Date(form.dueTime) : new Date();
-    setPickerTime({ hour: base.getHours(), minute: base.getMinutes() });
-    setShowTimePicker(true);
+  const addSubtask = () => {
+    const text = newSubtaskText.trim();
+    if (!text) return;
+    setForm(f => ({ ...f, subtasks: [...f.subtasks, { text, done: false }] }));
+    setNewSubtaskText('');
   };
 
-  const confirmDate = () => {
-    const { year, month, day } = pickerDate;
-    const mm = String(month).padStart(2, '0');
-    const dd = String(day).padStart(2, '0');
-    
-    const selected = new Date(year, month - 1, day);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (selected < today) {
+  const toggleTag = (tag: string, has: boolean) => {
+    haptic.select();
+    if (has) { draftRef.current = rejectTag(draftRef.current, tag); setForm(f => ({ ...f, tags: f.tags.filter(x => x !== tag) })); }
+    else setForm(f => ({ ...f, tags: [...f.tags, tag] }));
+  };
+
+  const canSave = form.title.trim().length > 0 && !saving;
+
+  const handleSave = async () => {
+    if (saving) return;
+    if (!form.title.trim()) {
+      setTitleError(true);
       haptic.error();
-      setDateError(true);
-      setTimeout(() => setDateError(false), 2500);
+      titleInputRef.current?.focus();
       return;
     }
 
-    setDateError(false);
-    touch('dueDate');
-    setForm(f => ({ ...f, dueDate: `${year}-${mm}-${dd}` }));
-    setShowDatePicker(false);
-  };
-
-  const confirmTime = () => {
-    const base = new Date();
-    base.setHours(pickerTime.hour, pickerTime.minute, 0, 0);
-    touch('dueTime');
-    setForm(f => ({ ...f, dueTime: base.toISOString() }));
-    setShowTimePicker(false);
-  };
-
-  const daysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate();
-
-  const handleSave = async () => {
-    if (!form.title.trim()) { 
-      setTitleError(true); 
-      haptic.error(); 
-      Alert.alert(t.errorTitle, t.titleRequired);
-      return; 
-    }
-    
     setSaving(true);
     try {
       /*
-        SAAT, TARİHSİZ KALAMAZ. Saat ve tarih seçicileri birbirinden bağımsız
-        açılabiliyor; kullanıcı yalnız saati seçip kaydederse görev "saati var ama
-        tarihi yok" gibi tutarsız bir haldeydi — çağıran taraf `dueDate` boşsa saati
-        yine de gönderiyordu. Bir saat, ait olduğu günü bilmeden anlamsız; en makul
-        varsayım bugündür.
+        SAAT, TARİHSİZ KALAMAZ. Kullanıcı yalnız saati seçip kaydederse görev "saati var
+        ama tarihi yok" gibi tutarsız bir haldeydi. Bir saat, ait olduğu günü bilmeden
+        anlamsız; en makul varsayım bugündür.
       */
       const safeDueDate = !form.dueDate && form.dueTime ? toDateKey(new Date()) : form.dueDate;
       await onSave({
@@ -435,148 +412,172 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
     }
   };
 
+  const confirmDelete = () => {
+    if (!task || !onDelete || saving) return;
+    Keyboard.dismiss();
+    Alert.alert(c.deleteTitle, c.deleteBody(form.title.trim() || task.title), [
+      { text: c.cancel, style: 'cancel' },
+      {
+        text: c.delete,
+        style: 'destructive',
+        onPress: async () => {
+          haptic.commit();
+          setSaving(true);
+          try {
+            await onDelete(task.id);
+            onClose();
+          } catch (e) { swallow('TaskFormModal.delete', e); }
+          finally { setSaving(false); }
+        },
+      },
+    ]);
+  };
+
+  const floating = isTablet || iosKeyboard > 0;
+  const sheetMaxH = winH - iosKeyboard - insets.top - (isTablet ? S.xxl * 2 : S.md);
+  const sectionLabel = (text: string) => (
+    <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted }]}>{upperFor(text, language)}</Text>
+  );
+  const customTags = visibleTextTags(form.tags).filter(tag => !CATEGORY_IDS.some(id => CATEGORY_TAGS[id][langOf(language)] === tag));
+
   return (
     <Modal
       visible={visible}
       transparent
       animationType="none"
-      onRequestClose={() => !saving && onClose()}
-      onShow={taskSlideIn}
+      onRequestClose={requestClose}
+      onShow={() => {
+        taskSlideIn();
+        // Yeni görevde klavye başlığa hazır gelir (Hatırlatıcılar / Things). Sayfa
+        // kayarken odaklamak Android'de klavyeyi titretiyordu — kayma bitince.
+        if (!task) setTimeout(() => titleInputRef.current?.focus(), 320);
+      }}
     >
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, isTablet && styles.overlayCentered]}>
         {/* Sayfanın arka planı — ekran okuyucuda adsız bir kontrol olarak belirmesin. */}
-        <Touchable accessible={false} importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !saving && onClose()} />
+        <Touchable accessible={false} importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill} activeOpacity={1} onPress={requestClose} />
 
-        <View style={styles.sheetContainer}>
+        <View style={[styles.sheetContainer, { maxWidth: SHEET_MAX_W, marginBottom: iosKeyboard }]}>
           <RNAnimated.View
             style={[
               styles.sheet,
               taskSlide,
               {
-                padding: S.lg,
-                borderBottomLeftRadius: keyboardHeight > 0 ? R.sheet : 0,
-                borderBottomRightRadius: keyboardHeight > 0 ? R.sheet : 0,
-                maxHeight: scale(620), // Standard viewport layout protection
+                maxHeight: sheetMaxH,
+                borderBottomLeftRadius: floating ? R.sheet : 0,
+                borderBottomRightRadius: floating ? R.sheet : 0,
               },
             ]}
           >
-            {/* Klavye açıkken sayfa klavyenin üstünde yüzer → dört köşe; kapalıyken dibe yapışık → üst köşeler. */}
-            <GlassSurface corners={keyboardHeight > 0 ? 'all' : 'top'} />
-            {/* Drag Handle */}
-            <View {...panResponder.panHandlers} style={styles.dragHandleContainer}>
-              <View style={[styles.handle, { backgroundColor: theme.outline }]} />
-            </View>
+            {/* Yüzen sayfa (tablet / klavye üstü) → dört köşe; dibe yapışıkken üst köşeler. */}
+            <GlassSurface corners={floating ? 'all' : 'top'} />
 
-            {/* Header */}
-            <View style={[styles.sheetHeader, { marginBottom: !task ? S.sm : S.lg }]}>
-              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface, fontSize: F.title }]}>
-                {task ? t.editTask : t.addTask}
-              </Text>
-              <Touchable
-                onPress={() => !saving && onClose()}
-                style={styles.closeModalBtn}
-                disabled={saving}
-                accessibilityRole="button"
-                accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'}
-              >
-                {/* Pasiflik OPAKLIKLA değil SEVİYEYLE anlatılıyor: palet rengini
-                    kullanım yerinde kısmak, o rengin ölçülmüş kontrastını geçersiz
-                    kılar. `onSurfaceMuted` zaten ölçülmüş bir "ikincil" seviyesi. */}
-                <X size={ICON.md} color={saving ? theme.onSurfaceMuted : theme.onSurfaceVariant} />
-              </Touchable>
-            </View>
-
-            {/* Form Features Chips */}
-            {!task && (
-              <View style={{ flexDirection: 'row', gap: S.xs, marginBottom: S.lg, flexWrap: 'wrap' }}>
-                {[
-                  { text: language === 'tr' ? 'Tarih' : 'Due date', icon: <Calendar size={ICON.xs} color={theme.primary} /> },
-                  { text: language === 'tr' ? 'Öncelik' : 'Priority', icon: <Target size={ICON.xs} color={theme.primary} /> },
-                  { text: language === 'tr' ? 'Hatırlatıcı' : 'Reminder', icon: <Bell size={ICON.xs} color={theme.primary} /> }
-                ].map((chip) => (
-                  <View key={chip.text} style={{ backgroundColor: theme.primary + '14', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xs, flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
-                    {chip.icon}
-                    <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.primary, letterSpacing: 0.3 }}>{chip.text}</Text>
-                  </View>
-                ))}
+            {/* Tutamaç + başlık çubuğu birlikte sürüklenir (iOS sayfası); düğmeler dokunuşu önce alır. */}
+            <View {...panResponder.panHandlers}>
+              <View style={styles.dragHandleContainer}>
+                <View style={[styles.handle, { backgroundColor: theme.outline }]} />
               </View>
-            )}
 
-            {/* Scrollable Form Body */}
+              <View style={styles.sheetHeader}>
+                <View style={styles.headerSide}>
+                  <Touchable
+                    onPress={requestClose}
+                    style={[styles.closeBtn, { backgroundColor: theme.surfaceField }]}
+                    disabled={saving}
+                    accessibilityRole="button"
+                    accessibilityLabel={c.close}
+                  >
+                    <X size={ICON.sm} color={saving ? theme.onSurfaceMuted : theme.onSurfaceVariant} strokeWidth={2.2} />
+                  </Touchable>
+                </View>
+                <Text numberOfLines={1} accessibilityRole="header" style={[styles.sheetTitle, { color: theme.onSurface }]}>
+                  {task ? t.editTask : t.addTask}
+                </Text>
+                <View style={[styles.headerSide, styles.headerSideEnd]}>
+                  <Touchable
+                    onPress={handleSave}
+                    disabled={!canSave}
+                    accessibilityRole="button"
+                    accessibilityLabel={task ? c.save : c.add}
+                    accessibilityState={{ disabled: !canSave, busy: saving }}
+                    style={[styles.saveBtn, { backgroundColor: canSave || saving ? theme.primary : theme.surfaceField }]}
+                  >
+                    {saving ? (
+                      <ActivityIndicator size="small" color={theme.onPrimary} />
+                    ) : (
+                      <Text style={[styles.saveText, { color: canSave ? theme.onPrimary : theme.onSurfaceMuted }]}>{task ? c.save : c.add}</Text>
+                    )}
+                  </Touchable>
+                </View>
+              </View>
+            </View>
+
             <ScrollView
               style={styles.formContainer}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: S.lg }}
+              contentContainerStyle={{ paddingHorizontal: S.lg, paddingBottom: (floating ? S.lg : insets.bottom + S.lg) }}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
-              automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
             >
-              <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-                <View style={StyleSheet.absoluteFill} />
-              </TouchableWithoutFeedback>
-              {/* Title Section */}
-              <View style={styles.section}>
-                <Pressable onPress={() => titleInputRef.current?.focus()} accessible={false} style={[styles.inputGroup, { backgroundColor: fieldFill('title'), height: 60 }]}>
+              {/* BAŞLIK + NOT — tek gruplu kart (Hatırlatıcılar), başlık formun en büyük yazısı. */}
+              <View style={styles.titleCard}>
+                <Pressable
+                  onPress={() => titleInputRef.current?.focus()}
+                  accessible={false}
+                  style={[styles.titleRow, { backgroundColor: titleError ? theme.error + '14' : fieldFill('title') }]}
+                >
                   <TextInput
                     ref={titleInputRef}
-                    style={[styles.modalInput, { color: theme.onSurface, fontSize: F.body }]}
-                    placeholder={isListeningTitle ? t.listeningLabel : t.taskTitle}
-                    placeholderTextColor={theme.onSurfaceVariant + '99'}
+                    style={[styles.titleInput, { color: theme.onSurface }]}
+                    placeholder={isListeningTitle ? t.listeningLabel : c.titlePlaceholder}
+                    placeholderTextColor={theme.onSurfaceMuted}
                     value={form.title}
                     onChangeText={handleTitleChange}
                     onFocus={() => setFocusedField('title')}
                     onBlur={() => setFocusedField(null)}
                     maxLength={150}
+                    multiline
+                    submitBehavior="blurAndSubmit"
+                    returnKeyType="done"
+                    accessibilityLabel={t.taskTitle}
                     underlineColorAndroid="transparent"
                   />
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                    {hasNlpHint(nlpHint) ? <Sparkles size={ICON.sm} color={theme.primary} /> : null}
-                    <Touchable
-                      onPress={() => toggleVoice('title')}
-                      style={{ padding: S.xs, alignItems: 'center', justifyContent: 'center' }}
-                      accessibilityRole="button"
-                      accessibilityLabel={isListeningTitle ? (language === 'tr' ? 'Dinlemeyi durdur' : 'Stop listening') : (language === 'tr' ? 'Sesle yaz' : 'Voice input')}
-                      accessibilityState={{ busy: isListeningTitle }}
-                    >
-                      <VoiceWave active={isListeningTitle} theme={theme} />
-                    </Touchable>
-                  </View>
+                  {hasNlpHint(nlpHint) ? <Sparkles size={ICON.sm} color={theme.primary} /> : null}
+                  <Touchable
+                    onPress={() => toggleVoice('title')}
+                    style={styles.micBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={isListeningTitle ? c.voiceStop : c.voice}
+                    accessibilityState={{ busy: isListeningTitle }}
+                  >
+                    <VoiceWave active={isListeningTitle} theme={theme} />
+                  </Touchable>
                 </Pressable>
-
-                {hasNlpHint(nlpHint) ? (
-                  <NlpHintRow hint={nlpHint} theme={theme} />
-                ) : showSmartHint && !task ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm, marginLeft: S.md }}>
-                    <Sparkles size={ICON.xs} color={theme.primary} />
-                    <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '600' }}>
-                      {language === 'tr'
-                        ? '"yarın", "acil", "hatırlatıcı" gibi kelimeler otomatik algılanır'
-                        : '"tomorrow", "urgent", "reminder" are auto-detected'}
-                    </Text>
-                  </View>
-                ) : null}
-
-                {/* Description */}
-                <Pressable onPress={() => descInputRef.current?.focus()} accessible={false} style={[styles.inputGroup, styles.modalTextArea, { backgroundColor: fieldFill('desc'), marginTop: S.sm, height: 100 }]}>
+                <View style={[styles.cardSeparator, { backgroundColor: theme.separator }]} />
+                <Pressable
+                  onPress={() => descInputRef.current?.focus()}
+                  accessible={false}
+                  style={[styles.notesRow, { backgroundColor: fieldFill('desc') }]}
+                >
                   <TextInput
                     ref={descInputRef}
-                    style={[styles.modalInput, { color: theme.onSurface, paddingTop: S.sm, fontSize: F.body }]}
-                    placeholder={isListeningDesc ? t.listeningLabel : t.taskDescription + '...'}
-                    placeholderTextColor={theme.onSurfaceVariant + '99'}
+                    style={[styles.notesInput, { color: theme.onSurface }]}
+                    placeholder={isListeningDesc ? t.listeningLabel : c.notesPlaceholder}
+                    placeholderTextColor={theme.onSurfaceMuted}
                     value={form.description}
                     onChangeText={handleDescriptionChange}
                     onFocus={() => setFocusedField('desc')}
                     onBlur={() => setFocusedField(null)}
                     multiline
-                    numberOfLines={3}
                     maxLength={500}
+                    accessibilityLabel={t.taskDescription}
                     underlineColorAndroid="transparent"
                   />
                   <Touchable
                     onPress={() => toggleVoice('description')}
-                    style={{ position: 'absolute', right: S.md, top: 14, padding: S.xs, alignItems: 'center', justifyContent: 'center' }}
+                    style={styles.micBtn}
                     accessibilityRole="button"
-                    accessibilityLabel={isListeningDesc ? (language === 'tr' ? 'Dinlemeyi durdur' : 'Stop listening') : (language === 'tr' ? 'Sesle yaz' : 'Voice input')}
+                    accessibilityLabel={isListeningDesc ? c.voiceStop : c.voice}
                     accessibilityState={{ busy: isListeningDesc }}
                   >
                     <VoiceWave active={isListeningDesc} theme={theme} />
@@ -584,438 +585,183 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                 </Pressable>
               </View>
 
-              {/* Date & Time Selection */}
+              {titleError ? (
+                <Text accessibilityLiveRegion="polite" style={[styles.helper, { color: theme.error }]}>{c.titleRequired}</Text>
+              ) : hasNlpHint(nlpHint) ? (
+                <NlpHintRow hint={nlpHint} theme={theme} />
+              ) : !task && !form.title ? (
+                <View style={styles.smartHint}>
+                  <Sparkles size={ICON.xs} color={theme.primary} />
+                  <Text style={[styles.helper, styles.helperInline, { color: theme.onSurfaceVariant }]}>{c.smartHint}</Text>
+                </View>
+              ) : null}
+
+              {/* NE ZAMAN — kısayollar, saat, hatırlatıcı */}
               <View style={styles.section}>
-                {!showDatePicker && !showTimePicker && (
-                  <View style={styles.dateTimeRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted, fontSize: F.caption, marginBottom: S.md }]}>
-                        {upperFor(t.dueDate, language)}
-                      </Text>
-                      <Touchable
-                        onPress={openDatePicker}
-                        style={[styles.dateTimeChip, { backgroundColor: theme.surfaceField, height: 52 }]}
-                      >
-                        <Timer size={ICON.sm} color={theme.primary} />
-                        <Text style={[styles.chipText, { color: form.dueDate ? theme.onSurface : theme.onSurfaceVariant + '60', fontSize: F.caption2 }]} numberOfLines={1}>
-                          {form.dueDate || t.selectDate}
-                        </Text>
-                      </Touchable>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted, fontSize: F.caption, marginBottom: S.md }]}>
-                        {upperFor(t.dueTime, language)}
-                      </Text>
-                      <Touchable
-                        onPress={openTimePicker}
-                        style={[styles.dateTimeChip, { backgroundColor: theme.surfaceField, height: 52 }]}
-                      >
-                        <Sparkles size={ICON.sm} color={theme.secondary} />
-                        <Text style={[styles.chipText, { color: form.dueTime ? theme.onSurface : theme.onSurfaceVariant + '60', fontSize: F.caption2 }]} numberOfLines={1}>
-                          {form.dueTime ? new Date(form.dueTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : t.selectTime}
-                        </Text>
-                      </Touchable>
-                    </View>
-                  </View>
-                )}
-
-                {/* Inline Date Picker */}
-                {showDatePicker && (
-                  <View style={[styles.inlinePicker, { backgroundColor: theme.surfaceField, borderColor: theme.outline }]}>
-                    <Text style={[styles.inlinePickerTitle, { color: theme.onSurfaceVariant }]}>{t.dueDate}</Text>
-                    <View style={styles.pickerRow}>
-                      <View style={styles.pickerCol}>
-                        <Text style={[styles.pickerColLabel, { color: theme.onSurfaceMuted }]}>{t.day}</Text>
-                        <Touchable onPress={() => setPickerDate(d => ({ ...d, day: Math.min(d.day + 1, daysInMonth(d.year, d.month)) }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
-                        <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerDate.day).padStart(2, '0')}</Text>
-                        <Touchable 
-                          onPress={() => setPickerDate(d => {
-                            const now = new Date();
-                            const minDay = (d.year === now.getFullYear() && d.month === (now.getMonth() + 1)) ? now.getDate() : 1;
-                            return { ...d, day: Math.max(d.day - 1, minDay) };
-                          })} 
-                          style={styles.pickerArrow}
-                        >
-                          <Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text>
-                        </Touchable>
-                      </View>
-                      <View style={styles.pickerCol}>
-                        <Text style={[styles.pickerColLabel, { color: theme.onSurfaceMuted }]}>{t.month}</Text>
-                        <Touchable onPress={() => setPickerDate(d => ({ ...d, month: d.month === 12 ? 1 : d.month + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
-                        <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerDate.month).padStart(2, '0')}</Text>
-                        <Touchable 
-                          onPress={() => setPickerDate(d => {
-                            const now = new Date();
-                            const minMonth = d.year === now.getFullYear() ? (now.getMonth() + 1) : 1;
-                            return { ...d, month: Math.max(d.month - 1, minMonth) };
-                          })} 
-                          style={styles.pickerArrow}
-                        >
-                          <Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text>
-                        </Touchable>
-                      </View>
-                      <View style={styles.pickerCol}>
-                        <Text style={[styles.pickerColLabel, { color: theme.onSurfaceMuted }]}>{t.year}</Text>
-                        <Touchable onPress={() => setPickerDate(d => ({ ...d, year: d.year + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
-                        <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{pickerDate.year}</Text>
-                        <Touchable 
-                          onPress={() => setPickerDate(d => ({ ...d, year: Math.max(d.year - 1, new Date().getFullYear()) }))} 
-                          style={styles.pickerArrow}
-                        >
-                          <Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text>
-                        </Touchable>
-                      </View>
-                    </View>
-                    {dateError && (
-                      <View style={{ backgroundColor: theme.error + '15', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm, marginBottom: S.sm, flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                        <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '600' }}>{t.invalidDate}</Text>
-                      </View>
-                    )}
-                    <View style={styles.pickerActions}>
-                      <Touchable onPress={() => setShowDatePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={[styles.pickerBtnText, { color: theme.onSurfaceVariant }]}>{t.cancel}</Text></Touchable>
-                      <Touchable onPress={confirmDate} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: theme.onPrimary, fontWeight: '600' }]}>{t.save}</Text></Touchable>
-                    </View>
-                  </View>
-                )}
-
-                {/* Inline Time Picker */}
-                {showTimePicker && (
-                  <View style={[styles.inlinePicker, { backgroundColor: theme.surfaceField, borderColor: theme.outline }]}>
-                    <Text style={[styles.inlinePickerTitle, { color: theme.onSurfaceVariant }]}>{t.dueTime}</Text>
-                    <View style={styles.pickerRow}>
-                      <View style={styles.pickerCol}>
-                        <Text style={[styles.pickerColLabel, { color: theme.onSurfaceMuted }]}>{t.hour}</Text>
-                        <Touchable onPress={() => setPickerTime(pt => ({ ...pt, hour: pt.hour === 23 ? 0 : pt.hour + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
-                        <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerTime.hour).padStart(2, '0')}</Text>
-                        <Touchable onPress={() => setPickerTime(pt => ({ ...pt, hour: pt.hour === 0 ? 23 : pt.hour - 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></Touchable>
-                      </View>
-                      <Text style={[styles.pickerColon, { color: theme.onSurface }]}>:</Text>
-                      <View style={styles.pickerCol}>
-                        <Text style={[styles.pickerColLabel, { color: theme.onSurfaceMuted }]}>{t.minute}</Text>
-                        <Touchable onPress={() => setPickerTime(pt => ({ ...pt, minute: pt.minute === 59 ? 0 : pt.minute + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
-                        <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerTime.minute).padStart(2, '0')}</Text>
-                        <Touchable onPress={() => setPickerTime(pt => ({ ...pt, minute: pt.minute === 0 ? 59 : pt.minute - 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></Touchable>
-                      </View>
-                    </View>
-                    <View style={styles.pickerActions}>
-                      <Touchable onPress={() => setShowTimePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={[styles.pickerBtnText, { color: theme.onSurfaceVariant }]}>{t.cancel}</Text></Touchable>
-                      <Touchable onPress={confirmTime} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: theme.onPrimary, fontWeight: '600' }]}>{t.save}</Text></Touchable>
-                    </View>
-                  </View>
-                )}
+                {sectionLabel(c.date)}
+                <ScheduleSection
+                  value={form}
+                  onDate={(dueDate) => { touch('dueDate'); setForm(f => ({ ...f, dueDate })); }}
+                  onTime={(dueTime) => { touch('dueTime'); setForm(f => ({ ...f, dueTime })); }}
+                  onReminder={setReminder}
+                  theme={theme}
+                  isDark={isDark}
+                  language={language}
+                  c={c}
+                />
               </View>
 
-              {/* Priority Selectors */}
+              {/* ÖNCELİK — anlam rengi yalnız noktada */}
               <View style={styles.section}>
-                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted }]}>{upperFor(t.priority, language)}</Text>
-                <View style={[styles.priorityRow, { gap: S.sm }]}>
-                  {([
+                {sectionLabel(c.priority)}
+                <SegmentedControl<Priority>
+                  accessibilityLabel={c.priority}
+                  value={form.priority}
+                  onChange={(p) => { touch('priority'); setForm(f => ({ ...f, priority: p })); }}
+                  theme={theme}
+                  isDark={isDark}
+                  options={([
                     { key: 'Low', label: t.filterLow },
                     { key: 'Medium', label: t.filterMedium },
-                    { key: 'High', label: t.filterHigh }
-                  ] as { key: Priority; label: string }[]).map((p) => (
-                    <Touchable
-                      key={p.key}
-                      onPress={() => { haptic.select(); touch('priority'); setForm(f => ({ ...f, priority: p.key })); }}
-                      style={[styles.priorityTab, { backgroundColor: form.priority === p.key ? priorityColor(p.key) : theme.surfaceField, height: 48 }]}
-                    >
-                      <Text style={[
-                        styles.priorityTabText,
-                        {
-                          color: form.priority === p.key
-                            ? (p.key === 'Low' ? theme.onTertiary : 'white')
-                            : theme.onSurfaceVariant,
-                          fontSize: F.body
-                        }
-                      ]}>
-                        {p.label}
-                      </Text>
-                    </Touchable>
-                  ))}
-                </View>
+                    { key: 'High', label: t.filterHigh },
+                  ] as { key: Priority; label: string }[]).map(p => ({
+                    ...p,
+                    leading: () => <View style={[styles.priorityDot, { backgroundColor: priorityColor(p.key) }]} />,
+                  }))}
+                />
               </View>
 
-              {/* Recurrence Selectors */}
+              {/* TEKRAR */}
               <View style={styles.section}>
-                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted }]}>{upperFor(t.recurrence, language)}</Text>
-                <View style={[styles.priorityRow, { gap: S.sm }]}>
-                  {RECURRENCE_OPTIONS.map((r) => (
-                    <Touchable
-                      key={r.key}
-                      hitSlop={{ top: 2, bottom: 2, left: 0, right: 0 }}
-                      onPress={() => { haptic.select(); touch('recurrence'); setForm(f => ({ ...f, recurrence: r.key })); }}
-                      style={[styles.priorityTab, { backgroundColor: form.recurrence === r.key ? theme.secondary : theme.surfaceField, height: 42 }]}
-                    >
-                      {r.key !== 'None' && <Repeat size={ICON.xs} color={form.recurrence === r.key ? 'white' : theme.onSurfaceVariant} />}
-                      <Text style={[styles.priorityTabText, { color: form.recurrence === r.key ? 'white' : theme.onSurfaceVariant, fontSize: F.caption }]}>
-                        {(t as any)[r.labelKey]}
-                      </Text>
-                    </Touchable>
-                  ))}
-                </View>
+                {sectionLabel(c.repeat)}
+                <SegmentedControl<RecurrenceType>
+                  accessibilityLabel={c.repeat}
+                  value={form.recurrence}
+                  onChange={(r) => { touch('recurrence'); setForm(f => ({ ...f, recurrence: r })); }}
+                  theme={theme}
+                  isDark={isDark}
+                  options={RECURRENCE_OPTIONS.map(r => ({ key: r.key, label: (t as Record<string, string>)[r.labelKey] }))}
+                />
                 {form.recurrence !== 'None' && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm }}>
-                    <Repeat size={ICON.xs} color={theme.secondary} />
-                    {form.dueDate ? (
-                      <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.secondary }}>
-                        {getNextOccurrenceLabel(form.dueDate, form.recurrence, language)}
-                      </Text>
-                    ) : (
-                      <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant }}>
-                        {language === 'tr' ? 'Tekrar için tarih seçin' : 'Set a due date to track recurrence'}
-                      </Text>
-                    )}
+                  <View style={styles.smartHint}>
+                    <Repeat size={ICON.xs} color={form.dueDate ? theme.primary : theme.onSurfaceMuted} />
+                    <Text style={[styles.helper, styles.helperInline, { color: form.dueDate ? theme.primary : theme.onSurfaceVariant }]}>
+                      {form.dueDate ? getNextOccurrenceLabel(form.dueDate, form.recurrence, language, c) : c.repeatNeedsDate}
+                    </Text>
                   </View>
                 )}
               </View>
 
-              {/* Reminder Switch */}
+              {/* ALT GÖREVLER — gruplu liste, ekleme satırı listenin son satırı (Things kontrol listesi) */}
               <View style={styles.section}>
-                <Touchable
-                  onPress={() => {
-                    haptic.select();
-                    // Anahtar tarih ve saati de kuruyor — üçü de artık kullanıcının.
-                    touch('reminder', 'dueDate', 'dueTime');
-                    setForm(f => {
-                      const nextReminderEnabled = !f.reminderEnabled;
-                      let nextDueTime = f.dueTime;
-                      let nextDueDate = f.dueDate;
-
-                      if (nextReminderEnabled) {
-                        const now = new Date();
-                        const defaultTime = new Date();
-                        const formatLocal = (dObj: Date) => {
-                          const y = dObj.getFullYear();
-                          const m = String(dObj.getMonth() + 1).padStart(2, '0');
-                          const d = String(dObj.getDate()).padStart(2, '0');
-                          return `${y}-${m}-${d}`;
-                        };
-
-                        if (!f.dueTime) {
-                          if (!f.dueDate) {
-                            if (now.getHours() < 9) {
-                              defaultTime.setHours(9, 0, 0, 0);
-                              nextDueTime = defaultTime.toISOString();
-                              nextDueDate = formatLocal(now);
-                            } else {
-                              const tomorrow = new Date(now);
-                              tomorrow.setDate(now.getDate() + 1);
-                              defaultTime.setHours(9, 0, 0, 0);
-                              nextDueTime = defaultTime.toISOString();
-                              nextDueDate = formatLocal(tomorrow);
-                            }
-                          } else {
-                            // YEREL GÜN — f.dueDate 'YYYY-MM-DD'; ham new Date() negatif
-                            // UTC-fark saat dilimlerinde "yarın"ı "bugün" okuyup varsayılan
-                            // hatırlatıcıyı yanlış dalda (geçmiş bir saate) kurardı.
-                            const targetDate = parseDateKey(f.dueDate);
-                            targetDate.setHours(0, 0, 0, 0);
-                            const todayZero = new Date();
-                            todayZero.setHours(0, 0, 0, 0);
-                            
-                            if (targetDate > todayZero) {
-                              defaultTime.setHours(9, 0, 0, 0);
-                              nextDueTime = defaultTime.toISOString();
-                            } else {
-                              let nextHour = now.getHours() + 1;
-                              if (nextHour > 23) {
-                                const tomorrow = new Date(now);
-                                tomorrow.setDate(now.getDate() + 1);
-                                nextDueDate = formatLocal(tomorrow);
-                                defaultTime.setHours(9, 0, 0, 0);
-                                nextDueTime = defaultTime.toISOString();
-                              } else {
-                                defaultTime.setHours(nextHour, 0, 0, 0);
-                                nextDueTime = defaultTime.toISOString();
-                              }
-                            }
-                          }
-                        } else if (!f.dueDate) {
-                          const { hours, minutes } = parseTimeParts(f.dueTime);
-                          const target = new Date(now);
-                          target.setHours(hours, minutes, 0, 0);
-                          if (target < now) {
-                            const tomorrow = new Date(now);
-                            tomorrow.setDate(now.getDate() + 1);
-                            nextDueDate = formatLocal(tomorrow);
-                          } else {
-                            nextDueDate = formatLocal(now);
-                          }
-                        }
-                      }
-
-                      return {
-                        ...f,
-                        reminderEnabled: nextReminderEnabled,
-                        dueTime: nextDueTime,
-                        dueDate: nextDueDate
-                      };
-                    });
-                  }}
-                  style={[styles.inputGroup, {
-                    /*
-                      RENK `primary`, `priorityMedium` DEĞİL.
-
-                      Hatırlatıcı satırı önceliğin ORTA renginde çiziliyordu. Ama
-                      hatırlatıcı bir öncelik değil; "orta öncelikli hatırlatıcı" diye bir
-                      şey yok. Aynı hatanın bir başkası silme düğmesindeydi (yıkıcı eylem
-                      `priorityHigh` ile çiziliyordu) ve orada da düzeltildi: öncelik
-                      renkleri YALNIZCA görevin aciliyetini anlatır.
-
-                      Doğru jeton `primary` — uygulamada "etkin kontrol" rengi. Ayarlardaki
-                      diğer anahtarlar da onu kullanıyor, yani bu satır artık onlarla aynı
-                      dili konuşuyor.
-                    */
-                    backgroundColor: form.reminderEnabled
-                      ? theme.primaryContainer
-                      : theme.surfaceField,
-                    height: 52,
-                  }]}
-                >
-                  <Bell size={ICON.md} color={form.reminderEnabled ? theme.primary : theme.onSurfaceVariant} />
-                  <Text style={{ flex: 1, fontSize: F.body, fontWeight: '600', color: form.reminderEnabled ? theme.primary : theme.onSurfaceVariant, marginLeft: S.sm }}>
-                    {t.reminderLabel}
-                  </Text>
-                  <View style={{
-                    width: 44, height: 26, borderRadius: R.md,
-                    // Kapalı ray rengi de PALETTEN: elle yazılmış rgba tonları tema
-                    // değişince sessizce eskiyordu.
-                    backgroundColor: form.reminderEnabled ? theme.primary : theme.outlineVariant,
-                    justifyContent: 'center', paddingHorizontal: S.xxs,
-                  }}>
-                    <RNAnimated.View
-                      style={{
-                        width: 22,
-                        height: 22,
-                        borderRadius: R.full,
-                        backgroundColor: 'white',
-                        transform: [{ translateX: form.reminderEnabled ? 18 : 0 }]
-                      }}
-                    />
-                  </View>
-                </Touchable>
-              </View>
-
-              {/* Subtasks Editor */}
-              <View style={styles.section}>
-                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted }]}>{upperFor(t.subtasks, language)}</Text>
-                {form.subtasks.map((sub, i) => (
-                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm }}>
-                    <Touchable
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: sub.done }}
-                      accessibilityLabel={`${sub.text} — ${sub.done ? (language === 'tr' ? 'tamamlandı' : 'done') : (language === 'tr' ? 'tamamlanmadı' : 'not done')}`}
-                      onPress={() => {
-                        /*
-                          FONKSİYONEL GÜNCELLEME + YENİ NESNE — iki ayrı hata:
-                          1) `form.subtasks`i (kapanıştaki bayat değer) okumak, art arda
-                             hızlı iki dokunuşta ilkini kaybettiriyordu (ikinci güncelleme
-                             ilkinden ÖNCEKİ diziyi kopyalıyordu).
-                          2) `subs[i].done = …` alt-görev NESNESİNİ yerinde değiştiriyordu —
-                             bu nesne düzenlenen görevin (üst bileşendeki) ORİJİNAL dizisiyle
-                             AYNI referans. Kullanıcı kutucuğu işaretleyip sonra modalı
-                             Kaydet'e basmadan kapatırsa (X/geri kaydırma), değişiklik ağa
-                             hiç gitmeden üst bileşenin belleğindeki göreve sessizce işlenmiş
-                             oluyordu.
-                        */
-                        setForm(f => ({
-                          ...f,
-                          subtasks: f.subtasks.map((s, idx) => idx === i ? { ...s, done: !s.done } : s),
-                        }));
-                        haptic.surface();
-                      }}
-                      style={{ width: 24, height: 24, borderRadius: R.sm, borderWidth: 1.5, borderColor: sub.done ? theme.success : theme.outline, alignItems: 'center', justifyContent: 'center', backgroundColor: sub.done ? theme.success + '1A' : 'transparent' }}
-                    >
-                      {sub.done ? <Check size={ICON.sm} color={theme.success} /> : null}
-                    </Touchable>
-                    <Text style={{ flex: 1, fontSize: F.body, color: sub.done ? theme.onSurfaceVariant : theme.onSurface, textDecorationLine: sub.done ? 'line-through' : 'none', opacity: sub.done ? 0.6 : 1 }}>
-                      {sub.text}
-                    </Text>
-                    <Touchable
-                      accessibilityRole="button"
-                      accessibilityLabel={language === 'tr' ? 'Alt görevi sil' : 'Delete subtask'}
-                      onPress={() => {
-                        haptic.commit();
-                        setForm(f => ({ ...f, subtasks: f.subtasks.filter((_, idx) => idx !== i) }));
-                      }}
-                      style={{ padding: S.xs }}
-                    >
-                      {/* Yıkıcı eylem `error` ile çizilir. `priorityHigh` görevin
-                          ACİLİYETİNİ anlatır; silmenin aciliyetle ilgisi yok. İkisi
-                          tesadüfen benzer renkler olabilir ama palet değişince bu
-                          satır sessizce yanlış anlama kayardı. */}
-                      <Trash2 size={ICON.sm} color={theme.error} />
-                    </Touchable>
-                  </View>
-                ))}
-                
-                {/* Add Subtask Input */}
-                <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.sm }}>
-                  <Pressable onPress={() => subtaskInputRef.current?.focus()} accessible={false} style={[styles.inputGroup, { flex: 1, backgroundColor: fieldFill('subtask'), height: 44 }]}>
+                {sectionLabel(c.subtasks)}
+                <View style={[styles.groupCard, { backgroundColor: theme.surfaceField }]}>
+                  {form.subtasks.map((sub, i) => (
+                    <React.Fragment key={`${i}-${sub.text}`}>
+                      <View style={styles.subtaskRow}>
+                        <Touchable
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: sub.done }}
+                          accessibilityLabel={`${sub.text} — ${sub.done ? c.subtaskDone : c.subtaskOpen}`}
+                          onPress={() => {
+                            /*
+                              FONKSİYONEL GÜNCELLEME + YENİ NESNE: kapanıştaki bayat diziyi okumak
+                              hızlı iki dokunuşta ilkini kaybettiriyordu; nesneyi yerinde değiştirmek
+                              Kaydet'e basılmadan üst bileşendeki ORİJİNAL göreve işliyordu.
+                            */
+                            setForm(f => ({
+                              ...f,
+                              subtasks: f.subtasks.map((s, idx) => idx === i ? { ...s, done: !s.done } : s),
+                            }));
+                            haptic.surface();
+                          }}
+                          style={[styles.checkbox, { borderColor: sub.done ? theme.success : theme.outline, backgroundColor: sub.done ? theme.success + '1A' : 'transparent' }]}
+                        >
+                          {sub.done ? <Check size={ICON.xs} color={theme.success} strokeWidth={2.6} /> : null}
+                        </Touchable>
+                        <Text style={[styles.subtaskText, { color: sub.done ? theme.onSurfaceMuted : theme.onSurface, textDecorationLine: sub.done ? 'line-through' : 'none' }]}>
+                          {sub.text}
+                        </Text>
+                        <Touchable
+                          accessibilityRole="button"
+                          accessibilityLabel={c.removeSubtask}
+                          onPress={() => {
+                            haptic.commit();
+                            setForm(f => ({ ...f, subtasks: f.subtasks.filter((_, idx) => idx !== i) }));
+                          }}
+                          style={styles.iconBtn}
+                        >
+                          {/* Yıkıcı eylem `error` ile çizilir; `priorityHigh` görevin ACİLİYETİNİ anlatır. */}
+                          <Trash2 size={ICON.sm} color={theme.error} />
+                        </Touchable>
+                      </View>
+                      <View style={[styles.subtaskSeparator, { backgroundColor: theme.separator }]} />
+                    </React.Fragment>
+                  ))}
+                  <Pressable
+                    onPress={() => subtaskInputRef.current?.focus()}
+                    accessible={false}
+                    style={[styles.subtaskRow, { backgroundColor: focusedField === 'subtask' ? fieldFill('subtask') : 'transparent' }]}
+                  >
+                    <Plus size={ICON.sm} color={theme.primary} strokeWidth={2.4} />
                     <TextInput
                       ref={subtaskInputRef}
-                      style={{ flex: 1, fontSize: F.caption, color: theme.onSurface, fontWeight: '600' }}
-                      placeholder={language === 'tr' ? 'Alt görev ekle...' : 'Add subtask...'}
-                      placeholderTextColor={theme.onSurfaceVariant + '80'}
+                      style={[styles.subtaskInput, { color: theme.onSurface }]}
+                      placeholder={c.addSubtask}
+                      placeholderTextColor={theme.onSurfaceMuted}
                       value={newSubtaskText}
                       onChangeText={setNewSubtaskText}
                       onFocus={() => setFocusedField('subtask')}
                       onBlur={() => setFocusedField(null)}
-                      onSubmitEditing={() => {
-                        if (!newSubtaskText.trim()) return;
-                        setForm(f => ({ ...f, subtasks: [...f.subtasks, { text: newSubtaskText.trim(), done: false }] }));
-                        setNewSubtaskText('');
-                      }}
+                      onSubmitEditing={addSubtask}
+                      // Art arda madde yazılabilsin: Enter klavyeyi kapatmaz.
+                      submitBehavior="submit"
+                      returnKeyType="next"
+                      accessibilityLabel={c.addSubtask}
                     />
+                    {newSubtaskText.trim() ? (
+                      <Touchable accessibilityRole="button" accessibilityLabel={c.addSubtask} onPress={addSubtask} style={[styles.addSubtaskBtn, { backgroundColor: theme.primary }]}>
+                        <Check size={ICON.xs} color={theme.onPrimary} strokeWidth={2.6} />
+                      </Touchable>
+                    ) : null}
                   </Pressable>
-                  <Touchable
-                    accessibilityRole="button"
-                    accessibilityLabel={language === 'tr' ? 'Alt görev ekle' : 'Add subtask'}
-                    onPress={() => {
-                      if (!newSubtaskText.trim()) return;
-                      setForm(f => ({ ...f, subtasks: [...f.subtasks, { text: newSubtaskText.trim(), done: false }] }));
-                      setNewSubtaskText('');
-                    }}
-                    style={{ width: 44, height: 44, borderRadius: R.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Plus size={ICON.md} color={theme.onPrimary} />
-                  </Touchable>
                 </View>
               </View>
 
-              {/* Tag Editor (Visual selector chips) */}
+              {/* ETİKETLER — kategori yongaları açılıp kapanır; motorun/kullanıcının özel etiketleri kaldırılabilir */}
               <View style={styles.section}>
-                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted }]}>{upperFor((t as { tags?: string }).tags || (language === 'tr' ? 'Etiketler' : 'Tags'), language)}</Text>
-                <View style={{ flexDirection: 'row', gap: S.xs, flexWrap: 'wrap', marginBottom: S.sm }}>
-                  {visibleTextTags(form.tags).map(tag => (
-                    <View key={tag} style={{ backgroundColor: theme.primary + '1F', borderRadius: R.sm, paddingLeft: S.sm, paddingRight: S.xs, paddingVertical: S.xs, flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
-                      <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.primary }}>
-                        {translateTag(tag, language as 'tr' | 'en')}
-                      </Text>
-                      <Touchable accessibilityRole="button" accessibilityLabel={language === 'tr' ? `${tag} etiketini kaldır` : `Remove tag ${tag}`} onPress={() => { draftRef.current = rejectTag(draftRef.current, tag); setForm(f => ({ ...f, tags: f.tags.filter(t => t !== tag) })); }} style={{ padding: S.xxs }}>
+                {sectionLabel(t.tags || c.tags)}
+                {customTags.length > 0 && (
+                  <View style={styles.customTags}>
+                    {customTags.map(tag => (
+                      <Touchable
+                        key={tag}
+                        accessibilityRole="button"
+                        accessibilityLabel={c.removeTag(tag)}
+                        onPress={() => toggleTag(tag, true)}
+                        style={[styles.tagChip, { backgroundColor: theme.primary + '1F' }]}
+                      >
+                        <Text style={[styles.tagText, { color: theme.primary, fontWeight: '600' }]}>{translateTag(tag, language as 'tr' | 'en')}</Text>
                         <X size={ICON.xs} color={theme.primary} />
                       </Touchable>
-                    </View>
-                  ))}
-                </View>
-                
-                {/* Pre-defined/Custom Tags selector */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: S.xs }}>
-                  {(['work', 'education', 'personal', 'shopping', 'health', 'fitness', 'finance', 'home', 'social'] as CategoryId[])
-                    .map(id => CATEGORY_TAGS[id][langOf(language)]).map(tagOption => {
+                    ))}
+                  </View>
+                )}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.tagRow}>
+                  {CATEGORY_IDS.map(id => CATEGORY_TAGS[id][langOf(language)]).map(tagOption => {
                     const hasTag = form.tags.includes(tagOption);
                     return (
                       <Touchable
                         key={tagOption}
-                        onPress={() => {
-                          haptic.select();
-                          if (hasTag) { draftRef.current = rejectTag(draftRef.current, tagOption); setForm(f => ({ ...f, tags: f.tags.filter(t => t !== tagOption) })); }
-                          else setForm(f => ({ ...f, tags: [...f.tags, tagOption] }));
-                        }}
-                        style={{ paddingHorizontal: S.smd, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: hasTag ? theme.primary : theme.surfaceField }}
+                        accessibilityRole="button"
+                        accessibilityLabel={translateTag(tagOption, language as 'tr' | 'en')}
+                        accessibilityState={{ selected: hasTag }}
+                        onPress={() => toggleTag(tagOption, hasTag)}
+                        style={[styles.tagChip, { backgroundColor: hasTag ? theme.primary + '1F' : theme.surfaceField }]}
                       >
-                        <Text style={{ fontSize: F.caption, fontWeight: '600', color: hasTag ? theme.onPrimary : theme.onSurfaceVariant }}>
+                        {hasTag ? <Check size={ICON.xs} color={theme.primary} strokeWidth={2.4} /> : null}
+                        <Text style={[styles.tagText, { color: hasTag ? theme.primary : theme.onSurfaceVariant, fontWeight: hasTag ? '600' : '500' }]}>
                           {translateTag(tagOption, language as 'tr' | 'en')}
                         </Text>
                       </Touchable>
@@ -1024,37 +770,16 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                 </ScrollView>
               </View>
 
-              {/* Form Submission Actions */}
-              <Touchable onPress={handleSave} style={styles.modalSaveBtn} disabled={saving}>
-                <View style={[styles.modalSaveGradient, { backgroundColor: theme.primary }]}>
-                  {saving ? (
-                    <ActivityIndicator color="black" />
-                  ) : (
-                    <>
-                      <Text style={[styles.modalSaveText, { color: theme.onPrimary }]}>{t.save}</Text>
-                    </>
-                  )}
-                </View>
-              </Touchable>
-
-              {/* Task Delete Trigger */}
               {task && onDelete && (
                 <Touchable
-                  onPress={async () => {
-                    haptic.commit();
-                    setSaving(true);
-                    try {
-                      await onDelete(task.id);
-                      onClose();
-                    } catch (e) { swallow('TaskFormModal.toggleTag', e); }
-                    finally { setSaving(false); }
-                  }}
-                  style={{ alignSelf: 'center', marginTop: S.sm, padding: S.sm }}
+                  onPress={confirmDelete}
                   disabled={saving}
+                  accessibilityRole="button"
+                  accessibilityLabel={c.deleteTask}
+                  style={[styles.deleteBtn, { backgroundColor: theme.error + '12' }]}
                 >
-                  <Text style={{ color: theme.error, fontWeight: '700', fontSize: F.body }}>
-                    {t.deleteTask || (language === 'tr' ? 'Görevi Sil' : 'Delete Task')}
-                  </Text>
+                  <Trash2 size={ICON.sm} color={theme.error} />
+                  <Text style={[styles.deleteText, { color: theme.error }]}>{c.deleteTask}</Text>
                 </Touchable>
               )}
             </ScrollView>
@@ -1065,17 +790,14 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
   );
 };
 
-function parseTimeParts(isoString: string) {
-  const date = new Date(isoString);
-  return { hours: date.getHours(), minutes: date.getMinutes() };
-}
-
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
+    alignItems: 'center',
   },
+  overlayCentered: { justifyContent: 'center' },
   sheetContainer: {
     width: '100%',
   },
@@ -1084,78 +806,81 @@ const styles = StyleSheet.create({
     borderTopRightRadius: R.sheet,
     borderWidth: B.thin,
     borderBottomWidth: 0,
+    overflow: 'hidden',
   },
   dragHandleContainer: {
-    paddingTop: S.md,
-    paddingBottom: S.lmd,
+    paddingTop: S.sm,
+    paddingBottom: S.xs,
     alignItems: 'center',
   },
   handle: {
-    width: scale(40),
-    height: scale(4),
-    borderRadius: R.sm,
+    width: scale(36),
+    height: 5,
+    borderRadius: R.full,
     alignSelf: 'center',
   },
   sheetHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: S.lg,
+    paddingBottom: S.md,
   },
+  headerSide: { flex: 1, alignItems: 'flex-start' },
+  headerSideEnd: { alignItems: 'flex-end' },
   sheetTitle: {
+    fontSize: F.subhead,
     fontWeight: '600',
-    letterSpacing: -0.5,
+    letterSpacing: -0.2,
+    maxWidth: '55%',
   },
-  closeModalBtn: {
-    width: scale(40),
-    height: scale(40),
+  closeBtn: {
+    width: 36,
+    height: 36,
     borderRadius: R.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  formContainer: {
-    paddingHorizontal: S.xs,
-  },
-  section: {
-    marginBottom: S.md,
-  },
-  inputGroup: {
-    borderRadius: R.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
+  saveBtn: {
+    minWidth: 72,
+    height: 36,
     paddingHorizontal: S.md,
+    borderRadius: R.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  modalInput: {
+  saveText: { fontSize: F.body, fontWeight: '600', letterSpacing: 0 },
+  formContainer: { flexGrow: 0 },
+  titleCard: { borderRadius: R.lg, overflow: 'hidden' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingLeft: S.md, paddingRight: S.xs, minHeight: 56 },
+  titleInput: {
     flex: 1,
+    fontSize: F.subhead,
     fontWeight: '600',
-    height: '100%',
+    paddingVertical: S.smd,
+    maxHeight: 120,
     textAlignVertical: 'center',
   },
-  modalTextArea: {
-    alignItems: 'flex-start',
-  },
-  dateTimeRow: {
-    flexDirection: 'row',
-    gap: S.sm,
-  },
-  dateTimeChip: {
+  notesRow: { flexDirection: 'row', alignItems: 'flex-start', gap: S.xs, paddingLeft: S.md, paddingRight: S.xs, minHeight: 76 },
+  notesInput: {
     flex: 1,
-    borderRadius: R.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: S.md,
-    gap: scale(10),
+    fontSize: F.body,
+    paddingTop: S.smd,
+    paddingBottom: S.smd,
+    maxHeight: 160,
+    textAlignVertical: 'top',
   },
-  chipText: {
-    flex: 1,
-    fontWeight: '600',
-  },
+  cardSeparator: { height: HAIRLINE, marginLeft: S.md },
+  micBtn: { width: MIN_TOUCH, height: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' },
+  voiceWave: { alignItems: 'center', justifyContent: 'center' },
+  voiceHalo: { position: 'absolute', width: 32, height: 32, borderRadius: R.full, zIndex: -1 },
+  smartHint: { flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm, paddingHorizontal: S.xs },
+  helper: { fontSize: F.caption2, fontWeight: '500', marginTop: S.sm, paddingHorizontal: S.xs },
+  helperInline: { flex: 1, marginTop: 0, paddingHorizontal: 0 },
+  section: { marginTop: S.lg },
   optionLabel: {
     /*
-      PUNTO ÖLÇEKTEN. Bu etiketler kullanım yerinde `fontSize: 10` ile eziliyordu ve 10,
-      `F.caption`ın (11) altında — o değer tokens.ts'te "okunabilirliğin ALT SINIRI" diye
-      tanımlı. Yani başlıklar okunmak için değil, var olmak için yazılmıştı. Aynı hata
-      alışkanlık şeridinde ve görev satırlarında da vardı, oralarda da düzeltilmişti;
-      bu modal geride kalmıştı.
+      PUNTO ÖLÇEKTEN — `F.caption` okunabilirliğin alt sınırı (bkz. tokens.ts); başlıklar
+      eskiden 10 pt ile "okunmak için değil, var olmak için" yazılmıştı.
     */
     fontSize: F.caption,
     fontWeight: '600',
@@ -1163,107 +888,27 @@ const styles = StyleSheet.create({
     marginBottom: S.sm,
     marginLeft: S.xs,
   },
-  priorityRow: {
-    flexDirection: 'row',
-  },
-  priorityTab: {
-    flex: 1,
-    borderRadius: R.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  priorityTabText: {
-    fontWeight: '600',
-  },
-  modalSaveBtn: {
+  priorityDot: { width: 8, height: 8, borderRadius: R.full },
+  groupCard: { borderRadius: R.lg, overflow: 'hidden' },
+  subtaskRow: { flexDirection: 'row', alignItems: 'center', gap: S.smd, minHeight: MIN_TOUCH + S.xs, paddingLeft: S.md, paddingRight: S.xs },
+  subtaskSeparator: { height: HAIRLINE, marginLeft: S.md + 22 + S.smd },
+  checkbox: { width: 22, height: 22, borderRadius: R.full, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  subtaskText: { flex: 1, fontSize: F.body, paddingVertical: S.sm },
+  subtaskInput: { flex: 1, fontSize: F.body, paddingVertical: S.sm },
+  addSubtaskBtn: { width: 28, height: 28, borderRadius: R.full, alignItems: 'center', justifyContent: 'center', marginRight: S.xs },
+  iconBtn: { width: MIN_TOUCH, height: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' },
+  customTags: { flexDirection: 'row', flexWrap: 'wrap', gap: S.xs, marginBottom: S.sm },
+  tagRow: { gap: S.xs, paddingRight: S.xs },
+  tagChip: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: S.xxs, paddingHorizontal: S.smd, borderRadius: R.full },
+  tagText: { fontSize: F.footnote, letterSpacing: 0 },
+  deleteBtn: {
+    marginTop: S.xl,
+    minHeight: MIN_TOUCH + S.xs,
     borderRadius: R.lg,
-    overflow: 'hidden',
-    marginTop: S.lg,
-    marginBottom: S.xl,
-  },
-  modalSaveGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: S.sm,
-    height: verticalScale(56),
   },
-  modalSaveText: {
-    fontWeight: '600',
-    letterSpacing: -0.5,
-    textAlign: 'center',
-    paddingTop: Platform.OS === 'ios' ? 2 : 0,
-  },
-  inlinePicker: {
-    borderRadius: R.lg,
-    padding: S.md,
-    alignItems: 'center',
-    borderWidth: B.thin,
-  },
-  inlinePickerTitle: {
-    fontSize: F.body,
-    fontWeight: '600',
-    marginBottom: S.md,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  pickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: S.md,
-    marginBottom: S.md,
-  },
-  pickerCol: {
-    alignItems: 'center',
-    minWidth: scale(60),
-  },
-  pickerColLabel: {
-    fontSize: F.caption,
-    fontWeight: '600',
-    letterSpacing: 1,
-    marginBottom: S.sm,
-  },
-  pickerArrow: {
-    padding: S.sm,
-  },
-  pickerArrowText: {
-    fontSize: F.body,
-    fontWeight: '600',
-  },
-  pickerValue: {
-    fontSize: moderateScale(32),
-    fontWeight: '600',
-    letterSpacing: -1,
-    lineHeight: verticalScale(40),
-  },
-  pickerColon: {
-    fontSize: moderateScale(28),
-    fontWeight: '600',
-    marginTop: S.sm,
-  },
-  pickerActions: {
-    flexDirection: 'row',
-    gap: S.sm,
-    width: '100%',
-    marginTop: S.sm,
-  },
-  pickerCancelBtn: {
-    flex: 1,
-    borderRadius: R.md,
-    borderWidth: B.medium,
-    height: verticalScale(48),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pickerConfirmBtn: {
-    flex: 1,
-    borderRadius: R.md,
-    height: verticalScale(48),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pickerBtnText: {
-    fontWeight: '600',
-    paddingTop: Platform.OS === 'ios' ? 2 : 0,
-  },
+  deleteText: { fontSize: F.body, fontWeight: '600' },
 });

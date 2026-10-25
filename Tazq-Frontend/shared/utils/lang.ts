@@ -16,3 +16,9 @@ export type AppLang = (typeof SUPPORTED_LANGS)[number];
 export function langOf(language: string | null | undefined): AppLang {
   return SUPPORTED_LANGS.includes(language as AppLang) ? (language as AppLang) : 'en';
 }
+
+/** Dil kodunun `Intl`/takvim yereli — `tr ? 'tr-TR' : 'en-US'` dallanması yerine (bkz. i18nRatchet). */
+const LOCALES: Record<AppLang, string> = { tr: 'tr-TR', en: 'en-US' };
+export function localeOf(language: string | null | undefined): string {
+  return LOCALES[langOf(language)];
+}

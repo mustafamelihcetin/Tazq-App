@@ -267,7 +267,7 @@ const ROLE_CEILING: Record<string, number> = {
   'features/modes/components/modes/TasarrufCard.tsx': 9, // +1 (2026-10-19): harcama-alanı çipi
   'features/modes/components/modes/TezCard.tsx': 8, // +2 (2026-10-19): "Bitti" linki, TasarrufCard'daki gibi hep-görünür+nedenli "Planı Seç" butonuna çevrildi (Kapat + Planı Seç/ipucu)
   'features/modes/components/WeakAreaPicker.tsx': 1, // (2026-10-19): yeni ortak bileşen — zayıf-alan çipi
-  'features/tasks/components/TaskFormModal.tsx': 22,
+  // TaskFormModal LİSTEDEN ÇIKTI (22 → 0, 2026-10-25): Yeni Hedef formu yeniden yazıldı, her kontrol rollü.
   'features/user/components/MomentumPulse.tsx': 3,
   'features/user/components/ProfileSetupModal.tsx': 4,
   'shared/components/ChromeShell.tsx': 1,
