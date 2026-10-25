@@ -316,7 +316,7 @@ const KNOWN_LARGE: Record<string, number> = {
   */
   // 1233 → 1214: başlık işleyicisi taslak denetimine (features/tasks/nlp/draft) devredildi.
   // 1214 → 1215: hazır etiketlerin dili ortak yardımcıdan (langOf) — satır içi dil dallanması yok.
-  'features/tasks/components/TaskFormModal.tsx': 915, // 1270 → 915 (2026-10-25): Yeni Hedef yeniden tasarımı — tarih/saat/hatırlatıcı ScheduleSection'a, seçiciler SegmentedControl'e, tarih kuralları taskFormDates'e // +1 (2026-10-24): upperFor içe aktarımı (Türkçe büyük harf) // +42: yerel-gün tarih ayrıştırma, ay-sonu kenetleme, saat/tarih tutarlılığı, alt-görev mutasyon düzeltmesi // +12 (2026-10-19): başlık/açıklama/alt-görev kutularının HER YERİ odaklamalı (Pressable+ref, bkz. ModeField.tsx'teki aynı düzeltme)
+  'features/tasks/components/TaskFormModal.tsx': 920, // +5 (2026-10-25): iOS'ta Modal üstü Modal sunulmuyor — sistem uyarısı gerekçesi · 1270 → 915 (2026-10-25): Yeni Hedef yeniden tasarımı — tarih/saat/hatırlatıcı ScheduleSection'a, seçiciler SegmentedControl'e, tarih kuralları taskFormDates'e // +1 (2026-10-24): upperFor içe aktarımı (Türkçe büyük harf) // +42: yerel-gün tarih ayrıştırma, ay-sonu kenetleme, saat/tarih tutarlılığı, alt-görev mutasyon düzeltmesi // +12 (2026-10-19): başlık/açıklama/alt-görev kutularının HER YERİ odaklamalı (Pressable+ref, bkz. ModeField.tsx'teki aynı düzeltme)
   // 1150 → 1180: planın KULLANICI SEÇMEDEN başlamasını engelleyen kapı. Üretim koşulu
   // birçok modda yalnız "mod açık + ad + tarih" idi; tarih girilir girilmez plan uygulanmış
   // sayılıp kart bölüm değiştiriyor, yeniden kurulup kapanıyordu. Artış dokuz koşula

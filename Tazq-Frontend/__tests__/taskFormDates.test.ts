@@ -132,3 +132,25 @@ describe('isFormDirty', () => {
     expect(isFormDirty({ ...base, subtasks: [{ text: 'a', done: false }] } as any, base)).toBe(true);
   });
 });
+
+/**
+ * CİHAZDA GÖRÜLDÜ (2026-10-25, iOS telefon + iPad): X'e basınca form KAPANMIYORDU.
+ * Kirli formda kapanış "Değişiklikler atılsın mı?" soruyor; soru `CustomAlert` ile
+ * soruluyordu — o da bir RN `Modal`. iOS, açık bir Modal'ın (form sayfası) üstüne
+ * İKİNCİ bir Modal'ı sunmayı sessizce reddediyor: uyarı görünmüyor, form kapanmıyor
+ * (log: ui_rage_click "Kapat"). Sistem uyarısı (UIAlertController) en üstteki
+ * denetleyicinin üzerinde açılır — Modal içinden soru sormanın tek güvenli yolu.
+ */
+describe('form sayfası içinden sorulan sorular', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const src: string = fs.readFileSync(path.resolve(__dirname, '../features/tasks/components/TaskFormModal.tsx'), 'utf8');
+
+  it('CustomAlert (ikinci Modal) kullanılmaz', () => {
+    expect(src).not.toMatch(/from '@\/shared\/components\/CustomAlert'/);
+  });
+
+  it('sistem uyarısı react-native\'den gelir', () => {
+    expect(src).toMatch(/import \{[^}]*\bAlert\b[^}]*\} from 'react-native'/);
+  });
+});

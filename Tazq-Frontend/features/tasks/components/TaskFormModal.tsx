@@ -26,7 +26,7 @@
  *  · Koyu temada kayıt göstergesi siyahtı, hatırlatıcı anahtarı rolsüz bir resimdi.
  */
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, TextInput, Platform, ActivityIndicator, ScrollView, Animated as RNAnimated, Keyboard, Pressable, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, Modal, TextInput, Platform, ActivityIndicator, ScrollView, Animated as RNAnimated, Keyboard, Pressable, useWindowDimensions, Alert } from 'react-native';
 import { X, Sparkles, Mic, Repeat, Trash2, Plus, Check } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
@@ -41,7 +41,12 @@ import { EMPTY_DRAFT, applyHint, markManual, rejectTag, visibleHint, type DraftC
 import { CATEGORY_TAGS, type CategoryId } from '@/features/tasks/nlp/lexicon';
 import { langOf, localeOf } from '@/shared/utils/lang';
 import { NlpHintRow, hasNlpHint, EMPTY_NLP_HINT, type NlpHint } from '@/features/tasks/components/NlpHintRow';
-import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
+/*
+  SİSTEM UYARISI, CustomAlert DEĞİL — CustomAlert bir RN `Modal`; iOS, açık bir Modal'ın
+  (bu form sayfası) üstüne ikinci bir Modal'ı sessizce SUNMUYOR. "Değişiklikler atılsın
+  mı?" görünmüyor, form kapanmıyordu (cihazda görüldü, 2026-10-25). Sistem uyarısı en
+  üstteki denetleyicinin üzerinde açılır (bkz. TurkishModeBanner, aynı gerekçe).
+*/
 import { Priority, RecurrenceType, SubtaskItem } from '@/shared/services/api';
 import { swallow } from '@/shared/utils/swallow';
 import type { AppTheme } from '@/shared/constants/Colors';
