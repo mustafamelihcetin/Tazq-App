@@ -88,7 +88,6 @@ import { OfflineBanner } from '@/shared/components/OfflineBanner';
 import { ConfettiOverlay } from '@/shared/components/ConfettiOverlay';
 import { CustomAlertModal } from '@/shared/components/CustomAlert';
 import { NotificationPrimer } from '@/shared/components/NotificationPrimer';
-import { RocketFeedback } from '@/features/user/components/RocketFeedback';
 import { Asset } from 'expo-asset';
 import { useOfflineSync } from '@/shared/hooks/useOfflineSync';
 import { usePrefsSync } from '@/shared/hooks/usePrefsSync';
@@ -856,7 +855,6 @@ export default function RootLayout() {
         <OfflineBanner />
         <CelebrationOverlay />
         <ConfettiOverlay />
-        <RocketFeedback />
         <CustomAlertModal />
         <NotificationPrimer
           visible={showNotifPrimer}

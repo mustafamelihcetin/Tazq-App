@@ -25,9 +25,14 @@ describe('tur katmanı Android\'de öne çıkan düğmelerin ÜSTÜNDE', () => {
     düğmenin elevation'ı 10 iken turun kökünde elevation yoktu → düğme turun üstünde
     kalıyordu. iOS elevation'ı tanımaz; orada hiç görünmüyordu.
   */
-  it('kök stilin elevation\'ı, aynı ekrandaki kayan düğmelerinkinden büyük', () => {
-    const src = stripComments(read('features/onboarding/components/HelpTourModal.tsx'));
-    const root = src.match(/root:\s*\{([\s\S]*?)\n\s{2}\},/)?.[1] ?? '';
+  // 2026-10-25: tur yeniden kuruldu — katman artık SpotlightTour (vurgulama) ve
+  // TourBeacon (teklif balonu). İkisi de ekran içinde çizilir; kural aynen geçerli.
+  it.each([
+    ['features/onboarding/components/SpotlightTour.tsx', 'root'],
+    ['features/onboarding/components/TourBeacon.tsx', 'wrap'],
+  ])('%s kökünün elevation\'ı kayan düğmelerinkinden büyük', (file, key) => {
+    const src = stripComments(read(file));
+    const root = src.match(new RegExp(`${key}: \\{([^}]*)\\}`))?.[1] ?? '';
     const rootElevation = Number(root.match(/elevation:\s*(\d+)/)?.[1] ?? 0);
     const fabs = Math.max(maxElevation('shared/components/MagneticFAB.tsx'), maxElevation('app/tasks.tsx'), maxElevation('app/index.tsx'));
     expect(rootElevation).toBeGreaterThan(fabs);
@@ -166,15 +171,70 @@ describe('tanıtım başlığı Android\'de kelimeleri bitiştirmez', () => {
   });
 });
 
-describe('tur düğmeleri sekme çubuğuyla çakışmaz', () => {
+describe('tur balonu sekme çubuğuyla çakışmaz', () => {
   /*
-    Cihazda görüldü: turun "Atla"/"Sonraki" satırı insets.bottom + 20'de duruyordu —
-    tam sekme çubuğunun hizasında; "Atla" karartılmış "Ana Sayfa" sekmesinin üstüne
-    biniyordu. Kaplamadaki eylemler alttaki gezinmeyle çakışmamalı (Apple/M3 ortak
-    kuralı). Alt boşluk çubuğun gerçek yüksekliğinden (navBarSpace) türetilir.
+    Cihazda görüldü (eski tur): "Atla"/"Sonraki" sekme çubuğunun tam hizasındaydı.
+    Yeni turda balonun görünür bandı sekme çubuğunun GERÇEK yüksekliğinden türer.
   */
-  it('footer alt boşluğu navBarSpace\'ten türer', () => {
-    const src = stripComments(read('features/onboarding/components/HelpTourModal.tsx'));
-    expect(src).toMatch(/styles\.footer, \{ paddingBottom: navBarSpace\(insets\.bottom\)/);
+  it('balon bandının altı navBarSpace', () => {
+    const src = stripComments(read('features/onboarding/components/SpotlightTour.tsx'));
+    expect(src).toMatch(/bottom: navBarSpace\(insets\.bottom\)/);
+    // Balon: sekme çubuğu olan sayfada onun üstünde; Odak'ta (çubuk yok) ekranın dibinde —
+    // eskiden Odak'ta ses satırının üstüne biniyordu (cihazda görüldü).
+    expect(stripComments(read('features/onboarding/components/TourBeacon.tsx'))).toMatch(/bottom: \(aboveTabBar \? navBarSpace\(insets\.bottom\) : insets\.bottom\) \+ S\.md/);
+    expect(read('features/onboarding/components/HelpTourModal.tsx')).toContain("aboveTabBar={pageId !== 'focus'}");
+  });
+});
+
+describe('tur karartması Android\'de blur eksiğini telafi eder', () => {
+  /*
+    Android'de blur yok (bkz. AppBlur): arkadaki yazılar keskin kalıyor. Vurgulamalı
+    turda örtü düz renk; Android'de bir kademe koyu.
+  */
+  it('örtü platforma göre — Android daha koyu', () => {
+    const src = stripComments(read('features/onboarding/components/SpotlightTour.tsx'));
+    expect(src).toMatch(/const scrim = IS_IOS \? 'rgba\(0,0,0,0\.55\)' : 'rgba\(0,0,0,0\.66\)'/);
+  });
+});
+
+describe('canlandırılan SVG özelliği React\'e de son değeriyle verilir', () => {
+  /*
+    Cihazda görüldü (2026-10-25): tur sırasında Bugün halkaları 1/3 ve 36/60 derken
+    yaylar BOŞ çiziliyordu. Yay `animatedProps` ile UI iş parçacığında çiziliyor; animasyon
+    bitince ana sayfa yeniden çizilirse (tur, örnek veri) React'in elindeki statik değer —
+    ilk hâl, yani boş halka — uygulanıyor ve UI iş parçacığı bir daha dokunmuyor.
+    Kural: animatedProps ile canlandırılan her SVG özelliği statik olarak da SON değeriyle
+    verilir; yeniden çizim doğru değeri taşır.
+  */
+  // Halkalar animatedProps KULLANMAZ — değer JS'te ilerler (useTween); statik değer
+  // vermek de cihazda yetmedi. Vurgulama deliği animatedProps'ta kalır (yeniden çizimde
+  // doğru göründüğü cihazda ölçüldü) ve son değeri statik de taşır.
+  it.each(['features/dashboard/components/TodayRings.tsx', 'shared/components/SubtaskProgressRing.tsx'])('%s animatedProps kullanmaz, useTween kullanır', (file) => {
+    const src = stripComments(read(file));
+    expect(src).not.toContain('animatedProps');
+    expect(src).toContain('useTween(');
+  });
+  it('vurgulama deliği son değeri statik de taşır', () => {
+    const src = stripComments(read('features/onboarding/components/SpotlightTour.tsx'));
+    const tag = src.slice(src.indexOf('<AnimatedPath'), src.indexOf('/>', src.indexOf('<AnimatedPath')));
+    expect(tag).toMatch(/\sd=\{/);
+    expect(tag).toContain('animatedProps={animatedProps}');
+  });
+});
+
+describe('sağlık kaynağının adı platforma göre', () => {
+  /*
+    Cihazda görüldü: Android profilinde "Uyku & Sağlık — Apple Sağlık, uyku hedefi".
+    Android'de kaynak Health Connect (bkz. shared/services/sleepHealth.ts). Ad tek
+    yerden gelir; ekranlar sabit "Apple Sağlık" yazmaz.
+  */
+  it('profil ve ayarlar sabit "Apple Sağlık" yazmaz', () => {
+    for (const f of ['app/profile.tsx', 'app/settings.tsx']) {
+      expect({ f, hard: /'Apple (Sağlık|Health)/.test(stripComments(read(f))) }).toEqual({ f, hard: false });
+    }
+  });
+  it('yardımcı Android\'de Health Connect der', () => {
+    const src = read('shared/utils/healthSource.ts');
+    expect(src).toMatch(/Platform\.OS === 'android' \? 'Health Connect'/);
   });
 });

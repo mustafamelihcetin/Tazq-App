@@ -61,10 +61,15 @@ describe('computeMomentum', () => {
     expect(long).toBeLessThanOrEqual(1.15);
   });
 
-  it('penalizes tasks completed in rapid succession (Velocity Guard)', () => {
+  /*
+    2026-10-25: "Velocity Guard" (10 sn içinde tamamlanan görevi saymamak) KALDIRILDI.
+    Uygulamanın kendi TOPLU SEÇİM özelliğiyle birden çok görevi bitiren kullanıcıyı
+    cezalandırıyordu. Skor bir ORANDIR (kazanılan / toplam ağırlık) — hızla şişirilemez.
+  */
+  it('art arda (toplu) tamamlanan görevler TAM sayılır — hız cezası yok', () => {
     const time1 = new Date('2026-06-29T12:00:00Z').toISOString();
-    const time2 = new Date('2026-06-29T12:00:05Z').toISOString();
-    const time3 = new Date('2026-06-29T12:00:30Z').toISOString();
+    const time2 = new Date('2026-06-29T12:00:01Z').toISOString();
+    const time3 = new Date('2026-06-29T12:00:02Z').toISOString();
 
     const r = computeMomentum({
       ...base,
@@ -75,6 +80,14 @@ describe('computeMomentum', () => {
       ],
     });
 
-    expect(r.weightedCompletion).toBeCloseTo(0.67, 2);
+    expect(r.weightedCompletion).toBeCloseTo(1, 5);
+  });
+
+  it('eski sürümde cezalı işaretlenmiş görev de artık sayılır', () => {
+    const r = computeMomentum({
+      ...base,
+      tasks: [{ id: 1, priority: 'High', isCompleted: true, dueDate: todayIso, completedAt: todayIso, ignoreMomentum: true }],
+    });
+    expect(r.weightedCompletion).toBeCloseTo(1, 5);
   });
 });

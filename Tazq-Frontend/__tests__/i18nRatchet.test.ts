@@ -143,7 +143,6 @@ const BASELINE: Record<string, number> = {
   'features/modes/utils/modeHelpers.ts': 7,
   'features/modes/utils/planAdaptations.ts': 37,
   'features/modes/utils/turkishModes.ts': 5,
-  'features/onboarding/components/TourFeaturePreview.tsx': 55,
   'features/tasks/components/TaskFormModal.tsx': 26,
   'features/tasks/components/TaskListItem.tsx': 11, // tasks.tsx'ten taşındı
   'features/user/components/CelebrationOverlay.tsx': 1,
@@ -151,7 +150,6 @@ const BASELINE: Record<string, number> = {
   'features/user/components/MomentumPulse.tsx': 23,
   'features/user/components/ProfileSetupModal.tsx': 17,
   'features/user/components/ReviewPromptModal.tsx': 11,
-  'features/user/components/RocketFeedback.tsx': 12,
   'shared/components/BackButton.tsx': 1,
   'shared/components/ConfettiOverlay.tsx': 2,
   'shared/components/CustomAlert.tsx': 1,

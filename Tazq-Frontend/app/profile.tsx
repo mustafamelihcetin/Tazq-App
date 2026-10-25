@@ -24,6 +24,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ICON, S, R, F, B, MAX_W , sheetMaxHeight} from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { useToastStore } from '@/shared/store/useToastStore';
+import { healthSourceName } from '@/shared/utils/healthSource';
 import { Asset } from 'expo-asset';
 import { usePrefsStore } from '@/features/modes';
 import { useSporStore } from '@/features/modes/store/useSporStore';
@@ -163,6 +164,8 @@ export default function ProfileScreen() {
   */
   const isGuest = useSessionStore(s => s.isGuest);
   const guestAvatar = useSessionStore(s => s.guestProfile?.avatar);
+  // Misafir hoş geldinde adını verdiyse onu göster; vermediyse "Misafir" (uydurma ad yok).
+  const guestName = useSessionStore(s => s.guestProfile?.name);
 
   const openEditModal = () => {
     prepareEdit();
@@ -391,7 +394,7 @@ export default function ProfileScreen() {
                 })()}
             </MotiView>
             <View style={{ alignItems: 'center', marginTop: S.md }}>
-                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.name, { color: theme.onSurface, fontSize: F.display }]}>{isGuest ? t.guest.badge : (user?.name || '')}</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.name, { color: theme.onSurface, fontSize: F.display }]}>{isGuest ? (guestName || t.guest.badge) : (user?.name || '')}</Text>
                 {isGuest ? (
                   <Text style={[styles.email, { color: theme.onSurfaceMuted, fontSize: F.body, textAlign: 'center' }]}>{t.guest.settingsRow}</Text>
                 ) : !!user?.email && (
@@ -565,7 +568,7 @@ export default function ProfileScreen() {
                 icon={<Moon size={ICON.md} color="#FFFFFF" />}
                 bg={A.health}
                 label={language === 'tr' ? 'Uyku & Sağlık' : 'Sleep & Health'}
-                sub={language === 'tr' ? 'Apple Sağlık, uyku hedefi' : 'Apple Health, sleep goal'}
+                sub={`${healthSourceName(language)}, ${language === 'tr' ? 'uyku hedefi' : 'sleep goal'}`}
                 onPress={() => router.push({ pathname: '/settings', params: { section: 'health' } })}
                 theme={theme}
               />

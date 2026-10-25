@@ -35,7 +35,7 @@ import { WideSplit, WideCol } from '@/shared/components/ResponsiveColumns';
 import { ChromeShell } from '@/shared/components/ChromeShell';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { SwipeableHabitItem } from '@/features/habits/components/SwipeableHabitItem';
-import { TourTarget, useTour } from '@/shared/components/TourContext';
+import { TourTarget } from '@/shared/components/TourContext';
 import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
 import { useDemoGate, useTourGate } from '@/features/onboarding/utils/firstRun';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
@@ -173,25 +173,9 @@ export default function CockpitScreen() {
     soundEffects,
     onboardingCompleted,
   } = usePrefsStore();
-
-  const { measureAll } = useTour();
   const scrollViewRef = useRef<ScrollView>(null);
   const { scrollY, onScroll } = useCollapsibleHeader();
 
-  const handleStepChange = (step: number) => {
-    try {
-      if (step === 2) {
-        scrollViewRef.current?.scrollTo({ y: 380, animated: true });
-      } else {
-        scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-      }
-      setTimeout(() => {
-        measureAll();
-      }, 350);
-    } catch (e) {
-      swallow('cockpit.tourStepScroll', e);
-    }
-  };
 
   /* Örnek veri ve tur kapıları ORTAK kuraldan (bkz. features/onboarding/utils/firstRun). */
   // İlk ziyarette tur; boş hafta şeridini tur boyunca örnek veri doldurur (bkz. firstRun).
@@ -1625,7 +1609,7 @@ export default function CockpitScreen() {
       {tourOn && (
         <HelpTourModal
           pageId="cockpit"
-          onStepChange={handleStepChange}
+          scrollRef={scrollViewRef}
         />
       )}
     </View>

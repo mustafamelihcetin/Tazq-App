@@ -9,6 +9,7 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { renderModeEmojiIcon } from '@/features/modes/utils/modeIcons';
 import { useActiveModeSummary, type ModeSummaryEntry } from '@/features/modes/hooks/useActiveModeSummary';
 import { ModeDeck } from '@/features/modes/components/ModeDeck';
+import { TourTarget } from '@/shared/components/TourContext';
 
 /**
  * AKTİF DÖNEMİN BUGÜNÜ — ana ekranın en üstü, mod varken.
@@ -127,12 +128,15 @@ export function ModeTodayCard({ onOpen }: { onOpen: () => void }) {
   if (activeCount === 0) return null;
 
   return (
-    <BentoCard index={0} style={{ marginHorizontal: S.lg, marginBottom: S.lg, padding: S.md, gap: S.smd }}>
+    // Kenar boşluğu tur hedefinin DIŞINDA: delik kartın kenarına birebir oturur.
+    <TourTarget id="activePlan" spotRadius={R.md} style={{ marginHorizontal: S.lg, marginBottom: S.lg }}>
+    <BentoCard index={0} style={{ padding: S.md, gap: S.smd }}>
       <ModeDeck
         pages={entries.map(e => <ModePage key={e.key} mode={e} t={t} onOpen={onOpen} />)}
         dotColors={entries.map(e => e.color)}
         a11yLabel={`${activeCount} ${t.eyebrow}`}
       />
     </BentoCard>
+    </TourTarget>
   );
 }

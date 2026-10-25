@@ -340,6 +340,8 @@ export const translations = {
     streakFreezeUse: 'Use',
     // Momentum tooltip
     momentumTooltip: 'Calculated from task completion (40%) + weekly focus (35%) + streak length (25%).',
+    /** Tanıtım turlarını yeniden açar (balon 10 sn'de kaybolur; tek geri dönüş yolu). */
+    tourReplay: { title: 'Replay page tours', sub: 'Each page’s short tour shows again', done: 'Tours will show again' },
     support: {
       title: 'Support & Contact',
       sub: 'Send us your questions, feedback, or support requests directly.',
@@ -840,6 +842,8 @@ export const translations = {
     streakFreezeUse: 'Kullan',
     // Momentum tooltip
     momentumTooltip: 'Görev tamamlama (%40) + haftalık odak (%35) + seri uzunluğu (%25) kombinasyonuyla hesaplanır.',
+    /** Tanıtım turlarını yeniden açar (balon 10 sn'de kaybolur; tek geri dönüş yolu). */
+    tourReplay: { title: 'Tanıtım turlarını yeniden göster', sub: 'Her sayfanın kısa turu yeniden açılır', done: 'Turlar yeniden gösterilecek' },
     support: {
       title: 'Destek & İletişim',
       sub: 'Soru, öneri ve destek taleplerini doğrudan bize ilet.',

@@ -7,10 +7,7 @@ describe('useMomentumStore', () => {
       history: [],
       momentumShieldActive: false,
       shieldCharges: 2,
-      consecutiveFastCompletions: 0,
-      isBatchConfirming: false,
-      engineHeat: 0,
-      isOverheated: false,
+      tasksCompletedForNextCharge: 0,
     });
   });
 
@@ -87,59 +84,33 @@ describe('useMomentumStore', () => {
     expect(useMomentumStore.getState().shieldCharges).toBe(3);
   });
 
-  it('heats momentum rocket engine normally when completions are spaced out', () => {
-    const now = Date.now();
-    useMomentumStore.setState({
-      engineHeat: 0,
-      isOverheated: false,
-      lastHeatUpdateTime: now,
-      consecutiveFastCompletions: 0,
-      isBatchConfirming: false,
-    });
-
-    // 1st completion (Perfect Sync)
-    useMomentumStore.getState().addCompletedTask();
-    expect(useMomentumStore.getState().engineHeat).toBeCloseTo(25, 0);
-    expect(useMomentumStore.getState().isBatchConfirming).toBe(false);
-
-    // Mock 20 seconds passing
-    useMomentumStore.setState({
-      lastHeatUpdateTime: now - 20000,
-    });
-
-    // 2nd completion (Spaced out >= 15s)
-    useMomentumStore.getState().addCompletedTask();
-    // Decay: 25 - 20 = 5. Heat addition: 45. Total: 50.
-    expect(useMomentumStore.getState().engineHeat).toBeCloseTo(50, 0);
-    expect(useMomentumStore.getState().isBatchConfirming).toBe(false);
+  /*
+    2026-10-25: "motor ısısı" cezası kaldırıldı. Art arda tamamlanan görevler momentumdan
+    düşülüyor ve kalkan ilerlemesi sıfırlanıyordu — üretken olanı cezalandırıyordu.
+  */
+  it('art arda hızlı tamamlama cezalandırılmaz — her biri kalkan ilerlemesine sayılır', () => {
+    useMomentumStore.setState({ shieldCharges: 0, tasksCompletedForNextCharge: 0 });
+    for (let i = 0; i < 10; i++) useMomentumStore.getState().addCompletedTask();
+    expect(useMomentumStore.getState().shieldCharges).toBe(2);
   });
 
-  it('triggers batch confirmation and suspends heat on rapid consecutive completions', () => {
-    const now = Date.now();
-    useMomentumStore.setState({
-      engineHeat: 0,
-      isOverheated: false,
-      lastHeatUpdateTime: now,
-      consecutiveFastCompletions: 0,
-      isBatchConfirming: false,
-    });
+  it('kalkan kazanıldığı an bildirilir (5. tamamlamada), diğerlerinde değil', () => {
+    useMomentumStore.setState({ shieldCharges: 0, tasksCompletedForNextCharge: 0 });
+    const results = Array.from({ length: 5 }, () => useMomentumStore.getState().addCompletedTask());
+    expect(results.slice(0, 4).every((r) => !r.shieldEarned)).toBe(true);
+    expect(results[4]).toEqual({ shieldEarned: true, charges: 1 });
+  });
 
-    // 1st completion
-    useMomentumStore.getState().addCompletedTask();
-    expect(useMomentumStore.getState().engineHeat).toBe(25);
-    expect(useMomentumStore.getState().consecutiveFastCompletions).toBe(1);
-    expect(useMomentumStore.getState().isBatchConfirming).toBe(false);
+  it('kalkanlar doluyken (3/3) kazanım bildirilmez', () => {
+    useMomentumStore.setState({ shieldCharges: 3, tasksCompletedForNextCharge: 0 });
+    const r = Array.from({ length: 5 }, () => useMomentumStore.getState().addCompletedTask());
+    expect(r.some((x) => x.shieldEarned)).toBe(false);
+  });
 
-    // 2nd completion (rapid consecutive completion, elapsedSecs is ~0 < 15)
-    useMomentumStore.getState().addCompletedTask();
-    expect(useMomentumStore.getState().engineHeat).toBeCloseTo(25, 0); // unchanged
-    expect(useMomentumStore.getState().consecutiveFastCompletions).toBe(2);
-    expect(useMomentumStore.getState().isBatchConfirming).toBe(true);
-
-    // 3rd completion
-    useMomentumStore.getState().addCompletedTask();
-    expect(useMomentumStore.getState().engineHeat).toBeCloseTo(25, 0); // unchanged
-    expect(useMomentumStore.getState().isBatchConfirming).toBe(true);
-    expect(useMomentumStore.getState().isOverheated).toBe(false); // does not overheat
+  it('ceza mekaniği yok — motor ısısı alanları kaldırıldı', () => {
+    const st = useMomentumStore.getState() as unknown as Record<string, unknown>;
+    for (const k of ['engineHeat', 'isOverheated', 'isBatchConfirming', 'showRocketFeedback', 'triggerRocketFeedback', 'decayEngineHeat']) {
+      expect({ k, present: k in st }).toEqual({ k, present: false });
+    }
   });
 });

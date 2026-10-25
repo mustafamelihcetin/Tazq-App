@@ -54,7 +54,7 @@ import { MomentumPulse } from '@/features/user/components/MomentumPulse';
 import { WeightEntryModal } from '@/features/modes/components/WeightEntryModal';
 import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
 import { useDemoGate, useTourGate } from '@/features/onboarding/utils/firstRun';
-import { TourTarget, useTour } from '@/shared/components/TourContext';
+import { TourTarget } from '@/shared/components/TourContext';
 import { scheduleWeeklySummary } from '@/shared/utils/notifications';
 import { Touchable } from '@/shared/components/Touchable';
 import { StatusHubModal } from '@/features/dashboard/components/StatusHubModal';
@@ -169,24 +169,6 @@ export default function HomeScreen() {
   const isNamePlaceholder = user?.name === 'TAZQ Kullanıcısı' || !!(user?.email && user?.name && user?.name === user?.email.split('@')[0]);
 
   const scrollViewRef = useRef<ScrollView>(null);
-  const { measureAll } = useTour();
-  const handleStepChange = (step: number) => {
-    try {
-      if (step === 2) {
-        // Scroll down to center the daily tasks card, keeping it clear of navigation bar overlays
-        scrollViewRef.current?.scrollTo({ y: 140, animated: true });
-      } else {
-        // Scroll back up for top elements (Momentum score, habits card, cockpit)
-        scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-      }
-      // Re-measure after scroll animation completes (320ms) to ensure exact positioning
-      setTimeout(() => {
-        measureAll();
-      }, 350);
-    } catch (e) {
-      swallow('dashboard.tourStepScroll', e);
-    }
-  };
 
   useEffect(() => {
     if (!profileSetupVisible && completedTours?.dashboard !== true) {
@@ -1506,10 +1488,14 @@ export default function HomeScreen() {
         onCheck={isDemoId(item.id) ? undefined : () => handleCheckTask(item.id)}
         // İlk bekleyen görev = SIRADAKİ: odak çağrısı satırın yanında (ayrı kart değil).
         // Görevi odak ekranına SEÇİLİ götürür; seans başlamaz (bkz. startQuickFocus farkı).
-        onFocus={index === 0 && !item.isCompleted && !isDemoId(item.id) ? () => {
-          setCurrentTask(getLocalizedTaskTitle(item.original || item, tr), Number(item.id));
-          router.push('/focus');
-        } : undefined}
+        onFocus={index === 0 && !item.isCompleted ? (isDemoId(item.id)
+          // Turda örnek satır da "Odaklan"ı gösterir (adım onu anlatıyor); örtü dokunuşu
+          // yuttuğu için işlevsiz bir gösterim — gerçek görev seçilmez.
+          ? () => {}
+          : () => {
+            setCurrentTask(getLocalizedTaskTitle(item.original || item, tr), Number(item.id));
+            router.push('/focus');
+          }) : undefined}
         focusLabel={RINGS_COPY[language === 'en' ? 'en' : 'tr'].focusCta}
         priorityColor={priorityColor}
         prefs={usePrefsStore.getState()}
@@ -1671,7 +1657,10 @@ export default function HomeScreen() {
               >
                   {/* TazqLogo'nun kendi varsayılanı 24pt ve 44pt çubukta 10pt nefes
                       bırakıyor. (30 eski 54pt çubuğa göreydi; 0.72 çarpanı keyfiydi.) */}
-                  <TazqLogo height={24} />
+                  {/* Turun "TAZQ Core" adımı bu logoyu vurgular (bkz. tourSteps). */}
+                  <TourTarget id="core" spotRadius={R.sm} spotPad={S.sm}>
+                    <TazqLogo height={24} />
+                  </TourTarget>
               </MotiView>
           </Touchable>
         }
@@ -1800,6 +1789,7 @@ export default function HomeScreen() {
               İvme skoru eskiden selamlamanın hemen altındaydı: kullanıcı ekranı açtığında
               ilk gördüğü şey, yapacağı iş değil aldığı nottu.
             */}
+            {/* Turun "aktif plan" hedefi kartın içinde (bkz. ModeTodayCard); aktif mod yoksa kart null → adım atlanır. */}
             <ModeTodayCard onOpen={() => router.push('/modlar')} />
             {/* Ödemeler — GÖREV/plan akışından AYRI bir yüzey, bkz. PaymentsSummaryCard
                 başlığı. Mod kartının hemen altında: ikincil ama her zaman görünür. */}
@@ -1824,8 +1814,8 @@ export default function HomeScreen() {
               kartı iki ayrı yüzeydi; alışkanlık ilerlemesi hiçbir özette yoktu. Vitrinin
               ilk bloğu artık günün tamamını tek nesnede söylüyor.
             */}
-            <TourTarget id="today">
             <TodayRings
+              tourId="today"
               label={t.todayLabel}
               caption={(() => {
                 const c = RINGS_COPY[language === 'en' ? 'en' : 'tr'];
@@ -1839,10 +1829,12 @@ export default function HomeScreen() {
               metrics={(() => {
                 const c = RINGS_COPY[language === 'en' ? 'en' : 'tr'];
                 const habitPool = (myDayHabits as Array<{ isSkipped?: boolean; isCompleted?: boolean }>).filter(h => !h.isSkipped);
+                // Tur sırasında halka DOLU anlatılır (bkz. useDemoGate); bitince gerçek dakika.
+                const focusShown = demoActive ? Math.round(dailyGoalMinutes * 0.6) : todayFocusMinutes;
                 const habitsDone = habitPool.filter(h => h.isCompleted).length;
                 return [
                   { label: c.tasks, value: dailyGoal > 0 ? `${todayCompleted}/${dailyGoal}` : '—', progress: dailyGoal > 0 ? todayCompleted / dailyGoal : 0, reached: dailyGoal > 0 && todayCompleted >= dailyGoal, color: theme.primary },
-                  { label: c.focus, value: `${todayFocusMinutes}/${dailyGoalMinutes} ${c.min}`, progress: dailyGoalMinutes > 0 ? todayFocusMinutes / dailyGoalMinutes : 0, reached: dailyGoalMinutes > 0 && todayFocusMinutes >= dailyGoalMinutes, color: theme.streak },
+                  { label: c.focus, value: `${focusShown}/${dailyGoalMinutes} ${c.min}`, progress: dailyGoalMinutes > 0 ? focusShown / dailyGoalMinutes : 0, reached: dailyGoalMinutes > 0 && focusShown >= dailyGoalMinutes, color: theme.streak },
                   { label: c.habits, value: habitPool.length > 0 ? `${habitsDone}/${habitPool.length}` : '—', progress: habitPool.length > 0 ? habitsDone / habitPool.length : 0, reached: habitPool.length > 0 && habitsDone >= habitPool.length, color: theme.tertiary },
                 ];
               })()}
@@ -1859,7 +1851,6 @@ export default function HomeScreen() {
               theme={theme}
               padding={bentoPad}
             />
-            </TourTarget>
             </WideCol>
 
             {/* Unified My Day Bento Card — geniş ekranda SAĞ sütunun tepesi. */}
@@ -1899,7 +1890,7 @@ export default function HomeScreen() {
                 
                 <BentoCard index={1} style={{ padding: 0, overflow: 'hidden' }}>
                   {/* BUGÜNKÜ RİTÜELLERİM (Daily Habits) */}
-                  <TourTarget id="habits">
+                  <TourTarget id="habits" spotRadius={R.md} spotCorners="top">
                     <MyDayHabits
                       habits={myDayHabits}
                       theme={theme}
@@ -1948,7 +1939,7 @@ export default function HomeScreen() {
                   </TourTarget>
 
                   <Separator theme={theme} />
-                  <TourTarget id="tasks">
+                  <TourTarget id="tasks" spotRadius={R.md} spotCorners="bottom">
                     {/* Dolgu YOK — SectionHeader kendi boşluğunu taşıyor. Sarmala da
                         vermek ikiye katlıyordu: bu başlık 32pt girintili çiziliyor ve
                         aynı karttaki alışkanlık başlığından (16pt) kaymış duruyordu. */}
@@ -2282,7 +2273,7 @@ export default function HomeScreen() {
       {tourOn && (
         <HelpTourModal
           pageId="dashboard"
-          onStepChange={handleStepChange}
+          scrollRef={scrollViewRef}
         />
       )}
     </View>

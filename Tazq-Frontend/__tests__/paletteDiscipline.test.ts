@@ -45,7 +45,6 @@ const CEILING: Record<string, number> = {
   // sökülünce) profil tavanı düşecek. Modal renkleri ayrı bir temizlik işi.
   // 8 → 7: "Bildirimler Açık" yeşili theme.success'e bağlandı (kapalı hâli zaten tema-token'dı)
   'app/settings.tsx': 7,
-  'features/user/components/RocketFeedback.tsx': 49,  // kendi durum renk dili (cyan/mor/turuncu/kırmızı)
   // 42 → 57 → 27: nötr palet (kart/zemin/metin/kenar) tamamen `Colors`'a bağlandı ve
   // mock motoru kendi dosyasına ayrıldı. Sayfada kalan 27 renk slaytların ARKA PLAN
   // gradyanları: bunlar arayüz değil, her slaytın kimliğini taşıyan kompozisyon renkleri
@@ -87,7 +86,6 @@ const CEILING: Record<string, number> = {
   'features/modes/components/modes/RamazanCard.tsx': 12,
   'features/user/components/CelebrationOverlay.tsx': 12,
   'shared/components/ConfettiOverlay.tsx': 12,
-  'features/onboarding/components/TourFeaturePreview.tsx': 12,
   'app/tasks.tsx': 1, // 10 → 1: kullanılmayan etiket paleti (8 hex) silindi, satır bileşeni TaskListItem'a taşındı
   // 10 → 7: trend/nokta/değerlendirme yeşilleri theme.success'e bağlandı (tema-kör #10B981'di)
   // 7 → 6: sayfa zemini (#1C1C1E) cam yüzeye geçti.

@@ -28,11 +28,11 @@ import {
 } from '@/shared/utils/notifications';
 import { ICON, S, R, F, B, HAIRLINE, TRACKING, SPRING, MAX_W, MAX_W_WIDE, contentMaxWidth, sideInset, navBarSpace, topBarSpace, TOP_BAR_HEIGHT } from '@/shared/constants/tokens';
 import { useTabletLayout, useWideLayout } from '@/shared/components/ResponsiveColumns';
-import { useTourGate } from '@/features/onboarding/utils/firstRun';
+import { useTourGate, useTourRun } from '@/features/onboarding/utils/firstRun';
 import { SectionHeader } from '@/shared/components/SectionHeader';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { useSporStore, getThisWeekEntry } from '@/features/modes/store/useSporStore';
-import { TourTarget, useTour } from '@/shared/components/TourContext';
+import { TourTarget } from '@/shared/components/TourContext';
 import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
 import { recordWeeklyWeight, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask, getLocalDateString } from '@/features/modes/utils/weightCheckin';
 import { getCurrentRamadanStatus, formatRamadanDate } from '@/shared/utils/ramadanDates';
@@ -218,23 +218,6 @@ export default function ModlarScreen() {
     birakmaPlanHabitIds, birakmaPlanTaskIds,
     setPlanIds, clearPlanIds, setPlanSpec,
   } = usePrefsStore();
-  const { measureAll } = useTour();
-  const handleStepChange = (step: number) => {
-    try {
-      if (step === 1) {
-        scrollViewRef.current?.scrollTo({ y: 200, animated: true });
-      } else if (step === 2) {
-        scrollViewRef.current?.scrollTo({ y: 440, animated: true });
-      } else {
-        scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-      }
-      setTimeout(() => {
-        measureAll();
-      }, 350);
-    } catch (e) {
-      swallow('modes.tourStepScroll', e);
-    }
-  };
   const { habits, removeHabit } = useHabitStore();
   const { removeTask } = useTaskStore();
   const { record: recordCompletion } = useCompletionStore();
@@ -972,6 +955,8 @@ export default function ModlarScreen() {
               onPress={() => {
                 haptic.surface();
                 usePrefsStore.getState().setTourCompleted('modlar', false);
+                // Elle istendi → teklif balonu atlanır, tur hemen başlar (bkz. useTourRun).
+                useTourRun.getState().request('modlar');
               }}
               style={styles.headerIconBtn}
               accessibilityRole="button"
@@ -1288,7 +1273,7 @@ export default function ModlarScreen() {
         </KeyboardAvoidingView>
       </View>
 
-      {tourOn && <HelpTourModal pageId="modlar" onStepChange={handleStepChange} />}
+      {tourOn && <HelpTourModal pageId="modlar" scrollRef={scrollViewRef} />}
       <BottomNavBar />
 
       {modePreview && (

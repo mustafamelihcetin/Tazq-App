@@ -11,23 +11,12 @@ interface MomentumState {
   shieldCharges: number;
   focusMinutesForNextCharge: number;
   tasksCompletedForNextCharge: number;
-  engineHeat: number;
-  isOverheated: boolean;
-  lastHeatUpdateTime: number;
-  lastCompletedTaskTitle: string | null;
-  showRocketFeedback: boolean;
-  isPerfectSync: boolean;
-  consecutiveFastCompletions: number;
-  isBatchConfirming: boolean;
   recordScore: (score: number) => void;
   getLastNDays: (n: number) => DayScore[];
   toggleMomentumShield: () => void;
   addFocusMinutes: (mins: number) => void;
-  addCompletedTask: () => boolean | void;
-  decayEngineHeat: () => void;
-  getDecayedHeat: () => { heat: number; isOverheated: boolean };
-  triggerRocketFeedback: (title: string, isPerfect?: boolean) => void;
-  dismissRocketFeedback: () => void;
+  /** Görev tamamlandı → kalkan ilerlemesi. Kalkan TAM bu tamamlamada kazanıldıysa bildirir. */
+  addCompletedTask: () => { shieldEarned: boolean; charges: number };
   undoCompletedTask: () => void;
 }
 
@@ -56,14 +45,6 @@ export const useMomentumStore = create<MomentumState>()(
       shieldCharges: 2,
       focusMinutesForNextCharge: 0,
       tasksCompletedForNextCharge: 0,
-      engineHeat: 0,
-      isOverheated: false,
-      lastHeatUpdateTime: Date.now(),
-      lastCompletedTaskTitle: null,
-      showRocketFeedback: false,
-      isPerfectSync: false,
-      consecutiveFastCompletions: 0,
-      isBatchConfirming: false,
 
       recordScore: (score) => {
         const today = todayISO();
@@ -134,6 +115,15 @@ export const useMomentumStore = create<MomentumState>()(
         set({ shieldCharges, focusMinutesForNextCharge });
       },
 
+      /*
+        ── "MOTOR ISISI" KALDIRILDI (2026-10-25) ─────────────────────────────────
+        Art arda tamamlanan görevler ısıyı 85'in üstüne çıkarınca o tamamlama MOMENTUMA
+        SAYILMIYOR ve biriken kalkan ilerlemesi sıfırlanıyordu; her tamamlamada da jargonlu
+        bir "roket" baloncuğu çıkıyordu. Üretken olanı cezalandırıyordu: sabah üç küçük işi
+        bitirip art arda işaretleyen puan kaybediyordu. Momentum zaten bir ORAN (bkz.
+        shared/utils/momentum.ts) — hızla şişirilemez; ceza gereksiz ve adaletsizdi.
+        Kalan tek ödül anlamlı olanı: 5 görevde bir kalkan (dinlenme gününde seriyi korur).
+      */
       addCompletedTask: () => {
         let isLite = false;
         try {
@@ -141,100 +131,20 @@ export const useMomentumStore = create<MomentumState>()(
           isLite = usePrefsStore.getState().uiMode === 'lite';
         } catch (e) { swallow('useMomentumStore.addCompletedTask', e); }
 
-        if (isLite) {
-          set({
-            engineHeat: 0,
-            isOverheated: false,
-            lastHeatUpdateTime: Date.now(),
-            consecutiveFastCompletions: 0,
-            isBatchConfirming: false
-          });
-          return true;
+        let { shieldCharges, tasksCompletedForNextCharge } = get();
+        // Sade mod oyunlaştırmayı gizler; kalkan ilerlemesi de işlemez (eski davranış).
+        if (isLite || shieldCharges >= 3) return { shieldEarned: false, charges: shieldCharges };
+
+        const before = shieldCharges;
+        tasksCompletedForNextCharge += 1;
+        while (tasksCompletedForNextCharge >= 5 && shieldCharges < 3) {
+          tasksCompletedForNextCharge -= 5;
+          shieldCharges += 1;
         }
+        if (shieldCharges >= 3) tasksCompletedForNextCharge = 0;
 
-        let { 
-          shieldCharges, 
-          tasksCompletedForNextCharge, 
-          engineHeat, 
-          isOverheated, 
-          lastHeatUpdateTime,
-          consecutiveFastCompletions,
-          isBatchConfirming
-        } = get();
-        
-        // 1. Increment shield energy progress
-        if (shieldCharges < 3) {
-          tasksCompletedForNextCharge += 1;
-          while (tasksCompletedForNextCharge >= 5 && shieldCharges < 3) {
-            tasksCompletedForNextCharge -= 5;
-            shieldCharges += 1;
-          }
-          if (shieldCharges >= 3) {
-            tasksCompletedForNextCharge = 0;
-          }
-        }
-
-        // 2. Heat calculations with elapsed cooling decay
-        const now = Date.now();
-        const elapsedSecs = Math.max(0, (now - lastHeatUpdateTime) / 1000);
-        let currentHeat = Math.max(0, engineHeat - elapsedSecs * 1.0);
-
-        // Smart consecutive checkoff logic: completions within 15 seconds of each other
-        let nextConsecutiveCount = elapsedSecs < 15 ? consecutiveFastCompletions + 1 : 0;
-        let nextBatchConfirming = nextConsecutiveCount >= 2;
-
-        let nextOverheated = isOverheated;
-        if (currentHeat < 40) {
-          nextOverheated = false;
-        }
-
-        let isPerfect = false;
-        let heatToAdd = 25;
-
-        if (nextBatchConfirming) {
-          heatToAdd = 0;
-          isPerfect = false;
-        } else {
-          if (currentHeat === 0) {
-            isPerfect = true;
-            heatToAdd = 25;
-          } else {
-            heatToAdd = 45;
-          }
-        }
-
-        currentHeat = Math.min(100, currentHeat + heatToAdd);
-
-        if (currentHeat > 85 && !nextBatchConfirming) {
-          nextOverheated = true;
-          // OVERHEAT PENALTY: Lose all unbanked shield progress
-          tasksCompletedForNextCharge = 0;
-        }
-
-        set({
-          shieldCharges,
-          tasksCompletedForNextCharge,
-          engineHeat: currentHeat,
-          isOverheated: nextOverheated,
-          lastHeatUpdateTime: now,
-          consecutiveFastCompletions: nextConsecutiveCount,
-          isBatchConfirming: nextBatchConfirming
-        });
-
-        if (__DEV__) {
-          console.log('[MomentumStore] Task Completed:', {
-            shieldCharges,
-            tasksCompletedForNextCharge,
-            engineHeat: currentHeat,
-            isOverheated: nextOverheated,
-            consecutiveFastCompletions: nextConsecutiveCount,
-            isBatchConfirming: nextBatchConfirming,
-            isPerfect,
-            elapsedSecs
-          });
-        }
-
-        return isPerfect;
+        set({ shieldCharges, tasksCompletedForNextCharge });
+        return { shieldEarned: shieldCharges > before, charges: shieldCharges };
       },
 
       undoCompletedTask: () => {
@@ -246,121 +156,9 @@ export const useMomentumStore = create<MomentumState>()(
 
         if (isLite) return;
 
-        let { shieldCharges, tasksCompletedForNextCharge, engineHeat, isOverheated, lastHeatUpdateTime } = get();
-        
-        // Revert shield progress locally (simplistic)
-        if (shieldCharges < 3) {
-          tasksCompletedForNextCharge -= 1;
-          if (tasksCompletedForNextCharge < 0) {
-            tasksCompletedForNextCharge = 0;
-          }
-        }
-
-        const now = Date.now();
-        const elapsedSecs = Math.max(0, (now - lastHeatUpdateTime) / 1000);
-        let currentHeat = Math.max(0, engineHeat - elapsedSecs * 1.0);
-        
-        // Revert a flat 35 heat for undo
-        currentHeat = Math.max(0, currentHeat - 35);
-
-        let nextOverheated = isOverheated;
-        if (currentHeat < 40) {
-          nextOverheated = false;
-        }
-
-        set({
-          tasksCompletedForNextCharge,
-          engineHeat: currentHeat,
-          isOverheated: nextOverheated,
-          lastHeatUpdateTime: now,
-          consecutiveFastCompletions: 0,
-          isBatchConfirming: false
-        });
-      },
-
-      decayEngineHeat: () => {
-        let isLite = false;
-        try {
-          const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
-          isLite = usePrefsStore.getState().uiMode === 'lite';
-        } catch (e) { swallow('useMomentumStore.decayEngineHeat', e); }
-
-        if (isLite) {
-          if (get().engineHeat > 0 || get().isOverheated) {
-            set({ engineHeat: 0, isOverheated: false, consecutiveFastCompletions: 0, isBatchConfirming: false });
-          }
-          return;
-        }
-
-        const { engineHeat, isOverheated, lastHeatUpdateTime, consecutiveFastCompletions, isBatchConfirming } = get();
-        const now = Date.now();
-        const elapsedSecs = Math.max(0, (now - lastHeatUpdateTime) / 1000);
-        if (elapsedSecs < 1) return;
-
-        const currentHeat = Math.max(0, engineHeat - elapsedSecs * 1.0);
-        let nextOverheated = isOverheated;
-        if (currentHeat < 40) {
-          nextOverheated = false;
-        }
-
-        let nextConsecutiveCount = consecutiveFastCompletions;
-        let nextBatchConfirming = isBatchConfirming;
-        if (elapsedSecs >= 15) {
-          nextConsecutiveCount = 0;
-          nextBatchConfirming = false;
-        }
-
-        set({
-          engineHeat: currentHeat,
-          isOverheated: nextOverheated,
-          lastHeatUpdateTime: now,
-          consecutiveFastCompletions: nextConsecutiveCount,
-          isBatchConfirming: nextBatchConfirming
-        });
-      },
-
-      getDecayedHeat: () => {
-        let isLite = false;
-        try {
-          const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
-          isLite = usePrefsStore.getState().uiMode === 'lite';
-        } catch (e) { swallow('useMomentumStore.getDecayedHeat', e); }
-
-        if (isLite) return { heat: 0, isOverheated: false };
-
-        const { engineHeat, isOverheated, lastHeatUpdateTime } = get();
-        const now = Date.now();
-        const elapsedSecs = Math.max(0, (now - lastHeatUpdateTime) / 1000);
-        const currentHeat = Math.max(0, engineHeat - elapsedSecs * 1.0);
-        let nextOverheated = isOverheated;
-        if (currentHeat < 40) {
-          nextOverheated = false;
-        }
-
-        return { heat: Math.round(currentHeat), isOverheated: nextOverheated };
-      },
-
-      triggerRocketFeedback: (title, isPerfect = false) => {
-        /*
-          LITE KAPISI — bu deponun HER diğer eylemi (addFocusMinutes, addCompletedTask,
-          undoCompletedTask, decayEngineHeat, getDecayedHeat) `uiMode === 'lite'`i kontrol
-          edip Sade modda susuyor; burası unutulmuştu. Bayrak Sade modda da `true`
-          yazılıyor, `RocketFeedback.tsx` yalnız GÖRSELİ kendi kontrolüyle gizliyordu —
-          bayrağın kendisi hiç temizlenmiyordu. Kullanıcı Sade modu KAPATTIĞINDA (aynı
-          ekrandan ayrılmadan), önceden biriken bu bayrak aniden patlıyor, bağlamsız ve
-          gecikmiş bir "roket" bildirimi/titreşimi gösteriyordu.
-        */
-        let isLite = false;
-        try {
-          const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
-          isLite = usePrefsStore.getState().uiMode === 'lite';
-        } catch (e) { swallow('useMomentumStore.triggerRocketFeedback', e); }
-        if (isLite) return;
-        set({ lastCompletedTaskTitle: title, showRocketFeedback: true, isPerfectSync: isPerfect });
-      },
-
-      dismissRocketFeedback: () => {
-        set({ showRocketFeedback: false, isPerfectSync: false });
+        const { shieldCharges, tasksCompletedForNextCharge } = get();
+        // Kalkan ilerlemesini geri al (kazanılmış kalkan geri alınmaz — basit tutuldu).
+        if (shieldCharges < 3) set({ tasksCompletedForNextCharge: Math.max(0, tasksCompletedForNextCharge - 1) });
       },
 
       getLastNDays: (n) => {
@@ -381,9 +179,6 @@ export const useMomentumStore = create<MomentumState>()(
         history: state.history,
         momentumShieldActive: state.momentumShieldActive,
         shieldCharges: state.shieldCharges,
-        engineHeat: state.engineHeat,
-        isOverheated: state.isOverheated,
-        lastHeatUpdateTime: state.lastHeatUpdateTime,
       }),
     }
   )

@@ -133,15 +133,20 @@ describe('kutlamalar susturulur', () => {
 });
 
 describe('tur gördüğü ekranı anlatır', () => {
-  it('Sade modda ivme adımı atlanır', () => {
-    const src = read('features/onboarding/components/HelpTourModal.tsx');
-    expect(src).toContain("uiMode === 'lite'");
-    expect(src).toContain('GAMIFIED_STEP_TITLES');
+  /*
+    2026-10-25: eski tur adımları BAŞLIK listesiyle filtreliyordu ("İvme Skorun" Sade
+    modda gizlensin). Yeni tur gerçek öğeyi vurguluyor: hedefi ekranda olmayan adım
+    YAPISAL olarak atlanır — liste tutmaya gerek kalmadı, unutulamaz.
+  */
+  it('hedefi ölçülemeyen adım atlanır', () => {
+    const src = read('features/onboarding/components/SpotlightTour.tsx');
+    expect(src).toContain('if (!rect) {');
+    expect(src).toMatch(/setShown\(\(prev\) => prev\.map\(\(v, k\) => \(k === i \? false : v\)\)\)/);
   });
 
-  it('atlanan adım gerçekten var olan bir adım — filtre boşa düşmesin', () => {
-    const src = read('features/onboarding/components/HelpTourModal.tsx');
-    expect(src).toContain("title: { tr: 'İvme Skorun', en: 'Your Momentum' }");
+  it('Sade modda gizlenen Haftalık göstergesi ekrana hiç çizilmez → adımı atlanır', () => {
+    const src = read('app/index.tsx');
+    expect(src).toMatch(/isLite \? undefined : \(\s*<TourTarget id="cockpit">/);
   });
 });
 

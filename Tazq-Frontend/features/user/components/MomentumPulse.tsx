@@ -52,19 +52,8 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
     shieldCharges, 
     focusMinutesForNextCharge, 
     tasksCompletedForNextCharge,
-    engineHeat,
-    isOverheated,
-    decayEngineHeat
   } = useMomentumStore();
 
-  React.useEffect(() => {
-    if (!infoVisible) return;
-    decayEngineHeat();
-    const timer = setInterval(() => {
-      decayEngineHeat();
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [infoVisible]);
 
   // Skor birden çok store'dan (görev, odak, seri, alışkanlık) beslendiği için ilk açılışta
   // her biri hidrate oldukça yeniden hesaplanıyor. Durulmasını bekleyip TEK bir hedef
@@ -183,20 +172,6 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
       gürültüsüz. Parlama yok, sonsuz döngü yok.
     */}
     <CardBox embedded={embedded}>
-      {engineHeat > 0 && (
-        <MotiView
-          from={{ width: '0%' }}
-          animate={{ width: `${Math.min(100, Math.round(engineHeat))}%` }}
-          transition={{ type: 'timing', duration: 420 }}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            height: 2,
-            backgroundColor: isOverheated ? theme.error : engineHeat > 50 ? theme.streak : theme.tertiary,
-          }}
-        />
-      )}
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
 
       {/* Score + info */}
@@ -424,71 +399,6 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
               <Text style={{ fontSize: 14, fontWeight: '700', color: row.color }}>{row.pct}</Text>
             </View>
           ))}
-
-          {/* Motor ısısı kartı — Sade mod kapısı için yukarıdaki nota bakınız. */}
-          {(() => {
-            const roundedHeat = Math.round(engineHeat);
-
-            return (
-              /*
-                KENARLIK UYGULAMANIN DİLİNDE.
-
-                Bu iki kutu, durumu 1.5pt'lik TAM TONLU bir halkayla anlatıyordu (kırmızı
-                / turuncu); boştayken ise kenarlığı hiç yoktu. Uygulamada başka hiçbir
-                yüzey böyle çizilmiyor — her yerde ince (B.thin) ve nötr bir kenarlık var,
-                durum ise ikon, hafif zemin tonu ve yazıyla anlatılıyor. Sonuç, panelin
-                ortasında sebepsiz parlayan bir çerçeveydi.
-
-                Durum sinyali kaybolmuyor: zemin tonu, ikon rengi ve metin yerinde.
-                Kenarlık yalnız aynı rengin ÇOK AÇIK bir tonuna geçiyor.
-              */
-              <View style={{
-                backgroundColor: isOverheated ? theme.error + '10' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
-                borderRadius: R.lg,
-                padding: S.md,
-                borderWidth: B.thin,
-                borderColor: isOverheated ? theme.error + '40' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)'),
-                gap: S.sm
-              }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                    <Zap size={ICON.sm} color={isOverheated ? theme.error : theme.tertiary} />
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.85)' }}>
-                      {tr ? 'İvme Roket Motoru' : 'Propulsion Thruster'}
-                    </Text>
-                  </View>
-                  <Text style={{
-                    fontSize: 11,
-                    fontWeight: '700',
-                    color: isOverheated ? theme.error : (roundedHeat > 50 ? theme.streak : theme.success)
-                  }}>
-                    {isOverheated ? (tr ? 'AŞIRI ISINDI' : 'OVERHEATED') : (tr ? 'NOMİNAL' : 'NOMINAL')}
-                  </Text>
-                </View>
-
-                {/* Progress bar representing heat */}
-                <View style={{ height: 6, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', borderRadius: R.xs, overflow: 'hidden' }}>
-                  <View style={{
-                    height: '100%',
-                    width: `${roundedHeat}%`,
-                    backgroundColor: isOverheated ? theme.error : (roundedHeat > 50 ? theme.streak : theme.tertiary),
-                    borderRadius: R.xs
-                  }} />
-                </View>
-
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted }}>
-                    {tr ? `Motor Sıcaklığı: %${roundedHeat}` : `Thruster Temperature: ${roundedHeat}%`}
-                  </Text>
-                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted }}>
-                    {isOverheated 
-                      ? (tr ? 'Soğuyor... (ivme devredışı)' : 'Cooling... (propulsion disabled)') 
-                      : (tr ? 'Güvenli limit altında' : 'Safe limits')}
-                  </Text>
-                </View>
-              </View>
-            );
-          })()}
 
           {/* Momentum Shield (İvme Kalkanı) Toggle Card */}
           <View style={{

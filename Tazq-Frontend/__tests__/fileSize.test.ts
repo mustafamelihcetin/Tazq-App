@@ -67,7 +67,7 @@ const KNOWN_LARGE: Record<string, number> = {
   */
   // 860 → 870: misafirin "cihazdaki verileri sil" metinleri (iki dil).
   // 870 → 874: tasarruf ve bırakma da birer mod adı — özet ikisini hiç görmüyordu.
-  'shared/constants/i18n.ts': 1014, // +18 (2026-10-24): Ödemeler ay özeti + göreli vade metinleri (iki dil × 9) // +2 (2026-10-24): Sıradaki kartı etiketi ("SIRADAKİ" — Aktif Görev + Günlük Hedef birleşti)
+  'shared/constants/i18n.ts': 1018, // +4 (2026-10-25): tanıtım turlarını yeniden gösterme satırı (iki dil) // +18 (2026-10-24): Ödemeler ay özeti + göreli vade metinleri (iki dil × 9) // +2 (2026-10-24): Sıradaki kartı etiketi ("SIRADAKİ" — Aktif Görev + Günlük Hedef birleşti)
   // 2820 → 2817: baştaki emojiyi silen üç ayrı uygulamadan ikisi (biri hatalıydı,
   // \p{Emoji} rakamları da yiyordu) shared/utils/emoji.ts'e indi.
   // 2817 → 2820: YKS/KPSS/Ramazan'ın DİL kapısı (İngilizce arayüzde takvimle
@@ -336,7 +336,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // trophy ikonu tema token'larına bağlandı.
   // 899 → 919: başarım önizlemesi en son kazanılana göre sıralanıyor (recency),
   // kazanılmış madalyada kupa ışıltısı (MedalShine deseni).
-  'app/profile.tsx': 951, // +1 (2026-10-24): misafirin hoş geldinde seçtiği avatar (guestAvatar) // 2026-10-24: avatar resmi iç alana göre boyutlanır (88'lik kapta 110'luk resim kırpılıyordu) + Yenile/upperFor notları
+  'app/profile.tsx': 954, // +3 (2026-10-25): misafirin girdiği ad + platforma göre sağlık kaynağı adı // +1 (2026-10-24): misafirin hoş geldinde seçtiği avatar (guestAvatar) // 2026-10-24: avatar resmi iç alana göre boyutlanır (88'lik kapta 110'luk resim kırpılıyordu) + Yenile/upperFor notları
   'shared/constants/legal.ts': 893,
   // İlk kez 800 satırı geçti: admin panelinin Ürün İçgörüleri tipleri
   // (AdminModeAdoption/AdminRetentionCohort/AdminVersionShare) + X-App-Version
@@ -378,12 +378,11 @@ const KNOWN_LARGE: Record<string, number> = {
   // 911 → 925: misafirde "Hesabımı Sil" yerine "Bu cihazdaki verileri sil" (onaylı).
   // 925 → 928: Admin Paneli düğmesindeki ham indigo hex, zaten var olan A.system
   // token'ına bağlandı (iki ayrı kopya aynı rengi taşıyordu).
-  'app/settings.tsx': 947, // +16 (2026-10-19): Ödemeler'e kalıcı giriş satırı (bkz. PaymentsSummaryCard'ın artık yalnız aciliyet anında görünmesi) // +3 (2026-10-19): satıra kendi bölüm başlığı — Bildirimler'in altına yapışık görünüyordu
+  'app/settings.tsx': 958, // +11 (2026-10-25): 'Tanıtım turlarını yeniden göster' satırı — balon kaybolunca turlara tek dönüş yolu // +16 (2026-10-19): Ödemeler'e kalıcı giriş satırı (bkz. PaymentsSummaryCard'ın artık yalnız aciliyet anında görünmesi) // +3 (2026-10-19): satıra kendi bölüm başlığı — Bildirimler'in altına yapışık görünüyordu
   // Turun 5 sayfasının (dashboard/tasks/focus/modlar/cockpit) HER adımı için gerçek
   // bileşenlerden kurulan bir mockup çiziyor — doğası gereği uzun, bölünmesi bu
   // switch-case yapısını bozardı. 800'ü ilk kez geçti: turun güncellik denetiminde
   // (2026-09-20) üç adım gerçeğe uydurulup bir yeni adım eklendi.
-  'features/onboarding/components/TourFeaturePreview.tsx': 840,
   // İçerik dosyası — 23 sınavın (KPSS'den bekçilik'e) ders+konu ağacı. Kod karmaşıklığı
   // DEĞİL, veri hacmi: her satır bir ders/konu kaydı (bkz. dosya başlığındaki dalga planı,
   // 2026-10-18 tarihinde Dalga 2+3 ile KPSS/YKS dışındaki tüm sınavlar da konu derinliğine

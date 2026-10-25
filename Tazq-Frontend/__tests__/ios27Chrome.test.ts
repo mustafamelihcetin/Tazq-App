@@ -244,7 +244,10 @@ describe('Android: M3 yüzen çubuk — cam yalnız iOS\'ta', () => {
   });
 
   it('Android çubuğu OPAK tonal yüzey — cam yalnız iOS\'ta', () => {
-    expect(NAV).toMatch(/backgroundColor: theme\.surfaceCard/);
+    // 2026-10-25: Android kapsülü ayrı bileşende (AndroidNavCapsule — PillNav + M3 yatay öğe).
+    const CAP = read('shared/components/AndroidNavCapsule.tsx');
+    expect(CAP).toMatch(/backgroundColor: theme\.surfaceCard/);
+    expect(CAP).not.toContain("from '@/shared/components/AppBlur'");
     expect(NAV).toMatch(/\{IS_IOS && <AppBlur material="chrome"/);
   });
 

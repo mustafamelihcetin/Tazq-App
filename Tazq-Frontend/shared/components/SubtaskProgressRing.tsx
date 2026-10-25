@@ -1,10 +1,9 @@
 import React from 'react';
 import { View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import Animated, { useAnimatedProps, withSpring } from 'react-native-reanimated';
-import { RSPRING } from '@/shared/constants/tokens';
+import { useReducedMotion } from 'react-native-reanimated';
+import { useTween } from '@/shared/hooks/useTween';
 
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 interface SubtaskProgressRingProps {
   total: number;
@@ -27,11 +26,11 @@ export const SubtaskProgressRing: React.FC<SubtaskProgressRingProps> = ({
   const circumference = radius * 2 * Math.PI;
   
   const progress = total > 0 ? completed / total : 0;
-  const strokeDashoffset = circumference * (1 - progress);
-
-  const animatedProps = useAnimatedProps(() => ({
-    strokeDashoffset: withSpring(strokeDashoffset, RSPRING.default),
-  }));
+  // Dolum JS'te ilerler, düz prop olarak çizilir (bkz. useTween — animatedProps yeniden
+  // çizimde ilk değerine dönüyordu, cihazda görüldü).
+  const reduceMotion = useReducedMotion();
+  const shown = useTween(progress, { duration: 320, reduceMotion });
+  const strokeDashoffset = circumference * (1 - shown);
 
   if (total === 0) return null;
 
@@ -49,7 +48,7 @@ export const SubtaskProgressRing: React.FC<SubtaskProgressRingProps> = ({
           strokeOpacity={0.2}
         />
         {/* Active Progress */}
-        <AnimatedCircle
+        <Circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
@@ -57,7 +56,7 @@ export const SubtaskProgressRing: React.FC<SubtaskProgressRingProps> = ({
           strokeWidth={strokeWidth}
           fill="transparent"
           strokeDasharray={circumference}
-          animatedProps={animatedProps}
+          strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
         />
       </Svg>

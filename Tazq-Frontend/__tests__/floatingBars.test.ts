@@ -90,7 +90,13 @@ describe('sekme cubugu geometrisi', () => {
     const bar = read('shared/components/BottomNavBar.tsx');
     // Cam yalniz iOS'ta; Android'de opak tonal yuzey + M3 hap gostergesi.
     expect(bar).toMatch(/\{IS_IOS && <AppBlur material="chrome"/);
-    expect(bar).toContain('NAV_INDICATOR_W');
+    // 2026-10-25 kullanıcı kararı: iOS çubuğunun kardeşi. Dolu hap (siyah, mavi) reddedildi:
+    // aktif sekme TINT rengi + arkasında NÖTR seçim vurgusu; vurgunun yeri ölçülür.
+    expect(bar).toContain('<AndroidNavCapsule');
+    const cap = read('shared/components/AndroidNavCapsule.tsx');
+    expect(cap).toContain("const color = tab.isActive ? theme.primary : theme.onSurfaceVariant;");
+    expect(cap).toContain('onLayout={(e) => setInnerW(e.nativeEvent.layout.width)}');
+    expect(cap).not.toMatch(/backgroundColor: theme\.(primary|onSurface)/);
   });
 
   it('kuculmus cubuk DAHA KISA ama bosluk TAM yukseklige gore ayrilir', () => {

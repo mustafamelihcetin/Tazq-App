@@ -251,7 +251,10 @@ describe('tek bir "bugün" tanımı', () => {
       yarısını geçtiğinde dünün dakikaları bugün gösteriliyordu.
     */
     expect(INDEX).toContain('const todayFocusMinutes = dailyFocusDate === todayKey() ? dailyFocusMinutes : 0;');
-    expect(INDEX).toContain('progress: dailyGoalMinutes > 0 ? todayFocusMinutes / dailyGoalMinutes : 0');
+    // Halka gösterdiği dakikayı gün kapılı değerden türetir; tur sırasında örnek değer
+    // (bkz. useDemoGate, 2026-10-25) — gerçek dalı yine todayFocusMinutes.
+    expect(INDEX).toContain('const focusShown = demoActive ? Math.round(dailyGoalMinutes * 0.6) : todayFocusMinutes;');
+    expect(INDEX).toContain('progress: dailyGoalMinutes > 0 ? focusShown / dailyGoalMinutes : 0');
   });
 });
 

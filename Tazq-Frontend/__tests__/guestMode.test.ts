@@ -271,7 +271,8 @@ describe('misafir profili — uydurma kimlik YOK', () => {
     const src = stripComments(read('app/profile.tsx'));
     expect(src).not.toContain("'user@tazq.com'");
     expect(src).not.toContain("'Alex'");
-    expect(src).toContain('isGuest ? t.guest.badge');
+    // Misafirin KENDİ girdiği ad uydurma değil; yoksa rozet (bkz. hoş geldin, 2026-10-24).
+    expect(src).toContain('isGuest ? (guestName || t.guest.badge)');
     expect(src).toContain('t.guest.settingsRow');
   });
 

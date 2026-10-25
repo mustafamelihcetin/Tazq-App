@@ -1,9 +1,11 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
-import Animated, { useSharedValue, useAnimatedProps, withDelay, withTiming, Easing, useReducedMotion } from 'react-native-reanimated';
+import { useReducedMotion } from 'react-native-reanimated';
+import { useTween } from '@/shared/hooks/useTween';
 import { Check } from 'lucide-react-native';
 import { BentoCard } from '@/shared/components/BentoCard';
+import { TourTarget } from '@/shared/components/TourContext';
 import { Touchable } from '@/shared/components/Touchable';
 import { F, S, R, W, ICON, HAIRLINE } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
@@ -28,8 +30,6 @@ import type { AppTheme } from '@/shared/constants/Colors';
   Momentum aynı kartın ALTINDA, saç teliyle ayrılmış (MomentumPulse `embedded`).
 */
 
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-
 const SIZE = 112;
 const STROKE = 11;
 const GAP = 3;
@@ -44,31 +44,31 @@ interface Metric {
   color: string;
 }
 
-const Ring = ({ index, metric, reduceMotion }: { index: number; metric: Metric; reduceMotion: boolean }) => {
+const Ring = React.memo(({ index, metric, reduceMotion }: { index: number; metric: Metric; reduceMotion: boolean }) => {
   const r = radiusAt(index);
   const len = 2 * Math.PI * r;
-  const p = useSharedValue(reduceMotion ? metric.progress : 0);
-  useEffect(() => {
-    const target = Math.min(1, Math.max(0, metric.progress));
-    p.value = reduceMotion
-      ? target
-      : withDelay(index * 140, withTiming(target, { duration: 1100, easing: Easing.out(Easing.cubic) }));
-  }, [metric.progress, reduceMotion]);
-  const animatedProps = useAnimatedProps(() => ({ strokeDashoffset: len * (1 - p.value) }));
+  /*
+    Dolum JS'te ilerler, düz prop olarak çizilir (bkz. useTween). Reanimated
+    `animatedProps` ile çizilen yay, tur sırasında ana sayfa yeniden çizildikçe BOŞ
+    kalıyordu (cihazda görüldü). Açılışta halkalar SIRAYLA dolar (AppleActivity → timing).
+  */
+  const p = useTween(Math.min(1, Math.max(0, metric.progress)), { duration: 1100, delay: index * 140, reduceMotion, initial: 0 });
   return (
     <>
       <Circle cx={C} cy={C} r={r} fill="none" stroke={metric.color + '29'} strokeWidth={STROKE} />
-      <AnimatedCircle
+      <Circle
         cx={C} cy={C} r={r} fill="none"
         stroke={metric.color}
         strokeWidth={STROKE}
         strokeLinecap="round"
         strokeDasharray={`${len}`}
-        animatedProps={animatedProps}
+        strokeDashoffset={len * (1 - p)}
+        // Sıfırda yuvarlak uç bir nokta bırakır — boş halkada yay hiç çizilmez.
+        opacity={p > 0.001 ? 1 : 0}
       />
     </>
   );
-};
+});
 
 export interface TodayRingsProps {
   label: string;
@@ -82,14 +82,17 @@ export interface TodayRingsProps {
   addLabel?: string;
   showAdd?: boolean;
   onTap?: () => void;
+  /** Tur hedefi — dış boşluklu sarmalayıcıyı değil KARTI sarar (delik kart kenarına oturur). */
+  tourId?: string;
   theme: AppTheme;
   padding: number;
 }
 
-export const TodayRings = React.memo<TodayRingsProps>(({ label, caption, captionHighlight, metrics, footer, onAdd, addLabel, showAdd, onTap, theme, padding }) => {
+export const TodayRings = React.memo<TodayRingsProps>(({ label, caption, captionHighlight, metrics, footer, onAdd, addLabel, showAdd, onTap, tourId, theme, padding }) => {
   const reduceMotion = useReducedMotion();
   return (
     <View style={styles.wrap}>
+      <TourTarget id={tourId ?? 'today'} spotRadius={R.md}>
       <BentoCard index={0} style={{ padding, overflow: 'hidden' }}>
         {/* Dokunma bir ÖZELLİK değil, kolay yumurta — ekran okuyucu ağacına girmez (bkz. TodayCard). */}
         <Touchable accessible={false} onPress={onTap} activeOpacity={1}>
@@ -142,6 +145,7 @@ export const TodayRings = React.memo<TodayRingsProps>(({ label, caption, caption
           </View>
         ) : null}
       </BentoCard>
+      </TourTarget>
     </View>
   );
 });

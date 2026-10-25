@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
+import { create } from 'zustand';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 
 /**
@@ -61,15 +62,46 @@ export function useTourGate(page: FirstRunPage, blocked = false): boolean {
 }
 
 /**
- * ÖRNEK VERİ KAPISI — yalnız TUR AÇIKKEN ve gerçek veri YOKKEN.
+ * ÖRNEK VERİ KAPISI — tur ÇALIŞTIĞI SÜRECE açık, tur bittiği karede kapalı.
  *
- * Tur bitince (ya da atlanınca) `completedTours[page]` true olur, `tourOn` düşer ve
- * örnek satırlar aynı karede kaybolur. Gerçek verisi olan kullanıcı örnek görmez:
- * eklediğin şeyin orada durması, uygulamanın en temel sözü.
+ * Kural değişti (2026-10-25, kullanıcı kararı): eskiden yalnız gerçek veri SIFIRKEN
+ * açılıyordu. Tanıtımdaki başlangıç görevi kurtarılınca (bkz. guestMode.test) görev
+ * sayısı 1 oldu ve tur yarı boş bir ekranı anlatmaya başladı: halkalar "—", liste tek
+ * satır. Tur ekranı DOLU ve anlatılan her şeyi gösterir hâlde anlatmalı; bitince aynı
+ * karede gerçeğe döner (`completedTours[page]` → `tourOn` düşer, `running` temizlenir).
  *
- * Gerçek sayıyı PARAMETRE olarak istiyor — "gerçek veri varsa asla" kuralı çağıranın
- * hatırlamasına kalmıyor, imzadan geliyor.
+ * Gerçek veri SİLİNMEZ ve değişmez — yalnız tur sürerken ekranda örnek gösterilir.
+ * Örnek öğeler dokunulamaz (kimlik öneki `mock-`, bkz. index.tsx isDemoId).
+ * Parametre korunuyor: çağıran gerçek koleksiyonun uzunluğunu verir (bkz.
+ * activationFlow.test → "her çağrı gerçek koleksiyonun uzunluğunu veriyor").
  */
-export function useDemoGate(_page: FirstRunPage, tourOn: boolean) {
-  return useCallback((realCount: number) => tourOn && realCount === 0, [tourOn]);
+export function useDemoGate(page: FirstRunPage, tourOn: boolean) {
+  // Teklif (balon) dururken sayfa değişmez; yalnız tur ÇALIŞIRKEN örnek görünür.
+  const running = useTourRun((s) => s.running === page);
+  return useCallback((_realCount: number) => tourOn && running, [tourOn, running]);
 }
+
+/*
+  ── TURUN ÇALIŞMA DURUMU (2026-10-25) ────────────────────────────────────────────
+  Ana sayfa turu kendiliğinden başlar; diğer sayfalarda önce bir "Bu sayfayı tanı"
+  balonu çıkar (react-joyride beacon deseni, kullanıcı kararı). İki durum ayrı:
+    · teklif (tourOn, balon) — sayfa olduğu gibi kalır
+    · çalışıyor (running)    — örnek veri görünür, vurgulama açık
+  `requested`: kullanıcı turu elle istedi (ör. Modlar'daki ⓘ) → balon atlanır.
+  Kalıcı DEĞİL: oturum durumu.
+*/
+interface TourRunState {
+  running: FirstRunPage | null;
+  requested: FirstRunPage | null;
+  setRunning: (page: FirstRunPage | null) => void;
+  request: (page: FirstRunPage) => void;
+  clearRequest: () => void;
+}
+
+export const useTourRun = create<TourRunState>((set) => ({
+  running: null,
+  requested: null,
+  setRunning: (running) => set({ running }),
+  request: (requested) => set({ requested }),
+  clearRequest: () => set({ requested: null }),
+}));

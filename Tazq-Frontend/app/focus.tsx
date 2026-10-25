@@ -43,7 +43,7 @@ import { useTaskStore, getLocalizedTaskTitle } from '@/features/tasks';
 import { completeTask } from '@/features/tasks/utils/taskActions';
 import { isWeightEntryTask } from '@/features/modes/utils/weightCheckin';
 import { useTourGate } from '@/features/onboarding/utils/firstRun';
-import { TourTarget, useTour } from '@/shared/components/TourContext';
+import { TourTarget } from '@/shared/components/TourContext';
 import ReAnimated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withDelay, cancelAnimation, Easing as ReEasing } from 'react-native-reanimated';
 import { swallow } from '@/shared/utils/swallow';
 import type { AppTheme } from '@/shared/constants/Colors';
@@ -299,12 +299,6 @@ export default function FocusScreen() {
     odak seansını bitirince yine tam ekran konfeti/kart görüyordu.
   */
   const isLiteMode = uiMode === 'lite';
-  const { measureAll } = useTour();
-  const handleStepChange = (step: number) => {
-    setTimeout(() => {
-      measureAll();
-    }, 150);
-  };
 
   // ── SES MOTORU HAZIRLIK ────────────────────────────────────────────────────
   // `setAudioModeAsync` asenkron; tamamlanmadan `play()` çağrılırsa iOS'ta ses
@@ -1229,7 +1223,7 @@ export default function FocusScreen() {
           <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
             <AnimatePresence>
               {!isActive && (
-                <TourTarget id="modeSelect">
+                <TourTarget id="modeSelect" spotRadius={R.lg} spotPad={S.xs}>
                 <MotiView
                   key="pomo-controls"
                   from={{ opacity: 0 }}
@@ -1349,7 +1343,8 @@ export default function FocusScreen() {
                       Bedtime/Headspace (can-it-be-done) süreyi tek, ekrana oturan bir kontrolle
                       seçtirir: eşit genişlik, yalnız dakika; ad ekran okuyucuda kalır.
                     */}
-                    <View style={[styles.segment, { marginBottom: S.md }]}>
+                    <TourTarget id="duration" style={{ marginBottom: S.md }} spotRadius={R.full} spotPad={S.xs}>
+                    <View style={styles.segment}>
                       {PRESETS.map((preset) => {
                         const isSelected = totalSeconds === preset.workMins * 60;
                         return (
@@ -1396,6 +1391,7 @@ export default function FocusScreen() {
                         );
                       })()}
                     </View>
+                    </TourTarget>
                   </MotiView>
                 )}
               </AnimatePresence>
@@ -1832,7 +1828,7 @@ export default function FocusScreen() {
               </AnimatePresence>
             </View>
 
-            <TourTarget id="startButton">
+            <TourTarget id="startButton" style={{ alignSelf: 'center' }} spotRadius={R.full} spotPad={S.sm}>
             <Touchable
               onPress={toggleTimer}
               accessibilityRole="button"
@@ -2337,7 +2333,6 @@ export default function FocusScreen() {
       {tourOn && (
         <HelpTourModal
           pageId="focus"
-          onStepChange={handleStepChange}
         />
       )}
     </MotiView>

@@ -121,10 +121,6 @@ function clearLocalUserData() {
     shieldCharges: 2,
     focusMinutesForNextCharge: 0,
     tasksCompletedForNextCharge: 0,
-    engineHeat: 0,
-    isOverheated: false,
-    lastCompletedTaskTitle: null,
-    showRocketFeedback: false,
   }));
   safe(() => require('./useAchievementStore').useAchievementStore.setState({
     unlocked: [],

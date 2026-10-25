@@ -418,10 +418,6 @@ export const NAV_BAR_SIDE_INSET = Platform.OS === 'ios' ? 16 : 16;
 /** Kapsül yarıçapı — iki platformda da tam yuvarlak (M3: "50% rounded"). */
 export const NAV_BAR_RADIUS = Platform.OS === 'ios' ? 999 : 999;
 
-/** ANDROID aktif göstergesi — M3 BottomNavigation: 56 × 32, %50 yuvarlak. */
-export const NAV_INDICATOR_W = 56;
-export const NAV_INDICATOR_H = 32;
-
 /**
  * KAPSÜLÜN İÇ YAN BOŞLUĞU.
  *

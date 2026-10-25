@@ -10,7 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TourTarget } from '@/shared/components/TourContext';
-import { S, navBarSpace, topBarSpace } from '@/shared/constants/tokens';
+import { S, R, navBarSpace, topBarSpace } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
 
@@ -242,7 +242,8 @@ export const MagneticFAB: React.FC<MagneticFABProps> = ({
       ]}
     >
       {tourId ? (
-        <TourTarget id={tourId} style={StyleSheet.absoluteFill}>
+        // Düğme yuvarlak: delik de tam yuvarlak + eşmerkezli küçük pay (bkz. SpotlightTour).
+        <TourTarget id={tourId} style={StyleSheet.absoluteFill} spotRadius={R.full} spotPad={S.xs}>
           {innerContent}
         </TourTarget>
       ) : (

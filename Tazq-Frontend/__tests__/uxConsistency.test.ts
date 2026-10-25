@@ -319,7 +319,7 @@ describe('ikon dili — ham emoji değil, flat glif', () => {
   it('koruma gerçekten TARIYOR — dosya listesi boş kalmasın', () => {
     // Yürüyüş bozulursa test sessizce "0 ihlal" der ve hiçbir şeyi korumaz.
     expect(ALL_SOURCE_FILES.length).toBeGreaterThan(100);
-    expect(ALL_SOURCE_FILES).toContain('features/user/components/RocketFeedback.tsx');
+    expect(ALL_SOURCE_FILES).toContain('features/user/components/MomentumPulse.tsx');
     expect(ALL_SOURCE_FILES).toContain('features/tasks/components/TaskFormModal.tsx');
     expect(ALL_SOURCE_FILES).toContain('features/modes/components/modes/ExamCard.tsx');
   });

@@ -42,7 +42,7 @@ import { completeTask, archiveTask, deleteTaskAction } from '@/features/tasks/ut
 import { celebrate } from '@/features/user/utils/celebrate';
 import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
 import { useDemoGate, useTourGate } from '@/features/onboarding/utils/firstRun';
-import { TourTarget, useTour } from '@/shared/components/TourContext';
+import { TourTarget } from '@/shared/components/TourContext';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions, parseTimeParts } from '@/shared/utils/notifications';
 import { syncTaskToCalendar } from '@/shared/utils/calendarSync';
 import { ICON, S, R, F, scale, verticalScale, moderateScale, B, contentMaxWidth, sideInset, fabSafeBottom, topBarSpace, MIN_TOUCH, HAIRLINE } from '@/shared/constants/tokens';
@@ -153,13 +153,7 @@ export default function ActionCenter() {
   const { enqueue: enqueueOffline } = useOfflineQueue();
   const { soundEffects, completedTours, onboardingCompleted } = usePrefsStore();
   const { record: recordCompletion } = useCompletionStore();
-  const { measureAll } = useTour();
 
-  const handleStepChange = (step: number) => {
-    setTimeout(() => {
-      measureAll();
-    }, 150);
-  };
   const setCurrentTask = useFocusStore(s => s.setCurrentTask);
   const { width, height } = useWindowDimensions();
   /*
@@ -1053,7 +1047,7 @@ export default function ActionCenter() {
       });
     }
     return result;
-  }, [tasks, filter, tagFilter, searchQuery, sortBy, hideCompleted, completingIds, theme, completedTours, onboardingCompleted, language]);
+  }, [tasks, filter, tagFilter, searchQuery, sortBy, hideCompleted, completingIds, theme, completedTours, onboardingCompleted, language, demoGate]);
 
   /*
     ── ÖLÜ SAYFALAMA KALDIRILDI ────────────────────────────────────────────────
@@ -1585,7 +1579,9 @@ export default function ActionCenter() {
           )}
         </AnimatePresence>
         
-        <TourTarget id="list" style={{ flex: 1 }}>
+        {/* Tur hedefi artık listenin İLK SATIRI (bkz. TaskListItem tourId) — tüm gövdeyi
+            sarınca delik ekranın tamamı oluyor, hiçbir şey kararmıyordu (cihazda görüldü). */}
+        <View style={{ flex: 1 }}>
         <MotiView 
           key="list" 
           from={{ opacity: 0 }} 
@@ -1808,6 +1804,7 @@ export default function ActionCenter() {
                     sortBy={sortBy}
                     // Tek sütunda satırlar TEK yüzeyde birleşir (gruplu liste); ızgarada her biri kart.
                     position={listCols === 1 ? (filteredTasks.length === 1 ? 'only' : i === 0 ? 'first' : i === filteredTasks.length - 1 ? 'last' : 'middle') : undefined}
+                    tourId={i === 0 ? 'list' : undefined}
                     onMoveUp={i > 0 && sortBy === 'creation' ? () => handleMoveTask(i, 'up') : undefined}
                     onMoveDown={i < filteredTasks.length - 1 && sortBy === 'creation' ? () => handleMoveTask(i, 'down') : undefined}
                     handleLongPress={(id: number) => {
@@ -1842,7 +1839,7 @@ export default function ActionCenter() {
             </>)}
         />
         </MotiView>
-        </TourTarget>
+        </View>
       </View>
 
             {/*
@@ -2008,7 +2005,6 @@ export default function ActionCenter() {
       {tourOn && (
         <HelpTourModal
           pageId="tasks"
-          onStepChange={handleStepChange}
         />
       )}
     </View>

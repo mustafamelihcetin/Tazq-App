@@ -87,37 +87,29 @@ describe('Ayarlar — Admin Paneli rengi tek kaynaktan', () => {
  * eklenen kaydırma jestinden (ModeDeck) hiç bahsetmiyordu.
  */
 describe('Yardım turları — güncellik denetimi', () => {
-  const MODAL = read('features/onboarding/components/HelpTourModal.tsx');
-  const PREVIEW = read('features/onboarding/components/TourFeaturePreview.tsx');
+  /*
+    2026-10-25: tur yeniden kuruldu (bkz. features/onboarding/tour/tourSteps.ts) —
+    sahte önizlemeler kalktı, her adım GERÇEK öğeyi vurguluyor. Buradaki kurallar
+    eski turun kayda geçmiş hatalarının yeni yapıda tekrarlanmamasını sağlıyor.
+  */
+  const STEPS = read('features/onboarding/tour/tourSteps.ts');
+  const block = (page: string, next: string) => STEPS.slice(STEPS.indexOf(`${page}: [`), STEPS.indexOf(`${next}: [`));
 
-  it('dashboard turu var olmayan bir düğme anlatmıyor, gösterge ikonunu anlatıyor', () => {
-    expect(MODAL).not.toMatch(/Karta dokunarak haftalık karneni/);
-    expect(MODAL).toContain('gösterge ikonuna dokunarak');
-    expect(PREVIEW).not.toContain('Haftalık karneni gör');
+  it('kokpit karnesi AYRI ekranda açılır — Kokpit içindeymiş gibi anlatılmaz', () => {
+    const cockpit = STEPS.slice(STEPS.indexOf('cockpit: ['));
+    expect(cockpit).toMatch(/target: 'weeklyReview'[\s\S]*?aç\./);
+    expect(STEPS).not.toContain('Haftalık Hedef');
   });
 
-  it('cockpit turu grafikleri AYRI ekrana yönlendiriyor, Kokpit içindeymiş gibi anlatmıyor', () => {
-    expect(MODAL).toContain('Başlıktaki düğmeye dokunarak');
-    // Eski mockup Kokpit'in içinde sahte "Haftalık Hedef 23/30" çubuğu çiziyordu.
-    expect(PREVIEW).not.toContain('Haftalık Hedef');
+  it('modlar turu kaydırma jestinden bahsediyor (ModeStatusCard deste)', () => {
+    expect(block('modlar', 'cockpit')).toMatch(/yana kaydırarak geç|swipe sideways/);
   });
 
-  it('modlar turu artık kaydırma jestinden bahsediyor (ModeDeck)', () => {
-    expect(MODAL).toMatch(/sağa sola kaydır|swipe left and right/);
-  });
-
-  it('aktif planı olan kullanıcı için YENİ bir tur adımı var, olmayana gösterilmiyor', () => {
-    expect(MODAL).toContain('ACTIVE_MODE_STEP_TITLES');
-    expect(MODAL).toContain('hasActiveMode');
-    expect(MODAL).toContain("useActiveModeSummary()");
-  });
-
-  it('yeni adım dashboard dizisinin SONUNA eklendi — mevcut önizleme eşlemesi kaymadı', () => {
-    // dashboard-0..4 hâlâ eski sırasında olmalı: ilk adım yine momentum (Rocket).
-    const dashboardBlock = MODAL.slice(MODAL.indexOf('dashboard: ['), MODAL.indexOf('tasks: ['));
-    const firstStepIdx = dashboardBlock.indexOf('Icon: Rocket');
-    const activeModeIdx = dashboardBlock.indexOf('activeModeStep');
-    expect(firstStepIdx).toBeGreaterThan(-1);
-    expect(activeModeIdx).toBeGreaterThan(firstStepIdx);
+  it('aktif plan adımı var; aktif modu olmayana yapısal olarak gösterilmez', () => {
+    expect(block('dashboard', 'tasks')).toContain("target: 'activePlan'");
+    // ModeTodayCard aktif mod yokken null döner → hedef ölçülemez → adım atlanır.
+    // Hedef kartın içinde (kenar boşluğu dışarıda → delik kart kenarına birebir oturur).
+    expect(read('features/modes/components/ModeTodayCard.tsx')).toMatch(/<TourTarget id="activePlan" spotRadius=\{R\.md\}/);
+    expect(read('features/modes/components/ModeTodayCard.tsx')).toContain('if (activeCount === 0) return null;');
   });
 });

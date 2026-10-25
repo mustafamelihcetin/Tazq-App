@@ -61,25 +61,13 @@ export function computeMomentum(input: MomentumInput): MomentumResult {
   const totalCount = weeklyTasks.length;
   const completedCount = weeklyTasks.filter(t => t.isCompleted).length;
 
-  // Velocity Guard: Identify spammed task IDs completed less than 10s apart
-  const spammedIds = new Set<string | number>();
-  const sortedCompleted = weeklyTasks
-    .filter(t => t.isCompleted && t.completedAt)
-    .map(t => ({
-      id: t.id,
-      time: new Date(t.completedAt!).getTime()
-    }))
-    .sort((a, b) => a.time - b.time);
-
-  for (let i = 1; i < sortedCompleted.length; i++) {
-    const diffSeconds = (sortedCompleted[i].time - sortedCompleted[i - 1].time) / 1000;
-    if (diffSeconds < 10) {
-      if (sortedCompleted[i].id !== undefined) {
-        spammedIds.add(sortedCompleted[i].id!);
-      }
-    }
-  }
-
+  /*
+    "Velocity Guard" KALDIRILDI (2026-10-25): 10 sn içinde tamamlanan görev sayılmıyordu —
+    uygulamanın kendi TOPLU SEÇİM özelliğiyle birden çok görevi bitiren kullanıcıyı
+    cezalandırıyordu. Skor bir ORAN (kazanılan / toplam ağırlık); hızla şişirilemez.
+    Eski sürümün `ignoreMomentum` işaretleri de artık yok sayılır (alan geriye dönük
+    uyumluluk için tipte duruyor).
+  */
   // Öncelik-ağırlıklı, recency-azalmalı tamamlanma oranı.
   const weightedCompletion = (() => {
     if (weeklyTasks.length === 0) return 0;
@@ -90,10 +78,9 @@ export function computeMomentum(input: MomentumInput): MomentumResult {
       const daysAgo = Math.round((logicalToday.getTime() - taskDate.getTime()) / 86400000);
       const recency = Math.max(0.3, 1 - Math.max(0, daysAgo) * 0.1);
       
-      const isSpammed = (task.id !== undefined && spammedIds.has(task.id)) || task.ignoreMomentum;
       const weight = (PRIORITY_WEIGHTS[task.priority ?? 'Low'] || 1) * recency;
       totalPts += weight;
-      if (task.isCompleted && !isSpammed) {
+      if (task.isCompleted) {
         earnedPts += weight;
       }
     }

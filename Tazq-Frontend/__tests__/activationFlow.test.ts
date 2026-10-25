@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react-native';
-import { useDemoGate, useTourGate } from '@/features/onboarding/utils/firstRun';
+import { useDemoGate, useTourGate, useTourRun } from '@/features/onboarding/utils/firstRun';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import fs from 'fs';
 import path from 'path';
@@ -86,7 +86,7 @@ describe('ilk kullanım senaryosu — tur ve örnek veri BİRLİKTE', () => {
   const reset = (over: Record<string, unknown> = {}) =>
     usePrefsStore.setState({ _hasHydrated: true, completedTours: {}, ...over } as never);
 
-  beforeEach(() => reset());
+  beforeEach(() => { reset(); useTourRun.setState({ running: null, requested: null }); });
 
   it('tur sayfaya İLK girişte açılır — içerik şartı YOK', () => {
     /*
@@ -109,15 +109,24 @@ describe('ilk kullanım senaryosu — tur ve örnek veri BİRLİKTE', () => {
     expect(renderHook(() => useTourGate('tasks')).result.current).toBe(false);
   });
 
-  it('örnek veri YALNIZ tur açıkken ve gerçek veri yokken', () => {
+  it('örnek veri tur ÇALIŞTIĞI SÜRECE — gerçek veri olsa da (kullanıcı kararı 2026-10-25)', () => {
+    /*
+      2026-10-25: isteğe bağlı sayfalarda tur önce TEKLİF edilir (balon). Teklif
+      dururken sayfa değişmemeli — örnek veri yalnız tur gerçekten çalışırken görünür.
+    */
+    useTourRun.getState().setRunning('tasks');
+    expect(renderHook(() => useDemoGate('dashboard', true)).result.current(0)).toBe(false); // başka sayfanın turu
+    useTourRun.getState().setRunning('dashboard');
     const on = renderHook(() => useDemoGate('dashboard', true)).result.current;
     expect(on(0)).toBe(true);
-    expect(on(3)).toBe(false); // gerçek veri varsa asla
+    // Kural değişti: tur ekranı DOLU anlatmalı; gerçek veri silinmez, tur bitince geri gelir.
+    expect(on(3)).toBe(true);
     const off = renderHook(() => useDemoGate('dashboard', false)).result.current;
     expect(off(0)).toBe(false); // tur yoksa örnek yok
   });
 
   it('tur BİTİNCE örnek veri aynı anda kaybolur', () => {
+    useTourRun.getState().setRunning('tasks');
     const { result, rerender } = renderHook(() => {
       const tourOn = useTourGate('tasks');
       return useDemoGate('tasks', tourOn)(0);

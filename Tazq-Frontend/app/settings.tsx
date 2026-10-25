@@ -10,7 +10,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, Download, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ArrowLeft , Vibrate, Footprints, UserPlus, MailCheck } from 'lucide-react-native';
+import { Bell, Moon, Languages, LogOut, Download, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ArrowLeft , Vibrate, Footprints, UserPlus, MailCheck, Sparkles } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { AuthService, FocusService } from '@/shared/services/api';
 import { SleepHealth } from '@/shared/services/sleepHealth';
@@ -31,6 +31,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ICON, S, R, F, B, W, MAX_W, MIN_TOUCH, trackingFor , topBarSpace} from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { useToastStore } from '@/shared/store/useToastStore';
+import { healthSourceName } from '@/shared/utils/healthSource';
 import { Asset } from 'expo-asset';
 import { usePrefsStore } from '@/features/modes';
 import { useSporStore } from '@/features/modes/store/useSporStore';
@@ -586,7 +587,7 @@ export default function SettingsScreen() {
                     <ToggleRow
                         icon={<Moon size={ICON.md} color="#FFFFFF" />}
                         bg={A.health}
-                        title={language === 'tr' ? 'Apple Sağlık ile Uyku' : 'Sleep via Apple Health'}
+                        title={language === 'tr' ? `${healthSourceName('tr')} ile Uyku` : `Sleep via ${healthSourceName('en')}`}
                         subtitle={language === 'tr' ? 'Uyku alışkanlığın her sabah otomatik işaretlenir' : 'Your sleep habit is auto-marked each morning'}
                         value={sleepHealthOptIn === 'yes'}
                         onValueChange={handleSleepToggle}
@@ -686,6 +687,16 @@ export default function SettingsScreen() {
                     sub={(t as any).support?.sub || (language === 'tr' ? 'Soru ve önerilerini ilet' : 'Send questions & feedback')}
                     bg={A.core}
                     onPress={() => setSupportModalVisible(true)}
+                    theme={theme}
+                />
+                <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.outlineVariant }} />
+                {/* Turlar: balon 10 sn'de kaybolur ve bir daha gelmez — tek geri dönüş yolu burası. */}
+                <SettingItem
+                    icon={<Sparkles size={ICON.md} color="#FFFFFF" />}
+                    label={t.tourReplay.title}
+                    sub={t.tourReplay.sub}
+                    bg={A.core}
+                    onPress={() => { usePrefsStore.setState({ completedTours: {} }); showToast(t.tourReplay.done, 'success'); router.replace('/'); }}
                     theme={theme}
                 />
             </SettingsCard>

@@ -123,7 +123,9 @@ const copy = (tr: boolean) => tr
 
 export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme, isDark, tr, onPress, onCheck, onFocus, focusLabel, priorityColor, prefs }) => {
   const modeInfo = getModeInfoForTask(item.original, prefs, theme);
-  const title = getLocalizedTaskTitle(item.original || item, tr);
+  // Örnek görev `original: {}` taşır — boş nesne "doğru" sayıldığı için başlık boş kalıyordu.
+  // Başlığı olan bir kaynak seçilir (bkz. __tests__/MyDayTaskRow.test.tsx).
+  const title = getLocalizedTaskTitle(item.original?.title ? item.original : item, tr);
   const c = copy(tr);
   return (
     <Touchable

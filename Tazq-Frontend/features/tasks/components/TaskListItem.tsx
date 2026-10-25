@@ -7,6 +7,7 @@ import { isWeightEntryTask } from '@/features/modes/utils/weightCheckin';
 import { visibleTextTags, translateTag, getLocalizedTaskTitle, getLocalizedTaskDescription } from '@/features/tasks';
 import { getTaskRemainingTime } from '@/features/modes';
 import { SwipeableItem } from '@/shared/components/SwipeableItem';
+import { TourTarget } from '@/shared/components/TourContext';
 import { ICON, S, R, F, B, HAIRLINE, RSPRING, touchSlop } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { Separator } from '@/shared/components/Separator';
@@ -47,6 +48,8 @@ export interface TaskListItemProps {
      * (tablet/geniş ekran ızgarası). Bkz. aşağıdaki "GRUPLU LİSTE" notu.
      */
     position?: 'only' | 'first' | 'middle' | 'last';
+    /** Tur hedefi — görünen satır KARTINI sarar (dış kabın alt boşluğu deliğe girmez). */
+    tourId?: string;
 }
 
 /*
@@ -71,7 +74,7 @@ const copy = (tr: boolean) => tr
 
 /** Görev listesindeki tek satır: kaydırma, çoklu seçim, genişleyen ayrıntı. */
 export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
-    const { task, i, theme, isDark, highlightedId, isBulkMode, isSelected, language, t, showSwipePeek, priorityColor, handleDelete, handleToggleExpand, handleLongPress, handleBulkSelect, handleToggle, toggleSubtask, completingIds, expandedId, sortBy, onMoveUp, onMoveDown, modeInfo, position } = props;
+    const { task, i, theme, isDark, highlightedId, isBulkMode, isSelected, language, t, showSwipePeek, priorityColor, handleDelete, handleToggleExpand, handleLongPress, handleBulkSelect, handleToggle, toggleSubtask, completingIds, expandedId, sortBy, onMoveUp, onMoveDown, modeInfo, position, tourId } = props;
 
     /*
       MOD BİLGİSİ ARTIK PROP — kart artık HİÇBİR store'a abone değil.
@@ -154,6 +157,7 @@ export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
                 showPeekHint={showSwipePeek && i === 0}
                 flush={grouped && !isBottom}
             >
+                <TourTarget id={tourId ?? ''} spotRadius={R.lg} spotCorners={isTop && isBottom ? 'all' : isTop ? 'top' : isBottom ? 'bottom' : 'all'} enabled={!!tourId}>
                 <Touchable
                     activeOpacity={0.7}
                     accessibilityRole="button"
@@ -313,6 +317,7 @@ export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
                         )}
                     </AnimatePresence>
                 </Touchable>
+                </TourTarget>
             </SwipeableItem>
         </Animated.View>
     );
@@ -326,6 +331,7 @@ export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
         prevProps.completingIds === nextProps.completingIds &&
         prevProps.language === nextProps.language &&
         prevProps.position === nextProps.position &&
+        prevProps.tourId === nextProps.tourId &&
         !!prevProps.onMoveUp === !!nextProps.onMoveUp &&
         !!prevProps.onMoveDown === !!nextProps.onMoveDown &&
         (prevProps.expandedId === prevProps.task.id) === (nextProps.expandedId === nextProps.task.id)

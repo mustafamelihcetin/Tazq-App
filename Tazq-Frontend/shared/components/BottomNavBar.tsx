@@ -3,16 +3,14 @@ import { View, Text, StyleSheet, Platform, Keyboard, useWindowDimensions } from 
 import { LayoutGrid, CheckSquare, Sparkles, Layers, CalendarDays } from 'lucide-react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { MotiView } from 'moti';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AppBlur } from '@/shared/components/AppBlur';
-import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
+import { AndroidNavCapsule } from '@/shared/components/AndroidNavCapsule';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import {
-  S, HAIRLINE, MAX_W, NAV_BAR_HEIGHT, NAV_BAR_MIN_INSET, NAV_ICON_SIZE, NAV_LABEL_SIZE,
+  S, MAX_W, NAV_BAR_HEIGHT, NAV_BAR_MIN_INSET, NAV_ICON_SIZE, NAV_LABEL_SIZE,
   NAV_BAR_LIFT, NAV_BAR_SIDE_INSET, NAV_BAR_RADIUS,
   NAV_BAR_MINIMIZED_HEIGHT, NAV_CAPSULE_PAD, NAV_LABEL_MIN_TAB_WIDTH,
-  NAV_INDICATOR_W, NAV_INDICATOR_H, RSPRING,
 } from '@/shared/constants/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Touchable } from '@/shared/components/Touchable';
@@ -127,12 +125,6 @@ export const BottomNavBar = () => {
     dinlenmediği için hiç tetiklenmiyordu). Bkz. __tests__/androidParity.test.ts.
   */
   const { width: winW, fontScale } = useWindowDimensions();
-  const reduceMotion = useReduceMotion();
-  const indicatorX = useSharedValue(-1);
-  const indicatorStyle = useAnimatedStyle(() => ({
-    opacity: indicatorX.value < 0 ? 0 : 1,
-    transform: [{ translateX: Math.max(0, indicatorX.value) }],
-  }));
 
   useEffect(() => {
     if (Platform.OS !== 'android') return;
@@ -159,16 +151,6 @@ export const BottomNavBar = () => {
   const tabs = (uiMode === 'lite' || isGuest) ? allTabs.filter(t => LITE_TAB_IDS.includes(t.id)) : allTabs;
 
   const isActiveTab = (path: string) => pathname === path || (path === '/' && pathname === '/index');
-  const activeIndex = tabs.findIndex(t => isActiveTab(t.path));
-  // Gösterge sekme genişliğinden türetilir (aşağıdaki etiket hesabıyla AYNI genişlik).
-  const tabW = (Math.min(winW, MAX_W) - NAV_BAR_SIDE_INSET * 2 - NAV_CAPSULE_PAD * 2) / Math.max(tabs.length, 1);
-  const indicatorW = Math.min(NAV_INDICATOR_W, tabW - S.sm);
-  useEffect(() => {
-    if (IS_IOS || activeIndex < 0) { indicatorX.value = -1; return; }
-    const target = activeIndex * tabW + (tabW - indicatorW) / 2;
-    // İlk yerleşim ve "hareketi azalt" → yay yok, doğrudan yerine.
-    indicatorX.value = reduceMotion || indicatorX.value < 0 ? target : withSpring(target, RSPRING.snappy);
-  }, [activeIndex, tabW, indicatorW, reduceMotion]);
 
   const handlePress = (path: string) => {
     if (pathname === path) return;
@@ -202,21 +184,12 @@ export const BottomNavBar = () => {
   const showLabels = !minimized && labelFits;
 
   /** Kapsülün kabuk stili. */
-  const shellStyle = IS_IOS
-    ? { backgroundColor: 'transparent', borderRadius: NAV_BAR_RADIUS, overflow: 'hidden' as const }
-    : {
-        /*
-          ANDROID — M3 yüzen araç çubuğu: tonal yüzey (surfaceContainer karşılığı
-          surfaceCard: koyu temada zeminden bir ton açık), 3dp elevation (M3 gezinme
-          çubuğunun değeri), koyu temada saç teli çerçeve (gölge koyu zeminde görünmez).
-        */
-        backgroundColor: theme.surfaceCard,
-        borderRadius: NAV_BAR_RADIUS,
-        borderWidth: isDark ? HAIRLINE : 0,
-        borderColor: theme.outline,
-        elevation: 3,
-        shadowColor: '#000',
-      };
+  const shellStyle = {
+    backgroundColor: 'transparent',
+    borderRadius: NAV_BAR_RADIUS,
+    overflow: 'hidden' as const,
+  };
+
 
   return (
     <View
@@ -252,6 +225,8 @@ export const BottomNavBar = () => {
       <View style={styles.column}>
         <View style={styles.row}>
 
+          {IS_IOS ? (
+          <>
           {/* ── SEKME KAPSÜLÜ ────────────────────────────────────────────── */}
           <MotiView
             animate={{ height: barHeight }}
@@ -261,24 +236,9 @@ export const BottomNavBar = () => {
             {/* Yarıçap MALZEMEYE de veriliyor: yuvarlak kabın `overflow:hidden`i
                 cam/blur katmanını güvenilir kırpmıyor (bkz. AppBlur radius notu). */}
             {IS_IOS && <AppBlur material="chrome" radius={NAV_BAR_RADIUS} />}
-            {/* ANDROID aktif göstergesi — M3 hap. Sekme satırının ALTINDA, ikonun arkasında. */}
-            {!IS_IOS && (
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  styles.indicator,
-                  { width: indicatorW, left: NAV_CAPSULE_PAD, backgroundColor: theme.primaryContainer },
-                  indicatorStyle,
-                ]}
-              />
-            )}
             <View style={styles.tabsContainer} accessibilityRole="tablist">
               {tabs.map((tab) => {
                 const isActive = isActiveTab(tab.path);
-                // Android: ikon göstergenin ÜSTÜNDE onPrimaryContainer (M3 onSecondaryContainer
-                // karşılığı), etiket onSurface. iOS: tek sinyal tint rengi (değişmedi).
-                const iconColor = isActive ? (IS_IOS ? theme.primary : theme.onPrimaryContainer) : theme.onSurfaceVariant;
-                const labelColor = isActive ? (IS_IOS ? theme.primary : theme.onSurface) : theme.onSurfaceVariant;
                 const Icon = tab.icon;
 
                 const content = (
@@ -291,15 +251,13 @@ export const BottomNavBar = () => {
                   // glifleri lekeye çeviriyor; onun yerine çizgi kalınlığı bir tık artıyor.
                   // Aynı ikon, biraz daha "orada" — farklı bir ikon değil.
                   <View style={styles.tabInner}>
-                    <View style={IS_IOS ? undefined : styles.iconSlot}>
                     <Icon
                       // ÖLÇEKLENMEZ: çubuk yüksekliği sabit olduğu için içerik de sabit
                       // olmalı. Ölçekli ikon büyük ekranda kabı taşırıyordu (bkz. tokens).
                       size={NAV_ICON_SIZE}
-                      color={iconColor}
+                      color={isActive ? theme.primary : theme.onSurfaceVariant}
                       strokeWidth={isActive ? 2.1 : 1.8}
                     />
-                    </View>
                     {/* Etiket iki durumda gizlenir: çubuk küçüldüğünde (Apple'ın
                         ikon-only pill'i) ve sığmadığında. İkisinde de İKON yerinde
                         kalır — dokunma hedefi kaymaz. */}
@@ -310,7 +268,7 @@ export const BottomNavBar = () => {
                         // veriliyor; buradaki kısa metin ikinci kez duyurulmasın.
                         accessibilityElementsHidden
                         importantForAccessibility="no"
-                        style={[styles.tabLabel, { color: labelColor }]}
+                        style={[styles.tabLabel, { color: isActive ? theme.primary : theme.onSurfaceVariant }]}
                       >
                         {tr ? TAB_SHORT[tab.id].tr : TAB_SHORT[tab.id].en}
                       </Text>
@@ -340,6 +298,26 @@ export const BottomNavBar = () => {
               })}
             </View>
           </MotiView>
+          </>
+          ) : (
+            /* ── ANDROID: iOS çubuğunun kardeşi — opak yüzey + nötr seçim vurgusu (bkz. AndroidNavCapsule) */
+            <View style={{ flex: 1 }}>
+              <AndroidNavCapsule
+                theme={theme}
+                isDark={isDark}
+                // iOS ile AYNI kural: her sekmenin altında ad, sığmıyorsa yalnız ikon.
+                showLabels={labelFits}
+                tabs={tabs.map((tab) => ({
+                  id: tab.id,
+                  Icon: tab.icon,
+                  label: tr ? TAB_SHORT[tab.id].tr : TAB_SHORT[tab.id].en,
+                  a11yLabel: tr ? TAB_LABELS[tab.id].tr : TAB_LABELS[tab.id].en,
+                  isActive: isActiveTab(tab.path),
+                  onPress: () => handlePress(tab.path),
+                }))}
+              />
+            </View>
+          )}
 
         </View>
       </View>
@@ -388,19 +366,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     // Apple'ın ikon–etiket aralığı ~2pt; yığın çubukta dikey ortalanır.
     gap: S.xxs,
-  },
-  // Android: ikon göstergeyle AYNI yükseklikte bir yuvada — hap ikonu tam ortalar.
-  iconSlot: {
-    height: NAV_INDICATOR_H,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  // Hap, ikon+etiket yığınının ikon yuvasına hizalanır: yığın = 32 + 2 + etiket satırı.
-  indicator: {
-    position: 'absolute',
-    top: (NAV_BAR_HEIGHT - (NAV_INDICATOR_H + 2 + NAV_LABEL_SIZE * 1.34)) / 2,
-    height: NAV_INDICATOR_H,
-    borderRadius: NAV_INDICATOR_H / 2,
   },
   tabLabel: {
     fontSize: NAV_LABEL_SIZE,

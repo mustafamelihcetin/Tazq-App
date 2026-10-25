@@ -40,6 +40,12 @@ interface TaskState {
   setLoading: (loading: boolean) => void;
 }
 
+/** Kalkan kazanım bildirimi — İvme Kalkanı dinlenme gününde momentum skorunu korur. */
+const SHIELD_COPY = {
+  tr: (n: number) => `Kalkan kazandın · ${n}/3 — dinlenme gününde momentumunu korur`,
+  en: (n: number) => `Shield earned · ${n}/3 — keeps your momentum on a rest day`,
+};
+
 export const useTaskStore = create<TaskState>()(persist((set, get) => ({
   tasks: [],
   isLoading: false, // false: persisted tasks are available immediately on cold start
@@ -139,35 +145,30 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
       if (t.id !== taskId) return t;
       const completing = !t.isCompleted;
       if (completing) {
-        let isOverheated = false;
-        let isLite = false;
-
+        /*
+          Kalkan ilerlemesi + yalnız KAZANILDIĞI AN kısa bir bildirim (bkz. SHIELD_COPY).
+          Eskiden burada "motor ısısı" hesaplanıyor, art arda tamamlanan görev momentumdan
+          düşülüyor (ignoreMomentum) ve her tamamlamada bir roket baloncuğu açılıyordu —
+          kaldırıldı (2026-10-25, bkz. useMomentumStore.addCompletedTask).
+        */
         try {
           const { useMomentumStore } = require('../../user/store/useMomentumStore');
-          const momentumStore = useMomentumStore.getState();
-          const isPerfect = momentumStore.addCompletedTask();
-          // TAZE OKUMA — `momentumStore` çağrıdan ÖNCEKİ anlık görüntü; addCompletedTask
-          // kendi içinde set() çağırıp YENİ bir durum üretiyor. Bayat nesneden okumak, tam
-          // da aşırı ısınmaya geçişi tetikleyen tamamlamanın kendisini yanlış (bir önceki)
-          // ısı durumuna göre etiketlerdi.
-          isOverheated = useMomentumStore.getState().isOverheated;
-          momentumStore.triggerRocketFeedback(t.title, isPerfect);
+          const { shieldEarned, charges } = useMomentumStore.getState().addCompletedTask();
+          if (shieldEarned) {
+            const { useLanguageStore } = require('@/shared/store/useLanguageStore');
+            const { useToastStore } = require('@/shared/store/useToastStore');
+            const lang: 'tr' | 'en' = useLanguageStore.getState().language === 'en' ? 'en' : 'tr';
+            useToastStore.getState().show(SHIELD_COPY[lang](charges), 'success', undefined, 'top', charges / 3);
+          }
         } catch (e) {
           swallow('taskStore.registerCompletion', e);
         }
-
-        try {
-          const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
-          isLite = usePrefsStore.getState().uiMode === 'lite';
-        } catch (e) { swallow('taskStore.readUiModePref', e); }
-
-        const ignore = !isLite && isOverheated;
 
         return { 
           ...t, 
           isCompleted: true, 
           completedAt: now.toISOString(),
-          ignoreMomentum: ignore,
+          ignoreMomentum: false,
           /*
             ALT GÖREVLER DE KAPANIR.
 
@@ -185,9 +186,7 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
         try {
           const { useMomentumStore } = require('../../user/store/useMomentumStore');
           const momentumStore = useMomentumStore.getState();
-          if (!t.ignoreMomentum) {
-            momentumStore.undoCompletedTask();
-          }
+          momentumStore.undoCompletedTask();
         } catch (e) {
           swallow('taskStore.registerUncompletion', e);
         }
