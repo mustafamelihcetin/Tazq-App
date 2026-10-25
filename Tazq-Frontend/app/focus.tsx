@@ -7,7 +7,7 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
-import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Coffee, Wind, CloudRain, Flame, Waves, Music2, Headphones, SlidersHorizontal, SkipForward } from 'lucide-react-native';
+import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Coffee, Wind, CloudRain, Flame, Waves, Music2, Headphones, AudioLines, SlidersHorizontal, SkipForward } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore, focusDayKey } from '@/features/focus';
@@ -23,7 +23,6 @@ import { track } from '@/shared/utils/analytics';
 import { StatusBar } from 'expo-status-bar';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLowPowerGraphics } from '@/shared/hooks/useLowPowerGraphics';
 import { Colors } from '@/shared/constants/Colors';
 import { getRandomQuote } from '@/shared/constants/Quotes';
@@ -38,6 +37,7 @@ import {
 import { SessionSummary } from '@/features/focus/components/SessionSummary';
 import { FocusTaskPicker } from '@/features/focus/components/FocusTaskPicker';
 import { FocusModesSheet, PomodoroInfoSheet } from '@/features/focus/components/FocusModeSheets';
+import { sceneOf, sceneLights, sceneAccent, sceneTheme } from '@/features/focus/utils/focusScenes';
 import { getNotificationPermissionStatus } from '@/shared/utils/notifications';
 import { useTaskStore, getLocalizedTaskTitle } from '@/features/tasks';
 import { completeTask } from '@/features/tasks/utils/taskActions';
@@ -54,6 +54,8 @@ import { RollingDigits } from '@/shared/components/RollingDigits';
 import { FocusWeekStrip } from '@/features/focus/components/FocusWeekStrip';
 import { recentFocus } from '@/features/focus/focusStreak';
 import { useFocusHistoryStore } from '@/features/report/useFocusHistoryStore';
+import { goHome } from '@/shared/utils/authNavigation';
+import { useFocusSheetTheme } from '@/features/focus/hooks/useFocusSheetTheme';
 
 
 // ── Saniyeye bağlı izole render'lar ───────────────────────────────────────────
@@ -154,7 +156,7 @@ const PRESETS = [
 ] as const;
 type PresetKey = typeof PRESETS[number]['key'];
 
-type AmbientSound = 'off' | 'rain' | 'cafe' | 'forest' | 'ocean' | 'fireplace' | 'relaxing' | 'binaural';
+type AmbientSound = 'off' | 'rain' | 'cafe' | 'forest' | 'ocean' | 'fireplace' | 'relaxing' | 'binaural' | 'brown';
 
 const SOUND_LABELS: Record<AmbientSound, { icon: React.ComponentType<any> | null; labelTr: string; labelEn: string }> = {
   off:       { icon: null,       labelTr: 'Sessiz',       labelEn: 'Off'       },
@@ -165,6 +167,7 @@ const SOUND_LABELS: Record<AmbientSound, { icon: React.ComponentType<any> | null
   fireplace: { icon: Flame,      labelTr: 'Şömine',       labelEn: 'Fireplace' },
   relaxing:  { icon: Music2,     labelTr: 'Rahatlatıcı',  labelEn: 'Relaxing'  },
   binaural:  { icon: Headphones, labelTr: 'Frekans',      labelEn: 'Binaural'  },
+  brown:     { icon: AudioLines, labelTr: 'Derin Gürültü', labelEn: 'Brown Noise' },
 };
 
 interface PomodoroIndicatorProps {
@@ -220,8 +223,11 @@ export default function FocusScreen() {
     alt sayfaların zemini `GlassSurface` ve o uygulamanın temasını izliyor. Açık temada
     zemin açık, yazı ise koyu paletten (açık renk) geliyordu: açık üstüne açık, okunmaz.
   */
-  const { theme: sheetTheme, isDark: sheetDark } = useAppTheme();
-  const theme = Colors.dark;
+  // Odak ekranından açılan pencereler seçili sahnenin vurgusunu taşır (bkz. useFocusSheetTheme).
+  const { theme: sheetTheme, isDark: sheetDark } = useFocusSheetTheme();
+  // Sahnenin vurgusu ekranın ana rengi (bkz. focusScenes.sceneTheme); Aurora → eski palet.
+  const focusSceneId = usePrefsStore(s => s.focusScene);
+  const theme = React.useMemo(() => sceneTheme(sceneOf(focusSceneId), Colors.dark), [focusSceneId]);
   const isDark = true;
   const colorScheme: 'light' | 'dark' = 'dark';
   const router = useRouter();
@@ -290,7 +296,11 @@ export default function FocusScreen() {
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { trigger: triggerAchievement } = useAchievementStore();
   // Derin odak tercihleri artık prefs store'da (cihazda kalıcı) — her seansda sıfırlanmaz.
-  const { focusBreathMode, setFocusBreathMode, focusAmbientSound, setFocusAmbientSound, focusPreset, setFocusPreset, focusKeepAwake, setFocusKeepAwake, uiMode } = usePrefsStore();
+  const { focusBreathMode, setFocusBreathMode, focusAmbientSound, setFocusAmbientSound, focusPreset, setFocusPreset, focusKeepAwake, setFocusKeepAwake, focusScene, setFocusScene, uiMode } = usePrefsStore();
+  // Sahne: hareket + palet + vurgu birlikte (bkz. focusScenes.ts).
+  const scene = sceneOf(focusScene);
+  const [sc1, sc2, sc3] = sceneLights(scene, theme);
+  const workAccent = sceneAccent(scene, theme.primary);
   /*
     SADE MOD BAŞARIM KUTLAMASINI SUSTURUR — kural görev tamamlamada zaten var
     (bkz. app/tasks.tsx `handleToggle`, `!isLite` kapısı), ama odak seansı bitince
@@ -529,17 +539,27 @@ export default function FocusScreen() {
   };
 
   const getSoundSource = (type: AmbientSound) => {
+    /*
+      AMBİYANS SESLERİ (2026-10-25 yeniden işlendi, kaynak betik: ölçüm + üretim). Ölçülen sorunlar:
+       · Yükseklik −7 … −34 LUFS (27 dB fark): sesler arası geçişte biri bağırıyor biri fısıldıyordu
+         → hepsi −26 LUFS, tepe ≤ −3 dBFS (orman +1.1 dBFS ile KIRPILIYORDU).
+       · Döngü dikişleri: okyanus/orman baş-son fade'li (her turda ses 13 dB çöküyordu),
+         "rahatlatıcı" 18 sn'de sert kesiliyor, binaural her 30 sn'de TIK → kenarlar kesildi,
+         3 sn eşit güçlü çapraz geçiş + 3 ms mikro yumuşatma (AAC kenar tıkı); ölçümde dikiş temiz.
+       · Yağmurun enerjisinin %47'si 60 Hz altı uğultuydu → yüksek geçiren süzgeç.
+       · MP3 döngüde boşluk bırakır → AAC (.m4a).
+      Frekans: 200/240 Hz (40 Hz gama) + pembe gürültü yatağı, 60 sn tam devir. Rahatlatıcı:
+      üretilmiş 120 sn evrilen Re majör katman. Derin Gürültü: üretilmiş stereo kahverengi gürültü.
+    */
     const sources: Record<string, any> = {
-      rain:      require('../assets/sounds/rain.mp3'),
-      cafe:      require('../assets/sounds/cafe.mp3'),
-      forest:    require('../assets/sounds/forest.mp3'),
-      ocean:     require('../assets/sounds/ocean.mp3'),
-      fireplace: require('../assets/sounds/fireplace.mp3'),
-      relaxing:  require('../assets/sounds/relaxing.mp3'),
-      // WAV -> MP3: 30 saniyelik sikistirilmamis PCM 5.3 MB tutuyordu, mp3 470 KB.
-      // 128 kbps ve joint-stereo KAPALI kodlandi — binaural etki iki kulak arasindaki
-      // frekans farkina dayanir, kanallari birlestiren kodlama etkiyi yok ederdi.
-      binaural:  require('../assets/sounds/binaural.mp3'),
+      rain:      require('../assets/sounds/rain.m4a'),
+      cafe:      require('../assets/sounds/cafe.m4a'),
+      forest:    require('../assets/sounds/forest.m4a'),
+      ocean:     require('../assets/sounds/ocean.m4a'),
+      fireplace: require('../assets/sounds/fireplace.m4a'),
+      relaxing:  require('../assets/sounds/relaxing.m4a'),
+      binaural:  require('../assets/sounds/binaural.m4a'),
+      brown:     require('../assets/sounds/brown.m4a'),
     };
     return sources[type];
   };
@@ -758,7 +778,7 @@ export default function FocusScreen() {
   useFocusEffect(useCallback(() => {
     if (Platform.OS !== 'android') return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      router.replace('/');
+      goHome(router);
       return true; // prevent default (app close)
     });
     return () => sub.remove();
@@ -1085,7 +1105,7 @@ export default function FocusScreen() {
     <MotiView
       animate={{
         opacity: isExiting ? 0 : 1,
-        backgroundColor: (zenMode && isActive) ? '#000000' : '#080b16'
+        backgroundColor: (zenMode && isActive) ? '#000000' : scene.backdrop[1]
       }}
       transition={{ type: 'timing', duration: 400 }}
       style={{ flex: 1 }}
@@ -1094,7 +1114,7 @@ export default function FocusScreen() {
       {!(zenMode && isActive) && (
         <LinearGradient
           pointerEvents="none"
-          colors={['#0c1024', '#080b16', '#05070f']}
+          colors={scene.backdrop}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={StyleSheet.absoluteFill}
@@ -1111,7 +1131,7 @@ export default function FocusScreen() {
             style={StyleSheet.absoluteFill}
           >
             <LinearGradient
-              colors={['#010006', '#08031d', '#13042b', '#06162d']}
+              colors={scene.zen}
               start={{ x: 0.1, y: 0.1 }}
               end={{ x: 0.9, y: 0.9 }}
               style={StyleSheet.absoluteFill}
@@ -1138,7 +1158,7 @@ export default function FocusScreen() {
                    Daire aurorası artık 700ms'de sönüyor, yani zemin büyürken üstünde.
               */
               from={{ opacity: 0, scale: zenFrom }}
-              animate={{ opacity: 0.3, scale: 1 }}
+              animate={{ opacity: scene.zenOpacity, scale: 1 }}
               exit={{ opacity: 0, scale: zenFrom }}
               transition={SPRING_SOFT}
               style={StyleSheet.absoluteFill}
@@ -1147,10 +1167,13 @@ export default function FocusScreen() {
                 size={0}
                 width={width}
                 height={height}
-                c1={theme.primary}
-                c2={theme.tertiary}
-                c3={theme.secondary}
-                paused={!(zenMode && isActive) || reduceMotion || lowPowerGraphics}
+                c1={sc1}
+                c2={sc2}
+                c3={sc3}
+                scene={scene.id}
+                base={scene.base}
+                paused={!(zenMode && isActive) || reduceMotion}
+                lowFps={lowPowerGraphics}
                 speedScale={0.45}
                 holdSV={holdBloom}
               />
@@ -1160,7 +1183,9 @@ export default function FocusScreen() {
       </AnimatePresence>
       {/* Zen'de yıldızlar kısılır — aurora zemin, yörünge saati figür (figür-zemin ilkesi). */}
       <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: (zenMode && isActive) ? 0.4 : 1 }} pointerEvents="none">
-        <Starfield active={zenMode && isActive} timerSize={timerSize} />
+        {/* Yıldız alanı YALNIZ Aurora'nın parçacık dili; diğer sahnelerin parçacıkları kendi shader'larında
+            (Gelgit: kabarcık · Kor: kıvılcım · Sis: ateşböceği) — sahneler yalnız renkle ayrışmasın. */}
+        <Starfield active={zenMode && isActive && scene.id === 'aurora'} timerSize={timerSize} colors={scene.stars} />
       </View>
       <View style={{ flex: 1, paddingBottom: insets.bottom || S.md }}>
 
@@ -1198,7 +1223,7 @@ export default function FocusScreen() {
                 }
                 setIsExiting(true);
                 setTimeout(() => {
-                  router.canGoBack() ? router.back() : router.replace('/');
+                  router.canGoBack() ? router.back() : goHome(router);
                 }, 350);
               }}
               style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}
@@ -1447,7 +1472,7 @@ export default function FocusScreen() {
                 inputRange: [0, 1],
                 outputRange: [circumference, 0]
               });
-              const strokeColor = pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary;
+              const strokeColor = pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : workAccent;
               return (
                 <Svg pointerEvents="none" width={timerSize} height={timerSize} style={{ position: 'absolute', zIndex: 12, opacity: (zenMode && isActive) ? 0.15 : 1 }}>
                   <G rotation={-90} origin={`${timerSize / 2}, ${timerSize / 2}`}>
@@ -1488,7 +1513,7 @@ export default function FocusScreen() {
                       borderRadius: (timerSize + 28) / 2,
                       borderWidth: 1,
                       borderStyle: 'dashed',
-                      borderColor: 'rgba(255, 255, 255, 0.16)', // Brighter dashed orbit ring
+                      borderColor: scene.accent ? scene.accent + '33' : 'rgba(255, 255, 255, 0.16)', // yörünge: sahnenin vurgusunda (Aurora: beyaz)
                     }}
                   >
                     {/* 12 O'Clock Inward Tick (Top) */}
@@ -1535,16 +1560,25 @@ export default function FocusScreen() {
                           width: 24,
                           height: 24,
                           borderRadius: R.full,
-                          backgroundColor: 'rgba(0, 229, 255, 0.14)', // Soft glowing cyan aura
+                          backgroundColor: scene.accent ? scene.accent + '40' : 'rgba(0, 229, 255, 0.14)', // halo: sahnenin vurgusu (Aurora: camgöbeği)
                         }}
                       />
                       {/* Inner Pure White Sparkle Flare (4-Point Diamond Vector) */}
-                      <Svg width={16} height={16} viewBox="0 0 16 16" style={{ position: 'absolute' }}>
-                        <Path
-                          d="M 8 0 Q 8 8 0 8 Q 8 8 8 16 Q 8 8 16 8 Q 8 8 8 0"
-                          fill="#FFFFFF"
-                        />
-                      </Svg>
+                      {/* İşaret sahnenin simgesi: Aurora yıldız (Sirius) · Gelgit ay · Kor kor tanesi · Sis ateşböceği. */}
+                      {scene.marker === 'star' ? (
+                        <Svg width={16} height={16} viewBox="0 0 16 16" style={{ position: 'absolute' }}>
+                          <Path
+                            d="M 8 0 Q 8 8 0 8 Q 8 8 8 16 Q 8 8 16 8 Q 8 8 8 0"
+                            fill="#FFFFFF"
+                          />
+                        </Svg>
+                      ) : scene.marker === 'moon' ? (
+                        <Svg width={14} height={14} viewBox="0 0 14 14" style={{ position: 'absolute' }}>
+                          <Path d="M 9.5 1 A 6 6 0 1 0 13 9.5 A 5 5 0 1 1 9.5 1 Z" fill="#F0FDFF" />
+                        </Svg>
+                      ) : (
+                        <View style={{ position: 'absolute', width: scene.marker === 'ember' ? 9 : 7, height: scene.marker === 'ember' ? 9 : 7, borderRadius: R.full, backgroundColor: scene.marker === 'ember' ? scene.stars[1] : scene.stars[3] }} />
+                      )}
                     </View>
                   </Animated.View>
                 </MotiView>
@@ -1663,10 +1697,13 @@ export default function FocusScreen() {
                     {/* Nebula — tek GPU shader'ı (taban + sürüklenen renk merkezleri). zen/ritual'da duraklar. */}
                     <Nebula
                       size={timerSize}
-                      c1={theme.primary}
-                      c2={theme.tertiary}
-                      c3={theme.secondary}
-                      paused={!auroraVisible || reduceMotion || lowPowerGraphics}
+                      c1={sc1}
+                      c2={sc2}
+                      c3={sc3}
+                      scene={scene.id}
+                      base={scene.base}
+                      paused={!auroraVisible || reduceMotion}
+                      lowFps={lowPowerGraphics}
                       holdSV={holdBloom}
                     />
                   </MotiView>
@@ -1685,7 +1722,7 @@ export default function FocusScreen() {
                     <CountdownText
                       a11yLabel={L.remaining}
                       timerSize={timerSize}
-                      colonColor={(pomodoroMode && pomodoroPhase === 'break') ? theme.tertiary : theme.primary}
+                      colonColor={(pomodoroMode && pomodoroPhase === 'break') ? theme.tertiary : workAccent}
                       reduceMotion={reduceMotion}
                     />
 
@@ -1700,9 +1737,12 @@ export default function FocusScreen() {
                           from={{ opacity: 0, translateY: 4 }}
                           animate={{ opacity: 0.82, translateY: 0 }}
                           transition={{ type: 'timing', duration: 450 }}
-                          style={{ maxWidth: timerSize * 0.72, marginTop: S.md }}
+                          style={{ maxWidth: timerSize * 0.72, marginTop: S.md, alignItems: 'center' }}
                         >
-                          <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.8)', fontSize: F.footnote, fontWeight: '600', letterSpacing: 0.3, textAlign: 'center' }}>
+                          {/* Android'in varsayılan "highQuality" satır kırma stratejisi, "…" ile kısaltılan
+                              metni çizildiğinden dar ölçüyor; ilk harfin sol yarısı kırpılıyordu ("TAZQ" → "ΓAZQ",
+                              cihazda görüldü). "simple" ölçümü çizimle eşitler. */}
+                          <Text numberOfLines={1} textBreakStrategy="simple" style={{ color: 'rgba(255,255,255,0.8)', fontSize: F.footnote, fontWeight: '600', letterSpacing: 0.3 }}>
                             {currentTask}
                           </Text>
                         </MotiView>
@@ -1782,7 +1822,8 @@ export default function FocusScreen() {
                         <Sparkles size={ICON.lg} color={theme.onSurface} style={{ opacity: 0.2 }} />
                       </View>
                     )}
-                    <Text style={{ fontFamily: 'Jakarta-SemiBold', fontSize: 10, color: '#8E8E93', opacity: 0.25, marginTop: S.slg, letterSpacing: 1 }}>
+                    {/* Sahnenin parlak çekirdeği üstünde de okunsun: beyaz + yumuşak gölge (gri %25 Kor'da kayboluyordu). */}
+                    <Text style={{ fontFamily: 'Jakarta-SemiBold', fontSize: 10, color: '#FFFFFF', opacity: 0.55, marginTop: S.slg, letterSpacing: 1, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } }}>
                       {language === 'tr' ? 'Çıkmak için dokun' : 'Tap to exit Zen Mode'}
                     </Text>
                   </MotiView>
@@ -1884,7 +1925,7 @@ export default function FocusScreen() {
               contentContainerStyle={[styles.ambientRow, { marginTop: 0 }]}
               keyboardShouldPersistTaps="handled"
             >
-              {(['rain', 'cafe', 'forest', 'ocean', 'fireplace', 'relaxing', 'binaural'] as AmbientSound[]).map(type => {
+              {(['rain', 'cafe', 'forest', 'ocean', 'fireplace', 'relaxing', 'binaural', 'brown'] as AmbientSound[]).map(type => {
                 const active = ambientSound === type;
                 const cfg = SOUND_LABELS[type];
                 const IconComp = cfg.icon!;
@@ -2186,6 +2227,8 @@ export default function FocusScreen() {
         onPomodoro={() => { haptic.select(); togglePomodoroMode(); if (!pomodoroMode) setDuration(activePreset.workMins); }}
         onStrict={() => { haptic.select(); setStrictMode(!strictMode); }}
         onKeepAwake={() => { haptic.select(); setFocusKeepAwake(!focusKeepAwake); }}
+        scene={scene.id}
+        onScene={(id) => { haptic.select(); setFocusScene(id); }}
       />
 
       {/* ── Breath Picker Bottom Sheet Modal ────────────────────────────────── */}
@@ -2315,7 +2358,7 @@ export default function FocusScreen() {
           setIsExiting(true);
           setTimeout(() => {
             reset();
-            router.replace('/');
+            goHome(router);
           }, 350);
         }}
       />
@@ -2356,7 +2399,11 @@ const styles = StyleSheet.create({
   durationChip: { borderRadius: R.full },
   durationText: { fontWeight: '700' },
   timerContainer: { alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  timerCircle: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.1, shadowRadius: 30, elevation: 10 },
+  // Android'de elevation YOK (2026-10-25, cihazda görüldü): daire saydam, Android gölgeyi görünümün
+  // ALTINA çizdiği için gölge dairenin içinden görünüyordu; Android 9 büyük yarıçaplı gölgeyi
+  // çokgenle yaklaştırdığından sakin modda dairenin içinde koyu bir SEKİZGEN beliriyordu.
+  // Koyu zeminde bu gölgenin zaten görsel karşılığı yok. iOS gölgesi değişmedi.
+  timerCircle: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.1, shadowRadius: 30, elevation: Platform.OS === 'android' ? 0 : 10 },
   timerText: { fontWeight: '200', letterSpacing: -1, fontVariant: ['tabular-nums'] },
   timerGlow: { textShadowColor: 'rgba(150,180,255,0.45)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 18 },
   currentTaskText: { fontWeight: '600', marginTop: S.sm, textAlign: 'center' },

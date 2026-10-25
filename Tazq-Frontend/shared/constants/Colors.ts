@@ -179,10 +179,11 @@ const darkPalette = {
   primary: '#0A84FF',
   primaryDim: '#0B6BCB',        // basılı durum — açık temanın mavisi
   primaryContainer: '#0A2A4A',  // primary'nin koyu ucu (hue 210 ailesi)
-  // Material 3 kuralı: koyu temada primary AÇIK olduğu için onPrimary KOYU olur.
-  // iOS burada beyaz kullanır ama kendi ölçümü 3.65:1 — AA'dan kalıyor. Okunabilirlik
-  // "elit kalite"nin parçası, o yüzden AA tercih edildi (5.45:1).
-  onPrimary: '#09090B',
+  // 2026-10-25 kullanıcı kararı: BEYAZ (iOS'un koyu teması gibi). Önce Material 3 kuralıyla
+  // koyuydu (5.45:1) ama mavi düğmelerde siyah glif sert/teknik duruyordu. Beyaz 3.65:1 —
+  // buton etiketleri kalın/büyük ve ikonlar UI bileşeni: WCAG eşiği 3:1 (bkz. colorContrast.test).
+  // Tek mavi hem metin hem beyaz zemini için 4.5 veremez; metin rolü 4.5'te korunuyor.
+  onPrimary: '#FFFFFF',
   onPrimaryContainer: '#BFDBFE', // Blue 200, hue 213 — eskiden #C7D2FE (Indigo 200, hue 228): konteyner 210 ailesindeyken yazısı indigoydu. 10.24:1
 
   secondary: '#A78BFA',         // Violet 400

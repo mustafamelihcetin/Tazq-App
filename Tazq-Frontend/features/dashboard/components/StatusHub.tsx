@@ -10,10 +10,11 @@ import { AppBlur } from '@/shared/components/AppBlur';
 import { Touchable } from '@/shared/components/Touchable';
 
 /**
- * Başlıktaki durum düğmesi — haftalık odak skoru ve analitiğini açar.
+ * Başlıktaki durum düğmesi — haftanın özetini (odak süresi, alışkanlıklar, öneri) açar.
  *
- * İKON: Gauge (gösterge). Modalın kahramanı bir SKOR (0-100); gösterge tam olarak
- * "bir bakışta seviyen" demek. Eskiden Zap (şimşek) vardı: şimşek enerji/hız anlatır,
+ * İKON: Gauge (gösterge) — "bir bakışta haftan". Modal artık bir skor değil ölçülen süreyi
+ * gösteriyor (uydurma ağırlıklı "odak skoru" 2026-10-25'te kaldırıldı, bkz. StatusHubModal);
+ * ikon aynı kaldı, modalın başlığında da tekrarlanıyor ki kullanıcı nereye geldiğini tanısın. Eskiden Zap (şimşek) vardı: şimşek enerji/hız anlatır,
  * içgörü değil — ikon içeriğiyle ilgisizdi.
  * Çakışmadan da kaçınıldı: BarChart3 zaten rapor butonu, Sparkles odak sekmesi,
  * Activity ise bu düğmenin aktif hâli. Aynı ikon iki şey anlatırsa ikisi de anlamsızlaşır.
@@ -42,12 +43,12 @@ export const StatusHub = ({ onPress }: { onPress: () => void }) => {
       accessibilityRole="button"
       // Görünür yazı kaldırıldı → ekran okuyucunun tek metin kaynağı BU. Etiketsiz
       // bırakmak, yazıyı silmeyi bir erişilebilirlik gerilemesine çevirirdi.
-      accessibilityLabel={tr ? 'Haftalık odak analitiği' : 'Weekly focus insights'}
+      accessibilityLabel={tr ? 'Bu haftanın özeti' : 'This week at a glance'}
       accessibilityState={{ busy: isActive }}
       accessibilityHint={
         isActive
           ? (tr ? 'Odak seansın sürüyor. Ayrıntılar için aç.' : 'Focus session running. Open for details.')
-          : (tr ? 'Haftalık skorunu ve öneriyi açar.' : 'Opens your weekly score and suggestion.')
+          : (tr ? 'Haftalık odak süreni, alışkanlıklarını ve öneriyi açar.' : 'Opens your weekly focus time, habits and a suggestion.')
       }
     >
       {/*

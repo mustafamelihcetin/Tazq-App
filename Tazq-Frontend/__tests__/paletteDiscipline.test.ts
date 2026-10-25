@@ -39,7 +39,7 @@ const CEILING: Record<string, number> = {
   // 53 → 43 → 28 → 19: kart/modal palete, ikon renkleri anlamsal haritaya, sonra ayarlar
   // ayrı sayfaya taşındı (silme/parola/destek modalları settings.tsx'e gitti). Kalan 19:
   // başarım rozetleri ve kullanıcının seçtiği çerçeve renkleri (kategorik, kimlik taşır).
-  'app/profile.tsx': 19,
+  'app/profile.tsx': 1,  // 19 → 1 (2026-10-25): halka paleti avatarRings.ts'e taşındı
   // settings.tsx profile'den byte-byte çıkarıldı; bu 9 renk silme/parola modallarının
   // dekoratif tonları (profilde de aynen vardı). Split tamamlanınca (blok profilden
   // sökülünce) profil tavanı düşecek. Modal renkleri ayrı bir temizlik işi.
@@ -73,7 +73,8 @@ const CEILING: Record<string, number> = {
   // etiketler lucide glife çevrildi. İlk-izlenim ekranı artık app'in paletiyle aynı.
   // 20 → 19 / 22 → 21: sayfa zeminleri cam yüzeye geçti.
   'features/modes/components/TurkishModeBanner.tsx': 19,
-  'features/user/components/ProfileSetupModal.tsx': 21,  // kullanıcının seçtiği avatar renkleri
+  'features/user/utils/avatarRings.ts': 11,
+  'features/focus/utils/focusScenes.ts': 73,  // odak sahneleri — her sahnenin kendi ışık/taban/vurgu paleti (odak ekranı temadan bağımsız koyu)  // avatar halkası paleti — kullanıcının seçtiği kimlik renkleri (2026-10-25: ProfileSetupModal 21 + Profil kopyası buraya toplandı)
   // 21 → 4: mod vurgusu palete, semantik renkler (#EF4444/#F59E0B/#10B981) tema
   // token'larına (theme.error/warning/success) bağlandı. Kalan 4: yüzey/nötr tonlar.
   'features/modes/components/modes/SporCard.tsx': 4,
@@ -89,7 +90,7 @@ const CEILING: Record<string, number> = {
   'app/tasks.tsx': 1, // 10 → 1: kullanılmayan etiket paleti (8 hex) silindi, satır bileşeni TaskListItem'a taşındı
   // 10 → 7: trend/nokta/değerlendirme yeşilleri theme.success'e bağlandı (tema-kör #10B981'di)
   // 7 → 6: sayfa zemini (#1C1C1E) cam yüzeye geçti.
-  'features/dashboard/components/StatusHubModal.tsx': 6,
+  // StatusHubModal LİSTEDEN ÇIKTI (6 → 0, 2026-10-25): içgörü modalı yeniden kuruldu, ham renk kalmadı.
   // WeightEntryModal LİSTEDEN ÇIKTI (8 → 1 → 0): semantik renkler temaya bağlanmıştı; son
   // sabit renk sayfa zeminiydi (#1C1C22) ve ortak cam yüzeye (GlassSurface) geçti.
   'features/modes/utils/modeHelpers.ts': 7,
@@ -127,7 +128,6 @@ const CEILING: Record<string, number> = {
   'shared/utils/lifeModePlans.ts': 2,
   // CustomAlert: temizlendi. Yıkıcı-eylem kırmızısı (#EF4444, iki temada da aynı; beyaz
   // yazı üstünde 3.3:1 AA'dan kalıyordu) theme.error'a bağlandı → dosya artık palet-temiz.
-  'features/focus/components/FocusBackdrop.tsx': 4, // focus.tsx'ten taşındı — yıldız renkleri, kendi görsel dili
   'features/focus/components/FocusIsland.tsx': 1,
   'features/habits/store/useHabitStore.ts': 1,
   'shared/components/GlassCard.tsx': 1,

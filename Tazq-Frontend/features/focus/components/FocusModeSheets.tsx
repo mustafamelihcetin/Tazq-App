@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Modal } from 'react-native';
 import { MotiView } from 'moti';
 import { Timer, Wind, Shield, Sun, ChevronRight } from 'lucide-react-native';
@@ -6,7 +6,10 @@ import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { S, F, R, B, ICON } from '@/shared/constants/tokens';
-import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { useLowPowerGraphics } from '@/shared/hooks/useLowPowerGraphics';
+import { Nebula } from '@/features/focus/components/FocusBackdrop';
+import { FOCUS_SCENES, sceneLights, type FocusSceneId } from '@/features/focus/utils/focusScenes';
+import { useFocusSheetTheme } from '@/features/focus/hooks/useFocusSheetTheme';
 
 /**
  * ODAK MODLARI + POMODORO BİLGİSİ — odak ekranının iki alt sayfası.
@@ -33,6 +36,8 @@ const COPY = {
   tr: {
     modesTitle: 'Odak Modları',
     modesSub: 'Seansını nasıl geçireceğini seç',
+    scene: 'SAHNE',
+    modes: 'MODLAR',
     breath: 'Nefes',
     breathDesc: 'Ritmik nefes rehberi',
     strict: 'Katı Odak',
@@ -50,6 +55,8 @@ const COPY = {
   en: {
     modesTitle: 'Focus Modes',
     modesSub: 'Choose how your session runs',
+    scene: 'SCENE',
+    modes: 'MODES',
     breath: 'Breathing',
     breathDesc: 'Guided breathing rhythm',
     strict: 'Strict Focus',
@@ -88,15 +95,22 @@ export interface FocusModesSheetProps {
   onPomodoro: () => void;
   onStrict: () => void;
   onKeepAwake: () => void;
+  /** Odak sahnesi — hareket + palet + vurgu (bkz. focusScenes.ts). */
+  scene: FocusSceneId;
+  onScene: (id: FocusSceneId) => void;
 }
 
 export const FocusModesSheet: React.FC<FocusModesSheetProps> = ({
   visible, onClose, language, labels,
   breathOn, pomodoroOn, strictOn, keepAwakeOn,
-  onBreath, onPomodoro, onStrict, onKeepAwake,
+  onBreath, onPomodoro, onStrict, onKeepAwake, scene, onScene,
 }) => {
-  const { theme, isDark } = useAppTheme();
+  const { theme, isDark } = useFocusSheetTheme();
   const c = COPY[language];
+  const [rowW, setRowW] = useState(0);
+  const lowPower = useLowPowerGraphics();
+  const GAP = S.sm;
+  const cardW = rowW > 0 ? Math.floor((rowW - GAP * (FOCUS_SCENES.length - 1)) / FOCUS_SCENES.length) : 0;
   const rows = [
     { key: 'breath', Ic: Wind, on: breathOn, title: c.breath, desc: c.breathDesc, chevron: true, onPress: onBreath },
     { key: 'pomo', Ic: Timer, on: pomodoroOn, title: 'Pomodoro', desc: c.pomodoroDesc, chevron: false, onPress: onPomodoro },
@@ -117,6 +131,38 @@ export const FocusModesSheet: React.FC<FocusModesSheetProps> = ({
           </View>
           <Text style={{ fontSize: F.title3, fontWeight: '700', color: theme.onSurface, textAlign: 'center', marginTop: S.md }}>{c.modesTitle}</Text>
           <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, textAlign: 'center', marginBottom: S.md }}>{c.modesSub}</Text>
+
+          {/*
+            SAHNE — canlı önizleme: seçili sahne HAREKET eder, diğerleri durağan karesini
+            gösterir (dört shader aynı anda dönmesin). Seçim halkası sahnenin kendi vurgusunda.
+          */}
+          <Text style={{ fontSize: F.caption, fontWeight: '600', letterSpacing: 1.2, color: theme.onSurfaceMuted, marginBottom: S.sm, marginLeft: S.xs }}>{c.scene}</Text>
+          <View accessibilityRole="radiogroup" onLayout={(e) => setRowW(e.nativeEvent.layout.width)} style={{ flexDirection: 'row', gap: GAP, marginBottom: S.lg }}>
+            {cardW > 0 && FOCUS_SCENES.map((sc) => {
+              const selected = sc.id === scene;
+              const [l1, l2, l3] = sceneLights(sc, theme);
+              const ring = sc.accent ?? theme.primary;
+              const name = language === 'tr' ? sc.tr : sc.en;
+              return (
+                <Touchable
+                  key={sc.id}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected, checked: selected }}
+                  accessibilityLabel={`${name}. ${language === 'tr' ? sc.descTr : sc.descEn}`}
+                  onPress={() => { if (!selected) onScene(sc.id); }}
+                  style={{ width: cardW, alignItems: 'center', gap: S.xs }}
+                >
+                  <View style={{ width: cardW, height: cardW, borderRadius: R.lg, borderWidth: 2, borderColor: selected ? ring : 'transparent', padding: S.xxs }}>
+                    <View style={{ flex: 1, borderRadius: R.md, overflow: 'hidden' }}>
+                      <Nebula size={cardW - 8} c1={l1} c2={l2} c3={l3} scene={sc.id} base={sc.base} paused={!selected || !visible} lowFps={lowPower} />
+                    </View>
+                  </View>
+                  <Text numberOfLines={1} style={{ fontSize: F.caption, fontWeight: selected ? '700' : '500', color: selected ? theme.onSurface : theme.onSurfaceMuted }}>{name}</Text>
+                </Touchable>
+              );
+            })}
+          </View>
+          <Text style={{ fontSize: F.caption, fontWeight: '600', letterSpacing: 1.2, color: theme.onSurfaceMuted, marginBottom: S.xs, marginLeft: S.xs }}>{c.modes}</Text>
           {rows.map((row) => (
             <Touchable
               key={row.key}
@@ -161,7 +207,7 @@ export interface PomodoroInfoSheetProps {
 export const PomodoroInfoSheet: React.FC<PomodoroInfoSheetProps> = ({
   visible, onClose, language, presets, activePreset, selectedPreset, onSelectPreset,
 }) => {
-  const { theme, isDark } = useAppTheme();
+  const { theme, isDark } = useFocusSheetTheme();
   const c = COPY[language];
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>

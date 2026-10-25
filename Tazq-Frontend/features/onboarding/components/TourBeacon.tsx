@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
@@ -13,11 +13,14 @@ import { S, R, F, W, ICON, MAX_W, HAIRLINE, navBarSpace, touchSlop } from '@/sha
   ── TUR TEKLİFİ — react-joyride "beacon" deseni ──────────────────────────────────
   Kullanıcı kararı (2026-10-25): yalnız ana sayfa turu kendiliğinden açılır; diğer
   sayfalarda ilk girişte ekranı KAPATMAYAN küçük bir teklif çıkar. Dokunan turu açar,
-  × diyen ya da dokunmayan için kaybolur ve bir daha gelmez — kimse bunalmaz.
+  × diyen için kaybolur ve bir daha gelmez — kimse bunalmaz.
+
+  ZAMANLAYICI YOK (2026-10-25, cihazda görüldü): teklif 10 sn sonra kendiliğinden
+  kapanıp turu "tamamlandı" sayıyordu. Yavaş telefonda kullanıcı fark etmeden gidiyordu;
+  tam dokunulduğu an kaybolunca dokunuş alttaki karta düşüyordu. Süreyle kaybolan içerik
+  WCAG 2.2.1'e aykırı; TipKit ipuçları da kullanıcı kapatana kadar durur.
   Sekme çubuğunun üstünde, ortada; tablette içerik sütununu aşmaz (MAX_W).
 */
-
-const AUTO_HIDE_MS = 10_000;
 
 const COPY = {
   tr: { cta: 'Bu sayfayı tanı', steps: (n: number) => `${n} adım`, dismiss: 'Teklifi kapat', a11y: (n: number) => `Bu sayfayı tanı, ${n} adımlık kısa tur` },
@@ -38,11 +41,6 @@ export function TourBeacon({ count, aboveTabBar = true, onStart, onDismiss }: Pr
   const reduceMotion = useReduceMotion();
   const { language } = useLanguageStore();
   const c = COPY[language === 'en' ? 'en' : 'tr'];
-
-  useEffect(() => {
-    const t = setTimeout(onDismiss, AUTO_HIDE_MS);
-    return () => clearTimeout(t);
-  }, []);
 
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { bottom: (aboveTabBar ? navBarSpace(insets.bottom) : insets.bottom) + S.md }]}>

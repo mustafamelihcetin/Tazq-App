@@ -144,7 +144,7 @@ export function getSmartInsight(
       const daysStr = days !== null ? (lang === 'tr' ? `${days} gün kaldı` : `${days} days left`) : '';
       const timeContext = daysStr ? ` (${daysStr})` : '';
       return tr(
-        `${seasonal.examName} hazırlığında bugün kritik bir gün${timeContext}. "${title}" hedefini tamamlayıp deneme analizlerine odaklanalım.`,
+        `${seasonal.examName} hazırlığında bugün kritik bir gün${timeContext}. "${title}" görevini tamamlayıp deneme analizlerine odaklanalım.`,
         `Today is a critical day for your ${seasonal.examName} prep${timeContext}. Let's complete "${title}" and analyze mock exams.`,
         lang,
       );
@@ -192,7 +192,7 @@ export function getSmartInsight(
     // SPOR
     if (seasonal.sporMode && seasonal.sporGoal) {
       return tr(
-        `Bugün hareket etme günü! Spor planındaki "${title}" hedefini tamamlayıp zihnini tazelemeye hazır mısın?`,
+        `Bugün hareket etme günü! Spor planındaki "${title}" görevini tamamlayıp zihnini tazelemeye hazır mısın?`,
         `Time to move today! Are you ready to complete "${title}" from your workout plan and refresh your mind?`,
         lang,
       );

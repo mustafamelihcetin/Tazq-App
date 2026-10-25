@@ -149,11 +149,19 @@ describe('zayıf Android cihazda aurora her karede çizilmez', () => {
     expect(isLowPowerGraphics({ os: 'android', yearClass: null, totalMemory: null })).toBe(false);
   });
 
-  it('Odak ekranındaki iki aurora da düşük güçte duraklar', () => {
+  it('Odak ekranındaki iki aurora da düşük güçte seyrek ve küçük çizilir (donmaz)', () => {
+    /*
+      2026-10-25: eskiden düşük güçte DURAKLIYORDU — kullanıcı "statik görünüyor" dedi; bu
+      cihazda hiçbir sahne hareket etmiyordu. Artık 125 ms'de bir ve yarım çözünürlükte
+      çizilir (bkz. FocusBackdrop → LOW_FPS_STEP_MS, LOW_RES): akış sürer, yük çok düşük.
+    */
     const src = stripComments(read('app/focus.tsx'));
-    const nebulas = [...src.matchAll(/<Nebula[\s\S]*?paused=\{([^\n]*)\}/g)].map((m) => m[1]);
+    const nebulas = [...src.matchAll(/<Nebula[\s\S]*?\/>/g)].map((m) => m[0]);
     expect(nebulas).toHaveLength(2);
-    for (const p of nebulas) expect(p).toContain('lowPowerGraphics');
+    for (const n of nebulas) expect(n).toContain('lowFps={lowPowerGraphics}');
+    const backdrop = read('features/focus/components/FocusBackdrop.tsx');
+    expect(backdrop).toMatch(/const LOW_FPS_STEP_MS = 125;/);
+    expect(backdrop).toMatch(/const LOW_RES = 0\.5;/);
   });
 });
 
@@ -236,5 +244,13 @@ describe('sağlık kaynağının adı platforma göre', () => {
   it('yardımcı Android\'de Health Connect der', () => {
     const src = read('shared/utils/healthSource.ts');
     expect(src).toMatch(/Platform\.OS === 'android' \? 'Health Connect'/);
+  });
+});
+
+describe('odak dairesi Android gölgesi', () => {
+  // Cihazda görüldü: saydam dairenin elevation gölgesi içten sekizgen olarak görünüyordu.
+  it('timerCircle Android\'de elevation taşımaz', () => {
+    const src = require('fs').readFileSync(require('path').resolve(__dirname, '../app/focus.tsx'), 'utf8');
+    expect(src).toMatch(/timerCircle: \{[^\n]*elevation: Platform\.OS === 'android' \? 0 : 10/);
   });
 });

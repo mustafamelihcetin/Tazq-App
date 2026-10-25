@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform, useWindowDimensions, Animated } from 'react-native';
 import { AppBlur } from '@/shared/components/AppBlur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -293,7 +294,7 @@ export const ScreenHeader = ({
           StyleSheet.absoluteFill,
           {
             opacity: chromeOpacity,
-            backgroundColor: Platform.OS === 'ios' ? 'transparent' : theme.surfaceFloating,
+            backgroundColor: 'transparent',
             /*
               AYRAÇ ÇİZGİSİ YOK — sınırı MALZEME söylüyor.
 
@@ -319,6 +320,22 @@ export const ScreenHeader = ({
         */}
         {Platform.OS === 'ios' && (
           <AppBlur material="chrome" fadeBottom />
+        )}
+        {/*
+          ANDROID: AŞAĞI DOĞRU SÖNEN ZEMİN (2026-10-25, kullanıcı: "header cam gibi değil,
+          WhatsApp'taki gibi aşağı doğru saydam olmalı"). Gerçek blur Android 12+ ve her
+          ekrana BlurTargetView ister (bkz. AppBlur) — test cihazı Android 9. Opak şerit
+          içeriği sert bir çizgiyle kesiyordu; artık zemin çubuğun üst kısmında hafif
+          saydam, alt kenarından FADE kadar aşağıya sıfıra iner: içerik çizgiyle değil
+          yumuşakça kaybolur.
+        */}
+        {Platform.OS === 'android' && (
+          <LinearGradient
+            pointerEvents="none"
+            colors={[theme.surfaceFloating + 'F2', theme.surfaceFloating + 'E6', theme.surfaceFloating + '00']}
+            locations={[0, 0.62, 1]}
+            style={styles.androidFade}
+          />
         )}
       </Animated.View>
 
@@ -361,7 +378,11 @@ export const ScreenHeader = ({
   );
 };
 
+/** Android zemininin çubuğun altına taşan sönme payı. */
+const FADE = 28;
+
 const styles = StyleSheet.create({
+  androidFade: { position: 'absolute', top: 0, left: 0, right: 0, bottom: -FADE },
   bar: {
     position: 'absolute',
     top: 0,

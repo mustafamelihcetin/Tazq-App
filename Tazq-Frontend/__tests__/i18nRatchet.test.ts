@@ -123,7 +123,6 @@ const BASELINE: Record<string, number> = {
   // aynı soruyu on bir kez sormak olurdu.
   'features/dashboard/components/MyDayTaskRow.tsx': 1,
   'features/dashboard/components/StatusHub.tsx': 3,
-  'features/dashboard/components/StatusHubModal.tsx': 19,
   'features/dashboard/components/TodayCard.tsx': 6,
   'features/habits/components/HabitBubble.tsx': 2,
   'features/habits/components/SwipeableHabitItem.tsx': 3,

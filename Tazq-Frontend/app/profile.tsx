@@ -45,6 +45,8 @@ import { haptic } from '@/shared/utils/haptics';
 import { useSessionStore } from '@/shared/store/useSessionStore';
 import { UserAvatar } from '@/features/user/components/UserAvatar';
 import { upperFor } from '@/shared/utils/localeCase';
+import { AVATAR_RINGS } from '@/features/user/utils/avatarRings';
+import { productivityHint } from '@/shared/utils/productivityHour';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
 
@@ -381,14 +383,18 @@ export default function ProfileScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={[styles.header, { marginTop: S.md }]}>
-            <MotiView from={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.avatarLarge, { backgroundColor: theme.surfaceField, borderWidth: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 2 : 4, borderColor: (!avatarBorderColor || avatarBorderColor === 'transparent') ? (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)') : avatarBorderColor, width: 88, height: 88, borderRadius: R.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
+            <MotiView from={{ scale: 0.92 }} animate={{ scale: 1 }} style={[styles.avatarLarge, { backgroundColor: theme.surfaceField, borderWidth: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 2 : 4, borderColor: (!avatarBorderColor || avatarBorderColor === 'transparent') ? (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)') : avatarBorderColor, width: 88, height: 88, borderRadius: R.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
                 {/*
-                  Resim dairenin İÇ alanına göre boyutlanır: dış çap − 2×kenarlık − 2×iç boşluk.
+                  Resim çerçevenin İÇ KENARINA oturur: dış çap − 2×kenarlık. Aradaki iç boşluk
+                  kaldırıldı (2026-10-25, kullanıcı: "çerçeve ile resim arasında boşluk var") —
+                  renkli halka resmi doğrudan sarıyor. Kap opaklık 0'dan başlamıyor: görünmezken
+                  kurulan ekranda giriş animasyonu çalışmazsa avatar kaybolmasın.
+                  (Eski not:) Resim dairenin İÇ alanına göre boyutlanır.
                   Sabit 110 yazılıydı; kap küçülünce (88) resim taşıp kırpılıyor, "yakınlaştırılmış"
                   görünüyordu (eskiden de kenarlık+boşluk kadar hafifçe taşıyordu).
                 */}
                 {(() => {
-                  const inner = 88 - 2 * ((!avatarBorderColor || avatarBorderColor === 'transparent') ? 2 : 4) - 2 * S.xs;
+                  const inner = 88 - 2 * ((!avatarBorderColor || avatarBorderColor === 'transparent') ? 2 : 4);
                   // Resim kendi dairesini de taşır: kare köşeler iç boşluk halkasında görünmesin.
                   return <UserAvatar avatar={user?.avatar ?? guestAvatar} size={inner} iconSize={ICON.xxl} theme={theme} style={{ borderRadius: inner / 2, overflow: 'hidden' }} />;
                 })()}
@@ -766,26 +772,7 @@ export default function ProfileScreen() {
                       }}
                       style={{ marginTop: S.xs, marginHorizontal: -S.lg }}
                     >
-                      {([
-                        { key: 'transparent', color: 'transparent', labelTr: 'Yok', labelEn: 'None' },
-                        { key: 'red', color: '#FF4D4D', labelTr: 'Kırmızı', labelEn: 'Red' },
-                        { key: 'fuchsia', color: '#F43F5E', labelTr: 'Fuşya', labelEn: 'Fuchsia' },
-                        { key: 'rose', color: '#F472B6', labelTr: 'Gül', labelEn: 'Rose' },
-                        { key: 'orange', color: '#FB923C', labelTr: 'Turuncu', labelEn: 'Orange' },
-                        { key: 'bronze', color: '#FDBA74', labelTr: 'Bronz', labelEn: 'Bronze' },
-                        { key: 'gold', color: '#F59E0B', labelTr: 'Altın', labelEn: 'Gold' },
-                        { key: 'yellow', color: '#FFFF00', labelTr: 'Sarı', labelEn: 'Yellow' },
-                        { key: 'lime', color: '#A3E635', labelTr: 'Fıstık', labelEn: 'Lime' },
-                        { key: 'green', color: '#4ADE80', labelTr: 'Yeşil', labelEn: 'Green' },
-                        { key: 'mint', color: '#34D399', labelTr: 'Nane', labelEn: 'Mint' },
-                        { key: 'teal', color: '#2DD4BF', labelTr: 'Turkuaz', labelEn: 'Teal' },
-                        { key: 'sky', color: '#38BDF8', labelTr: 'Gök', labelEn: 'Sky Blue' },
-                        { key: 'blue', color: '#60A5FA', labelTr: 'Mavi', labelEn: 'Blue' },
-                        { key: 'violet', color: '#A78BFA', labelTr: 'Menekşe', labelEn: 'Violet' },
-                        { key: 'lavender', color: '#C084FC', labelTr: 'Lavanta', labelEn: 'Lavender' },
-                        { key: 'sakura', color: '#F472B6', labelTr: 'Gül', labelEn: 'Rose' },
-                        { key: 'platinum', color: '#E2E8F0', labelTr: 'Gümüş', labelEn: 'Silver' },
-                      ] as const).map((colorOpt) => {
+                      {AVATAR_RINGS.map((r) => ({ key: r.key, color: r.color, labelTr: r.tr, labelEn: r.en })).map((colorOpt) => {
                         const isSelected = selectedBorderColor === colorOpt.color;
                         const isNone = colorOpt.color === 'transparent';
                         return (
@@ -856,7 +843,7 @@ export default function ProfileScreen() {
                       {upperFor(language === 'tr' ? 'En Verimli Olduğun Zaman' : 'Peak Productivity Time', language)}
                     </Text>
                     <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, marginBottom: S.sm }}>
-                      {language === 'tr' ? 'Sabah özeti bu saate planlanır.' : 'Morning brief is scheduled around this time.'}
+                      {productivityHint(newProductivityHour, language === 'tr' ? 'tr' : 'en')}
                     </Text>
                     <View style={{ flexDirection: 'row', gap: S.xs }}>
                       {([

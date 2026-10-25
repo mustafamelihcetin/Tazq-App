@@ -45,9 +45,10 @@ import { DeleteAccountModal } from '@/features/user/components/DeleteAccountModa
 import { playSoundEffect } from '@/shared/utils/soundEffects';
 import { httpDataOf } from '@/shared/utils/errors';
 import { SectionHeader } from '@/shared/components/SectionHeader';
-import { SettingsCard, SettingItem, ToggleRow, RowDivider, settingsAccents } from '@/shared/components/SettingsRows';
+import { SettingsCard, SettingItem, ToggleRow, RowDivider, SettingsActionRow, ChoiceRow, settingsAccents } from '@/shared/components/SettingsRows';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { haptic } from '@/shared/utils/haptics';
+import { goHome } from '@/shared/utils/authNavigation';
 
 /**
  * Ayarlar sayfası — profil'den AYRILDI. İçerik profile.tsx'ten BYTE-BYTE çıkarıldı;
@@ -85,7 +86,8 @@ export default function SettingsScreen() {
     section === 'notify' ? (language === 'tr' ? 'Bildirimler' : 'Notifications')
     : section === 'system' ? (language === 'tr' ? 'Görünüm & Dil' : 'Appearance & Language')
     : section === 'health' ? (language === 'tr' ? 'Uyku & Sağlık' : 'Sleep & Health')
-    : section === 'legal' ? (language === 'tr' ? 'Hesap, Yasal & Destek' : 'Account, Legal & Support')
+    // Başlık çubuğuna sığan kısa ad (360 dp'de "Hesap, Yasal & …" diye kesiliyordu); profildeki satır tam adı taşır.
+    : section === 'legal' ? (language === 'tr' ? 'Hesap & Destek' : 'Account & Support')
     : (language === 'tr' ? 'Ayarlar' : 'Settings');
   const { show: showToast } = useToastStore();
   const insets = useSafeAreaInsets();
@@ -299,7 +301,11 @@ export default function SettingsScreen() {
   const handleLogout = () => {
     Alert.alert(t.logout, t.confirmLogout, [
       { text: t.cancel, style: "cancel" },
-      { text: t.yes, style: "destructive", onPress: () => { logout(); router.replace('/login'); }}
+      // Bekleyen alışkanlık değişikliği önce gönderilir (en çok 3 sn) — sonra yerel veri silinir.
+      { text: t.yes, style: "destructive", onPress: async () => {
+        await require('@/features/habits/sync/habitsSync').flushHabitsSync(user?.id);
+        logout(); router.replace('/login');
+      }}
     ]);
   };
 
@@ -336,16 +342,6 @@ export default function SettingsScreen() {
     }
   };
 
-  const toggleLanguage = () => {
-    haptic.surface();
-    setLanguage(language === 'tr' ? 'en' : 'tr');
-  };
-
-  const toggleTheme = () => {
-    haptic.surface();
-    const next = currentSetting === 'light' ? 'dark' : currentSetting === 'dark' ? 'system' : 'light';
-    setTheme(next);
-  };
 
   const handleStreakFreeze = () => {
     if (streakShields <= 0) {
@@ -466,22 +462,27 @@ export default function SettingsScreen() {
             {/* ── GÖRÜNÜM & DİL ── */}
             <SectionHeader onLayout={e => markSection('system', e.nativeEvent.layout.y)} title={language === 'tr' ? 'GÖRÜNÜM & DİL' : 'APPEARANCE & LANGUAGE'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
             <SettingsCard theme={theme} isDark={isDark}>
-                <SettingItem
+                <ChoiceRow
                     icon={<Moon size={ICON.md} color="#FFFFFF" />}
                     label={t.appearance}
                     bg={A.system}
-                    value={(t as any)[`theme${currentSetting.charAt(0).toUpperCase() + currentSetting.slice(1)}`] || currentSetting}
-                    onPress={toggleTheme}
+                    options={[{ key: 'system', label: t.themeSystem }, { key: 'light', label: t.themeLight }, { key: 'dark', label: t.themeDark }]}
+                    value={currentSetting as 'system' | 'light' | 'dark'}
+                    onChange={(k) => { haptic.select(); setTheme(k); }}
                     theme={theme}
+                    isDark={isDark}
                 />
                 <RowDivider theme={theme} />
-                <SettingItem
+                {/* Dil adı kendi dilinde yazılır (iOS/Android dil seçicilerinin kuralı). */}
+                <ChoiceRow
                     icon={<Languages size={ICON.md} color="#FFFFFF" />}
                     label={t.language}
                     bg={A.system}
-                    value={language === 'tr' ? 'Türkçe' : 'English'}
-                    onPress={toggleLanguage}
+                    options={[{ key: 'tr', label: 'Türkçe' }, { key: 'en', label: 'English' }]}
+                    value={language === 'tr' ? 'tr' : 'en'}
+                    onChange={(k) => { haptic.select(); setLanguage(k); }}
                     theme={theme}
+                    isDark={isDark}
                 />
                 <RowDivider theme={theme} />
                 <ToggleRow
@@ -547,7 +548,7 @@ export default function SettingsScreen() {
                 <RowDivider theme={theme} />
                 <SettingItem
                     icon={<Zap size={ICON.md} color="#FFFFFF" />}
-                    label={language === 'tr' ? 'Focus Puanları' : 'Focus Points'}
+                    label={language === 'tr' ? 'Odak Puanları' : 'Focus Points'}
                     sub={language === 'tr' ? `${focusPoints} XP · Her 100 puanda 1 kalkan kazanırsın` : `${focusPoints} XP · Gain 1 shield every 100 points`}
                     bg={A.core}
                     value={`${focusPoints}/100`}
@@ -672,7 +673,7 @@ export default function SettingsScreen() {
                     onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })}
                     theme={theme}
                 />
-                <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.outlineVariant }} />
+                <RowDivider theme={theme} />
                 <SettingItem
                     icon={<Shield size={ICON.md} color="#FFFFFF" />}
                     label={t.privacyPolicy || (language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy')}
@@ -680,7 +681,7 @@ export default function SettingsScreen() {
                     onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacy' } })}
                     theme={theme}
                 />
-                <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.outlineVariant }} />
+                <RowDivider theme={theme} />
                 <SettingItem
                     icon={<MessageSquare size={ICON.md} color="#FFFFFF" />}
                     label={(t as any).support?.title || (language === 'tr' ? 'Destek & İletişim' : 'Support & Contact')}
@@ -689,14 +690,14 @@ export default function SettingsScreen() {
                     onPress={() => setSupportModalVisible(true)}
                     theme={theme}
                 />
-                <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.outlineVariant }} />
+                <RowDivider theme={theme} />
                 {/* Turlar: balon 10 sn'de kaybolur ve bir daha gelmez — tek geri dönüş yolu burası. */}
                 <SettingItem
                     icon={<Sparkles size={ICON.md} color="#FFFFFF" />}
                     label={t.tourReplay.title}
                     sub={t.tourReplay.sub}
                     bg={A.core}
-                    onPress={() => { usePrefsStore.setState({ completedTours: {} }); showToast(t.tourReplay.done, 'success'); router.replace('/'); }}
+                    onPress={() => { usePrefsStore.setState({ completedTours: {} }); showToast(t.tourReplay.done, 'success'); goHome(router); }}
                     theme={theme}
                 />
             </SettingsCard>
@@ -729,58 +730,79 @@ export default function SettingsScreen() {
             )}
 
             {/*
-              E-POSTA DOĞRULAMA HATIRLATMASI — engel değil, HATIRLATMA.
+              ── HESAP — TEK GRUPLU DİL (2026-10-25, cihazda görüldü) ───────────────────
+              Bu bölüm sayfanın geri kalanıyla aynı dili konuşmuyordu: sarı uyarı kutusu,
+              gri kutu (şifre), koyu gri büyük düğme (çıkış), iki çıplak metin (indir, sil)
+              — dört ayrı stil, alt alta. iOS Ayarlar / M3 deseni: hesap eylemleri gruplu
+              kartta ikonlu satırlar; çıkış ve silme KENDİ küçük gruplarında ortalanmış satır.
 
-              Doğrulama kayıt yolundan çıkarıldı (kullanıcı artık uygulamadan çıkıp kod
-              aramak zorunda değil). Ama tamamen unutulmamalı: özet e-postaları
-              doğrulanana kadar gönderilmiyor ve şifre sıfırlama o adrese dayanıyor.
-              Bu yüzden burada, sebebiyle birlikte duruyor.
+              E-POSTA DOĞRULAMA engel değil HATIRLATMA: özet e-postaları ve şifre sıfırlama o
+              adrese dayanıyor. Uyarı tonu ikon çipinde (notify), satırın kendisi sakin.
+
+              VERİ TAŞINABİLİRLİĞİ silmenin üstünde, bilinçli: hesabını silmeye giden
+              kullanıcı verisini yanına alabileceğini tam o anda görmeli (KVKK/GDPR).
             */}
-            {user && (user as any).isEmailVerified === false && (
-              <Touchable
-                onPress={() => router.push({ pathname: '/verify-email', params: { email: user.email } })}
-                accessibilityRole="button"
-                accessibilityLabel={t.verifyEmail.rowTitle}
-                accessibilityHint={t.verifyEmail.rowSub}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: theme.warning + '14', borderRadius: R.md, paddingVertical: S.md, paddingHorizontal: S.md, marginTop: S.xl, borderWidth: B.thin, borderColor: theme.warning + '33' }}
-              >
-                <MailCheck size={ICON.md} color={theme.warning} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{t.verifyEmail.rowTitle}</Text>
-                  <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption, marginTop: S.xxs }}>{t.verifyEmail.rowSub}</Text>
-                </View>
-                <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
-              </Touchable>
-            )}
-
-            {(user as any)?.hasPassword && (
-              <Touchable
-                onPress={openChangePassword}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, paddingVertical: S.md, paddingHorizontal: S.md, marginTop: S.xl }}
-              >
-                <Lock size={ICON.md} color={theme.onSurfaceVariant} />
-                <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body, flex: 1 }}>{language === 'tr' ? 'Şifre Değiştir' : 'Change Password'}</Text>
-                <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
-              </Touchable>
-            )}
+            <SectionHeader title={language === 'tr' ? 'HESAP' : 'ACCOUNT'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
+            <SettingsCard theme={theme} isDark={isDark}>
+              {user && (user as any).isEmailVerified === false && (<>
+                <SettingItem
+                  icon={<MailCheck size={ICON.md} color="#FFFFFF" />}
+                  label={t.verifyEmail.rowTitle}
+                  sub={t.verifyEmail.rowSub}
+                  bg={A.notify}
+                  onPress={() => router.push({ pathname: '/verify-email', params: { email: user.email } })}
+                  theme={theme}
+                />
+                <RowDivider theme={theme} />
+              </>)}
+              {(user as any)?.hasPassword && (<>
+                <SettingItem
+                  icon={<Lock size={ICON.md} color="#FFFFFF" />}
+                  label={language === 'tr' ? 'Şifre Değiştir' : 'Change Password'}
+                  bg={A.system}
+                  onPress={openChangePassword}
+                  theme={theme}
+                />
+                <RowDivider theme={theme} />
+              </>)}
+              <SettingItem
+                icon={<Download size={ICON.md} color="#FFFFFF" />}
+                label={language === 'tr' ? 'Verilerimi indir' : 'Download my data'}
+                sub={exporting ? (language === 'tr' ? 'Hazırlanıyor…' : 'Preparing…') : (language === 'tr' ? 'Tüm kayıtlarının bir kopyası' : 'A copy of all your records')}
+                bg={A.legal}
+                right={exporting ? <ActivityIndicator size="small" color={theme.onSurfaceVariant} /> : undefined}
+                onPress={exporting ? undefined : async () => {
+                  setExporting(true);
+                  try {
+                    const { exportUserData } = require('@/shared/utils/dataExport');
+                    const res = await exportUserData();
+                    if (res.ok) {
+                      haptic.success();
+                    } else {
+                      haptic.error();
+                      Alert.alert(
+                        language === 'tr' ? 'Dışa aktarılamadı' : 'Export failed',
+                        res.reason === 'no-sharing'
+                          ? (language === 'tr'
+                              ? 'Bu cihaz dosya paylaşımını desteklemiyor.'
+                              : 'This device does not support file sharing.')
+                          : (language === 'tr'
+                              ? 'Bir sorun oldu, tekrar dener misin?'
+                              : 'Something went wrong, please try again.'),
+                      );
+                    }
+                  } finally {
+                    setExporting(false);
+                  }
+                }}
+                theme={theme}
+              />
+            </SettingsCard>
 
             {/*
-              TEHLİKE HİYERARŞİSİ — algıya göre. Eskiden tersti: geri alınabilir ÇIKIŞ
-              alarm kırmızısıyla, geri dönüşü olmayan HESAP SİLME soluk gri dipnotla
-              çiziliyordu. Yani kullanıcı güvenli eylem için uyarılıyor, yıkıcı eylem için
-              uyarılmıyordu. Renk = tehlike seviyesi olmalı:
-                Çıkış  → nötr/sakin (rutin, geri alınabilir). Kırmızı değil.
-                Silme  → kırmızı (kalıcı). Küçük tutulur (kaza önleme) ama rengi tehlikeyi
-                         söyler; asıl sürtünme onay modalında (yazarak doğrulama).
-            */}
-            {/*
-              MİSAFİRE ÇIKIŞ DEĞİL, HESAP OLUŞTURMA GÖSTERİLİR.
-
-              Hesapsız kullanıcı için "Çıkış yap" anlamsız (çıkacak hesap yok) ve
-              tehlikeli görünür. Onun yerine ihtiyacı olan şey: verisini kalıcı
-              kılmanın yolu. Metin bunu açıkça söylüyor — "verilerim kalsın" —
-              çünkü kayıt olmanın yerel veriyi sileceği korkusu, kaydolmamanın en
-              yaygın sebebi.
+              MİSAFİRE ÇIKIŞ DEĞİL, HESAP OLUŞTURMA — çıkacak hesap yok; ihtiyacı olan verisini
+              kalıcı kılmak. Sayfanın TEK dolu düğmesi bu: misafir için asıl eylem.
+              ÇIKIŞ nötr (rutin, geri alınabilir); SİLME kırmızı (kalıcı) — renk = tehlike seviyesi.
             */}
             {isGuest ? (
               <Touchable
@@ -789,86 +811,34 @@ export default function SettingsScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={t.guest.keepMyData}
                 accessibilityHint={t.guest.settingsSub}
-                style={[styles.logoutBtn, { backgroundColor: theme.primary, marginTop: S.xl, paddingVertical: S.md, paddingHorizontal: S.md }]}
+                style={[styles.logoutBtn, { backgroundColor: theme.primary, marginTop: S.lg, paddingVertical: S.md, paddingHorizontal: S.md }]}
               >
                 <UserPlus size={ICON.md} color={theme.onPrimary} />
                 <Text style={[styles.logoutText, { color: theme.onPrimary, fontSize: F.body }]}>{t.guest.keepMyData}</Text>
               </Touchable>
             ) : (
-              <Touchable onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.surfaceContainerHigh, marginTop: (user as any)?.hasPassword ? S.md : S.xl, paddingVertical: S.md, paddingHorizontal: S.md }]}>
-                  <LogOut size={ICON.md} color={theme.onSurfaceVariant} />
-                  <Text style={[styles.logoutText, { color: theme.onSurface, fontSize: F.body }]}>{t.logout}</Text>
-              </Touchable>
+              <SettingsCard theme={theme} isDark={isDark} style={{ marginTop: S.lg }}>
+                <SettingsActionRow label={t.logout} onPress={handleLogout} theme={theme} />
+              </SettingsCard>
             )}
 
             {/*
-              VERİ TAŞINABİLİRLİĞİ — silmenin HEMEN ÜSTÜNDE, bilinçli.
-
-              Hesabını silmeye giden kullanıcı, verisini yanına alabileceğini tam o anda
-              görmeli. Ayrı bir sekmeye gömülseydi kimse bulamaz, veri kalıcı olarak
-              kaybolurdu. Sıra da bunu söylüyor: önce AL, sonra sil.
-
-              Ayrıca KVKK/GDPR "veri taşınabilirliği" hakkının karşılığı bu. Silme zaten
-              vardı; taşınabilirlik eksikti.
+              MİSAFİRDE SİLİNECEK HESAP YOK — sahip olduğu şey CİHAZDAKİ veri: onu silmenin
+              yolu yerel temizlik + çıkış. Asıl sürtünme onay modalında (yazarak doğrulama).
             */}
-            <Touchable
-              disabled={exporting}
-              onPress={async () => {
-                setExporting(true);
-                try {
-                  const { exportUserData } = require('@/shared/utils/dataExport');
-                  const res = await exportUserData();
-                  if (res.ok) {
-                    haptic.success();
-                  } else {
-                    haptic.error();
-                    Alert.alert(
-                      language === 'tr' ? 'Dışa aktarılamadı' : 'Export failed',
-                      res.reason === 'no-sharing'
-                        ? (language === 'tr'
-                            ? 'Bu cihaz dosya paylaşımını desteklemiyor.'
-                            : 'This device does not support file sharing.')
-                        : (language === 'tr'
-                            ? 'Bir sorun oldu, tekrar dener misin?'
-                            : 'Something went wrong, please try again.'),
-                    );
-                  }
-                } finally {
-                  setExporting(false);
-                }
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={language === 'tr' ? 'Verilerimi dışa aktar' : 'Export my data'}
-              style={[styles.logoutBtn, { backgroundColor: 'transparent', marginTop: S.md, paddingVertical: S.md, paddingHorizontal: S.md, opacity: exporting ? 0.6 : 1 }]}
-            >
-                {exporting
-                  ? <ActivityIndicator size="small" color={theme.onSurfaceVariant} />
-                  : <Download size={ICON.sm} color={theme.onSurfaceVariant} />}
-                <Text style={[styles.logoutText, { color: theme.onSurfaceVariant, fontSize: F.caption }]}>
-                  {exporting
-                    ? (language === 'tr' ? 'Hazırlanıyor…' : 'Preparing…')
-                    : (language === 'tr' ? 'Verilerimi indir' : 'Download my data')}
-                </Text>
-            </Touchable>
-
-            {/*
-              MİSAFİRDE SİLİNECEK HESAP YOK. Eskiden misafire de "Hesabımı Sil" gösteriliyordu
-              ve sunucuya gidemeyen bir silme isteği başlatıyordu. Misafirin sahip olduğu şey
-              CİHAZDAKİ veri: onu silmenin yolu yerel temizlik + çıkış (logout bunu zaten yapıyor).
-            */}
-            <Touchable
-              onPress={isGuest
-                ? () => Alert.alert(t.guest.eraseLocalTitle, t.guest.eraseLocalBody, [
-                    { text: t.cancel, style: 'cancel' },
-                    { text: t.guest.eraseLocalConfirm, style: 'destructive', onPress: () => { logout(); router.replace('/login'); } },
-                  ])
-                : openDeleteAccount}
-              accessibilityRole="button"
-              style={[styles.logoutBtn, { backgroundColor: 'transparent', marginTop: S.md, paddingVertical: S.md, paddingHorizontal: S.md }]}
-            >
-                <Trash2 size={ICON.sm} color={theme.error} />
-                <Text style={[styles.logoutText, { color: theme.error, fontSize: F.caption }]}>{isGuest ? t.guest.eraseLocal : (t.deleteAccount || (language === 'tr' ? 'Hesabımı Sil' : 'Delete Account'))}</Text>
-            </Touchable>
+            <SettingsCard theme={theme} isDark={isDark} style={{ marginTop: S.md }}>
+              <SettingsActionRow
+                destructive
+                label={isGuest ? t.guest.eraseLocal : (t.deleteAccount || (language === 'tr' ? 'Hesabımı Sil' : 'Delete Account'))}
+                onPress={isGuest
+                  ? () => Alert.alert(t.guest.eraseLocalTitle, t.guest.eraseLocalBody, [
+                      { text: t.cancel, style: 'cancel' },
+                      { text: t.guest.eraseLocalConfirm, style: 'destructive', onPress: () => { logout(); router.replace('/login'); } },
+                    ])
+                  : openDeleteAccount}
+                theme={theme}
+              />
+            </SettingsCard>
             </>)}
       </Animated.ScrollView>
 

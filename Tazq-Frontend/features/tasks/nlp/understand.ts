@@ -33,6 +33,8 @@ export interface Fact {
   kind: 'recurrence' | 'date' | 'time' | 'priority' | 'reminder' | 'note' | 'category';
   /** Kanıt: normalize edilmiş metinde bu sonucu doğuran kısım. */
   text: string;
+  /** Kanıtın metindeki yeri [başlangıç, bitiş) — normalize uzunluğu koruduğu için ham metinde de aynı. */
+  at?: [number, number];
 }
 
 export interface Understanding {
@@ -294,22 +296,24 @@ function times(s: string, lang: Lang): Candidate<Clock | null>[] {
 const HIGH = 'acil(?:en)?|hemen|ivedi(?:en)?|kritik|önemli|mühim|en\\s+kısa\\s+sürede|asap|urgent(?:ly)?|important|critical|high\\s+priority|top\\s+priority';
 const LOW = 'acelesi\\s+yok|önemsiz|boş\\s+vakit(?:te|imde|inde)|müsait\\s+olunca|bir\\s+ara|fırsat\\s+bulunca|daha\\s+sonra|sonra|later|whenever|no\\s+rush|low\\s+priority';
 
-function priority(s: string): { value: NlpPriority; text: string } | undefined {
+function priority(s: string): { value: NlpPriority; text: string; at?: [number, number] } | undefined {
   let high: string | undefined;
+  let highAt: [number, number] | undefined;
   let low: string | undefined;
   for (const h of scan(rx(`(${HIGH})`), s)) {
     // Olumsuzluk: "acil değil", "not urgent" → acil DEĞİL, acelesi yok.
     const negated = /^\s+değil/.test(s.slice(h.end)) || /(^|[^\p{L}])not\s+$/u.test(s.slice(0, h.start));
     if (negated) low ??= s.slice(h.start, h.end);
-    else high ??= s.slice(h.start, h.end);
+    else if (high === undefined) { high = s.slice(h.start, h.end); highAt = [h.start, h.end]; }
   }
-  if (/!{2,}/.test(s)) high ??= '!!';
+  const bangs = /!{2,}/.exec(s);
+  if (bangs && high === undefined) { high = '!!'; highAt = [bangs.index, bangs.index + bangs[0].length]; }
   for (const h of scan(rx(`(${LOW})`), s)) {
     // "yemekten sonra", "işten sonra": zaman bildirir, öncelik değil.
     if (/^(sonra|later)$/.test(h.g[0]) && /(dan|den|tan|ten)\s+$/.test(s.slice(0, h.start))) continue;
     low ??= s.slice(h.start, h.end);
   }
-  if (high) return { value: 'High', text: high };
+  if (high) return { value: 'High', text: high, at: highAt };
   if (low) return { value: 'Low', text: low };
   return undefined;
 }
@@ -353,7 +357,7 @@ export function understand(text: string, preferredLang?: Lang, now: Date = new D
   const out: Understanding = { lang, reminder: false, note: false, facts: [] };
   if (!s.trim()) return out;
   const taken = new Taken();
-  const fact = (kind: Fact['kind'], h: Hit) => out.facts.push({ kind, text: s.slice(h.start, h.end) });
+  const fact = (kind: Fact['kind'], h: Hit) => out.facts.push({ kind, text: s.slice(h.start, h.end), at: [h.start, h.end] });
 
   // 1. Tekrar — önce: "her salı" bir tarih DEĞİL, bir tekrar.
   const rec = pick(recurrences(s, now), taken);
@@ -382,7 +386,7 @@ export function understand(text: string, preferredLang?: Lang, now: Date = new D
 
   // 4. Öncelik
   const pr = priority(rest);
-  if (pr) { out.priority = pr.value; out.facts.push({ kind: 'priority', text: pr.text }); }
+  if (pr) { out.priority = pr.value; out.facts.push({ kind: 'priority', text: pr.text, at: pr.at }); }
 
   // 5. Hatırlatma niyeti ve not
   const rem = /(^|[^\p{L}])(hatırlat\p{L}*|unutturma\p{L}*|remind\p{L}*|alarm\p{L}*)/u.exec(rest);
@@ -394,6 +398,34 @@ export function understand(text: string, preferredLang?: Lang, now: Date = new D
   if (cat) { out.category = cat.value; out.facts.push({ kind: 'category', text: cat.text }); }
 
   return out;
+}
+
+/**
+ * GÖREVİN BAŞLIĞI — cümleden alana aktarılan kısımlar çıkarılır (Todoist deseni).
+ *
+ * Cihazda görüldü (2026-10-25): "Sunumu bitir yarın 15:00 acil" tarih, saat ve öncelik
+ * alanlarına doğru aktarılıyor ama başlık cümlenin TAMAMI olarak kaydediliyordu — aynı
+ * bilgi listede iki kez görünüyordu ("Sunumu bitir yarın 15:00 acil · 15:00 · Yarın").
+ *
+ * YALNIZ alana dönüşen ve başlıkta anlam taşımayan kısımlar gider: tarih, saat, tekrar ve
+ * açık YÜKSEK öncelik işareti. Kategori kelimesi ("sunum") işin kendisidir, kalır;
+ * "hatırlat" ("remind me to call mom") ve düşük öncelik/olumsuzluk ("acil değil") kalır.
+ * Geriye anlamlı bir şey kalmazsa cümle olduğu gibi döner — başlık asla boşalmaz.
+ */
+export function titleOf(text: string, u: Understanding): string {
+  const cut = u.facts
+    .filter(f => f.at && (f.kind === 'date' || f.kind === 'time' || f.kind === 'recurrence' || (f.kind === 'priority' && u.priority === 'High')))
+    .map(f => f.at as [number, number])
+    .sort((a, b) => b[0] - a[0]);
+  let out = text;
+  for (const [a0, b] of cut) {
+    // Kesilen parçanın önünde yetim kalan edat da gider ("at 3pm" → "", "on monday" → "").
+    const lead = /(^|\s)(at|on|by|saat)\s+$/i.exec(out.slice(0, a0));
+    const a = lead ? lead.index + lead[1].length : a0;
+    out = out.slice(0, a) + ' ' + out.slice(b);
+  }
+  out = out.replace(/\s{2,}/g, ' ').replace(/\s+([,.;:!?])/g, '$1').replace(/^[\s,.;:\-–—]+|[\s,;:\-–—]+$/g, '').trim();
+  return out.length >= 2 ? out : text.trim();
 }
 
 /** Kategori → kaydedilecek etiket (arayüz dilinde). */

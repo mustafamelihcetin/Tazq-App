@@ -483,6 +483,12 @@ namespace Tazq_Backend.Migrations
                     b.Property<DateTime?>("EmailVerificationExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("HabitsData")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("HabitsUpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("IsBanned")
                         .HasColumnType("boolean");
 

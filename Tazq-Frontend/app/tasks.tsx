@@ -45,7 +45,7 @@ import { useDemoGate, useTourGate } from '@/features/onboarding/utils/firstRun';
 import { TourTarget } from '@/shared/components/TourContext';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions, parseTimeParts } from '@/shared/utils/notifications';
 import { syncTaskToCalendar } from '@/shared/utils/calendarSync';
-import { ICON, S, R, F, scale, verticalScale, moderateScale, B, contentMaxWidth, sideInset, fabSafeBottom, topBarSpace, MIN_TOUCH, HAIRLINE } from '@/shared/constants/tokens';
+import { ICON, S, R, F, scale, verticalScale, moderateScale, B, contentMaxWidth, sideInset, fabSafeBottom, topBarSpace, MIN_TOUCH, HAIRLINE, touchSlop } from '@/shared/constants/tokens';
 import VoiceService from '@/shared/utils/voice';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
@@ -108,6 +108,7 @@ const BulkAction = ({ Icon, label, onPress, disabled, tint, theme }: {
 
 
 type FilterType = TaskFilter;
+const OVERDUE_LABEL = { tr: 'Gecikmiş', en: 'Overdue' } as const;
 
 
 
@@ -190,6 +191,9 @@ export default function ActionCenter() {
   */
   const filter = usePrefsStore(s => s.taskFilter) as FilterType;
   const somedayCount = tasks.filter(t => !t.isCompleted && !t.isArchived && isSomeday(t)).length;
+  // Gecikmiş görünümü — ana sayfadaki "N gecikmiş görev" satırı buraya açılır (aynı tanım, bkz. taskFilter).
+  const overdueCount = tasks.filter(t => matchesTaskFilter(t, 'overdue')).length;
+  const overdueLabel = OVERDUE_LABEL[langOf(language)];
   const setFilter = usePrefsStore(s => s.setTaskFilter);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -292,7 +296,7 @@ export default function ActionCenter() {
     // Ana sayfadaki "rafta N iş var" hatırlatması doğrudan rafı açar.
     // Parametre uygulanınca temizlenir: bir sonraki "Göz at" aynı değerle gelse de çalışsın,
     // ekrana başka yoldan dönüşte raf görünümü kendiliğinden açılmasın.
-    if (filterParam === 'someday') { setFilter('someday'); router.setParams({ filter: undefined }); }
+    if (filterParam === 'someday' || filterParam === 'overdue') { setFilter(filterParam); router.setParams({ filter: undefined }); }
   }, [action, highlightId, dateFilter, filterParam]);
 
   // Refresh tasks when returning from background (keeps "today" filter accurate after midnight)
@@ -1088,7 +1092,9 @@ export default function ActionCenter() {
     Ekrandan çıkınca normal listeye dönülür.
   */
   useFocusEffect(React.useCallback(() => () => {
-    if (usePrefsStore.getState().taskFilter === 'someday') usePrefsStore.getState().setTaskFilter('all');
+    // Gecikmiş görünümü de geçici: ana sayfadan bir kez açılır, kalıcı tercih olmaz.
+    const f = usePrefsStore.getState().taskFilter;
+    if (f === 'someday' || f === 'overdue') usePrefsStore.getState().setTaskFilter('all');
   }, []));
   const hc = horizonCopy(langOf(language));
 
@@ -1472,6 +1478,7 @@ export default function ActionCenter() {
                 {/* BELKİ BİR GÜN ikinci görünüm: Zen'in rafa kaldırdığı işler başka hiçbir
                     yerde toplu görünmüyordu. Satır yalnız rafta iş varken çıkar. */}
                 {([['today', language === 'tr' ? 'Sadece Bugün' : 'Today Only'],
+                   ...(overdueCount > 0 || filter === 'overdue' ? [['overdue', `${overdueLabel} (${overdueCount})`]] : []),
                    ...(somedayCount > 0 || filter === 'someday' ? [['someday', `${language === 'tr' ? 'Belki Bir Gün' : 'Someday'} (${somedayCount})`]] : []),
                 ] as [FilterType, string][]).map(([key, label]) => (
                 <Touchable
@@ -1683,6 +1690,7 @@ export default function ActionCenter() {
                 {[
                   filter !== 'all'
                     ? (filter === 'today' ? t.filterToday
+                      : filter === 'overdue' ? overdueLabel
                       : filter === 'High' ? t.filterHigh
                       : filter === 'Medium' ? t.filterMedium
                       : filter === 'Low' ? t.filterLow
@@ -1720,14 +1728,20 @@ export default function ActionCenter() {
                 >
                     {t.upcoming}
                 </Text>
+                {/* YALNIZ temizlenecek bir şey varken (cihazda görüldü): tamamlanan görev yokken de
+                    duruyordu — hiçbir şey yapmayan, "hepsini sil" gibi okunan bir çöp kutusu.
+                    Dokunma alanı 44 pt'ye tamamlanır. */}
+                {tasks.some(tk => tk.isCompleted) && (
                 <Touchable
                     onPress={() => { haptic.commit(); handleClearCompleted(); }}
                     accessibilityRole="button"
                     accessibilityLabel={language === 'tr' ? 'Tamamlanan görevleri temizle' : 'Clear completed tasks'}
+                    hitSlop={touchSlop(ICON.sm + S.xs * 2)}
                     style={{ padding: S.xs }}
                 >
-                    <Trash2 size={ICON.sm} color={theme.onSurfaceVariant + '80'} />
+                    <Trash2 size={ICON.sm} color={theme.onSurfaceVariant} />
                 </Touchable>
+                )}
             </View>
             
             
@@ -1805,6 +1819,7 @@ export default function ActionCenter() {
                     // Tek sütunda satırlar TEK yüzeyde birleşir (gruplu liste); ızgarada her biri kart.
                     position={listCols === 1 ? (filteredTasks.length === 1 ? 'only' : i === 0 ? 'first' : i === filteredTasks.length - 1 ? 'last' : 'middle') : undefined}
                     tourId={i === 0 ? 'list' : undefined}
+                    onEdit={() => handleEditBtnPress(task.id)}
                     onMoveUp={i > 0 && sortBy === 'creation' ? () => handleMoveTask(i, 'up') : undefined}
                     onMoveDown={i < filteredTasks.length - 1 && sortBy === 'creation' ? () => handleMoveTask(i, 'down') : undefined}
                     handleLongPress={(id: number) => {
@@ -1832,7 +1847,8 @@ export default function ActionCenter() {
             ListFooterComponent={() => (<>
                 <LaterToggle count={horizon.later.length} open={showLater} onToggle={() => setShowLater(v => !v)} theme={theme} lang={langOf(language)} />
                 {filteredTasks.length > 0 && !isBulkMode ? (
-                    <Text style={{ fontSize: F.caption2, color: theme.onSurfaceVariant, opacity: isDark ? 0.5 : 0.35, textAlign: 'center', marginTop: S.md, fontWeight: '600', letterSpacing: 0.3 }}>
+                    // Soluklaştırma OPAKLIKLA değil SEVİYEYLE: 0.35 opaklık ~2:1 kontrasttı (okunmuyordu).
+                    <Text style={{ fontSize: F.caption2, color: theme.onSurfaceMuted, textAlign: 'center', marginTop: S.md, fontWeight: '500', letterSpacing: 0.2 }}>
                         {t.swipeHint}
                     </Text>
                 ) : null}

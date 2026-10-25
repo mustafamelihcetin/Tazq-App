@@ -2,6 +2,7 @@ import { calendarDayOf, parseDateKey } from '@/shared/utils/dateKey';
 import { Platform, AppState } from 'react-native';
 import Constants from 'expo-constants';
 import { swallow } from './swallow';
+import { briefHourOf } from '@/shared/utils/productivityHour';
 
 const isExpoGo = Constants.appOwnership === 'expo';
 const FOCUS_NOTIF_ID = 'tazq-focus-live';
@@ -169,15 +170,8 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 // TEK SEFERLİK: `daily` tetikleyicide sayı donuyor, açılmayan uygulama her sabah aynı eski
 // "Bugün 16 görevin var"ı gönderiyordu (gerçek: 4). Sayı çalacağı günün (bkz. briefCounts).
 
-const PRODUCTIVITY_HOUR: Record<string, number> = {
-  morning: 7,
-  afternoon: 12,
-  evening: 17,
-  night: 21,
-};
-
-/** Sabah özetinin saati — kullanıcının verimli saat tercihinden. */
-export const briefHourFor = (productivityHour: string) => PRODUCTIVITY_HOUR[productivityHour] ?? 8;
+/** Sabah özetinin saati — kullanıcının verimli saat tercihinden (tek kaynak: productivityHour.ts). */
+export const briefHourFor = (productivityHour: string) => briefHourOf(productivityHour);
 
 export async function scheduleMorningBrief(
   todayTaskCount: number,

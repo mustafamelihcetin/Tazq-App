@@ -249,12 +249,12 @@ describe('arka planlar ağacın dışında', () => {
  */
 const ROLE_CEILING: Record<string, number> = {
   'app/admin.tsx': 25,
-  'app/cockpit.tsx': 11, // 13 → 11 (2026-10-24): Bugün satırı + tamamlanan alışkanlık satırına rol
+  'app/cockpit.tsx': 6, // 9 → 8 (2026-10-25): Bu Hafta kartının planla satırı rollü · 11 → 9: gün kutuları ve Görev Ekle rollü · 13 → 11 (2026-10-24): Bugün satırı + tamamlanan alışkanlık satırına rol
   'app/focus.tsx': 6, // 7 → 6 (2026-10-24): Özel süre seçeneğine rol · // 17 → 7: modlar/pomodoro sayfaları kendi dosyalarına taşındı (rolleriyle), süre seçenekleri ve sayaç adlandırıldı
   'app/profile.tsx': 3, // 4 → 3 (2026-10-24): Yenile düğmesine rol
   'app/promo.tsx': 2,
   'app/odemeler.tsx': 7, // 8 → 7 (2026-10-24): satırlar PaymentRow'a taşındı (rollü), ekle düğmesi rollü başlık çubuğunda // (2026-10-18): yeni ekran — ekle davetiyesi, ödendi/geri al, sil, vazgeç/ekle // +1 (2026-10-19): para birimi çipi // +1 (2026-10-19): gün gridi çipi (1-31, tek JSX çağrı noktası) // +1 (2026-10-19): sağlayıcı önerisi satırı
-  'app/settings.tsx': 5,
+  'app/settings.tsx': 3, // 5 → 3 (2026-10-25): hesap bölümü ortak SettingItem / SettingsActionRow satırlarına geçti
   'app/tasks.tsx': 3, // 4 → 3: satır bileşeni TaskListItem'a taşındı
   'features/focus/components/FocusIsland.tsx': 1,
   'features/modes/components/TurkishModeBanner.tsx': 19,
@@ -269,7 +269,6 @@ const ROLE_CEILING: Record<string, number> = {
   'features/modes/components/WeakAreaPicker.tsx': 1, // (2026-10-19): yeni ortak bileşen — zayıf-alan çipi
   // TaskFormModal LİSTEDEN ÇIKTI (22 → 0, 2026-10-25): Yeni Hedef formu yeniden yazıldı, her kontrol rollü.
   'features/user/components/MomentumPulse.tsx': 3,
-  'features/user/components/ProfileSetupModal.tsx': 4,
   'shared/components/ChromeShell.tsx': 1,
   'shared/components/CustomAlert.tsx': 1,
   'shared/components/ErrorBoundary.tsx': 1,

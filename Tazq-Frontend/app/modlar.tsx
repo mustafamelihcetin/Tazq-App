@@ -95,6 +95,17 @@ const LOAD_COPY = {
 };
 
 /** Geri sayımda tasarruf hedefinin adı (kullanıcı ad yazmadıysa). */
+/*
+  TUR SIRASINDA ÖRNEK DESTE (2026-10-25, cihazda görüldü): aktif hedefi olmayan kullanıcıya
+  tur "aktif hedeflerin burada; yana kaydırarak geç" diyordu ama vurgulanan yalnız davet
+  kartıydı — anlatılan şey ekranda yoktu. Ana sayfa ve Haftalık Merkez'deki kuralın aynısı:
+  tur boyunca örnek veri, tur bitince gerçek hâl (bkz. useDemoGate).
+*/
+const MODES_DEMO = {
+  tr: { exam: 'YKS', spor: '10K koşusu', greeting: 'İyi gidiyorsun', motiv: 'Erken başlamak en büyük avantajın — "YKS" yolundasın.' },
+  en: { exam: 'Finals', spor: '10K run', greeting: "You're doing great", motiv: 'Starting early is your edge — you’re on track for "Finals".' },
+} as const;
+
 const SAVINGS_FALLBACK = { tr: 'Tasarruf', en: 'Savings' };
 
 // Kullanıcının seçtiği günlük süreyi, eşleşen SEVİYE şablonuna (Temel/Standart/Yoğun)
@@ -749,6 +760,10 @@ export default function ModlarScreen() {
     : statusTodayPct >= 80 ? { text: language === 'tr' ? 'Harika gidiyorsun!' : 'Crushing it!', icon: <Flame size={ICON.md} color={sporColor} /> }
     : statusTodayPct >= 40 ? { text: language === 'tr' ? 'İyi gidiyorsun' : "You're doing great", icon: <Dumbbell size={ICON.md} color={urgencyColor} /> }
     : { text: language === 'tr' ? 'Bugün biraz hızlanalım' : "Let's pick up the pace", icon: <Zap size={ICON.md} color={theme.warning} /> };
+  // Tur çalışırken ve gerçek hedef yokken örnek deste (bkz. MODES_DEMO).
+  const modesTourRunning = useTourRun((st) => st.running === 'modlar');
+  const demoStatus = modesTourRunning && statusActiveCount === 0;
+  const demoCopy = MODES_DEMO[language === 'en' ? 'en' : 'tr'];
   const statusMotiv = !statusNearest ? ''
     : statusNearest.days <= 3
       ? (language === 'tr' ? `Son düzlük! "${statusNearest.label}" çok yakın — bugün her şey sayar.` : `Final stretch! "${statusNearest.label}" is close — today counts.`)
@@ -969,7 +984,7 @@ export default function ModlarScreen() {
           }
           title={language === 'tr' ? 'Yaşam Modları' : 'Life Modes'}
           right={
-            <TourTarget id="overview">
+            <TourTarget id="overview" spotRadius={R.full}>
               <Touchable
                 onPress={() => { router.push('/mod-ozet'); }}
                 style={styles.headerIconBtn}
@@ -1001,15 +1016,18 @@ export default function ModlarScreen() {
                 Çizimi kendi dosyasında (bkz. ModeStatusCard) — bu blok burada ~170 satırdı
                 ve ekranın kendi işiyle (hangi plan uygulanmış, tur, önizleme) iç içe
                 geçmişti. Kart hiçbir şey HESAPLAMAZ; sayılar burada hesaplanır. */}
-            <TourTarget id="presets">
+            <TourTarget id="presets" spotRadius={R.lg}>
               <ModeStatusCard
                 language={language === 'en' ? 'en' : 'tr'}
-                goals={statusOrdered}
-                activeCount={statusActiveCount}
-                greeting={statusGreetingObj}
-                todayDone={statusTodayDone}
-                todayTotal={statusTodayTotal}
-                motivation={statusMotiv}
+                goals={demoStatus ? [
+                  { days: 42, label: demoCopy.exam, color: resolveModeAccent('exam', isDark), textColor: resolveModeAccentText('exam', isDark), emoji: '🎯' },
+                  { days: 63, label: demoCopy.spor, color: sporColor, textColor: sporTextColor, emoji: '💪' },
+                ] : statusOrdered}
+                activeCount={demoStatus ? 2 : statusActiveCount}
+                greeting={demoStatus ? { text: demoCopy.greeting, icon: <Dumbbell size={ICON.md} color={urgencyColor} /> } : statusGreetingObj}
+                todayDone={demoStatus ? 1 : statusTodayDone}
+                todayTotal={demoStatus ? 3 : statusTodayTotal}
+                motivation={demoStatus ? demoCopy.motiv : statusMotiv}
                 fallbackColor={urgencyColor}
                 fallbackTextColor={urgencyTextColor}
               />
@@ -1020,7 +1038,6 @@ export default function ModlarScreen() {
                 da, Ramazan'a 7 gün kala kendini gösteren ÖNERİ kartı da "aktif hedef"
                 gibi listeleniyordu. Artık üç ayrı bölüm: uygulanmış planlar, yarım
                 kalmış kurulumlar ve takvimin önerdiği dönem. */}
-            <TourTarget id="contents">
             {sectionsToRender.map(section => (
               /*
                 BÖLÜMÜN KENDİ KONUMU DA ÖLÇÜLÜYOR.
@@ -1170,8 +1187,13 @@ export default function ModlarScreen() {
                   <SectionHeader title={language === 'tr' ? 'Yeni hedef keşfet' : 'Discover new goals'} theme={theme} tr={language === 'tr'} />
                   <View style={{ backgroundColor: theme.surfaceCard, borderRadius: R.lg, overflow: 'hidden', borderWidth: isDark ? B.thin : 0, borderColor: theme.outline }}>
                     {discoveryItems.map((item, idx) => (
+                      /*
+                        TUR YALNIZ İLK SATIRI GÖSTERİR (2026-10-25, cihazda görüldü): hedef bütün
+                        bölümleri sarıyordu — vurgu ekrandan taşıp sekme çubuğuna iniyor, başlık
+                        aydınlatılan alanın kenarına yapışıyordu. Tek somut satır (TipKit deseni).
+                      */
+                      <TourTarget id="contents" key={item.key} enabled={idx === 0} spotRadius={R.lg} spotCorners="top">
                       <Touchable
-                        key={item.key}
                         accessibilityRole="button"
                         accessibilityLabel={`${item.title} — ${language === 'tr' ? 'kurulumu başlat' : 'start setup'}`}
                         accessibilityHint={`${item.desc}. ${item.load}`}
@@ -1202,12 +1224,12 @@ export default function ModlarScreen() {
                           <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} style={{ marginLeft: S.xxs }} />
                         </View>
                       </Touchable>
+                      </TourTarget>
                     ))}
                   </View>
                 </View>
               );
             })()}
-            </TourTarget>
 
             {/* ── KATMAN 3: GEÇMİŞ HEDEFLER ──
                 Üç ay çalışılıp kapatılan hedef ekrandan siliniyordu: birkaç saniyelik

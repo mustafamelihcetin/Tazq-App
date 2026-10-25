@@ -147,3 +147,12 @@ describe('başlıktaki hedef — sayfa en üste kaydırılır', () => {
     expect(src).toMatch(/if \(step\.scrollTop\) \{\s*[\s\S]*?scrollTo\(\{ y: 0/);
   });
 });
+
+describe('tur teklifi kendiliğinden kaybolmaz', () => {
+  // Cihazda görüldü: 10 sn'lik zamanlayıcı teklifi kapatıp turu "tamamlandı" sayıyordu;
+  // dokunulduğu an kaybolunca dokunuş alttaki karta düşüyordu (WCAG 2.2.1).
+  it('TourBeacon zamanlayıcı kurmuyor', () => {
+    const src = require('fs').readFileSync(require('path').resolve(__dirname, '../features/onboarding/components/TourBeacon.tsx'), 'utf8');
+    expect(src).not.toMatch(/setTimeout\(/);
+  });
+});

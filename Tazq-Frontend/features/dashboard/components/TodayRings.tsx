@@ -133,6 +133,8 @@ export const TodayRings = React.memo<TodayRingsProps>(({ label, caption, caption
             onPress={onAdd}
             accessibilityRole="button"
             accessibilityLabel={addLabel}
+            // Hap görsel olarak küçük kalır; dokunma alanı 44 pt'ye tamamlanır (HIG).
+            hitSlop={{ top: S.sm, bottom: S.sm, left: S.xs, right: S.xs }}
             style={[styles.addPill, { backgroundColor: theme.primary + '1F' }]}
           >
             <Text style={{ fontSize: F.footnote, fontWeight: W.semibold, color: theme.primary }}>{`+ ${addLabel}`}</Text>
@@ -163,5 +165,5 @@ const styles = StyleSheet.create({
   legendValue: { fontSize: F.callout, fontWeight: W.semibold, fontVariant: ['tabular-nums'] },
   tick: { width: ICON.xs, alignItems: 'center' },
   caption: { fontSize: F.caption, fontWeight: W.semibold, marginTop: S.md, letterSpacing: 0.3 },
-  addPill: { alignSelf: 'flex-start', marginTop: S.sm, paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full },
+  addPill: { alignSelf: 'flex-start', marginTop: S.smd, minHeight: 32, justifyContent: 'center', paddingHorizontal: S.smd, borderRadius: R.full },
 });

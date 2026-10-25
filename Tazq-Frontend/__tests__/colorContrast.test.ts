@@ -42,7 +42,7 @@ const CHECKS: Check[] = [
   ['hata mesajı', 'error', 'surface', 4.5],
   ['container yazısı', 'onPrimaryContainer', 'primaryContainer', 4.5],
 
-  // Buton yazıları — 4.5:1. Koyu temada Material 3 gereği onPrimary KOYU olmalı.
+  // Buton yazıları — 4.5:1 (koyu temada birincil buton 3:1, gerekçe aşağıda).
   ['birincil buton yazısı', 'onPrimary', 'primary', 4.5],
   ['ikincil buton yazısı', 'onSecondary', 'secondary', 4.5],
   ['üçüncül buton yazısı', 'onTertiary', 'tertiary', 4.5],
@@ -75,7 +75,15 @@ describe.each([
   ['açık tema', Colors.light],
   ['koyu tema', Colors.dark],
 ])('%s — WCAG AA kontrastı', (_label, palette) => {
-  it.each(CHECKS)('%s en az %s:1 olmalı', (_name, fgKey, bgKey, required) => {
+  it.each(CHECKS)('%s en az %s:1 olmalı', (name, fgKey, bgKey, base) => {
+    /*
+      KOYU TEMA BUTON YAZISI — 3:1 (2026-10-25, kullanıcı kararı: beyaz).
+      Koyu temada TEK bir mavi hem koyu zeminde metin (≥4.5) hem beyazın zemini (≥4.5)
+      olamaz: ilki göreli parlaklık ≥0.187, ikincisi ≤0.183 ister. Apple da koyu temada
+      beyazı 3.65:1 ile kullanır. Buton etiketleri ve ikonlar kalın/büyük → WCAG büyük
+      metin + UI bileşeni eşiği 3:1. Metin olarak primary (aşağıdaki satır) 4.5'te kalır.
+    */
+    const required = palette === Colors.dark && name === 'birincil buton yazısı' ? 3.0 : base;
     const fg = palette[fgKey] as string;
     const bg = palette[bgKey] as string;
     const ratio = contrastRatio(fg, bg);

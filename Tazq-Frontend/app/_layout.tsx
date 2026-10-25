@@ -91,6 +91,7 @@ import { NotificationPrimer } from '@/shared/components/NotificationPrimer';
 import { Asset } from 'expo-asset';
 import { useOfflineSync } from '@/shared/hooks/useOfflineSync';
 import { usePrefsSync } from '@/shared/hooks/usePrefsSync';
+import { useHabitsSync } from '@/features/habits/hooks/useHabitsSync';
 import { usePlanAdaptations } from '@/features/modes';
 
 // Prevent the native splash screen from auto-hiding
@@ -149,6 +150,7 @@ import { useActiveModeSummary } from '@/features/modes/hooks/useActiveModeSummar
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { swallow } from '@/shared/utils/swallow';
 import { httpStatusOf } from '@/shared/utils/errors';
+import { goHome } from '@/shared/utils/authNavigation';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -185,6 +187,8 @@ export default function RootLayout() {
   // Replay queued offline operations when connection is restored
   useOfflineSync();
   usePrefsSync();
+  // Alışkanlıklar hesaba eşitlenir — çıkışta/telefon değişince seriler kaybolmasın (bkz. habitsSync).
+  useHabitsSync();
   usePlanAdaptations();
   const [assetsLoaded, setAssetsLoaded] = useState(false);
 
@@ -630,7 +634,7 @@ export default function RootLayout() {
         }
         // If logged in and in auth/onboarding, go to home
         else if (isLoggedIn && onboardingDone === 'true' && (inAuthGroup || inOnboarding)) {
-          router.replace('/');
+          goHome(router);
         }
         /*
           MİSAFİR UYGULAMAYI KULLANABİLİR.

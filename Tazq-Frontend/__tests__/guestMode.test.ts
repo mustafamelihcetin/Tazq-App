@@ -184,7 +184,8 @@ describe('giriş noktaları', () => {
 
   it('giriş ekranında var ve artık TURA değil uygulamaya götürüyor', () => {
     const src = read('app/login.tsx');
-    expect(src).toContain('startGuest(); router.replace(\'/\')');
+    // Eve dönüş ortak yoldan (bkz. authNavigation.test.ts — çift ana sayfa hatası).
+    expect(src).toContain('startGuest(); goHomeAfterAuth(router)');
     // Eski davranış: kullanıcıyı tanıtım turuna geri gönderiyordu
     expect(src).not.toContain("router.push('/onboarding')");
   });

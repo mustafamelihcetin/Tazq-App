@@ -99,24 +99,24 @@ export const TOUR_STEPS: Record<FirstRunPage, TourStepDef[]> = {
     {
       target: 'overview',
       title: { tr: 'Özet', en: 'Overview' },
-      body: { tr: 'Tüm hedeflerinin gidişatı tek ekranda.', en: 'All your goals’ progress on one screen.' },
+      body: { tr: 'Tüm hedeflerinin gidişatı tek ekranda.', en: 'How every goal is going, on one screen.' },
     },
   ],
   cockpit: [
     {
       target: 'weekStrip',
       title: { tr: 'Haftanın günleri', en: 'Your week' },
-      body: { tr: 'Bir güne dokun; o günün işleri aşağıda açılır.', en: 'Tap a day to open what happened on it below.' },
+      body: { tr: 'Bir güne dokun; o günün işleri aşağıda açılır.', en: 'Tap a day to see its tasks below.' },
     },
     {
       target: 'dailySection',
       title: { tr: 'Günün detayı', en: 'Day detail' },
-      body: { tr: 'Seçtiğin günün görevleri, odağı ve alışkanlıkları.', en: 'Tasks, focus and habits for the day you picked.' },
+      body: { tr: 'Seçtiğin günün görevleri; halkaya dokununca görev tamamlanır.', en: 'Tasks for the day you picked; tap a ring to complete one.' },
     },
     {
       target: 'weeklyReview',
-      title: { tr: 'Haftalık karne', en: 'Weekly review' },
-      body: { tr: 'Haftanın özetini ve geçmiş haftalarla kıyasını aç.', en: 'Open the week’s summary and compare it with past weeks.' },
+      title: { tr: 'Bu hafta', en: 'This week' },
+      body: { tr: 'Tamamlanan iş, odak süresi ve alışkanlık oranın; gelecek haftanın planını buradan aç.', en: 'Tasks done, focus time and habit rate; open next week’s plan from here.' },
     },
   ],
 };

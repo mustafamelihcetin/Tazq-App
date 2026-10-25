@@ -72,7 +72,8 @@ const atHour = (h: number) => { const d = new Date(); d.setHours(h, 0, 0, 0); re
  *  · tarih var      → ileri günse 09:00; bugünse bir sonraki tam saat (23'ü geçerse yarın 09:00)
  *  · saat var       → o saat bugün geçtiyse yarın, geçmediyse bugün
  */
-export function defaultReminderSlot<T extends { dueDate: string; dueTime: string | null }>(f: T, now: Date): Pick<T, 'dueDate' | 'dueTime'> {
+/** `hour`: saat verilmemiş hatırlatıcının saati — kullanıcının verimli saati (bkz. productivityHour.ts). */
+export function defaultReminderSlot<T extends { dueDate: string; dueTime: string | null }>(f: T, now: Date, hour = 9): Pick<T, 'dueDate' | 'dueTime'> {
   if (f.dueTime && f.dueDate) return { dueDate: f.dueDate, dueTime: f.dueTime };
   if (f.dueTime) {
     const t = new Date(f.dueTime);
@@ -81,15 +82,15 @@ export function defaultReminderSlot<T extends { dueDate: string; dueTime: string
     return { dueDate: toDateKey(target < now ? addDays(now, 1) : now), dueTime: f.dueTime };
   }
   if (!f.dueDate) {
-    return now.getHours() < 9
-      ? { dueDate: toDateKey(now), dueTime: atHour(9) }
-      : { dueDate: toDateKey(addDays(now, 1)), dueTime: atHour(9) };
+    return now.getHours() < hour
+      ? { dueDate: toDateKey(now), dueTime: atHour(hour) }
+      : { dueDate: toDateKey(addDays(now, 1)), dueTime: atHour(hour) };
   }
   const target = parseDateKey(f.dueDate);
   const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  if (target > todayZero) return { dueDate: f.dueDate, dueTime: atHour(9) };
+  if (target > todayZero) return { dueDate: f.dueDate, dueTime: atHour(hour) };
   const nextHour = now.getHours() + 1;
-  if (nextHour > 23) return { dueDate: toDateKey(addDays(now, 1)), dueTime: atHour(9) };
+  if (nextHour > 23) return { dueDate: toDateKey(addDays(now, 1)), dueTime: atHour(hour) };
   return { dueDate: f.dueDate, dueTime: atHour(nextHour) };
 }
 

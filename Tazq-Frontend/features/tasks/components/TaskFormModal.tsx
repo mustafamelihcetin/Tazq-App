@@ -39,6 +39,7 @@ import { ICON, S, R, F, B, HAIRLINE, MIN_TOUCH, TABLET_MIN, scale } from '@/shar
 import { buildNlpChips } from '@/features/tasks/utils/nlpChips';
 import { EMPTY_DRAFT, applyHint, markManual, rejectTag, visibleHint, type DraftControl, type OwnedField } from '@/features/tasks/nlp/draft';
 import { CATEGORY_TAGS, type CategoryId } from '@/features/tasks/nlp/lexicon';
+import { understand, titleOf } from '@/features/tasks/nlp/understand';
 import { langOf, localeOf } from '@/shared/utils/lang';
 import { NlpHintRow, hasNlpHint, EMPTY_NLP_HINT, type NlpHint } from '@/features/tasks/components/NlpHintRow';
 /*
@@ -55,8 +56,10 @@ import { parseDateKey, calendarDayOf, toDateKey } from '@/shared/utils/dateKey';
 import { upperFor } from '@/shared/utils/localeCase';
 import { defaultReminderSlot, isFormDirty } from '@/features/tasks/utils/taskFormDates';
 import { taskFormCopy, type TaskFormCopy } from '@/features/tasks/components/form/taskFormCopy';
-import { SegmentedControl } from '@/features/tasks/components/form/SegmentedControl';
+import { SegmentedControl } from '@/shared/components/SegmentedControl';
 import { ScheduleSection } from '@/features/tasks/components/form/ScheduleSection';
+import { workHourOf } from '@/shared/utils/productivityHour';
+import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 
 interface TaskForm {
   title: string;
@@ -232,15 +235,29 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
   const subtaskInputRef = useRef<TextInput>(null);
   const touch = (...fields: OwnedField[]) => { draftRef.current = markManual(draftRef.current, ...fields); };
 
-  // Populate form on edit/create toggle
+  /*
+    FORM YALNIZ AÇILIŞTA (ya da BAŞKA bir görev açılınca) DOLAR — nesne kimliğine değil
+    görevin KİMLİĞİNE bakılır (2026-10-25, cihazda görüldü; bkz. taskFormReset.test.tsx).
+    Görevler ekranı düzenlenen görevi her çizimde listeden yeniden buluyor; arka plan
+    eşitlemesi aynı görevin yeni bir kopyasını getirince form sıfırlanıyor, sayfa gizleniyor
+    ve kullanıcının yazdıkları siliniyordu.
+  */
+  const openedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (visible) {
+    if (!visible) { openedFor.current = null; return; }
+    const key = task ? `task:${task.id}` : `new:${initialTitle ?? ''}`;
+    if (openedFor.current === key) return;
+    openedFor.current = key;
+    {
       draftRef.current = EMPTY_DRAFT;
       prepareTask();
       setSaving(false);
       setTitleError(false);
       setNlpHint(EMPTY_NLP_HINT);
       setNewSubtaskText('');
+      // Önceki açılıştan kalan odak rengi sıfırlanır: sayfa kapanırken onBlur gelmiyor,
+      // düzenleme formu odak yokken mavi açılıyordu (cihazda görüldü).
+      setFocusedField(null);
 
       if (task) {
         const loaded: TaskForm = {
@@ -366,9 +383,9 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
   };
 
   const setReminder = (on: boolean) => {
-    // Anahtar tarih ve saati de kuruyor — üçü de artık kullanıcının.
+    // Anahtar tarih ve saati de kuruyor; saat yoksa kullanıcının VERİMLİ SAATİ (bkz. productivityHour.ts).
     touch('reminder', 'dueDate', 'dueTime');
-    setForm(f => (on ? { ...f, ...defaultReminderSlot(f, new Date()), reminderEnabled: true } : { ...f, reminderEnabled: false }));
+    setForm(f => (on ? { ...f, ...defaultReminderSlot(f, new Date(), workHourOf(usePrefsStore.getState().productivityHour)), reminderEnabled: true } : { ...f, reminderEnabled: false }));
   };
 
   const addSubtask = () => {
@@ -403,9 +420,12 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
         anlamsız; en makul varsayım bugündür.
       */
       const safeDueDate = !form.dueDate && form.dueTime ? toDateKey(new Date()) : form.dueDate;
+      // YENİ görevde cümleden alana aktarılan kısımlar başlıktan çıkar ("Sunumu bitir yarın
+      // 15:00 acil" → "Sunumu bitir"; cihazda görüldü). Düzenlemede motor çalışmaz, başlık olduğu gibi.
+      const title = task ? form.title.trim() : titleOf(form.title.trim(), understand(form.title.trim(), langOf(language)));
       await onSave({
         ...form,
-        title: form.title.trim(),
+        title,
         description: form.description.trim(),
         dueDate: safeDueDate,
       });

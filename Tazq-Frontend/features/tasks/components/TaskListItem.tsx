@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import Animated from 'react-native-reanimated';
-import { Check, Repeat, CheckCircle2, Circle, ChevronUp, ChevronDown } from 'lucide-react-native';
+import { Check, Repeat, CheckCircle2, Circle, ChevronUp, ChevronDown, Pencil } from 'lucide-react-native';
 import { isWeightEntryTask } from '@/features/modes/utils/weightCheckin';
 import { visibleTextTags, translateTag, getLocalizedTaskTitle, getLocalizedTaskDescription } from '@/features/tasks';
 import { getTaskRemainingTime } from '@/features/modes';
@@ -41,6 +41,12 @@ export interface TaskListItemProps {
     sortBy: string;
     onMoveUp?: () => void;
     onMoveDown?: () => void;
+    /**
+     * Görevi DÜZENLE — açılan panelde. Cihazda görüldü (2026-10-25): düzenlemenin tek yolu
+     * uzun bas → seçim modu → alt çubuktan "Düzenle"ydi; satıra dokununca yalnız "Yukarı/Aşağı
+     * taşı" çıkıyordu. Hatırlatıcılar / Things / Todoist'te dokunulan görev düzenlemeye açılır.
+     */
+    onEdit?: () => void;
     /** Ebeveynde tek geçişte hesaplanır; kart hiçbir store'a abone olmaz. */
     modeInfo: ReturnType<typeof getModeInfoForTask> | null;
     /**
@@ -67,14 +73,14 @@ export interface TaskListItemProps {
 const SIZE = 22;
 
 const copy = (tr: boolean) => tr
-    ? { complete: 'Görevi tamamla', undo: 'Görevi tamamlanmadı olarak işaretle', up: 'Yukarı taşı', down: 'Aşağı taşı', weight: 'KİLO', auto: 'OTO', steps: 'adım', dayOne: '1. Gün', clean: (d: number) => `Temiz: ${d} gün`, goal: (d: number) => `Hedef: ${d} gün` }
-    : { complete: 'Complete task', undo: 'Mark task as not done', up: 'Move up', down: 'Move down', weight: 'WEIGHT', auto: 'AUTO', steps: 'steps', dayOne: 'Day 1', clean: (d: number) => `Clean: ${d} ${d === 1 ? 'day' : 'days'}`, goal: (d: number) => `Goal: ${d} days` };
+    ? { edit: 'Düzenle', complete: 'Görevi tamamla', undo: 'Görevi tamamlanmadı olarak işaretle', up: 'Yukarı taşı', down: 'Aşağı taşı', weight: 'KİLO', auto: 'OTO', steps: 'adım', dayOne: '1. Gün', clean: (d: number) => `Temiz: ${d} gün`, goal: (d: number) => `Hedef: ${d} gün` }
+    : { edit: 'Edit', complete: 'Complete task', undo: 'Mark task as not done', up: 'Move up', down: 'Move down', weight: 'WEIGHT', auto: 'AUTO', steps: 'steps', dayOne: 'Day 1', clean: (d: number) => `Clean: ${d} ${d === 1 ? 'day' : 'days'}`, goal: (d: number) => `Goal: ${d} days` };
 
 
 
 /** Görev listesindeki tek satır: kaydırma, çoklu seçim, genişleyen ayrıntı. */
 export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
-    const { task, i, theme, isDark, highlightedId, isBulkMode, isSelected, language, t, showSwipePeek, priorityColor, handleDelete, handleToggleExpand, handleLongPress, handleBulkSelect, handleToggle, toggleSubtask, completingIds, expandedId, sortBy, onMoveUp, onMoveDown, modeInfo, position, tourId } = props;
+    const { task, i, theme, isDark, highlightedId, isBulkMode, isSelected, language, t, showSwipePeek, priorityColor, handleDelete, handleToggleExpand, handleLongPress, handleBulkSelect, handleToggle, toggleSubtask, completingIds, expandedId, sortBy, onMoveUp, onMoveDown, onEdit, modeInfo, position, tourId } = props;
 
     /*
       MOD BİLGİSİ ARTIK PROP — kart artık HİÇBİR store'a abone değil.
@@ -295,9 +301,20 @@ export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
                                     </View>
                                 )}
 
-                                {sortBy === 'creation' && !isBulkMode && (onMoveUp || onMoveDown) && (
-                                    <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.sm }}>
-                                        {([['up', onMoveUp, ChevronUp, c.up], ['down', onMoveDown, ChevronDown, c.down]] as const).map(([k, fn, Icon, label]) => (
+                                {!isBulkMode && (onEdit || (sortBy === 'creation' && (onMoveUp || onMoveDown))) && (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginTop: S.sm }}>
+                                        {onEdit && (
+                                            <Touchable
+                                                onPress={onEdit}
+                                                accessibilityRole="button"
+                                                accessibilityLabel={c.edit}
+                                                style={[styles.moveBtn, { backgroundColor: theme.primary + '1A' }]}
+                                            >
+                                                <Pencil size={ICON.sm} color={theme.primary} />
+                                                <Text style={{ fontSize: F.footnote, fontWeight: '600', color: theme.primary }}>{c.edit}</Text>
+                                            </Touchable>
+                                        )}
+                                        {sortBy === 'creation' && (onMoveUp || onMoveDown) && ([['up', onMoveUp, ChevronUp, c.up], ['down', onMoveDown, ChevronDown, c.down]] as const).map(([k, fn, Icon, label]) => (
                                             <Touchable
                                                 key={k}
                                                 disabled={!fn}
@@ -305,10 +322,11 @@ export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
                                                 accessibilityRole="button"
                                                 accessibilityLabel={label}
                                                 accessibilityState={{ disabled: !fn }}
-                                                style={[styles.moveBtn, { backgroundColor: theme.surfaceField, opacity: fn ? 1 : 0.4 }]}
+                                                // Yalnız ok: üç etiketli düğme dar ekranda iki satıra kırılıyordu
+                                                // (cihazda görüldü). Ad ekran okuyucuda tam (accessibilityLabel).
+                                                style={[styles.iconBtn, { backgroundColor: theme.surfaceField, opacity: fn ? 1 : 0.4 }]}
                                             >
                                                 <Icon size={ICON.sm} color={theme.onSurfaceVariant} />
-                                                <Text style={{ fontSize: F.footnote, color: theme.onSurfaceVariant }}>{label}</Text>
                                             </Touchable>
                                         ))}
                                     </View>
@@ -345,5 +363,6 @@ const styles = StyleSheet.create({
   title: { fontSize: F.body, fontWeight: '600', flexShrink: 1 },
   meta: { fontSize: F.caption, fontWeight: '500' },
   badge: { fontSize: F.caption, fontWeight: '700' },
-  moveBtn: { flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full },
+  moveBtn: { flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingHorizontal: S.smd, minHeight: 32, borderRadius: R.full },
+  iconBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: R.full },
 });

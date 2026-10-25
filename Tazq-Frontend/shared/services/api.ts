@@ -527,6 +527,20 @@ export interface PaymentPayload {
  * Ödeme takibi — GÖREVLERDEN AYRI yüzey. `TaskService`'i hiçbir zaman çağırmaz,
  * `useTaskStore`'a dokunmaz (bkz. features/payments/store/usePaymentsStore.ts başlığı).
  */
+/**
+ * ALIŞKANLIK EŞİTLEMESİ — şifreli bulut kopyası (bkz. features/habits/sync/habitsSync.ts).
+ * Şema istemcinin; sunucu yalnız JSON dizisi olduğunu doğrular ve şifreler.
+ */
+export const HabitSyncService = {
+  get: async (): Promise<{ data: string | null; updatedAt?: string | null }> => {
+    const response = await api.get('/api/habits/sync');
+    return response.data;
+  },
+  put: async (data: string) => {
+    await api.put('/api/habits/sync', { data });
+  },
+};
+
 export const PaymentService = {
   getPayments: async () => {
     const response = await api.get('/api/payments');

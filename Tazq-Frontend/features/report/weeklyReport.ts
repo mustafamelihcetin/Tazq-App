@@ -59,6 +59,9 @@ export interface WeekSummary {
   totalTasks: number;
   /** Alışkanlık tamamlama oranı — payda GEÇEN günlerle sınırlı (bkz. habitDenominator). */
   habitPct: number;
+  /** Oranın kendisi: yapılan ve beklenen alışkanlık-günü (içgörü modalı "1/2" diye gösterir). */
+  habitDone: number;
+  habitPossible: number;
   /** Odak yapılan gün sayısı. */
   activeDays: number;
   /** En çok odaklanılan günün sırası (0-6), odak yoksa -1. */
@@ -186,6 +189,8 @@ export function summarizeWeek({ sessions, tasks, habits, range, now = new Date()
     totalFocusMin,
     totalTasks,
     habitPct,
+    habitDone,
+    habitPossible: denom,
     activeDays: focusPerDay.filter((m) => m > 0).length,
     bestDayIndex,
   };

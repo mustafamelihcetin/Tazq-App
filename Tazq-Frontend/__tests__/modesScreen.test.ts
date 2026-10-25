@@ -108,7 +108,7 @@ describe('toplam yük ve başlık düzeni', () => {
   it('turun hedefi özet düğmesiyle birlikte taşındı', () => {
     const header = MODLAR.slice(MODLAR.indexOf('<ScreenHeader'), MODLAR.indexOf('<View style={{ flex: 1 }}>'));
     const rightIdx = header.indexOf('right={');
-    expect(header.slice(rightIdx)).toContain('<TourTarget id="overview">');
+    expect(header.slice(rightIdx)).toContain('<TourTarget id="overview"');
   });
 });
 

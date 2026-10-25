@@ -81,6 +81,9 @@ interface User {
 
 function clearLocalUserData() {
   const safe = (fn: () => void) => { try { fn(); } catch (e) { swallow('authStore.clearLocalUserData', e, { capture: true }); } };
+  // İLK İŞ: alışkanlık gönderim kapısını kapat — aşağıda silinen (boş) liste buluttaki
+  // kopyayı EZMESİN (bkz. features/habits/sync/habitsSync.ts).
+  safe(() => require('@/features/habits/sync/habitsSync').resetHabitsSync());
   safe(() => useSessionStore.getState().setGuestProfile(null));
   /*
     ── TANITIM SLAYTLARI CİHAZ BAŞINA — BİLİNÇLİ, ÖLÇÜLMÜŞ KARAR ────────────────

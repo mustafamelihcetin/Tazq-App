@@ -1,12 +1,14 @@
 import { isSomeday } from '@/features/tasks/utils/taskTags';
+import { calendarDayOf, toDateKey } from '@/shared/utils/dateKey';
 
-export type TaskFilter = 'all' | 'today' | 'High' | 'Medium' | 'Low' | 'done' | 'someday';
+export type TaskFilter = 'all' | 'today' | 'High' | 'Medium' | 'Low' | 'done' | 'someday' | 'overdue';
 
 interface FilterableTask {
   isCompleted: boolean;
   priority: string;
   dueDate?: string | null;
   tags?: string[] | null;
+  isArchived?: boolean;
 }
 
 /**
@@ -37,6 +39,17 @@ export function matchesTaskFilter(
   // BELKİ BİR GÜN: Zen'in rafa kaldırdığı açık işler. Bu görünüm olmadan raf bir kara
   // delikti — kaldırılan iş yalnız küçük bir etiketle listede kayboluyordu.
   if (filter === 'someday') return !task.isCompleted && isSomeday(task);
+
+  /*
+    GECİKMİŞ — ana sayfadaki "N gecikmiş görev" satırının açtığı görünüm. Tanım, o sayıyı
+    üreten Zen çözümlemesiyle (taskBalancer.analyzeLoad) AYNI: bitmemiş, arşivlenmemiş,
+    TAKVİM günü bugünden önce. Sayı ile liste birbirini yalanlamasın.
+  */
+  if (filter === 'overdue') {
+    if (task.isCompleted || task.isArchived) return false;
+    const day = calendarDayOf(task.dueDate);
+    return !!day && day < toDateKey(now);
+  }
 
   if (filter === 'today') {
     if (task.isCompleted) return false;

@@ -7,7 +7,7 @@ import { S, F, R, B, ICON } from '@/shared/constants/tokens';
 import { useActiveTasks, getLocalizedTaskTitle, isSomeday, type Task } from '@/features/tasks';
 import { calendarDayOf, dateKeyFromNow } from '@/shared/utils/dateKey';
 import { whenLabel } from '@/features/tasks/utils/horizon';
-import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { useFocusSheetTheme } from '@/features/focus/hooks/useFocusSheetTheme';
 
 /**
  * SEANSIN KONUSU — isteğe bağlı bir etiket, bir TALİMAT değil.
@@ -131,7 +131,7 @@ export function orderForFocus(tasks: Task[], today: string): Task[] {
 }
 
 export const FocusTaskPicker: React.FC<FocusTaskPickerProps> = ({ visible, language, onClose, onPick }) => {
-  const { theme } = useAppTheme();
+  const { theme } = useFocusSheetTheme();
   const [text, setText] = useState('');
   const tasks = useActiveTasks();
   const c = COPY[language];

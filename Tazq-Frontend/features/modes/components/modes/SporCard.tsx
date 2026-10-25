@@ -19,6 +19,7 @@ import { useSporStore } from '@/features/modes/store/useSporStore';
 import { usePlanAdaptations } from '../../hooks/usePlanAdaptations';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
+import { DeviceOnlyNote } from '@/features/modes/components/DeviceOnlyNote';
 import { FormReveal, ModeField } from '../ModeField';
 import { renderModeEmojiIcon } from '../../utils/modeIcons';
 import { retirePlanTask, formatPlanDate, isDatePast, daysLeftOf , retireModeTasksByTag} from '@/features/modes/utils/planTaskOps';
@@ -777,6 +778,8 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
           )}
         </View>
       )}
+      {/* Sağlık/finans verisi sunucuya gitmez — kullanıcı bunu veriyi girerken bilsin (bkz. DeviceOnlyNote). */}
+      {seasonal.sporMode && (sporType === 'kilo' || weightLog.length > 0) && <DeviceOnlyNote kind="health" />}
     </View>
   );
 }

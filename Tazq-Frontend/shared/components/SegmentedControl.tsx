@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
 import { haptic } from '@/shared/utils/haptics';
@@ -46,16 +45,17 @@ export function SegmentedControl<K extends string>({
   const segW = innerW > 0 ? innerW / Math.max(options.length, 1) : 0;
   const index = Math.max(0, options.findIndex((o) => o.key === value));
 
-  const x = useSharedValue(-1);
+  // RN `Animated`: Reanimated'ın animasyonlu stili Android'de yeniden çizimde ilk değerine
+  // dönüyordu (bkz. AndroidNavCapsule — aynı hata, cihazda görüldü).
+  const x = useRef(new Animated.Value(0)).current;
+  const placed = useRef(false);
   useEffect(() => {
     if (segW <= 0) return;
     const target = index * segW;
-    x.value = reduceMotion || x.value < 0 ? target : withTiming(target, { duration: 280, easing: EASE });
+    if (reduceMotion || !placed.current) { x.setValue(target); placed.current = true; return; }
+    Animated.timing(x, { toValue: target, duration: 280, easing: EASE, useNativeDriver: true }).start();
   }, [index, segW, reduceMotion]);
-  const thumbStyle = useAnimatedStyle(() => ({
-    opacity: x.value < 0 ? 0 : 1,
-    transform: [{ translateX: Math.max(0, x.value) }],
-  }));
+  const thumbStyle = { transform: [{ translateX: x }] };
 
   return (
     <View
@@ -71,7 +71,7 @@ export function SegmentedControl<K extends string>({
               styles.thumb,
               {
                 width: segW,
-                backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
+                backgroundColor: isDark ? theme.surfaceContainerHighest : '#FFFFFF', // koyu: kartın (surfaceCard) bir kademe üstü — kartla aynı ton seçimi kaybettiriyordu
                 boxShadow: isDark ? '0 1px 2px rgba(0,0,0,0.5)' : '0 1px 3px rgba(15,23,42,0.12), 0 1px 1px rgba(15,23,42,0.04)',
               },
               thumbStyle,

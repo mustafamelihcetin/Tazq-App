@@ -146,7 +146,7 @@ describe('tur gördüğü ekranı anlatır', () => {
 
   it('Sade modda gizlenen Haftalık göstergesi ekrana hiç çizilmez → adımı atlanır', () => {
     const src = read('app/index.tsx');
-    expect(src).toMatch(/isLite \? undefined : \(\s*<TourTarget id="cockpit">/);
+    expect(src).toMatch(/isLite \? undefined : \(\s*<TourTarget id="cockpit"[^>]*>/);
   });
 });
 

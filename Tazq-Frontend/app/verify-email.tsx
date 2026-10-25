@@ -15,6 +15,7 @@ import { BackButton } from '@/shared/components/BackButton';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { ICON, S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
 import { haptic } from '@/shared/utils/haptics';
+import { goHomeAfterAuth } from '@/shared/utils/authNavigation';
 
 const CODE_LEN = 6;
 
@@ -53,7 +54,7 @@ export default function VerifyEmailScreen() {
       const userData = await AuthService.getCurrentUser(token);
       setAuth(userData, token, refreshToken, isNewUser ?? true);
       haptic.success();
-      router.replace('/');
+      goHomeAfterAuth(router);
     } catch {
       haptic.error();
       setError(tr ? 'Kod geçersiz veya süresi dolmuş.' : 'Invalid or expired code.');

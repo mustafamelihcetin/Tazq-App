@@ -22,6 +22,7 @@ import { PROMO_DEVICES, PROMO_DEVICE_ORDER, type PromoDeviceId } from '@/feature
 import { Touchable } from '@/shared/components/Touchable';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useAuthStore } from '@/features/user';
+import { goHome } from '@/shared/utils/authNavigation';
 
 
 type SlideDef = {
@@ -171,7 +172,7 @@ export default function PromoScreen() {
   const [page, setPage] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
 
-  useEffect(() => { if (role && role !== 'Admin') router.replace('/'); }, [role]);
+  useEffect(() => { if (role && role !== 'Admin') goHome(router); }, [role]);
   useEffect(() => {
     StatusBar.setBarStyle('light-content');
     StatusBar.setHidden(!chrome, 'fade');

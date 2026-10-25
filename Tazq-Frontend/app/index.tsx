@@ -40,6 +40,8 @@ import { useSessionStore } from '@/shared/store/useSessionStore';
 import { StatusHub } from '@/features/dashboard/components/StatusHub';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getSmartInsight, generateWeeklyTips } from '@/shared/utils/insights';
+import { sameSpanTotal } from '@/features/dashboard/utils/weeklyHub';
+import { understand, titleOf } from '@/features/tasks/nlp/understand';
 import { computeMomentum } from '@/shared/utils/momentum';
 import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, contentMaxWidth, sideInset, HAIRLINE, navBarSpace, fabSafeBottom, topBarSpace, TOP_BAR_HEIGHT, TOP_BAR_LIFT, TOP_ITEM_SIZE, TOP_AVATAR_SIZE, touchSlop } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
@@ -96,15 +98,20 @@ let welcomeSetupShown = false;
 
 /** Bugün özeti + Sıradaki satırı metinleri — iki dil yan yana (i18nRatchet). */
 const RINGS_COPY = {
-  tr: { tasks: 'Görevler', focus: 'Odak', habits: 'Alışkanlıklar', min: 'dk', empty: 'Bugün için planın boş', allDone: 'Bugünkü görevlerin tamam', focusCta: 'Odaklan' },
-  en: { tasks: 'Tasks', focus: 'Focus', habits: 'Habits', min: 'min', empty: 'Nothing planned today', allDone: "Today's tasks are done", focusCta: 'Focus' },
+  tr: { tasks: 'Görevler', focus: 'Odak', habits: 'Alışkanlıklar', min: 'dk', empty: 'Bugün için planın boş', undatedOnly: (n: number) => `Bugüne tarihli görev yok · ${n} tarihsiz iş listende`, allDone: 'Bugünkü görevlerin tamam', focusCta: 'Odaklan' },
+  en: { tasks: 'Tasks', focus: 'Focus', habits: 'Habits', min: 'min', empty: 'Nothing planned today', undatedOnly: (n: number) => `Nothing dated today · ${n} undated ${n === 1 ? 'task' : 'tasks'} in your list`, allDone: "Today's tasks are done", focusCta: 'Focus' },
 } as const;
 
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
   const isSmallScreen = width < 380 || height < 700;
   // Küçük ekranlarda kart içi boşlukları bir kademe sık → dikey kaydırma azalır.
-  const bentoPad = isSmallScreen ? S.sm : S.md;
+  /*
+    TEK İÇ DOLGU (2026-10-25): ana sayfanın kartları 8 / 16 / 24 karışık dolguyla çiziliyordu;
+    alt alta duran kartlarda yazının sol kenarı karttan karta kayıyordu. Hepsi 16 (iOS gruplu
+    liste standardı) — küçük ekranda da: daralmak hizayı bozmamalı.
+  */
+  const bentoPad = S.md;
   const { tasks: allTasks, isLoading, setTasks, setLoading, addTask, toggleTaskCompletion } = useTaskStore(useShallow(state => ({
     tasks: state.tasks,
     isLoading: state.isLoading,
@@ -743,7 +750,8 @@ export default function HomeScreen() {
     const isReminder = hint.tags?.includes('hatırlatıcı') || hint.tags?.includes('reminder');
     
     const payload = {
-        title: title,
+        // Alana aktarılan kısımlar (tarih/saat/acil) başlıktan çıkar — bkz. nlp/understand.titleOf.
+        title: titleOf(title, understand(title, langOf(language))),
         description: '',
         priority: hint.priority || 'Medium',
         isCompleted: false,
@@ -879,11 +887,18 @@ export default function HomeScreen() {
     }));
   }, [focusSessions, tasks, habits, dayLabels]);
 
-  // Geçen haftanın toplamı — durum merkezindeki "geçen haftaya göre" kıyası için.
+  // Geçen haftanın AYNI günleri (Pzt → bugünün haftagünü) — içgörü modalındaki kıyas için.
+  // Tamamıyla kıyaslamak hafta başında trendi hep eksi gösteriyordu (bkz. weeklyHub.sameSpanTotal).
   const lastWeekMinutes = React.useMemo(
-    () => summarizeWeek({ sessions: focusSessions, tasks, habits, range: weekRange(new Date(), -1) }).totalFocusMin,
-    [focusSessions, tasks, habits],
+    () => sameSpanTotal(summarizeWeek({ sessions: focusSessions, tasks, habits, range: weekRange(new Date(), -1) }).focusPerDay, currentDayIndex),
+    [focusSessions, tasks, habits, currentDayIndex],
   );
+
+  // Alışkanlık oranı Haftalık Merkez ile AYNI motordan (bkz. StatusHubModal.habitStats).
+  const weekHabitStats = React.useMemo(() => {
+    const w = summarizeWeek({ sessions: focusSessions, tasks, habits, range: weekRange(new Date()) });
+    return { done: w.habitDone, possible: w.habitPossible, pct: w.habitPct };
+  }, [focusSessions, tasks, habits]);
 
   const mergedWeeklyFocus = React.useMemo(
     () => buildWeekStrip({ weeklyFocus, dayLabels, todayIndex: currentDayIndex, todayMinutes: localTodayMinutes }),
@@ -926,7 +941,6 @@ export default function HomeScreen() {
     const modifier = todayRating === 5 ? 10 : todayRating === 4 ? 5 : todayRating === 2 ? -5 : todayRating === 1 ? -10 : 0;
     return Math.min(100, Math.max(0, rawMomentum + modifier));
   })();
-  const momentumColor = momentum >= 75 ? theme.tertiary : momentum >= 40 ? theme.streak : theme.onSurfaceVariant;
 
   // Daily target coaching: reverse-compute what's needed to hit 75
   const targetTasks = totalCount === 0 ? 3 : Math.max(0, Math.ceil(3 - completedCount));
@@ -1436,7 +1450,7 @@ export default function HomeScreen() {
       return tr ? 'Harika! Odak seansın devam ediyor.' : "You're crushing it! Focus session in progress.";
     }
     if (incomplete === 0) {
-      return tr ? 'Temiz sayfa — yeni bir hedef eklemek ister misin?' : 'Clean slate — want to add a new goal?';
+      return tr ? 'Temiz sayfa — yeni bir görev eklemek ister misin?' : 'Clean slate — want to add a new task?';
     }
     if (incomplete === 1) {
       return tr ? 'Sadece 1 görevin kaldı. Kolayca bitirebilirsin!' : 'Just 1 task left. You can finish this!';
@@ -1670,7 +1684,7 @@ export default function HomeScreen() {
         right={
           // Sade modda gizli; erişim Ayarlar → MERKEZ satırından sürüyor.
           isLite ? undefined : (
-            <TourTarget id="cockpit">
+            <TourTarget id="cockpit" spotRadius={R.full}>
               <StatusHub onPress={() => { haptic.commit(); setStatusHubVisible(true); }} />
             </TourTarget>
           )
@@ -1686,19 +1700,14 @@ export default function HomeScreen() {
           theme={theme}
           isDark={isDark}
           language={language}
-          t={t}
           insight={insight}
-          momentum={momentum}
-          momentumColor={momentumColor}
-          todayCompleted={todayCompleted}
-          dailyGoal={dailyGoal}
           isActive={isActive}
           startQuickFocus={startQuickFocus}
           weeklyTips={weeklyTips}
           weeklyFocusData={mergedWeeklyFocus}
           lastWeekMinutes={lastWeekMinutes}
           habits={habits}
-          streak={streak}
+          habitStats={weekHabitStats}
         />
 
         {/* Değerlendirme / geri bildirim akışı — kendi bileşeninde (state'i de orada). */}
@@ -1820,7 +1829,12 @@ export default function HomeScreen() {
               caption={(() => {
                 const c = RINGS_COPY[language === 'en' ? 'en' : 'tr'];
                 if (!isLite && todayHighlight) return todaySurprise;
-                if (dailyGoal === 0) return c.empty;
+                /*
+                  TARİHSİZ İŞ VARKEN "PLANIN BOŞ" DENMEZ (cihazda görüldü): selamlama "1 görevin
+                  kaldı", liste o görevi gösteriyor, bu satır "planın boş" diyordu. Tarihsizler
+                  halkanın hedefine bilerek girmiyor (bkz. todayTasks) — ama var oldukları söylenir.
+                */
+                if (dailyGoal === 0) return undatedTasksIncomplete.length > 0 ? c.undatedOnly(undatedTasksIncomplete.length) : c.empty;
                 if (todayCompleted >= dailyGoal) return c.allDone;
                 // Olağan gün: cümle YOK — selamlama zaten "N görevin var" diyor; tekrar etmesin.
                 return '';
@@ -1843,8 +1857,12 @@ export default function HomeScreen() {
                   <MomentumPulse score={momentum} history={momentumHistory} language={language} loading={statsLoading} embedded />
                 </TourTarget>
               ) : null}
-              // "+ GÖREV EKLE" gerçekten EKLEME açar (`action: 'add'` — tam form kapısı).
-              onAdd={() => router.push({ pathname: '/tasks', params: { action: 'add' } })}
+              /*
+                TEK EKLEME YOLU (2026-10-25): bu düğme tam formu, şimşek düğmesi hızlı eklemeyi
+                açıyordu — aynı ekranda aynı niyete iki ayrı yüzey. İkisi de artık hızlı ekleme;
+                tam form oradaki "Detaylar"dan bir dokunuş uzakta (Todoist/Things deseni).
+              */
+              onAdd={() => setQuickDraftVisible(true)}
               addLabel={t.addTask}
               showAdd={dailyGoal === 0 && !demoGate(tasks.length)}
               onTap={todayTap.onTap}
@@ -1859,7 +1877,8 @@ export default function HomeScreen() {
               <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 {overdueCount > 0 && (
                   <Touchable
-                    onPress={() => router.push('/tasks')}
+                    // Sayının KENDİSİNE gider: filtresiz listede kullanıcı gecikmişleri arıyordu.
+                    onPress={() => router.push({ pathname: '/tasks', params: { filter: 'overdue' } })}
                     activeOpacity={0.8}
                     /*
                       ── EKRAN OKUYUCU BUNLARIN DÜĞME OLDUĞUNU BİLMİYORDU ─────────
@@ -2080,12 +2099,12 @@ export default function HomeScreen() {
             */}
             {tasks.length === 0 && habits.length === 0 && !demoGate(tasks.length) && (
               <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
-                <BentoCard index={1} style={{ padding: isSmallScreen ? S.md : S.lg, gap: S.sm }}>
+                <BentoCard index={1} style={{ padding: bentoPad, gap: S.sm }}>
                     <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.3, marginBottom: S.xs }}>
                         {tr ? 'Hoş geldin! Nereden başlamak istersin?' : 'Welcome! Where would you like to start?'}
                     </Text>
                     {[
-                        { icon: <Plus size={ICON.md} color={theme.primary} />, label: tr ? 'İlk görevini ekle' : 'Add your first task', sub: tr ? 'Aklındakini yaz, gerisini TAZQ halletsin' : 'Jot it down, TAZQ handles the rest', onPress: () => router.push('/tasks') },
+                        { icon: <Plus size={ICON.md} color={theme.primary} />, label: tr ? 'İlk görevini ekle' : 'Add your first task', sub: tr ? 'Aklındakini yaz, gerisini TAZQ halletsin' : 'Jot it down, TAZQ handles the rest', onPress: () => setQuickDraftVisible(true) }, // "ekle" diyen satır listeye değil eklemeye açılır
                         { icon: <Rocket size={ICON.md} color={theme.primary} />, label: tr ? 'Bir mod seç' : 'Choose a mode', sub: tr ? 'Sigara bırak, tasarruf, sınava hazırlık…' : 'Quit smoking, save, exam prep…', onPress: () => router.push('/modlar') },
                         { icon: <Flame size={ICON.md} color={theme.primary} />, label: tr ? 'Bir alışkanlık başlat' : 'Start a habit', sub: tr ? 'Her gün tek dokunuşla işaretle' : 'Check in daily with one tap', onPress: () => router.push('/cockpit') },
                     ].map((row, i) => (
@@ -2154,11 +2173,9 @@ export default function HomeScreen() {
             {headerHighlight && (
               <Touchable accessible={false} onPress={headerTap.onTap} activeOpacity={1} style={{ paddingHorizontal: S.lg, marginBottom: S.sm }}>
                 <Animated.View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', transform: [{ scale: headerScale }] }}>
+                  {/* "devam et →" KALDIRILDI: mavi ve oklu, bağlantı gibi duruyordu ama hiçbir yere gitmiyordu. */}
                   <Text style={{ fontSize: F.caption, fontWeight: '600', letterSpacing: 1.8, color: theme.onSurfaceVariant }}>
                     {language === 'tr' ? 'İYİ GİDİYOR' : 'LOOKING GOOD'}
-                  </Text>
-                  <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.primary }}>
-                    {language === 'tr' ? 'devam et →' : 'keep going →'}
                   </Text>
                 </Animated.View>
               </Touchable>

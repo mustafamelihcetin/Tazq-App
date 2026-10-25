@@ -32,9 +32,11 @@ import { Touchable } from '@/shared/components/Touchable';
 import { BackButton } from '@/shared/components/BackButton';
 import { validateRegister } from '@/shared/utils/validation';
 import { httpStatusOf, isNetworkError, errorMessage, errorCode, httpRawDataOf } from '@/shared/utils/errors';
+import { readGoogleResponse, isGoogleCancel, googleFailureSuffix } from '@/features/user/utils/googleResponse';
 import { haptic } from '@/shared/utils/haptics';
 import { swallow } from '@/shared/utils/swallow';
 import { useSessionStore } from '@/shared/store/useSessionStore';
+import { goHomeAfterAuth } from '@/shared/utils/authNavigation';
 
 const GoogleIcon = ({ color }: { color: string }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24">
@@ -98,11 +100,10 @@ export default function RegisterScreen() {
 
     try {
       await GoogleSignin.hasPlayServices();
-      const response = await GoogleSignin.signIn();
-      const idToken = response.data?.idToken || response.idToken;
-      if (!idToken) {
-        throw new Error('Google ID Token was not returned.');
-      }
+      // v13+: iptal hata değil `{ type: 'cancelled' }` — bkz. googleResponse.ts.
+      const outcome = readGoogleResponse(await GoogleSignin.signIn());
+      if (outcome.kind === 'cancelled') return;
+      const { idToken } = outcome;
 
       /*
         `isNewUser` SUNUCUDAN GELİYOR ve taşınmak ZORUNDA.
@@ -118,14 +119,12 @@ export default function RegisterScreen() {
       const userData = await AuthService.getCurrentUser(token);
       setAuth(userData, token, refreshToken, isNewUser);
       haptic.success();
-      router.replace('/');
+      goHomeAfterAuth(router);
     } catch (err: unknown) {
       swallow('register.googleSignIn', err, { capture: true });
       haptic.error();
-      if (errorCode(err) === 'SIGN_IN_CANCELLED' || errorMessage(err).includes('Sign in cancelled')) {
-        return;
-      }
-      setError(language === 'tr' ? 'Google ile kayıt başarısız oldu.' : 'Google Sign-In failed.');
+      if (isGoogleCancel(err)) return;
+      setError((language === 'tr' ? 'Google ile kayıt başarısız oldu.' : 'Google Sign-In failed.') + googleFailureSuffix(err, __DEV__));
     } finally {
       setIsLoading(false);
     }
@@ -182,7 +181,7 @@ export default function RegisterScreen() {
       // Bayrak taşınmak zorunda — gerekçe için yukarıdaki Google yolundaki nota bkz.
       setAuth(userData, token, refreshToken, isNewUser);
       haptic.success();
-      router.replace('/');
+      goHomeAfterAuth(router);
     } catch (err: unknown) {
       swallow('register.appleSignIn', err, { capture: true });
       haptic.error();
@@ -270,7 +269,7 @@ export default function RegisterScreen() {
         if (registerRes?.needsVerification) {
           useToastStore.getState().show(t.verifyEmail.toast, 'success');
         }
-        router.replace('/');
+        goHomeAfterAuth(router);
         return;
       }
       router.push({ pathname: '/verify-email', params: { email } });
@@ -314,7 +313,7 @@ export default function RegisterScreen() {
                   {t.login.signUp}
                 </MotiText>
                 <Text style={[styles.subtitle, { color: theme.onSurfaceMuted, fontSize: isSmallScreen ? 11 : 13, marginTop: isSmallScreen ? 2 : 4 }]}>
-                  {t.onboardingBody2}
+                  {t.registerSub}
                 </Text>
               </MotiView>
 
@@ -441,15 +440,15 @@ export default function RegisterScreen() {
                       style={[styles.registerButton, { height: isSmallScreen ? 38 : 48 }]}
                     >
                       <MotiView 
-                        animate={{ backgroundColor: theme.secondary }}
+                        animate={{ backgroundColor: theme.primary }}
                         style={styles.buttonInner}
                       >
                         {isLoading ? (
-                          <ActivityIndicator color={theme.onSecondary} />
+                          <ActivityIndicator color={theme.onPrimary} />
                         ) : (
                           <>
-                            <Text style={[styles.buttonText, { color: theme.onSecondary }]}>{t.login.signUp}</Text>
-                            <ArrowRight size={ICON.md} color={theme.onSecondary} />
+                            <Text style={[styles.buttonText, { color: theme.onPrimary }]}>{t.login.signUp}</Text>
+                            <ArrowRight size={ICON.md} color={theme.onPrimary} />
                           </>
                         )}
                       </MotiView>
@@ -528,7 +527,7 @@ export default function RegisterScreen() {
                     {t.login.alreadyHaveAccount} 
                   </Text>
                   <Touchable onPress={() => router.push('/login')} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Zaten hesabın var mı? Giriş yap' : 'Already have an account? Sign in'}>
-                    <Text style={[styles.link, { color: theme.secondary }]}> {t.login.title}</Text>
+                    <Text style={[styles.link, { color: theme.primary }]}> {t.login.title}</Text>
                   </Touchable>
                 </View>
 
@@ -539,11 +538,11 @@ export default function RegisterScreen() {
                   activeOpacity={0.7}
                   style={{ marginTop: isSmallScreen ? 6 : isMediumScreen ? 10 : 14, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: isSmallScreen ? 3 : 6, paddingHorizontal: S.sm }}
                 >
-                  <Sparkles size={ICON.sm} color={theme.secondary} strokeWidth={2.2} />
-                  <Text style={{ fontSize: 13.5, fontWeight: '700', color: theme.secondary, letterSpacing: 0.2 }}>
+                  <Sparkles size={ICON.sm} color={theme.primary} strokeWidth={2.2} />
+                  <Text style={{ fontSize: 13.5, fontWeight: '700', color: theme.primary, letterSpacing: 0.2 }}>
                     {language === 'tr' ? 'Uygulamayı keşfet' : 'Explore the app'}
                   </Text>
-                  <ArrowRight size={ICON.sm} color={theme.secondary} strokeWidth={2.4} />
+                  <ArrowRight size={ICON.sm} color={theme.primary} strokeWidth={2.4} />
                 </TouchableOpacity>
               </MotiView>
           </ScrollView>

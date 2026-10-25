@@ -144,6 +144,9 @@ interface PrefsState {
   setFocusAmbientSound: (v: string) => void;
   focusPreset: string;
   setFocusPreset: (v: string) => void;
+  /** Odak sahnesi — hareket + palet + vurgu (bkz. features/focus/utils/focusScenes.ts). */
+  focusScene: string;
+  setFocusScene: (v: string) => void;
   /**
    * Seans sürerken ekran açık kalsın mı? (varsayılan: evet)
    * Telefon kendiliğinden kilitlenince sayaç görünmez oluyordu; katı modda ise bu
@@ -191,8 +194,8 @@ interface PrefsState {
    * Etiket filtresiyle kapatılan uygulamanın ertesi gün aynı daraltmayla açılması,
    * kullanıcıya "görevlerim kayboldu" dedirtirdi.
    */
-  taskFilter: 'all' | 'today' | 'High' | 'Medium' | 'Low' | 'done' | 'someday';
-  setTaskFilter: (v: 'all' | 'today' | 'High' | 'Medium' | 'Low' | 'done' | 'someday') => void;
+  taskFilter: 'all' | 'today' | 'High' | 'Medium' | 'Low' | 'done' | 'someday' | 'overdue';
+  setTaskFilter: (v: 'all' | 'today' | 'High' | 'Medium' | 'Low' | 'done' | 'someday' | 'overdue') => void;
   taskSortBy: 'priority' | 'date' | 'creation';
   setTaskSortBy: (v: 'priority' | 'date' | 'creation') => void;
   taskHideCompleted: boolean;
@@ -538,6 +541,8 @@ export const usePrefsStore = create<PrefsState>()(
       setFocusAmbientSound: (v) => set({ focusAmbientSound: v }),
       focusPreset: 'classic',
       setFocusPreset: (v) => set({ focusPreset: v }),
+      focusScene: 'aurora',
+      setFocusScene: (v) => set({ focusScene: v }),
       focusKeepAwake: true,
       setFocusKeepAwake: (v) => set({ focusKeepAwake: v }),
       lastClosedWeek: '',

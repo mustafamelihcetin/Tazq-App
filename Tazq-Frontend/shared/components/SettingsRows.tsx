@@ -3,6 +3,7 @@ import { View, Text, Switch, StyleSheet, Platform } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { Separator } from '@/shared/components/Separator';
+import { SegmentedControl } from '@/shared/components/SegmentedControl';
 import { S, R, F, B, W, ICON, LH } from '@/shared/constants/tokens';
 import { CategoryColors, type AppTheme } from '@/shared/constants/Colors';
 
@@ -161,6 +162,36 @@ export function SettingItem({ icon, label, sub, right, value, onPress, theme, bg
   );
 }
 
+// ── Seçim satırı (altta segment seçici) ──────────────────────────────────
+/*
+  2026-10-25 (koyu tema denetimi): Tema ve dil satırları "değer + ›" gösterip dokunuşta
+  DÖNGÜYLE değişiyordu (Sistem → Aydınlık → Karanlık). Ok yeni bir ekran vaat eder ama
+  açmıyordu; sıradakini görmek için de üç kez dokunmak gerekiyordu. HIG: az sayıda,
+  birbirini dışlayan seçenek → satırın İÇİNDE segment seçici, hepsi aynı anda görünür.
+*/
+export interface ChoiceRowProps<K extends string> {
+  icon: React.ReactNode;
+  bg: string;
+  label: string;
+  options: { key: K; label: string }[];
+  value: K;
+  onChange: (k: K) => void;
+  theme: AppTheme;
+  isDark: boolean;
+}
+
+export function ChoiceRow<K extends string>({ icon, bg, label, options, value, onChange, theme, isDark }: ChoiceRowProps<K>) {
+  return (
+    <View style={styles.choiceRow}>
+      <View style={styles.rowLeft}>
+        <IconChip bg={bg} theme={theme}>{icon}</IconChip>
+        <Text style={[styles.label, { color: theme.onSurface }]}>{label}</Text>
+      </View>
+      <SegmentedControl options={options} value={value} onChange={onChange} theme={theme} isDark={isDark} accessibilityLabel={label} />
+    </View>
+  );
+}
+
 // ── Geçiş satırı (sağda Switch) ──────────────────────────────────────────
 export interface ToggleRowProps {
   icon: React.ReactNode;
@@ -212,7 +243,42 @@ export function ToggleRow({ icon, bg, title, subtitle, value, onValueChange, the
   );
 }
 
+// ── Ortalanmış eylem satırı (Çıkış / Hesabı sil) ───────────────────────────
+/**
+ * iOS Ayarlar'daki "Çıkış Yap" / "Hesabı Sil" satırı: kendi küçük grubunda, ortalanmış
+ * metin, ikon çipi yok. Ayarlar sayfasının dibinde bu eylemler dört AYRI el yapımı kutu
+ * stiliyle çiziliyordu (gri kutu, koyu gri büyük düğme, çıplak metin…) — sayfanın geri
+ * kalanının gruplu kart diliyle tutarsız (2026-10-25, cihazda görüldü).
+ * Ton anlam taşır: `destructive` = kalıcı (kırmızı); varsayılan = rutin (nötr).
+ */
+export interface SettingsActionRowProps {
+  label: string;
+  onPress: () => void;
+  theme: AppTheme;
+  destructive?: boolean;
+  disabled?: boolean;
+  accessibilityHint?: string;
+}
+
+export function SettingsActionRow({ label, onPress, theme, destructive, disabled, accessibilityHint }: SettingsActionRowProps) {
+  return (
+    <Touchable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={accessibilityHint}
+      activeOpacity={0.6}
+      style={styles.actionRow}
+    >
+      <Text style={[styles.actionText, { color: destructive ? theme.error : theme.onSurface }]}>{label}</Text>
+    </Touchable>
+  );
+}
+
 const styles = StyleSheet.create({
+  actionRow: { minHeight: 52, alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.md },
+  actionText: { fontSize: F.body, fontWeight: '600' },
   chip: {
     width: 36,
     height: 36,
@@ -230,6 +296,7 @@ const styles = StyleSheet.create({
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: S.smd, flex: 1, minWidth: 0 },
   rowText: { flex: 1, minWidth: 0 },
   rowRight: { flexDirection: 'row', alignItems: 'center', gap: S.xs, marginLeft: S.sm },
+  choiceRow: { paddingHorizontal: S.md, paddingVertical: S.md, gap: S.smd },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',

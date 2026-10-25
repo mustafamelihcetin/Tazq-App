@@ -1,5 +1,5 @@
 /*
-  YENİ HEDEF FORMU METİNLERİ — iki dil yan yana, tek sözlük (bkz. i18nRatchet.test.ts).
+  YENİ GÖREV FORMU METİNLERİ — iki dil yan yana, tek sözlük (bkz. i18nRatchet.test.ts).
   Satır içi `tr ? … : …` dalları ayrışıp bozuluyordu; burada unutulacak ikinci dal yok.
 */
 const tr = {

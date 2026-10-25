@@ -229,7 +229,7 @@ TazqZenCard.displayName = 'TazqZenCard';
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: S.lg, marginBottom: S.lg },
-  card: { padding: S.lg, overflow: 'hidden' },
+  card: { padding: S.md, overflow: 'hidden' }, // ana sayfanın tek iç dolgusu (bkz. index → bentoPad)
   eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm },
   eyebrow: { fontSize: F.caption, fontWeight: W.bold, letterSpacing: 1.2 },
   headline: { fontSize: F.title3, fontWeight: W.semibold, letterSpacing: -0.4, marginBottom: S.xs },

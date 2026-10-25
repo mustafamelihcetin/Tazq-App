@@ -164,7 +164,13 @@ export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint, flus
 };
 
 const styles = StyleSheet.create({
-  container: { position: 'relative', marginBottom: S.sm },
+  /*
+    KIRPMA: tablette iki sütunlu listede sağ sütundaki satır sola kaydırılınca sol sütunun
+    üstüne biniyordu (iPad'de görüldü). Satır artık kendi hücresinin içinde kayar — iOS Mail
+    gibi; silme düğmesi satırın altından açılır. Tek sütunda görünür bir fark yok (satırların
+    gölgesi yok, köşeleri satırın kendisi yuvarlıyor).
+  */
+  container: { position: 'relative', marginBottom: S.sm, overflow: 'hidden' },
   deleteZone: {
     flexDirection: 'row',
     justifyContent: 'flex-end',

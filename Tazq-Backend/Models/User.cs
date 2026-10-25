@@ -48,6 +48,13 @@ namespace Tazq_App.Models
 		// JSON string olarak tutulur; şema frontend usePrefsStore tarafından yönetilir.
 		public string? Preferences { get; set; }
 
+		// Alışkanlıklar (ad, simge, renk, yapılan/mola günleri) — kullanıcı anahtarıyla ŞİFRELİ
+		// JSON dizisi (bkz. HabitSyncService). Yalnız cihazda tutuluyordu: çıkış yapan ya da telefon
+		// değiştiren kullanıcı bütün serilerini kaybediyordu. Tercihlerden AYRI alan: geçmiş yıllar
+		// içinde büyür; tercih JSON'unun 200 KB sınırını aşıp tüm tercih eşitlemesini düşürmesin.
+		public string? HabitsData { get; set; }
+		public DateTime? HabitsUpdatedAt { get; set; }
+
 		public bool IsBanned { get; set; } = false; // Kalıcı ban (admin). Süreli ban için BannedUntil kullanılır.
 
 		// Süreli ban bitiş zamanı (UTC). null = süreli ban yok. Süre dolunca kullanıcı tekrar giriş yapabilir.

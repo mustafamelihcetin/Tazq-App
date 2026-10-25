@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
 import { Coffee, Flame, CheckCircle2 } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
@@ -49,8 +49,20 @@ export interface HabitBubbleProps {
 export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, tr, onPress, onLongPress }) => {
   const streakVal = item.streak || 0;
   const size = 50;
-  const isCompleted = item.isCompleted;
+  /*
+    İYİMSER DOLUM (2026-10-25, cihazda ölçüldü). Baloncuk ancak ana sayfa (2300+ satır) baştan
+    çizilince doluyordu; yavaş telefonda dokunuştan sonra 1-3 sn hiçbir şey olmuyordu. Artık
+    önce YEREL durum çizilir (yalnız bu baloncuk), asıl kayıt bir sonraki karede yapılır.
+    Gerçek değer gelince yerel durum devreden çıkar.
+  */
+  const [optimistic, setOptimistic] = useState<boolean | null>(null);
+  useEffect(() => { setOptimistic(null); }, [item.isCompleted]);
+  const isCompleted = optimistic ?? item.isCompleted;
   const isSkipped = item.isSkipped;
+  const handlePress = () => {
+    setOptimistic(!item.isCompleted);
+    requestAnimationFrame(() => onPress());
+  };
 
   // Flat styling:
   // 1. The outer circle border is ALWAYS a quiet neutral color (borderını boyamıyoruz).
@@ -86,7 +98,7 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
 
   return (
     <Touchable
-      onPress={onPress}
+      onPress={handlePress}
       onLongPress={onLongPress}
       activeOpacity={0.7}
       accessibilityRole="button"

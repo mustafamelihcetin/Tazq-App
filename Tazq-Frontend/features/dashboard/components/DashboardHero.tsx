@@ -37,7 +37,13 @@ export const DashboardHero = React.memo<DashboardHeroProps>(
     const size = isSmallScreen ? F.title : F.display;
 
     return (
-      <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} style={styles.section}>
+      /*
+        OPAKLIK 0'DAN BAŞLAMAZ (2026-10-25, cihazda görüldü): ana sayfa GÖRÜNMEZKEN kurulursa
+        (giriş/kayıt sonrası, derin bağlantıyla açılan bir ekranın altında) giriş animasyonu
+        hiç çalışmıyor ve selamlama opaklık 0'da kalıyordu — ekranın tepesi bomboş. Sayfanın
+        başlığı bir animasyonun başarısına bağlı olamaz: kap düz View, değişim yalnız kayma.
+      */
+      <View style={styles.section}>
         {/*
           Selamlama ve isim TEK Text: isim iç-span olduğu için doğal sarar, uzun isim
           alt satıra geçer, kesilmez.
@@ -64,8 +70,8 @@ export const DashboardHero = React.memo<DashboardHeroProps>(
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <MotiView
           key={greeting}
-          from={{ opacity: 0, translateY: 6 }}
-          animate={{ opacity: 1, translateY: 0 }}
+          from={{ translateY: 6 }}
+          animate={{ translateY: 0 }}
           transition={{ type: 'timing', duration: 420 }}
           style={{ flexShrink: 1, paddingRight: S.sm }}
         >
@@ -97,7 +103,7 @@ export const DashboardHero = React.memo<DashboardHeroProps>(
         <Text style={[styles.sub, { color: theme.onSurfaceMuted, fontSize: F.subhead }]}>
           {subGreeting}
         </Text>
-      </MotiView>
+      </View>
     );
   },
 );

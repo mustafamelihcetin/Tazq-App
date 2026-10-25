@@ -20,7 +20,9 @@ import { Touchable } from '@/shared/components/Touchable';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { validateLogin, isValidEmail } from '@/shared/utils/validation';
 import { httpStatusOf, isNetworkError, errorMessage, errorCode, httpDataOf } from '@/shared/utils/errors';
+import { readGoogleResponse, isGoogleCancel, googleFailureSuffix } from '@/features/user/utils/googleResponse';
 import { haptic } from '@/shared/utils/haptics';
+import { goHomeAfterAuth } from '@/shared/utils/authNavigation';
 
 const GoogleIcon = ({ color }: { color: string }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24">
@@ -105,26 +107,23 @@ export default function LoginScreen() {
 
     try {
       await GoogleSignin.hasPlayServices();
-      const response = await GoogleSignin.signIn();
-      const idToken = response.data?.idToken || response.idToken;
-      if (!idToken) {
-        throw new Error('Google ID Token was not returned.');
-      }
+      // v13+: iptal hata değil `{ type: 'cancelled' }` — bkz. googleResponse.ts.
+      const outcome = readGoogleResponse(await GoogleSignin.signIn());
+      if (outcome.kind === 'cancelled') return;
+      const { idToken } = outcome;
 
       const { token, refreshToken, isNewUser, isReactivated } = await AuthService.googleLogin(idToken);
       const userData = await AuthService.getCurrentUser(token);
       setAuth(userData, token, refreshToken, isNewUser);
       haptic.success();
       if (isReactivated) useToastStore.getState().show(language === 'tr' ? 'Tekrar hoş geldin! Hesabın ve tüm verilerin geri geldi.' : 'Welcome back! Your account and data have been restored.', 'success');
-      router.replace('/');
+      goHomeAfterAuth(router);
     } catch (err: unknown) {
       swallow('login.googleSignIn', err, { capture: true });
       haptic.error();
-      if (errorCode(err) === 'SIGN_IN_CANCELLED' || errorMessage(err).includes('Sign in cancelled')) {
-        return;
-      }
+      if (isGoogleCancel(err)) return;
       if (applyBannedIfAny(err)) return;
-      setError(language === 'tr' ? 'Google ile giriş başarısız oldu.' : 'Google Sign-In failed.');
+      setError((language === 'tr' ? 'Google ile giriş başarısız oldu.' : 'Google Sign-In failed.') + googleFailureSuffix(err, __DEV__));
     } finally {
       setIsLoading(false);
     }
@@ -182,7 +181,7 @@ export default function LoginScreen() {
       setAuth(userData, token, refreshToken, isNewUser);
       haptic.success();
       if (isReactivated) useToastStore.getState().show(language === 'tr' ? 'Tekrar hoş geldin! Hesabın ve tüm verilerin geri geldi.' : 'Welcome back! Your account and data have been restored.', 'success');
-      router.replace('/');
+      goHomeAfterAuth(router);
     } catch (err: unknown) {
       swallow('login.appleSignIn', err, { capture: true });
       haptic.error();
@@ -230,7 +229,7 @@ export default function LoginScreen() {
       setAuth(userData, token, refreshToken);
       haptic.success();
       if (isReactivated) useToastStore.getState().show(language === 'tr' ? 'Tekrar hoş geldin! Hesabın ve tüm verilerin geri geldi.' : 'Welcome back! Your account and data have been restored.', 'success');
-      router.replace('/');
+      goHomeAfterAuth(router);
     } catch (err: unknown) {
       haptic.error();
       const data = httpDataOf<{ banned?: boolean; reason?: string; bannedUntil?: string }>(err);
@@ -574,7 +573,7 @@ export default function LoginScreen() {
                   "dene" gerçekten DENEMEK olabilir — tur değil, uygulamanın kendisi.
                 */}
                 <TouchableOpacity
-                  onPress={() => { haptic.commit(); startGuest(); router.replace('/'); }}
+                  onPress={() => { haptic.commit(); startGuest(); goHomeAfterAuth(router); }}
                   activeOpacity={0.7}
                   style={{ marginTop: isSmallScreen ? 6 : isMediumScreen ? 10 : 14, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: isSmallScreen ? 3 : 6, paddingHorizontal: S.sm }}
                   accessibilityRole="button"

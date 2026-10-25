@@ -12,7 +12,7 @@ import { buildDoneBurst } from '@/features/focus/celebrationLottie';
 import { useReducedMotion } from 'react-native-reanimated';
 import { track } from '@/shared/utils/analytics';
 import { haptic } from '@/shared/utils/haptics';
-import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { useFocusSheetTheme } from '@/features/focus/hooks/useFocusSheetTheme';
 
 /**
  * SEANS ÖZETİ — seans bittiğinde ne oldu, şimdi ne var?
@@ -92,7 +92,8 @@ export const SessionSummary: React.FC<SessionSummaryProps> = ({
   showBreak, language, t, onClose, onStartBreak, onExtend, onNewSession, onHome, onCompleteTask,
 }) => {
   // Zemin (GlassSurface) uygulama temasından gelir; renkler de oradan alınmalı.
-  const { theme } = useAppTheme();
+  // Sahneyi izler: Kor'da biten seansın kapanışı da kor renginde (bkz. sceneSheetTheme).
+  const { theme } = useFocusSheetTheme();
   const [userRating, setUserRating] = useState<number | null>(null);
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
   const [taskAnswered, setTaskAnswered] = useState<'done' | 'later' | null>(null);

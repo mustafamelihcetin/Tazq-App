@@ -1,405 +1,318 @@
 /*
- * KATMAN DÜZELTMESİ: bu dosya `shared/components` altındaydı.
+ * HOŞ GELDİN — profil kurulumu (features/user; `shared` alt katmanı features bilmemeli).
  *
- * Kullanıcı profili kurulumu — avatar yapılandırması `features/user`dan geliyor.
+ * 2026-10-25 YENİDEN TASARIM (kullanıcı: "hoş geldin modalını baştan geliştir"). Referanslar:
+ * Apple HIG onboarding (tek odak, anında geri bildirim, sonra değiştirilebilir olduğunu söyle),
+ * Slack/Things profil kurulumu (canlı önizleme), uygulamanın kendi Yeni Alışkanlık formu
+ * (ölçülen ızgara, eşmerkezli seçim halkası, büyük harfli bölüm etiketleri).
  *
- * `shared` en alt katman: yukarıdaki hiçbir şeyi bilmemeli. Buradaki her `features`
- * içe aktarımı, alt katmanın üst katmandan bilgi çekmesi demekti — modülerliği
- * bozar ve dosyayı tek başına test edilemez kılar. Taşınmasıyla yön düzeldi;
- * MANTIK HİÇ DEĞİŞMEDİ, yalnız yeri değişti.
+ * Eski ekranın sorunları ve karşılıkları:
+ *  · Seçimin sonucu görünmüyordu (avatar 50 px'lik şeritte, halka hiçbir yerde) → üstte BÜYÜK
+ *    canlı önizleme: seçilen avatar + seçilen halka, profilde nasıl görünecekse öyle.
+ *  · "Cinsiyetiniz" sorusu yalnız avatarları süzmek için vardı → soru KALKTI; 12 avatar 6×2
+ *    ızgarada birlikte. Hassas bir soru az, bir adım kısa. (Spor modu kilo hesabı için
+ *    cinsiyeti kendisi soruyor; buradan '' gider, orada sorulur.)
+ *  · Avatar ve renk şeritleri yatay kayıyor, son öğeler kenarda yarım kesiliyordu → ızgaralar
+ *    kabın ÖLÇÜLEN genişliğine oturur (gridFit), hiçbir öğe kesilmez.
+ *  · 19 Tailwind rengi (saf sarı dahil) → 9 renklik özel palet (bkz. avatarRings.ts).
+ *  · Verimlilik saati kalın kenarlı kutulardı → görev formundaki kayan seçici (SegmentedControl).
+ *  · Uzun ve kaydırmalıydı ("daha kompakt olmalı") → önizleme başlıkla AYNI satırda, ad alanı
+ *    etiketsiz, motto bu ekrandan çıktı (isteğe bağlıydı; Profil'den eklenir). İlk ekranda
+ *    yalnız görünüm + verimli saat sorulur.
  */
-import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, TextInput, ScrollView, StyleSheet, Platform, KeyboardAvoidingView, Image, ActivityIndicator, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, Animated, Modal, TextInput, ScrollView, StyleSheet, Platform, KeyboardAvoidingView, Image, ActivityIndicator, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { Check } from 'lucide-react-native';
 import { AppBlur } from '@/shared/components/AppBlur';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { ICON, S, R, F, B, MAX_W } from '@/shared/constants/tokens';
 import { AVATAR_CONFIGS } from '@/features/user';
-import { Sunrise, Sun, Sunset, Moon, Zap } from 'lucide-react-native';
+import { AVATAR_RINGS, RING_NONE, hasRing } from '@/features/user/utils/avatarRings';
+import { SegmentedControl } from '@/shared/components/SegmentedControl';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
+import { productivityHint } from '@/shared/utils/productivityHour';
+
+type Hour = 'morning' | 'afternoon' | 'evening' | 'night';
 
 interface ProfileSetupModalProps {
   visible: boolean;
   theme: AppTheme;
   isDark: boolean;
   language: 'tr' | 'en';
-  t: any;
+  t?: unknown;
   currentName: string;
   isNamePlaceholder: boolean;
   onSave: (name: string, avatar: string, borderColor: string, motto: string, productivityHour: string, gender: 'male' | 'female' | '') => Promise<void>;
 }
 
+const COPY = {
+  tr: {
+    welcome: (n: string) => `Hoş geldin, ${n}`,
+    create: 'Profilini oluştur',
+    sub: 'Görünümünü seç; sonra Profil\'den değiştirebilirsin.',
+    subName: 'Adını yaz, görünümünü seç.',
+    namePh: 'Adın',
+    avatar: 'AVATAR',
+    ring: 'HALKA',
+    hour: 'EN VERİMLİ OLDUĞUN ZAMAN',
+    start: 'Başla',
+    hours: { morning: 'Sabah', afternoon: 'Öğlen', evening: 'Akşam', night: 'Gece' } as Record<Hour, string>,
+    hourA11y: 'En verimli olduğun zaman',
+    nameErr: 'Adın en az 2 harf olmalı.',
+    saveErr: 'Kaydedilemedi. Bağlantını kontrol edip tekrar dene.',
+    avatarA11y: (n: string) => `Avatar ${n}`,
+  },
+  en: {
+    welcome: (n: string) => `Welcome, ${n}`,
+    create: 'Create your profile',
+    sub: 'Pick your look; you can change it later in Profile.',
+    subName: 'Add your name and pick your look.',
+    namePh: 'Your name',
+    avatar: 'AVATAR',
+    ring: 'RING',
+    hour: 'WHEN YOU WORK BEST',
+    start: 'Get started',
+    hours: { morning: 'Morning', afternoon: 'Midday', evening: 'Evening', night: 'Night' } as Record<Hour, string>,
+    hourA11y: 'When you work best',
+    nameErr: 'Your name needs at least 2 letters.',
+    saveErr: "Couldn't save. Check your connection and try again.",
+    avatarA11y: (n: string) => `Avatar ${n}`,
+  },
+};
+
+/** Önizleme avatarı ve halka kalınlığı — iç görsel `PREVIEW - 2*RING_W`: halka ile resim arasında boşluk kalmaz. */
+const PREVIEW = 64;
+const RING_W = 3;
+const AVATAR_MIN = 38;
+const AVATAR_GAP = S.xs;
+const DOT = 26;
+const SEL = 3;
+const HOURS: Hour[] = ['morning', 'afternoon', 'evening', 'night'];
+
 export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
-  visible,
-  theme,
-  isDark,
-  language,
-  t,
-  currentName,
-  isNamePlaceholder,
-  onSave,
+  visible, theme, isDark, language, currentName, isNamePlaceholder, onSave,
 }) => {
+  const c = COPY[language === 'tr' ? 'tr' : 'en'];
   const [name, setName] = useState('');
-  const nameLabel = language === 'tr' ? 'İsminiz' : 'Your Name';
-  const [selectedAvatar, setSelectedAvatar] = useState('m1');
-  const [selectedBorderColor, setSelectedBorderColor] = useState('transparent');
-  const [motto, setMotto] = useState('');
-  const [productivityHour, setProductivityHour] = useState<'morning' | 'afternoon' | 'evening' | 'night'>('morning');
-  const [gender, setGender] = useState<'male' | 'female' | ''>('male');
+  const [avatar, setAvatar] = useState('m1');
+  const [ring, setRing] = useState<string>(AVATAR_RINGS[1].color);
+  const [hour, setHour] = useState<Hour>('morning');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [w, setW] = useState(0);
 
   useEffect(() => {
-    if (visible) {
-      setName(isNamePlaceholder ? '' : currentName);
-      setGender('male');
-      setSelectedAvatar('m1');
-      setSelectedBorderColor('transparent');
-      setMotto('');
-      setProductivityHour('morning');
-      setError(null);
-    }
+    if (!visible) return;
+    setName(isNamePlaceholder ? '' : currentName);
+    setAvatar('m1');
+    // Varsayılan halka marka mavisi: "Yok" ile açılan önizleme sönük duruyordu.
+    setRing(AVATAR_RINGS[1].color);
+    setHour('morning');
+    setError(null);
   }, [visible, currentName, isNamePlaceholder]);
 
   const handleSave = async () => {
-    const trimmedName = name.trim();
-    if (isNamePlaceholder && trimmedName.length < 2) {
-      setError(language === 'tr' ? 'Lütfen en az 2 karakterden oluşan bir isim girin.' : 'Please enter a name with at least 2 characters.');
+    const trimmed = name.trim();
+    if (isNamePlaceholder && trimmed.length < 2) {
+      setError(c.nameErr);
       haptic.error();
       return;
     }
     setError(null);
     setLoading(true);
     try {
-      await onSave(
-        isNamePlaceholder ? trimmedName : currentName,
-        selectedAvatar,
-        selectedBorderColor,
-        motto.trim(),
-        productivityHour,
-        gender
-      );
+      await onSave(isNamePlaceholder ? trimmed : currentName, avatar, ring, '', hour, '');
       haptic.success();
-    } catch (err) {
-      setError(language === 'tr' ? 'Bir hata oluştu, lütfen tekrar deneyin.' : 'An error occurred, please try again.');
+    } catch {
+      setError(c.saveErr);
       haptic.error();
     } finally {
       setLoading(false);
     }
   };
 
-  const borderColors = [
-    { key: 'transparent', color: 'transparent', labelTr: 'Yok', labelEn: 'None' },
-    { key: 'red', color: '#FF4D4D', labelTr: 'Kırmızı', labelEn: 'Red' },
-    { key: 'fuchsia', color: '#F43F5E', labelTr: 'Fuşya', labelEn: 'Fuchsia' },
-    { key: 'rose', color: '#F472B6', labelTr: 'Gül', labelEn: 'Rose' },
-    { key: 'orange', color: '#FB923C', labelTr: 'Turuncu', labelEn: 'Orange' },
-    { key: 'bronze', color: '#FDBA74', labelTr: 'Bronz', labelEn: 'Bronze' },
-    { key: 'gold', color: '#F59E0B', labelTr: 'Altın', labelEn: 'Gold' },
-    { key: 'yellow', color: '#FFFF00', labelTr: 'Sarı', labelEn: 'Yellow' },
-    { key: 'lime', color: '#A3E635', labelTr: 'Fıstık', labelEn: 'Lime' },
-    { key: 'green', color: '#4ADE80', labelTr: 'Yeşil', labelEn: 'Green' },
-    { key: 'mint', color: '#34D399', labelTr: 'Nane', labelEn: 'Mint' },
-    { key: 'teal', color: '#2DD4BF', labelTr: 'Turkuaz', labelEn: 'Teal' },
-    { key: 'sky', color: '#38BDF8', labelTr: 'Gök', labelEn: 'Sky Blue' },
-    { key: 'blue', color: '#60A5FA', labelTr: 'Mavi', labelEn: 'Blue' },
-    { key: 'indigo', color: '#818CF8', labelTr: 'İndigo', labelEn: 'Indigo' },
-    { key: 'purple', color: '#A855F7', labelTr: 'Mor', labelEn: 'Purple' },
-    { key: 'lavender', color: '#C084FC', labelTr: 'Lavanta', labelEn: 'Lavender' },
-    { key: 'silver', color: '#E2E8F0', labelTr: 'Gümüş', labelEn: 'Silver' },
-    { key: 'slate', color: '#64748B', labelTr: 'Kül', labelEn: 'Slate' },
-  ] as const;
+  const firstName = (isNamePlaceholder ? name : currentName).trim().split(' ')[0];
+  const image = AVATAR_CONFIGS.find((a) => a.key === avatar)?.image;
+  const ringed = hasRing(ring);
+  const inner = PREVIEW - 2 * (ringed ? RING_W : B.thin);
 
-  const prodHourOptions = [
-    { key: 'morning',   labelTr: 'Sabah',   labelEn: 'Morning',   hint: '07:00', icon: (color: string) => <Sunrise size={ICON.sm} color={color} /> },
-    { key: 'afternoon', labelTr: 'Öğlen',   labelEn: 'Afternoon', hint: '12:00', icon: (color: string) => <Sun size={ICON.sm} color={color} /> },
-    { key: 'evening',   labelTr: 'Akşam',   labelEn: 'Evening',   hint: '17:00', icon: (color: string) => <Sunset size={ICON.sm} color={color} /> },
-    { key: 'night',     labelTr: 'Gece',    labelEn: 'Night',     hint: '21:00', icon: (color: string) => <Moon size={ICON.sm} color={color} /> },
-  ] as const;
+  /*
+    12 avatar: sütun sayısı 12'yi TAM bölmeli (6 → iki satır, sığmazsa 4 → üç satır).
+    gridFit 5 sütun buluyordu: 5 + 5 + 2, son satır yarım (cihazda görüldü).
+  */
+  const avatarCols = w > 0 ? ((w - AVATAR_GAP * 5) / 6 >= AVATAR_MIN ? 6 : 4) : 0;
+  const avatarCell = avatarCols > 0 ? Math.floor((w - AVATAR_GAP * (avatarCols - 1)) / avatarCols) : 0;
 
-  // Filter avatars based on gender:
-  const filteredAvatars = AVATAR_CONFIGS.filter((config) => {
-    if (gender === 'male') return config.key.startsWith('m');
-    if (gender === 'female') return config.key.startsWith('f');
-    return true;
-  });
+  // Önizleme seçime yaylı küçük bir "pop"la cevap verir — seçimin sonucu hissedilsin.
+  const pop = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!visible) return;
+    pop.setValue(0.92);
+    Animated.spring(pop, { toValue: 1, damping: 9, stiffness: 220, mass: 0.8, useNativeDriver: true }).start();
+  }, [avatar, ring]);
+  const ringCols = 6;
+
+  const rows = <T,>(items: T[], cols: number) =>
+    Array.from({ length: Math.ceil(items.length / cols) }, (_, r) => items.slice(r * cols, r * cols + cols));
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.7)' }}>
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
         <AppBlur material="thin" />
-        
-        {/*
-          KLAVYEYİ KAPATAN DOKUNUŞ ARKA PERDEDE, KARTIN İÇİNDE DEĞİL.
-
-          Yakalayıcı kartın İÇİNE, içerikten önce konmuştu: kartın tamamını kaplayan,
-          dokunuşu yutmak için var olan bir katman. Formun hemen üstünde böyle bir şey
-          durduğu sürece, alanların dokunuşu alması yalnızca kardeş sırasına bağlı kalır —
-          araya bir katman girdiği anda alanlar sessizce tıklanamaz hâle gelir. Kullanıcı
-          da tam bunu bildirdi: isim kutusu görünüyor ama seçilemiyordu.
-
-          Perdeye taşındı: karta dokunmak artık hiçbir katmandan geçmiyor, perdeye
-          dokunmak ise yalnız klavyeyi kapatıyor (modalı kapatmıyor — bu ekranın tek
-          çıkışı kaydetmek).
-        */}
+        {/* Perdeye dokunmak yalnız klavyeyi kapatır; bu ekranın tek çıkışı "Başla". */}
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View style={StyleSheet.absoluteFill} />
         </TouchableWithoutFeedback>
 
-        <View style={[styles.card, { borderColor: theme.outlineVariant, borderWidth: B.thin }]}>
+        <View style={[styles.card, { borderColor: theme.outlineVariant }]}>
           <GlassSurface radius={R.sheet} />
-          {/*
-            ── KART KAYDIRILABİLİR OLMAK ZORUNDA ─────────────────────────────────
-            Kartın ne yükseklik sınırı ne de dikey kaydırması vardı. Form uzun (isim,
-            cinsiyet, avatar, motto, verimlilik saati, kaydet) ve klavye açılınca
-            KeyboardAvoidingView alanı daraltıyor: içerik görünür bölgenin dışına
-            taşıyor. Kullanıcının gördüğü şey "isim kutusuna dokunamıyorum" oluyordu —
-            oysa alan oradaydı, sadece ulaşılamıyordu.
-
-            `keyboardShouldPersistTaps="handled"` ikinci yarısı: bu olmadan klavye
-            açıkken YAPILAN İLK DOKUNUŞ yalnızca klavyeyi kapatır, alana hiç ulaşmaz.
-            Tam olarak "seçilmiyor" diye bildirilen davranış budur.
-          */}
           <ScrollView
             style={{ flexGrow: 0 }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: S.xs }}
+            contentContainerStyle={styles.body}
           >
-          <View style={{ alignItems: 'center', marginBottom: S.xs }}>
-            {!isNamePlaceholder && (
-              <View style={{ width: 44, height: 44, borderRadius: R.full, backgroundColor: theme.primaryContainer, alignItems: 'center', justifyContent: 'center', marginBottom: S.xs, marginTop: S.xs }}>
-                <Zap size={ICON.md} color={theme.primary} fill={theme.primary} />
-              </View>
-            )}
-            <Text style={[styles.title, { color: theme.onSurface }]}>
-              {isNamePlaceholder 
-                ? (language === 'tr' ? 'TAZQ Profilini Oluştur' : 'Create TAZQ Profile')
-                : (language === 'tr' ? `Hoş Geldin, ${currentName.trim().split(' ')[0]}` : `Welcome, ${currentName.trim().split(' ')[0]}`)}
-            </Text>
-            <Text style={[styles.subtitle, { color: theme.onSurfaceMuted }]}>
-              {isNamePlaceholder
-                ? (language === 'tr' ? 'Sana hitap edebilmemiz için bilgilerini tamamla.' : 'Please complete your details so we can address you.')
-                : (language === 'tr' ? 'Profilini özelleştirip TAZQ deneyimine hemen başla.' : 'Customize your profile and start your TAZQ experience.')}
-            </Text>
-          </View>
-
-          <View style={{ gap: S.md }}>
-            {isNamePlaceholder && (
-              <View style={styles.section}>
-                {/* Görünen etiket ve ekran okuyucuya okunan ad AYNI kaynaktan —
-                    ikisi ayrı yazılsaydı biri güncellenip öteki geride kalırdı. */}
-                <Text style={[styles.label, { color: theme.onSurfaceVariant }]}>
-                  {nameLabel}
+            {/* CANLI ÖNİZLEME — profilde nasıl görünecekse öyle. */}
+            <View style={styles.hero}>
+              <Animated.View
+                style={[
+                  { transform: [{ scale: pop }] },
+                  styles.preview,
+                  {
+                    borderWidth: ringed ? RING_W : B.thin,
+                    borderColor: ringed ? ring : theme.outlineVariant,
+                    backgroundColor: theme.surfaceField,
+                  },
+                ]}
+              >
+                {image ? <Image source={image} style={{ width: inner, height: inner, borderRadius: inner / 2 }} resizeMode="cover" /> : null}
+              </Animated.View>
+              <View style={{ flex: 1 }}>
+                <Text accessibilityRole="header" numberOfLines={2} style={[styles.title, { color: theme.onSurface }]}>
+                  {firstName ? c.welcome(firstName) : c.create}
                 </Text>
-                <View style={[styles.inputContainer, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow }]}>
-                  {/*
-                    KLAVYE KENDİLİĞİNDEN AÇILMAZ — bir tur denendi, GERİ ALINDI.
-
-                    Alanı açılışta odaklamak "tek dokunuş kazandırır" diye mantıklı
-                    görünüyordu. Ama bu ekran bir FORM değil, bir KARŞILAMA: başlık,
-                    cinsiyet, avatar, motto ve verimlilik saati birlikte duruyor. Klavye
-                    gelir gelmez açılınca ekranın yarısını örtüyor, karşılama okunamıyor
-                    ve kullanıcı daha ne sorulduğunu görmeden yazmaya zorlanıyor —
-                    üstelik tam da az önce düzeltilen "içerik klavyenin altında kalıyor"
-                    hâli kapıda yeniden kuruluyor.
-
-                    iOS'un kendi kuralı da bu yönde: kendiliğinden odak, ekranda TEK iş
-                    varken (arama gibi) doğrudur. Alan zaten formun en üstünde ve artık
-                    gerçekten dokunulabilir; bir dokunuş yeterli.
-
-                    `autoCapitalize="words"`: isim yazılıyor. `textContentType="name"`:
-                    iOS'un kendi isim önerisini getirir, çoğu kullanıcıda tek dokunuş.
-                  */}
-                  <TextInput
-                    value={name}
-                    onChangeText={setName}
-                    autoCapitalize="words"
-                    autoCorrect={false}
-                    textContentType="name"
-                    returnKeyType="done"
-                    onSubmitEditing={Keyboard.dismiss}
-                    accessibilityLabel={nameLabel}
-                    placeholder={language === 'tr' ? 'Lütfen adınızı girin' : 'Please enter your name'}
-                    placeholderTextColor={theme.onSurfaceVariant + '80'}
-                    style={[styles.input, { color: theme.onSurface, flex: 1, height: '100%', textAlignVertical: 'center' }]}
-                    maxLength={30}
-                    underlineColorAndroid="transparent"
-                  />
-                </View>
-              </View>
-            )}
-
-            {/* Gender Selection */}
-            <View style={styles.section}>
-              <Text style={[styles.label, { color: theme.onSurfaceVariant }]}>
-                {language === 'tr' ? 'Cinsiyetiniz' : 'Your Gender'}
-              </Text>
-              <View style={{ flexDirection: 'row', gap: S.xs }}>
-                {([
-                  { key: 'male', labelTr: 'Erkek', labelEn: 'Male' },
-                  { key: 'female', labelTr: 'Kadın', labelEn: 'Female' },
-                ] as const).map((g) => {
-                  const isSelected = gender === g.key;
-                  return (
-                    <Touchable
-                      key={g.key}
-                      onPress={() => {
-                        // Zaten seçiliyse dokunma — kullanıcının seçtiği avatarı aynı
-                        // cinsiyete yeniden dokununca sessizce sıfırlamasın (bkz. profile.tsx).
-                        if (isSelected) return;
-                        haptic.select();
-                        setGender(g.key);
-                        if (g.key === 'male') {
-                          setSelectedAvatar('m1');
-                        } else {
-                          setSelectedAvatar('f1');
-                        }
-                      }}
-                      style={[styles.goalChip, {
-                        borderColor: isSelected ? theme.primary : theme.outline,
-                        backgroundColor: isSelected ? theme.primaryContainer : 'transparent',
-                      }]}
-                    >
-                      <Text style={{
-                        fontSize: F.caption2,
-                        fontFamily: 'Jakarta-Bold',
-                        color: isSelected ? theme.onPrimaryContainer : theme.onSurfaceVariant,
-                      }}>
-                        {language === 'tr' ? g.labelTr : g.labelEn}
-                      </Text>
-                    </Touchable>
-                  );
-                })}
+                <Text style={[styles.subtitle, { color: theme.onSurfaceMuted }]}>
+                  {isNamePlaceholder ? c.subName : c.sub}
+                </Text>
               </View>
             </View>
 
-            {/* Profile Picture */}
-            <View style={styles.section}>
-              <Text style={[styles.label, { color: theme.onSurfaceVariant }]}>
-                {language === 'tr' ? 'Profil Resmi' : 'Profile Picture'}
-              </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: S.xs, paddingVertical: S.xs }}>
-                {filteredAvatars.map((config) => {
-                  const isSelected = selectedAvatar === config.key;
-                  return (
-                    <Touchable
-                      key={config.id}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: isSelected }}
-                      accessibilityLabel={language === 'tr' ? `Avatar ${config.key}` : `Avatar ${config.key}`}
-                      onPress={() => { haptic.select(); setSelectedAvatar(config.key); }}
-                      style={[styles.avatarWrapper, {
-                        borderColor: isSelected ? theme.primary : theme.outline,
-                        borderWidth: isSelected ? 2.5 : 1,
-                      }]}
-                    >
-                      <Image source={config.image} style={{ width: 50, height: 50 }} resizeMode="cover" />
-                    </Touchable>
-                  );
-                })}
-              </ScrollView>
-            </View>
-
-            {/* Border Color */}
-            <View style={styles.section}>
-              <Text style={[styles.label, { color: theme.onSurfaceVariant }]}>
-                {language === 'tr' ? 'Çerçeve Rengi' : 'Border Color'}
-              </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: S.sm, paddingVertical: S.xs }}>
-                {borderColors.map((colorOpt) => {
-                  const isSelected = selectedBorderColor === colorOpt.color;
-                  return (
-                    <Touchable
-                      key={colorOpt.key}
-                      onPress={() => { haptic.select(); setSelectedBorderColor(colorOpt.color); }}
-                      style={[styles.colorBubble, {
-                        backgroundColor: colorOpt.color === 'transparent' ? (isDark ? '#2C2C35' : '#E5E7EB') : colorOpt.color,
-                        borderColor: isSelected ? theme.primary : 'transparent',
-                        borderWidth: isSelected ? 2.5 : 0,
-                      }]}
-                    >
-                      {colorOpt.color === 'transparent' && (
-                        <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant }}>
-                          {language === 'tr' ? 'Yok' : 'None'}
-                        </Text>
-                      )}
-                    </Touchable>
-                  );
-                })}
-              </ScrollView>
-            </View>
-
-            {/* Productivity Hour */}
-            <View style={styles.section}>
-              <Text style={[styles.label, { color: theme.onSurfaceVariant }]}>
-                {language === 'tr' ? 'En Verimli Olduğun Zaman' : 'Peak Productivity Time'}
-              </Text>
-              <View style={{ flexDirection: 'row', gap: S.xs }}>
-                {prodHourOptions.map((opt) => {
-                  const isSelected = productivityHour === opt.key;
-                  const itemColor = isSelected ? theme.primary : theme.onSurfaceVariant;
-                  return (
-                    <Touchable
-                      key={opt.key}
-                      onPress={() => { haptic.select(); setProductivityHour(opt.key); }}
-                      style={[styles.goalChip, {
-                        borderColor: isSelected ? theme.primary : theme.outline,
-                        backgroundColor: isSelected ? theme.primaryContainer : 'transparent',
-                      }]}
-                    >
-                      {opt.icon(itemColor)}
-                      <Text style={{
-                        fontSize: 10,
-                        fontFamily: 'Jakarta-Bold',
-                        color: isSelected ? theme.onPrimaryContainer : theme.onSurfaceVariant,
-                        marginTop: S.xs,
-                      }}>
-                        {language === 'tr' ? opt.labelTr : opt.labelEn}
-                      </Text>
-                    </Touchable>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Personal Motto */}
-            <View style={styles.section}>
-              <Text style={[styles.label, { color: theme.onSurfaceVariant }]}>
-                {language === 'tr' ? 'Kişisel Motto' : 'Personal Motto'}
-              </Text>
-              <View style={[styles.inputContainer, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow }]}>
+            {isNamePlaceholder && (
+              <View>
                 <TextInput
-                  value={motto}
-                  onChangeText={setMotto}
-                  placeholder={language === 'tr' ? 'Örn: Gürültüyü sustur, odağını keşfet...' : 'e.g. Silence the noise, discover your focus...'}
-                  placeholderTextColor={theme.onSurfaceVariant + '80'}
-                  style={[styles.input, { color: theme.onSurface }]}
-                  maxLength={100}
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  textContentType="name"
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                  accessibilityLabel={c.namePh}
+                  placeholder={c.namePh}
+                  placeholderTextColor={theme.onSurfaceMuted}
+                  style={[styles.input, { color: theme.onSurface, backgroundColor: theme.surfaceField }]}
+                  maxLength={30}
                   underlineColorAndroid="transparent"
                 />
               </View>
+            )}
+
+            <View onLayout={(e) => setW(Math.floor(e.nativeEvent.layout.width))}>
+              <Text style={[styles.label, { color: theme.onSurfaceMuted }]}>{c.avatar}</Text>
+              {avatarCell > 0 && (
+                <View accessibilityRole="radiogroup" style={{ gap: AVATAR_GAP }}>
+                  {rows(AVATAR_CONFIGS, avatarCols).map((row, r) => (
+                    <View key={r} style={styles.row}>
+                      {Array.from({ length: avatarCols }, (_, k) => {
+                        const a = row[k];
+                        if (!a) return <View key={`pad-${k}`} style={{ width: avatarCell }} />;
+                        const selected = a.key === avatar;
+                        const img = avatarCell - 2 * SEL - 4;
+                        return (
+                          <Touchable
+                            key={a.key}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected, checked: selected }}
+                            accessibilityLabel={c.avatarA11y(a.name)}
+                            onPress={() => { if (!selected) { haptic.select(); setAvatar(a.key); } }}
+                            style={[styles.avatarCell, { width: avatarCell, height: avatarCell, borderColor: selected ? theme.primary : 'transparent' }]}
+                          >
+                            <Image source={a.image} style={{ width: img, height: img, borderRadius: img / 2, backgroundColor: theme.surfaceField }} resizeMode="cover" />
+                          </Touchable>
+                        );
+                      })}
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
-          </View>
+
+            <View>
+              <Text style={[styles.label, { color: theme.onSurfaceMuted }]}>{c.ring}</Text>
+              <View accessibilityRole="radiogroup" style={{ gap: S.sm }}>
+                {rows(AVATAR_RINGS, ringCols).map((row, r) => (
+                  <View key={r} style={[styles.row, styles.ringRow]}>
+                    {row.map((opt) => {
+                      const selected = opt.color === ring;
+                      const none = opt.color === RING_NONE;
+                      return (
+                        <Touchable
+                          key={opt.key}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected, checked: selected }}
+                          accessibilityLabel={language === 'tr' ? opt.tr : opt.en}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                          onPress={() => { if (!selected) { haptic.select(); setRing(opt.color); } }}
+                          style={[styles.dotRing, { borderColor: selected ? (none ? theme.onSurfaceVariant : opt.color) : 'transparent' }]}
+                        >
+                          <View
+                            style={[
+                              styles.dot,
+                              none
+                                ? { backgroundColor: theme.surfaceField, borderWidth: B.thin, borderColor: theme.outlineVariant, borderStyle: 'dashed' }
+                                : { backgroundColor: opt.color },
+                            ]}
+                          >
+                            {selected && !none ? <Check size={ICON.xs} color="#FFFFFF" strokeWidth={3} /> : null}
+                          </View>
+                        </Touchable>
+                      );
+                    })}
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View>
+              <Text style={[styles.label, { color: theme.onSurfaceMuted }]}>{c.hour}</Text>
+              <SegmentedControl
+                options={HOURS.map((k) => ({ key: k, label: c.hours[k] }))}
+                value={hour}
+                onChange={(k) => { haptic.select(); setHour(k); }}
+                theme={theme}
+                isDark={isDark}
+                accessibilityLabel={c.hourA11y}
+              />
+              {/* Seçimin NE yaptığı — davranışın kendi tablosundan (bkz. productivityHour.ts). */}
+              <Text style={[styles.hint, { color: theme.onSurfaceMuted }]}>{productivityHint(hour, language === 'tr' ? 'tr' : 'en')}</Text>
+            </View>
 
           </ScrollView>
 
-          {error && <Text style={styles.errorText}>{error}</Text>}
+          {error && <Text accessibilityLiveRegion="polite" style={[styles.error, { color: theme.error }]}>{error}</Text>}
 
-          {/* Kaydet düğmesi kaydırıcının DIŞINDA: form uzasa da hep görünür kalıyor. */}
+          {/* "Başla" kaydırıcının DIŞINDA: form uzasa da hep görünür. */}
           <Touchable
             onPress={handleSave}
             disabled={loading}
-            style={[styles.btn, { backgroundColor: theme.primary, marginTop: S.md }]}
+            accessibilityRole="button"
+            accessibilityLabel={c.start}
+            accessibilityState={{ busy: loading }}
+            style={[styles.btn, { backgroundColor: theme.primary }]}
           >
-            {loading ? (
-              <ActivityIndicator color={theme.onPrimary} size="small" />
-            ) : (
-              <Text style={[styles.btnText, { color: theme.onPrimary }]}>
-                {language === 'tr' ? 'Başla' : 'Let\'s Go'}
-              </Text>
-            )}
+            {loading ? <ActivityIndicator color={theme.onPrimary} size="small" /> : <Text style={[styles.btnText, { color: theme.onPrimary }]}>{c.start}</Text>}
           </Touchable>
         </View>
       </KeyboardAvoidingView>
@@ -408,89 +321,32 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
 };
 
 const styles = StyleSheet.create({
+  backdrop: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.55)' },
   card: {
     width: '90%',
     maxWidth: MAX_W - 40,
-    /* Ekranın tamamını kaplamasın: kalan yer klavyeye ve perdeye ait. */
-    maxHeight: '88%',
+    maxHeight: '90%',
     borderRadius: R.sheet,
-    padding: S.lg,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-  },
-  title: {
-    fontSize: F.title3,
-    fontFamily: 'Jakarta-Bold',
-    textAlign: 'center',
-    marginBottom: S.xs,
-  },
-  subtitle: {
-    fontSize: F.caption2,
-    lineHeight: 18,
-    fontFamily: 'Jakarta-SemiBold',
-    textAlign: 'center',
-    marginBottom: S.md,
-  },
-  errorText: {
-    color: '#EF4444',
-    fontSize: F.caption2,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginTop: S.sm,
-  },
-  section: {
-    width: '100%',
-  },
-  label: {
-    fontSize: F.caption2,
-    fontWeight: '700',
-    marginBottom: S.xs,
-  },
-  inputContainer: {
-    borderRadius: R.md,
-    paddingHorizontal: S.md,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 6,
-  },
-  input: {
-    fontSize: F.body,
-    fontFamily: 'Jakarta-Bold',
-  },
-  avatarWrapper: {
-    width: 50,
-    height: 50,
-    borderRadius: R.full,
+    borderWidth: B.thin,
+    paddingHorizontal: S.lg,
+    paddingTop: S.lg,
+    paddingBottom: S.lg,
     overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  colorBubble: {
-    width: 36,
-    height: 36,
-    borderRadius: R.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  goalChip: {
-    flex: 1,
-    paddingVertical: S.smd,
-    borderRadius: R.sm,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btn: {
-    width: '100%',
-    padding: S.md,
-    borderRadius: R.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnText: {
-    fontSize: F.body,
-    fontWeight: '700',
-  },
+  body: { gap: S.md, paddingBottom: S.xs },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: S.md },
+  preview: { width: PREVIEW, height: PREVIEW, borderRadius: PREVIEW / 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  title: { fontSize: F.title3, fontFamily: 'Jakarta-Bold', letterSpacing: -0.3 },
+  subtitle: { fontSize: F.footnote, lineHeight: 18, marginTop: S.xxs },
+  label: { fontSize: F.caption, fontWeight: '600', letterSpacing: 1.2, marginBottom: S.sm, marginLeft: S.xs },
+  row: { flexDirection: 'row', justifyContent: 'space-between' },
+  ringRow: { paddingHorizontal: S.xxs },
+  avatarCell: { borderRadius: R.full, borderWidth: SEL, alignItems: 'center', justifyContent: 'center' },
+  dotRing: { width: DOT + SEL * 4, height: DOT + SEL * 4, borderRadius: R.full, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  dot: { width: DOT, height: DOT, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
+  input: { fontSize: F.body, paddingHorizontal: S.md, paddingVertical: Platform.OS === 'ios' ? S.smd : S.sm, borderRadius: R.md, minHeight: 48 },
+  hint: { fontSize: F.caption, lineHeight: 16, marginTop: S.sm, marginHorizontal: S.xs },
+  error: { fontSize: F.caption, fontWeight: '600', textAlign: 'center', marginTop: S.sm },
+  btn: { marginTop: S.md, height: 50, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
+  btnText: { fontSize: F.body, fontWeight: '700' },
 });

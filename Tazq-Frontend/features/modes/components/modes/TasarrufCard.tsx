@@ -20,6 +20,7 @@ import { usePlanAdaptations, makeClientKey } from '@/features/modes/hooks/usePla
 import { TaskService } from '@/shared/services/api';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
+import { DeviceOnlyNote } from '@/features/modes/components/DeviceOnlyNote';
 import { FormReveal, ModeField } from '../ModeField';
 import { renderModeEmojiIcon } from '@/features/modes/utils/modeIcons';
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
@@ -451,6 +452,8 @@ export function TasarrufCard() {
           </Touchable>
         </FormReveal>
       )}
+      {/* Sağlık/finans verisi sunucuya gitmez — kullanıcı bunu veriyi girerken bilsin (bkz. DeviceOnlyNote). */}
+      {seasonal.tasarrufMode && <DeviceOnlyNote kind="budget" />}
     </View>
   );
 }

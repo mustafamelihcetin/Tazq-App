@@ -243,7 +243,7 @@ const KNOWN_LARGE: Record<string, number> = {
   'app/_layout.tsx': 880, // +2: anonim kurulum ping'i (günde bir) // +17: sabah özeti en yakın aktif hedefe göre kişiselleşiyor (goalSig) // +16: widget/Watch köprüsü yeniden açıldı (ana-kuyruk sertleştirmesiyle, bkz. TazqWidgetBridgeModule.swift) // +5: tema değişince widget'ı da tazeleyen abonelik (unsubTheme) // +14: WCSession aktivasyon yarışı için gecikmeli zorla-gönderim (activationRetry) // +6 (2026-10-18): 'open-payments' bildirim aksiyonu yönlendirmesi
   // İlk kez 800 satırı geçti: onboarding'in "şu an neyle uğraşıyorsun?" sorusu
   // (durum seçimi + mod sorusuyla aynı desende ikinci bir modal, bkz. dosya başı notu).
-  'app/onboarding.tsx': 815,
+  'app/onboarding.tsx': 515, // 816 → 515 (2026-10-25): slayt görselleri OnboardingVisuals'a taşındı, ölü görseller silindi · +1 (2026-10-25): goHome içe aktarımı (çift ana sayfa düzeltmesi)
   // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.
@@ -271,7 +271,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // +6 geri bakış bağlantısı · +96 gün seçimi ekranın tamamını kapsıyor (alışkanlıklar seçili güne yazılır), jestler sadeleşti, metinler DAY_COPY sözlüğüne taşındı
   // 1709 → 1715: planTaskIdSet/planHabitIdSet Tasarruf ve Bırakma'yı unutmuştu —
   // bu iki modun plan görevleri genel listede mod bölümüyle ÇİFT görünüyordu.
-  'app/cockpit.tsx': 1737, // +22 (2026-10-24): şerit öğlen düzeltmesi, upperFor, gün halkası (Apple Activity), hedef+plan birleşimi ve tamamlanan alışkanlıklar gruplu listesi — gerekçe notlarıyla
+  'app/cockpit.tsx': 1756, // +6 (2026-10-25): boş haftada halka satırı yok, örnek listenin takılan çıkış animasyonu kalktı · +1: tur hedefi kartı sarar (başlık dışarıda) · 1761 → 1749 (2026-10-25): Bu Hafta kartı tek yüzey (kutu içinde kutu kalktı) · istatistik etiketi tek satır · +1: kart yarıçapı gerekçesi · +22 (2026-10-25): gün satırındaki halka gerçekten tamamlar, gün kutularına ekran okuyucu adı, metinler DAY_COPY'de · +22 (2026-10-24): şerit öğlen düzeltmesi, upperFor, gün halkası (Apple Activity), hedef+plan birleşimi ve tamamlanan alışkanlıklar gruplu listesi — gerekçe notlarıyla
   // 1358 → 1395: iki gerçek hatanın düzeltmesi. Kart konumları KENDİ bölümlerine göre
   // ölçülüyordu ama sayfa konumu sanılıp kullanılıyordu; aktif bir mod varken yeni mod
   // açılınca sayfa yanlış yere (yukarı) kayıyordu. Bölüm konumu da ölçülüp toplanıyor.
@@ -316,7 +316,7 @@ const KNOWN_LARGE: Record<string, number> = {
   */
   // 1233 → 1214: başlık işleyicisi taslak denetimine (features/tasks/nlp/draft) devredildi.
   // 1214 → 1215: hazır etiketlerin dili ortak yardımcıdan (langOf) — satır içi dil dallanması yok.
-  'features/tasks/components/TaskFormModal.tsx': 920, // +5 (2026-10-25): iOS'ta Modal üstü Modal sunulmuyor — sistem uyarısı gerekçesi · 1270 → 915 (2026-10-25): Yeni Hedef yeniden tasarımı — tarih/saat/hatırlatıcı ScheduleSection'a, seçiciler SegmentedControl'e, tarih kuralları taskFormDates'e // +1 (2026-10-24): upperFor içe aktarımı (Türkçe büyük harf) // +42: yerel-gün tarih ayrıştırma, ay-sonu kenetleme, saat/tarih tutarlılığı, alt-görev mutasyon düzeltmesi // +12 (2026-10-19): başlık/açıklama/alt-görev kutularının HER YERİ odaklamalı (Pressable+ref, bkz. ModeField.tsx'teki aynı düzeltme)
+  'features/tasks/components/TaskFormModal.tsx': 940, // +2 (2026-10-25): hatırlatıcı saati kullanıcının verimli saatinden (productivityHour + prefs içe aktarımı) · +11 (2026-10-25): form yalnız açılışta/başka görevde dolar (eşitlemede yazılanlar silinmesin) · +3: açılışta odak rengi sıfırlanır · +4 (2026-10-25): yeni görevde başlık titleOf ile temizlenir (cihazda görüldü) // +5 (2026-10-25): iOS'ta Modal üstü Modal sunulmuyor — sistem uyarısı gerekçesi · 1270 → 915 (2026-10-25): Yeni Hedef yeniden tasarımı — tarih/saat/hatırlatıcı ScheduleSection'a, seçiciler SegmentedControl'e, tarih kuralları taskFormDates'e // +1 (2026-10-24): upperFor içe aktarımı (Türkçe büyük harf) // +42: yerel-gün tarih ayrıştırma, ay-sonu kenetleme, saat/tarih tutarlılığı, alt-görev mutasyon düzeltmesi // +12 (2026-10-19): başlık/açıklama/alt-görev kutularının HER YERİ odaklamalı (Pressable+ref, bkz. ModeField.tsx'teki aynı düzeltme)
   // 1150 → 1180: planın KULLANICI SEÇMEDEN başlamasını engelleyen kapı. Üretim koşulu
   // birçok modda yalnız "mod açık + ad + tarih" idi; tarih girilir girilmez plan uygulanmış
   // sayılıp kart bölüm değiştiriyor, yeniden kurulup kapanıyordu. Artış dokuz koşula
@@ -336,19 +336,19 @@ const KNOWN_LARGE: Record<string, number> = {
   // trophy ikonu tema token'larına bağlandı.
   // 899 → 919: başarım önizlemesi en son kazanılana göre sıralanıyor (recency),
   // kazanılmış madalyada kupa ışıltısı (MedalShine deseni).
-  'app/profile.tsx': 954, // +3 (2026-10-25): misafirin girdiği ad + platforma göre sağlık kaynağı adı // +1 (2026-10-24): misafirin hoş geldinde seçtiği avatar (guestAvatar) // 2026-10-24: avatar resmi iç alana göre boyutlanır (88'lik kapta 110'luk resim kırpılıyordu) + Yenile/upperFor notları
+  'app/profile.tsx': 958, // +4 (2026-10-25): avatar çerçeve boşluğu kaldırıldı (gerekçe notu) · // +3 (2026-10-25): misafirin girdiği ad + platforma göre sağlık kaynağı adı // +1 (2026-10-24): misafirin hoş geldinde seçtiği avatar (guestAvatar) // 2026-10-24: avatar resmi iç alana göre boyutlanır (88'lik kapta 110'luk resim kırpılıyordu) + Yenile/upperFor notları
   'shared/constants/legal.ts': 893,
   // İlk kez 800 satırı geçti: admin panelinin Ürün İçgörüleri tipleri
   // (AdminModeAdoption/AdminRetentionCohort/AdminVersionShare) + X-App-Version
   // başlığı eklendi. API katmanı doğası gereği büyür — her uç nokta bir satır.
-  'shared/services/api.ts': 940, // +19: anonim kurulum ping'i + admin audience istemcisi // +13: otomatik tekrar yalnız idempotent metodlarda (POST/PATCH çift kayıt riski) // +26: ERR_NETWORK için "çevrimdışı" demeden önce tek seferlik hızlı yeniden deneme (soğuk başlatma yarışı) // +39 (2026-10-18): PaymentService (ödeme takibi — görevlerden ayrı yüzey) // +11 (2026-10-19): pingInstall'a eksik X-App-Signature başlığı eklendi (önceden var olan 403 hatası)
+  'shared/services/api.ts': 954, // +14 (2026-10-25): alışkanlık eşitleme istemcisi (HabitSyncService) // +19: anonim kurulum ping'i + admin audience istemcisi // +13: otomatik tekrar yalnız idempotent metodlarda (POST/PATCH çift kayıt riski) // +26: ERR_NETWORK için "çevrimdışı" demeden önce tek seferlik hızlı yeniden deneme (soğuk başlatma yarışı) // +39 (2026-10-18): PaymentService (ödeme takibi — görevlerden ayrı yüzey) // +11 (2026-10-19): pingInstall'a eksik X-App-Signature başlığı eklendi (önceden var olan 403 hatası)
   // İlk kez 800 satırı geçti: duraklatma + geçmiş hedefler + bulut/yerel bozuk
   // veriye karşı tek nokta koruma (bkz. PLAN_ID_KEYS/sanitizePlanIds). Sözlük gibi
   // değil, bölünebilir — bir sonraki büyüme bu dosyayı gerçekten küçültmeli.
   // 833 → 838: remapPlanTaskId Tasarruf/Bırakma'yı unutmuştu (çevrimdışı eklenen
   // görev gerçek kimliğini alınca bu iki modun izleme dizisi eski kimlikte
   // takılı kalıyordu, mod kapanınca görev hiç temizlenmiyordu).
-  'features/modes/store/usePrefsStore.ts': 874, // +17 (2026-10-18): PlanSpec.weakTopicIds + setWeakTopicIds — sınav kurulumunda kendi-kendine zayıf konu seçimi // +18 (2026-10-19): PlanSpec.personalNote + setPersonalNote — tüm modlara yayılan kişisel not
+  'features/modes/store/usePrefsStore.ts': 879, // +5 (2026-10-25): odak sahnesi tercihi (focusScene) · +17 (2026-10-18): PlanSpec.weakTopicIds + setWeakTopicIds — sınav kurulumunda kendi-kendine zayıf konu seçimi // +18 (2026-10-19): PlanSpec.personalNote + setPersonalNote — tüm modlara yayılan kişisel not
   'features/modes/utils/planAdaptations.ts': 889, // +9: tez_weekly yinelenme kontrolü yerel-gün anahtarına geçti
   // 856 → 784: hesap silme akışı DeleteAccountModal bileşenine çıkarıldı. Silme,
   // uygulamadaki tek geri alınamaz işlem; durumu ekranın üstünde, onay kelimesi
@@ -378,7 +378,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // 911 → 925: misafirde "Hesabımı Sil" yerine "Bu cihazdaki verileri sil" (onaylı).
   // 925 → 928: Admin Paneli düğmesindeki ham indigo hex, zaten var olan A.system
   // token'ına bağlandı (iki ayrı kopya aynı rengi taşıyordu).
-  'app/settings.tsx': 958, // +11 (2026-10-25): 'Tanıtım turlarını yeniden göster' satırı — balon kaybolunca turlara tek dönüş yolu // +16 (2026-10-19): Ödemeler'e kalıcı giriş satırı (bkz. PaymentsSummaryCard'ın artık yalnız aciliyet anında görünmesi) // +3 (2026-10-19): satıra kendi bölüm başlığı — Bildirimler'in altına yapışık görünüyordu
+  'app/settings.tsx': 959, // +1 (2026-10-25): goHome içe aktarımı (çift ana sayfa düzeltmesi) // +11 (2026-10-25): 'Tanıtım turlarını yeniden göster' satırı — balon kaybolunca turlara tek dönüş yolu // +16 (2026-10-19): Ödemeler'e kalıcı giriş satırı (bkz. PaymentsSummaryCard'ın artık yalnız aciliyet anında görünmesi) // +3 (2026-10-19): satıra kendi bölüm başlığı — Bildirimler'in altına yapışık görünüyordu
   // Turun 5 sayfasının (dashboard/tasks/focus/modlar/cockpit) HER adımı için gerçek
   // bileşenlerden kurulan bir mockup çiziyor — doğası gereği uzun, bölünmesi bu
   // switch-case yapısını bozardı. 800'ü ilk kez geçti: turun güncellik denetiminde

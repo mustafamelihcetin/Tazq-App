@@ -497,7 +497,18 @@ describe('düğmeler üstünde yazanı yapıyor', () => {
       bağlıydı: listeye götürüp bırakıyordu, kullanıcı orada bir kez daha "+"ya
       basmak zorundaydı.
     */
-    expect(INDEX).toMatch(/onAdd=\{\(\) => router\.push\(\{ pathname: '\/tasks', params: \{ action: 'add' \} \}\)\}/);
+    // 2026-10-25: tam form yerine HIZLI ekleme — şimşek düğmesiyle aynı yüzey (tek ekleme
+    // yolu); tam form oradaki "Detaylar"dan açılır. Amaç değişmedi: liste değil, ekleme.
+    expect(INDEX).toContain('onAdd={() => setQuickDraftVisible(true)}');
+    expect(INDEX).not.toMatch(/onAdd=\{\(\) => router\.push\(\{ pathname: '\/tasks' \}/);
+  });
+
+  it('"İlk görevini ekle" satırı da eklemeye açılır, listeye değil', () => {
+    expect(INDEX).toMatch(/label: tr \? 'İlk görevini ekle'.*onPress: \(\) => setQuickDraftVisible\(true\)/);
+  });
+
+  it('"N gecikmiş görev" satırı gecikmiş görünümünü açar', () => {
+    expect(INDEX).toContain("router.push({ pathname: '/tasks', params: { filter: 'overdue' } })");
   });
 
   it('boş günde kutlama yok', () => {

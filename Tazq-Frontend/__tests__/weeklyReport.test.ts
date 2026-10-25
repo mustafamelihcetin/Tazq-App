@@ -109,6 +109,20 @@ describe('haftanın özeti', () => {
     expect(habitDenominator([{ id: 'h', createdAt: local(2026, 8, 16) }], days, '2026-09-16')).toBe(1);
     expect(habitDenominator([{ id: 'h', createdAt: local(2026, 8, 1) }], days, '2026-09-16')).toBe(3);
   });
+
+  it('yapılan ve beklenen gün sayısı da dışarı verilir — içgörü modalı aynı sayıyı söyler', () => {
+    // Cihazda görüldü (2026-10-25): modal kendi hesabıyla "%7 · 1/14" diyordu (bugün kurulan iki
+    // alışkanlık × 7 gün), Haftalık Merkez aynı veri için %50. Tek motor, tek sayı.
+    const today = summarizeWeek({
+      sessions: [], tasks: [],
+      habits: [
+        { id: 'a', completedDates: ['2026-09-16'], createdAt: local(2026, 8, 16) },
+        { id: 'b', completedDates: [], createdAt: local(2026, 8, 16) },
+      ],
+      range, now,
+    });
+    expect({ done: today.habitDone, possible: today.habitPossible, pct: today.habitPct }).toEqual({ done: 1, possible: 2, pct: 50 });
+  });
 });
 
 describe('geçen haftayla kıyas', () => {
@@ -295,7 +309,7 @@ describe('Haftalık Merkez — gün seçimi EKRANIN TAMAMINI kapsar', () => {
 
   it('"bugüne dön" gün seçiminin yapıldığı yerde ve yalnız gerektiğinde', () => {
     // Kartın "BU HAFTA" etiketi kaldırıldı (bölüm başlığıyla tekrar ediyordu) — şerit artık tur hedefinden başlar.
-    const strip = COCKPIT.slice(COCKPIT.indexOf('<TourTarget id="weekStrip">'), COCKPIT.indexOf('styles.weekRow'));
+    const strip = COCKPIT.slice(COCKPIT.indexOf('<TourTarget id="weekStrip"'), COCKPIT.indexOf('styles.weekRow'));
     expect(strip).toContain('{!isSelectedToday && (');
     expect(strip).toContain('setSelectedDay(todayKey)');
   });

@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Platform, Keyboard, useWindowDimensions } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Platform, Keyboard, useWindowDimensions, BackHandler } from 'react-native';
 import { LayoutGrid, CheckSquare, Sparkles, Layers, CalendarDays } from 'lucide-react-native';
-import { useRouter, usePathname } from 'expo-router';
+import { useRouter, usePathname, useFocusEffect } from 'expo-router';
+import { goHome } from '@/shared/utils/authNavigation';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AppBlur } from '@/shared/components/AppBlur';
@@ -109,6 +110,23 @@ export const BottomNavBar = () => {
   const tr = language === 'tr';
   const uiMode = usePrefsStore(s => s.uiMode);
   const isGuest = useSessionStore(s => s.isGuest);
+
+  /*
+    ANDROID GERİ TUŞU — ana sayfa dışındaki sekmede önce EVE döner (Material: "geri, başlangıç
+    hedefine"). Cihazda görüldü (2026-10-25): Görevler sekmesinde geri tuşu uygulamadan
+    çıkıyordu; sekmeler `replace` ile değiştiği için yığında dönülecek ekran yok.
+    Yalnız ODAKTAKİ ekranda kurulur (üstüne profil/ayarlar açılan ekranın çubuğu karışmaz);
+    yığında gerçekten geri gidilecek bir ekran varsa olağan geri davranışı korunur.
+  */
+  useFocusEffect(useCallback(() => {
+    if (Platform.OS !== 'android' || pathname === '/') return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (router.canGoBack()) return false;
+      goHome(router);
+      return true;
+    });
+    return () => sub.remove();
+  }, [pathname, router]));
 
   /*
     KÜÇÜLME YALNIZ iOS'TA. Android'de `minimized` okunuyor ama kullanılmıyor;

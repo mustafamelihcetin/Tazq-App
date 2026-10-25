@@ -185,7 +185,10 @@ describe('alışkanlık simge seçicisi', () => {
 
   it('seçenek sayısı artırıldı ve ızgarada gösterilir', () => {
     expect(pickerEmojis().length).toBeGreaterThanOrEqual(24);
-    expect(read('app/cockpit.tsx')).toMatch(/flexWrap: 'wrap', gap: S\.sm, paddingVertical: S\.xxs/);
+    // 2026-10-25: form kendi bileşeninde; ızgara sütunları ölçülen genişlikten hesaplanır (gridFit).
+    const form = read('features/habits/components/NewHabitForm.tsx');
+    expect(form).toMatch(/grid: \{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP \}/);
+    expect(read('app/cockpit.tsx')).toContain('emojis={HABIT_EMOJIS}');
   });
 });
 
@@ -216,7 +219,7 @@ describe('klavye güvenliği — metin girişi olan alt sayfalar', () => {
   });
 
   it('alışkanlık sayfası gövdesi kaydırılabilir', () => {
-    const src = read('app/cockpit.tsx');
+    const src = read('features/habits/components/NewHabitForm.tsx');
     expect(src).toMatch(/keyboardShouldPersistTaps="handled"/);
     expect(src).toMatch(/keyboardDismissMode="on-drag"/);
   });

@@ -144,3 +144,29 @@ describe('"someday" — Belki Bir Gün rafı', () => {
     expect(matchesTaskFilter({ ...base, tags: ['someday'] }, 'all')).toBe(true);
   });
 });
+
+/**
+ * GECİKMİŞ GÖRÜNÜMÜ — ana sayfadaki "N gecikmiş görev" satırı Görevler'e FİLTRESİZ
+ * gidiyordu: sayı ana sayfada, liste her şeyi gösteriyordu. Sayıyı üreten Zen
+ * çözümlemesiyle (analyzeLoad) AYNI tanım: bitmemiş, arşivlenmemiş, takvim günü bugünden önce.
+ */
+describe("matchesTaskFilter — 'overdue'", () => {
+  const { analyzeLoad } = require('@/features/tasks/utils/taskBalancer');
+  const cases: any[] = [
+    (task as any)({ id: 1, dueDate: '2026-07-20' }),
+    (task as any)({ id: 2, dueDate: '2026-07-20', isCompleted: true }),
+    (task as any)({ id: 3, dueDate: '2026-07-20', isArchived: true } as any),
+    (task as any)({ id: 4, dueDate: null }),
+    (task as any)({ id: 5, dueDate: '0001-01-01T00:00:00' }),
+    (task as any)({ id: 6, dueDate: NOW.toISOString() }),
+  ];
+
+  it('dünün bitmemiş görevi gecikmiş; tamamlanan, arşivli, tarihsiz ve bugünkü değil', () => {
+    expect(cases.filter((t) => matchesTaskFilter(t, 'overdue', NOW)).map((t: any) => t.id)).toEqual([1]);
+  });
+
+  it('ana sayfadaki sayıyla birebir aynı küme', () => {
+    const counted = analyzeLoad(cases, { now: NOW }).overdue.map((t: any) => t.id);
+    expect(cases.filter((t) => matchesTaskFilter(t, 'overdue', NOW)).map((t: any) => t.id)).toEqual(counted);
+  });
+});
