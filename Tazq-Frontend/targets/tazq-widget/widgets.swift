@@ -142,18 +142,16 @@ private struct TodayRing: View {
       Circle().stroke(onBg(isDark, 0.10), lineWidth: lineWidth)
       Circle()
         .trim(from: 0, to: total > 0 ? pct : 0)
-        .stroke(
-          AngularGradient(colors: [taskColor, habitColor], center: .center),
-          style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
-        )
+        // Tek vurgu (uygulamanın dili) — mavi→yeşil gradyan iki anlamı tek halkaya sıkıştırıyordu.
+        .stroke(taskColor, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
         .rotationEffect(.degrees(-90))
 
       VStack(spacing: 0) {
         Text("\(done)")
-          .font(.system(size: numberSize, weight: .black))
+          .font(.system(size: numberSize, weight: .semibold, design: .rounded).monospacedDigit())
           .foregroundColor(onBg(isDark))
         Text("/\(total)")
-          .font(.system(size: numberSize * 0.46, weight: .bold))
+          .font(.system(size: numberSize * 0.46, weight: .medium, design: .rounded).monospacedDigit())
           .foregroundColor(onBg(isDark, 0.45))
       }
     }
@@ -188,7 +186,7 @@ private struct StreakBadge: View {
     HStack(spacing: 3) {
       Text("🔥").font(.system(size: 10))
       Text("\(streak)")
-        .font(.system(size: 12, weight: .black))
+        .font(.system(size: 12, weight: .semibold, design: .rounded).monospacedDigit())
         .foregroundColor(color)
     }
   }
@@ -249,11 +247,12 @@ struct TazqTodayView: View {
 
   private var header: some View {
     HStack {
-      Text("TAZQ")
-        .font(.system(size: 11, weight: .black))
-        .foregroundColor(onBg(entry.isDark, 0.5))
+      // Bağıran "TAZQ" yerine günün adı — widget zaten uygulamanın; bilgi taşısın.
+      Text(entry.date, format: .dateTime.weekday(.wide).locale(Locale(identifier: entry.tr ? "tr_TR" : "en_US")))
+        .font(.system(size: 12, weight: .semibold))
+        .foregroundColor(onBg(entry.isDark, 0.55))
       Spacer()
-      StreakBadge(streak: entry.streak, color: streakColor)
+      if entry.streak > 0 { StreakBadge(streak: entry.streak, color: streakColor) }
     }
   }
 
@@ -303,9 +302,9 @@ struct TazqTodayView: View {
       .frame(width: 70)
 
       VStack(alignment: .leading, spacing: 7) {
-        Text(entry.tr ? "BUGÜN" : "TODAY")
-          .font(.system(size: 10, weight: .black))
-          .foregroundColor(onBg(entry.isDark, 0.4))
+        Text(entry.tr ? "Bugün" : "Today")
+          .font(.system(size: 12, weight: .semibold))
+          .foregroundColor(onBg(entry.isDark, 0.55))
         if !entry.taskTitles.isEmpty {
           ForEach(entry.taskTitles.prefix(3), id: \.self) { title in
             TaskRow(title: title, color: taskColor, isDark: entry.isDark)
@@ -351,6 +350,9 @@ struct TazqTodayView: View {
         Spacer(minLength: 0)
       }
 
+      if !entry.taskTitles.isEmpty && entry.habitsTotal > 0 {
+        HabitsOnlyNote(entry: entry, color: habitColor)
+      }
       Divider().background(onBg(entry.isDark, 0.1))
       HStack {
         Text("\(entry.tr ? "Görevler" : "Tasks") \(entry.tasksCompleted)/\(entry.tasksTotal)")
@@ -365,6 +367,16 @@ struct TazqTodayView: View {
   }
 
   var body: some View {
+    if family == .accessoryCircular || family == .accessoryRectangular || family == .accessoryInline {
+      TazqAccessoryView(entry: entry, family: family)
+        .containerBackground(.clear, for: .widget)
+        .widgetURL(URL(string: "tazq-app://"))
+    } else {
+      systemBody
+    }
+  }
+
+  private var systemBody: some View {
     Group {
       switch family {
       case .systemMedium: mediumBody
@@ -387,7 +399,40 @@ struct TazqTodayWidget: Widget {
     }
     .configurationDisplayName("TAZQ — Bugün")
     .description("Bugünkü görev ve alışkanlık ilerlemen, tek bakışta.")
-    .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+    .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular, .accessoryInline])
+  }
+}
+
+// MARK: - Kilit ekranı (iOS 16+) — sistem tonlar; renk yok, yalnız bilgi.
+
+struct TazqAccessoryView: View {
+  let entry: TazqEntry
+  let family: WidgetFamily
+  private var total: Int { entry.tasksTotal + entry.habitsTotal }
+  private var done: Int { entry.tasksCompleted + entry.habitsCompleted }
+  private var pct: Double { total > 0 ? Double(done) / Double(total) : 0 }
+
+  var body: some View {
+    switch family {
+    case .accessoryCircular:
+      Gauge(value: pct) { Text("") } currentValueLabel: {
+        Text("\(done)").font(.system(.body, design: .rounded).weight(.semibold).monospacedDigit())
+      }
+      .gaugeStyle(.accessoryCircularCapacity)
+    case .accessoryRectangular:
+      VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 4) {
+          Text(entry.tr ? "Bugün" : "Today").font(.headline)
+          Spacer(minLength: 0)
+          Text("\(done)/\(total)").font(.system(.headline, design: .rounded).monospacedDigit())
+        }
+        Text(entry.taskTitles.first ?? (entry.tr ? "Sıradaki iş yok" : "Nothing next"))
+          .font(.caption).lineLimit(1)
+        ProgressView(value: pct).progressViewStyle(.linear)
+      }
+    default:
+      Text("\(done)/\(total)\(entry.streak > 0 ? " · 🔥\(entry.streak)" : "")")
+    }
   }
 }
 
@@ -410,7 +455,7 @@ private struct CountdownBlock: View {
       if let emoji { Text(emoji).font(.system(size: 14)) }
       if let days, let label {
         Text("\(days)")
-          .font(.system(size: numberSize, weight: .black))
+          .font(.system(size: numberSize, weight: .semibold, design: .rounded).monospacedDigit())
           .foregroundColor(onBg(isDark))
         Text(tr ? "gün kaldı" : "days left")
           .font(.system(size: 9, weight: .bold))
@@ -443,7 +488,7 @@ struct TazqCountdownView: View {
   private var smallBody: some View {
     VStack(alignment: .leading, spacing: 6) {
       HStack {
-        Text("TAZQ").font(.system(size: 11, weight: .black)).foregroundColor(onBg(entry.isDark, 0.4))
+        Text("TAZQ").font(.system(size: 11, weight: .semibold)).foregroundColor(onBg(entry.isDark, 0.4))
         Spacer()
       }
       Spacer(minLength: 0)

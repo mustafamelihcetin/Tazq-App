@@ -75,7 +75,11 @@ export class ErrorBoundary extends React.Component<Props, State> {
             
             <View style={styles.errorBox}>
               <Text style={styles.errorText} numberOfLines={4}>
-                {this.state.error?.message || 'Bilinmeyen Hata / Unknown Error'}
+                {/* Ham teknik mesaj YALNIZ geliştirmede — kullanıcıya "Rendered fewer hooks…" gösteriliyordu.
+                    Ayrıntı zaten admin paneline raporlanıyor. */}
+                {__DEV__
+                  ? (this.state.error?.message || 'Bilinmeyen Hata / Unknown Error')
+                  : 'Beklenmedik bir sorun oldu. Tekrar dener misin? · An unexpected problem occurred. Please try again.'}
               </Text>
             </View>
 

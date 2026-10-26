@@ -66,3 +66,18 @@ describe('sceneSheetTheme — seans sonu ve odak pencereleri sahneyi izler', () 
     expect(mixHex('#000000', '#FFFFFF', 1)).toBe('#FFFFFF');
   });
 });
+
+import { lightsFor, LIGHT_NAMES } from '@/features/focus/utils/focusScenes';
+
+describe('ışık toplama', () => {
+  it('her 5 dakika bir ışık; eksik dakika ışık vermez', () => {
+    expect(lightsFor(0)).toBe(0);
+    expect(lightsFor(4)).toBe(0);
+    expect(lightsFor(5)).toBe(1);
+    expect(lightsFor(25)).toBe(5);
+    expect(lightsFor(-3)).toBe(0);
+  });
+  it('her sahnenin ışığının iki dilde adı var', () => {
+    for (const s of FOCUS_SCENES) expect(LIGHT_NAMES[s.id].tr && LIGHT_NAMES[s.id].en).toBeTruthy();
+  });
+});

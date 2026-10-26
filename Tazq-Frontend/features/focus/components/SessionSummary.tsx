@@ -13,6 +13,9 @@ import { useReducedMotion } from 'react-native-reanimated';
 import { track } from '@/shared/utils/analytics';
 import { haptic } from '@/shared/utils/haptics';
 import { useFocusSheetTheme } from '@/features/focus/hooks/useFocusSheetTheme';
+import { LightsCollected } from '@/features/focus/components/LightsCollected';
+import { lightsFor, sceneOf, LIGHT_NAMES } from '@/features/focus/utils/focusScenes';
+import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 
 /**
  * SEANS ÖZETİ — seans bittiğinde ne oldu, şimdi ne var?
@@ -35,6 +38,7 @@ type Lang = 'tr' | 'en';
 
 const COPY = {
   tr: {
+    lights: (n: number, l: { tr: string }) => `+${n} ${l.tr} topladın`,
     todayLabel: 'Bugün',
     goalDone: 'Günlük hedefin tamam ✦',
     taskQuestion: (title: string) => `“${title}” bitti mi?`,
@@ -48,6 +52,7 @@ const COPY = {
     min: 'dk',
   },
   en: {
+    lights: (n: number, l: { en: string; enOne: string }) => `+${n} ${n === 1 ? l.enOne : l.en} collected`,
     todayLabel: 'Today',
     goalDone: 'Daily goal reached ✦',
     taskQuestion: (title: string) => `Is “${title}” done?`,
@@ -94,6 +99,7 @@ export const SessionSummary: React.FC<SessionSummaryProps> = ({
   // Zemin (GlassSurface) uygulama temasından gelir; renkler de oradan alınmalı.
   // Sahneyi izler: Kor'da biten seansın kapanışı da kor renginde (bkz. sceneSheetTheme).
   const { theme } = useFocusSheetTheme();
+  const sceneId = usePrefsStore((st) => st.focusScene);
   const [userRating, setUserRating] = useState<number | null>(null);
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
   const [taskAnswered, setTaskAnswered] = useState<'done' | 'later' | null>(null);
@@ -167,6 +173,15 @@ export const SessionSummary: React.FC<SessionSummaryProps> = ({
               {t.summaryMinFocused}
             </Text>
           </View>
+
+          {/* Toplanan ışıklar — odak "oyunu" (her 5 dk sahnenin bir ışığı; bkz. focusScenes.lightsFor). */}
+          <LightsCollected
+            visible={visible}
+            count={lightsFor(minutes)}
+            color={sceneOf(sceneId).stars[1]}
+            textColor={theme.onSurfaceVariant}
+            label={c.lights(lightsFor(minutes), LIGHT_NAMES[sceneOf(sceneId).id])}
+          />
 
           {/* Günlük hedef — "bugün nerede duruyorum" sorusunun yanıtı */}
           <View style={{ width: '100%', gap: S.xs }}>

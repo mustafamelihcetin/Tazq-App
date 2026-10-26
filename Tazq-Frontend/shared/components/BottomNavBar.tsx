@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Platform, Keyboard, useWindowDimensions, BackHandler } from 'react-native';
 import { LayoutGrid, CheckSquare, Sparkles, Layers, CalendarDays } from 'lucide-react-native';
-import { useRouter, usePathname, useFocusEffect } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
+import { swallow } from '@/shared/utils/swallow';
 import { goHome } from '@/shared/utils/authNavigation';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -100,7 +101,7 @@ const TAB_LABELS: Record<string, { tr: string; en: string }> = {
 
 const IS_IOS = Platform.OS === 'ios';
 
-export const BottomNavBar = () => {
+const BottomNavBarInner = () => {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -118,7 +119,13 @@ export const BottomNavBar = () => {
     Yalnız ODAKTAKİ ekranda kurulur (üstüne profil/ayarlar açılan ekranın çubuğu karışmaz);
     yığında gerçekten geri gidilecek bir ekran varsa olağan geri davranışı korunur.
   */
-  useFocusEffect(useCallback(() => {
+  /*
+    useFocusEffect DEĞİL (2026-10-26, testçi çökmesi: e-posta doğrulamasından sonra
+    "Rendered fewer hooks than expected" — BottomNavBar). useFocusEffect navigasyon bağlamına
+    bağlı; doğrulama sonrası dismissTo('/') geçişinde bağlam ara durumdayken içeriden hata
+    fırlatıp hook sayısını bozuyordu. Düz useEffect + pathname aynı işi bağlamsız yapar.
+  */
+  useEffect(() => {
     if (Platform.OS !== 'android' || pathname === '/') return undefined;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (router.canGoBack()) return false;
@@ -126,7 +133,7 @@ export const BottomNavBar = () => {
       return true;
     });
     return () => sub.remove();
-  }, [pathname, router]));
+  }, [pathname, router]);
 
   /*
     KÜÇÜLME YALNIZ iOS'TA. Android'de `minimized` okunuyor ama kullanılmıyor;
@@ -393,3 +400,24 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
   },
 });
+
+/*
+  ALT MENÜNÜN KENDİ HATA SINIRI — menüde bir hata bütün uygulamayı "Bir şeyler ters gitti"
+  ekranına düşürmesin (testçi çökmesi, 2026-10-26). Hata olursa menü bir kare gizlenir,
+  raporlanır ve yeniden kurulur.
+*/
+class NavBarBoundary extends React.Component<{ children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(e: unknown) {
+    swallow('BottomNavBar.render', e, { capture: true });
+    setTimeout(() => this.setState({ failed: false }), 0);
+  }
+  render() { return this.state.failed ? null : this.props.children; }
+}
+
+export const BottomNavBar = () => (
+  <NavBarBoundary>
+    <BottomNavBarInner />
+  </NavBarBoundary>
+);

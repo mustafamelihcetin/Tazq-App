@@ -17,7 +17,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
-import { Mail, Lock, User, ArrowRight, AlertCircle, Eye, EyeOff, CheckSquare, Square, Sparkles } from 'lucide-react-native';
+import { Mail, Lock, User, ArrowRight, AlertCircle, Eye, EyeOff, Check, Sparkles } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 import { AuthService } from '@/shared/services/api';
 import { useAuthStore } from '@/features/user';
@@ -398,11 +398,22 @@ export default function RegisterScreen() {
                       activeOpacity={0.7}
                       style={[styles.consentRow, { marginVertical: isSmallScreen ? 2 : 4 }]}
                     >
-                      <View style={{ marginTop: Platform.OS === 'ios' ? 1 : 2 }}>
-                        {consentChecked
-                          ? <CheckSquare size={ICON.md} color={theme.primary} />
-                          : <Square size={ICON.md} color={theme.outlineVariant} />
-                        }
+                      {/*
+                        GERÇEK ONAY KUTUSU (kullanıcı geri bildirimi: koyu temada görünmüyordu).
+                        İşaretsiz çerçeve outlineVariant'tı — koyu temada %3 beyaz, yani görünmez.
+                        Artık iki temada da okunur çerçeve (onSurfaceMuted), işaretlenince dolu + ✓.
+                      */}
+                      <View
+                        style={{
+                          marginTop: Platform.OS === 'ios' ? 1 : 2,
+                          width: 22, height: 22, borderRadius: R.xs,
+                          borderWidth: consentChecked ? 0 : 2,
+                          borderColor: theme.onSurfaceMuted,
+                          backgroundColor: consentChecked ? theme.primary : 'transparent',
+                          alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >
+                        {consentChecked && <Check size={ICON.sm} color={theme.onPrimary} strokeWidth={3} />}
                       </View>
                       <Text style={[styles.consentText, { color: theme.onSurfaceVariant }]}>
                         {tr 

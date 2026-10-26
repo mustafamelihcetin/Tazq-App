@@ -20,6 +20,7 @@ import { toDateKey } from '@/shared/utils/dateKey';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { useFocusHistoryStore } from '@/features/report/useFocusHistoryStore';
 import { WeekChart, HabitWeekList } from '@/features/report/components/WeeklyBoard';
+import { WeekSky } from '@/features/focus/components/WeekSky';
 import { weekRange, summarizeWeek, compareWeeks, weekStory, weekLabel, planProgress } from '@/features/report/weeklyReport';
 import { PLAN_MODE_TAGS } from '@/features/modes/utils/modeHelpers';
 import { haptic } from '@/shared/utils/haptics';
@@ -283,6 +284,8 @@ export default function ReportScreen() {
           </View>
         )}
 
+        {/* Işık koleksiyonu — odak dakikalarından takımyıldızlar (bkz. WeekSky). */}
+        <WeekSky focusPerDay={summary.focusPerDay} dayKeys={summary.range.days} language={lang === 'en' ? 'en' : 'tr'} />
         <WeekChart summary={summary} language={lang} todayKey={todayKey} />
         <HabitWeekList habits={habits} summary={summary} language={lang} todayKey={todayKey} />
 

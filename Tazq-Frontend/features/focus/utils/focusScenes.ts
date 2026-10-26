@@ -93,3 +93,19 @@ export function sceneSheetTheme<T extends { primary: string; onPrimary: string; 
     onPrimaryContainer: isDark ? s.accent : mixHex(s.accent, '#000000', 0.55),
   };
 }
+
+/*
+  IŞIK TOPLAMA (2026-10-25, odak "oyunu"): her LIGHT_MINUTES odak dakikası sahnenin bir ışığı
+  (Aurora yıldız · Gelgit inci · Kor kor tanesi · Sis ateşböceği). AYRI KAYIT YOK — odak
+  dakikalarından türetilir; geçmiş, eşitleme ve katı mod (sayılmayan seans) kendiliğinden doğru.
+*/
+export const LIGHT_MINUTES = 5;
+export const MAX_RING_LIGHTS = 18; // 90 dk — daire çevresinde rahat sığan en çok ışık
+export const lightsFor = (minutes: number) => Math.max(0, Math.floor(minutes / LIGHT_MINUTES));
+
+export const LIGHT_NAMES: Record<FocusSceneId, { tr: string; en: string; enOne: string }> = {
+  aurora: { tr: 'yıldız', en: 'stars', enOne: 'star' },
+  tide: { tr: 'inci', en: 'pearls', enOne: 'pearl' },
+  ember: { tr: 'kor', en: 'embers', enOne: 'ember' },
+  mist: { tr: 'ateşböceği', en: 'fireflies', enOne: 'firefly' },
+};

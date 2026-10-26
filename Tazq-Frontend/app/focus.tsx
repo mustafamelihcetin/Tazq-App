@@ -38,6 +38,7 @@ import { SessionSummary } from '@/features/focus/components/SessionSummary';
 import { FocusTaskPicker } from '@/features/focus/components/FocusTaskPicker';
 import { FocusModesSheet, PomodoroInfoSheet } from '@/features/focus/components/FocusModeSheets';
 import { sceneOf, sceneLights, sceneAccent, sceneTheme } from '@/features/focus/utils/focusScenes';
+import { FocusLights } from '@/features/focus/components/FocusLights';
 import { getNotificationPermissionStatus } from '@/shared/utils/notifications';
 import { useTaskStore, getLocalizedTaskTitle } from '@/features/tasks';
 import { completeTask } from '@/features/tasks/utils/taskActions';
@@ -1707,6 +1708,9 @@ export default function FocusScreen() {
                       holdSV={holdBloom}
                     />
                   </MotiView>
+
+                  {/* Işık toplama — her 5 odak dakikası sahnenin bir ışığı (bkz. FocusLights). Molada toplanmaz. */}
+                  {!(pomodoroMode && pomodoroPhase === 'break') && <FocusLights size={timerSize} color={scene.stars[1]} active={isActive} />}
 
                   {/* Standard Timer View (Fades out when Zen Mode is active) */}
                   <MotiView

@@ -49,7 +49,10 @@ describe('Android geri tuşu sekmeden uygulamayı kapatmaz', () => {
   it('sekme çubuğu odaktaki sekmede geri tuşunu eve yönlendirir', () => {
     const src = read('shared/components/BottomNavBar.tsx');
     expect(src).toContain("addEventListener('hardwareBackPress'");
-    expect(src).toContain('useFocusEffect(');
+    // 2026-10-26: useFocusEffect KALDIRILDI — doğrulama sonrası geçişte "Rendered fewer hooks"
+    // çökmesine yol açtı (testçi). Düz useEffect + menünün kendi hata sınırı.
+    expect(src).not.toContain('useFocusEffect(');
+    expect(src).toContain('class NavBarBoundary');
     expect(src).toMatch(/if \(router\.canGoBack\(\)\) return false;\s*goHome\(router\);/);
   });
 });

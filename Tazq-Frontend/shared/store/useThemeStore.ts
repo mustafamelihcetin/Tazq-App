@@ -11,7 +11,7 @@ interface ThemeState {
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set) => ({
-      theme: 'system',
+      theme: 'light', // ilk yüklemede açık tema (kullanıcı kararı 2026-10-26); kayıtlı tercih korunur
       setTheme: (theme) => set({ theme }),
     }),
     {
