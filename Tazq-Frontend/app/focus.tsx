@@ -370,7 +370,6 @@ export default function FocusScreen() {
   */
   const [summaryTask, setSummaryTask] = useState<{ id: number; title: string } | null>(null);
 
-  const [isExiting, setIsExiting] = useState(false);
   const [quote, setQuote] = useState('');
 
   useEffect(() => {
@@ -1088,7 +1087,6 @@ export default function FocusScreen() {
   return (
     <MotiView
       animate={{
-        opacity: isExiting ? 0 : 1,
         backgroundColor: (zenMode && isActive) ? '#000000' : scene.backdrop[1]
       }}
       transition={{ type: 'timing', duration: 400 }}
@@ -1205,10 +1203,13 @@ export default function FocusScreen() {
                   reset();
                   completedRef.current = false;
                 }
-                setIsExiting(true);
-                setTimeout(() => {
-                  router.canGoBack() ? router.back() : goHome(router);
-                }, 350);
+                /*
+                  ÇIKIŞTA TEK ANİMASYON. Eskiden ekran önce kendini 400 ms soldurup
+                  (Skia aurora dahil tüm ağaç — zayıf GPU'da pahalı), 350 ms sonra bir de
+                  yığın geçişini oynatıyordu; ikincisi sırasında ana sayfa kuruluyordu.
+                  Huawei Y6'da kare başına 65–85 ms, 500 ms'lik donmalar ölçüldü.
+                */
+                router.canGoBack() ? router.back() : goHome(router);
               }}
               style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}
               accessibilityRole="button"
@@ -2344,11 +2345,8 @@ export default function FocusScreen() {
           setSummaryVisible(false);
           stopAllSounds();
           setAmbientSound('off');
-          setIsExiting(true);
-          setTimeout(() => {
-            reset();
-            goHome(router);
-          }, 350);
+          reset();
+          goHome(router); // tek animasyon — bkz. kapat düğmesindeki not
         }}
       />
 

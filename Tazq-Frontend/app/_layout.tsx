@@ -839,6 +839,7 @@ export default function RootLayout() {
             <Stack.Screen name="tasks" options={{ gestureEnabled: false, animation: 'none' }} />
             <Stack.Screen name="cockpit" options={{ gestureEnabled: false, animation: 'none' }} />
             <Stack.Screen name="modlar" options={{ gestureEnabled: false, animation: 'none' }} />
+            <Stack.Screen name="focus" options={{ gestureEnabled: false, animation: 'none' }} />
             <Stack.Screen name="legal" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="promo" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="report" options={{ animation: 'slide_from_right' }} />

@@ -703,6 +703,18 @@ export default function HomeScreen() {
     }
   };
 
+  /*
+    ÇARK YALNIZ ELLE ÇEKİŞTE. Eskiden `refreshing={isLoading}` idi: her odaklanmadaki
+    sessiz yenileme de çarkı gösteriyordu — odaktan her dönüşte ekranın tepesinde
+    beliren çark, geçişin pürüzlü hissettirmesinin bir parçasıydı.
+  */
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+  const onPullRefresh = async () => {
+    setPullRefreshing(true);
+    try { await Promise.all([fetchTasks(), fetchStats(), refreshFocusHistory()]); }
+    finally { setPullRefreshing(false); }
+  };
+
   useFocusEffect(
     useCallback(() => {
       fetchTasks();
@@ -1738,7 +1750,7 @@ export default function HomeScreen() {
             */
             contentContainerStyle={[styles.scrollContent, { paddingTop: topBarSpace(insets.top) + S.lg, paddingBottom: fabSafeBottom(insets.bottom), width: '100%', maxWidth: contentMaxWidth(width), alignSelf: 'center' }]}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { fetchTasks(); fetchStats(); void refreshFocusHistory(); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surfaceContainer} progressViewOffset={insets.top + S.sm + 44 + S.sm} />}
+            refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={onPullRefresh} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surfaceContainer} progressViewOffset={insets.top + S.sm + 44 + S.sm} />}
         >
             {/* onLayout: başlığın belirme eşiği bu ölçümden türüyor (bkz. titleProgress). */}
             <View onLayout={(e) => setHeroHeight(e.nativeEvent.layout.height)}>
