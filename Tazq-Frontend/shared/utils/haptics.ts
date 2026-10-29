@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Platform, Vibration } from 'react-native';
 import { requireOptionalNativeModule } from 'expo';
 import * as Expo from 'expo-haptics';
 
@@ -120,6 +120,19 @@ export const haptic = {
    * Tek yerde tutuluyor ki "her tamamlamada kutlama" cazibesine kapılınmasın.
    */
   celebrate: () => { if (enabled()) play(() => Expo.notificationAsync(Expo.NotificationFeedbackType.Success), 'confirm', 'long-press'); },
+
+  /**
+   * ALARM — odak seansı bitti. Dokunuş geri bildirimi DEĞİL, bir uyarı.
+   * Android'de View.performHapticFeedback sistemin "dokunma titreşimi" ayarına bağlı;
+   * kapalıysa (Huawei Y6'da varsayılan) bitiş hiç titremiyordu. Telefon masada ters
+   * dururken seansın bittiğini bilmenin tek yolu bu — o yüzden motor doğrudan sürülür.
+   * Uygulamanın kendi titreşim ayarına yine uyar.
+   */
+  alarm: () => {
+    if (!enabled()) return;
+    if (Platform.OS === 'android') Vibration.vibrate([0, 70, 110, 70]); // iki kısa vuruş, çanın iki notasıyla
+    else safe(Expo.notificationAsync(Expo.NotificationFeedbackType.Success));
+  },
 };
 
 /**

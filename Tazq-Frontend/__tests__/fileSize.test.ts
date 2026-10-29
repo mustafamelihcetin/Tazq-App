@@ -348,7 +348,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // 833 → 838: remapPlanTaskId Tasarruf/Bırakma'yı unutmuştu (çevrimdışı eklenen
   // görev gerçek kimliğini alınca bu iki modun izleme dizisi eski kimlikte
   // takılı kalıyordu, mod kapanınca görev hiç temizlenmiyordu).
-  'features/modes/store/usePrefsStore.ts': 879, // +5 (2026-10-25): odak sahnesi tercihi (focusScene) · +17 (2026-10-18): PlanSpec.weakTopicIds + setWeakTopicIds — sınav kurulumunda kendi-kendine zayıf konu seçimi // +18 (2026-10-19): PlanSpec.personalNote + setPersonalNote — tüm modlara yayılan kişisel not
+  'features/modes/store/usePrefsStore.ts': 884, // +5 (2026-10-29): otomatik zen tercihi (focusAutoZen) · +5 (2026-10-25): odak sahnesi tercihi (focusScene) · +17 (2026-10-18): PlanSpec.weakTopicIds + setWeakTopicIds — sınav kurulumunda kendi-kendine zayıf konu seçimi // +18 (2026-10-19): PlanSpec.personalNote + setPersonalNote — tüm modlara yayılan kişisel not
   'features/modes/utils/planAdaptations.ts': 889, // +9: tez_weekly yinelenme kontrolü yerel-gün anahtarına geçti
   // 856 → 784: hesap silme akışı DeleteAccountModal bileşenine çıkarıldı. Silme,
   // uygulamadaki tek geri alınamaz işlem; durumu ekranın üstünde, onay kelimesi

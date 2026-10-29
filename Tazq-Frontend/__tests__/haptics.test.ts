@@ -187,7 +187,8 @@ describe('yoğunluk', () => {
      * → 320 (2026-10-19): odemeler.tsx'teki sağlayıcı önerisi satırı seçimi — aynı mantık.
      * → 321 (2026-10-24): Günüm'deki tamamla halkası — çekirdek eylem (görev bitirme)
      *   başka her listede success titreşiyor; burada sessiz kalması tutarsızlıktı.
+     * → 322 (2026-10-29): odak modlarındaki "Otomatik Zen" anahtarı — seçim anahtarları titreşir.
      */
-    expect(hap).toBeLessThanOrEqual(321);
+    expect(hap).toBeLessThanOrEqual(322);
   });
 });

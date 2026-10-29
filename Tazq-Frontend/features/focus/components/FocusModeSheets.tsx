@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Modal } from 'react-native';
 import { MotiView } from 'moti';
-import { Timer, Wind, Shield, Sun, ChevronRight } from 'lucide-react-native';
+import { Timer, Wind, Shield, Sun, Maximize2, ChevronRight } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { AppIcon } from '@/shared/components/AppIcon';
@@ -42,6 +42,8 @@ const COPY = {
     breathDesc: 'Ritmik nefes rehberi',
     strict: 'Katı Odak',
     pomodoroDesc: 'Çalış / mola döngüleri',
+    autoZen: 'Otomatik Zen',
+    autoZenDesc: 'Seans başlayınca tam ekrana geçer',
     on: 'AÇIK',
     off: 'KAPALI',
     pomodoroTitle: 'Pomodoro Tekniği',
@@ -61,6 +63,8 @@ const COPY = {
     breathDesc: 'Guided breathing rhythm',
     strict: 'Strict Focus',
     pomodoroDesc: 'Work / break cycles',
+    autoZen: 'Auto Zen',
+    autoZenDesc: 'Goes full-screen once a session starts',
     on: 'ON',
     off: 'OFF',
     pomodoroTitle: 'Pomodoro Technique',
@@ -91,10 +95,12 @@ export interface FocusModesSheetProps {
   pomodoroOn: boolean;
   strictOn: boolean;
   keepAwakeOn: boolean;
+  autoZenOn: boolean;
   onBreath: () => void;
   onPomodoro: () => void;
   onStrict: () => void;
   onKeepAwake: () => void;
+  onAutoZen: () => void;
   /** Odak sahnesi — hareket + palet + vurgu (bkz. focusScenes.ts). */
   scene: FocusSceneId;
   onScene: (id: FocusSceneId) => void;
@@ -102,8 +108,8 @@ export interface FocusModesSheetProps {
 
 export const FocusModesSheet: React.FC<FocusModesSheetProps> = ({
   visible, onClose, language, labels,
-  breathOn, pomodoroOn, strictOn, keepAwakeOn,
-  onBreath, onPomodoro, onStrict, onKeepAwake, scene, onScene,
+  breathOn, pomodoroOn, strictOn, keepAwakeOn, autoZenOn,
+  onBreath, onPomodoro, onStrict, onKeepAwake, onAutoZen, scene, onScene,
 }) => {
   const { theme, isDark } = useFocusSheetTheme();
   const c = COPY[language];
@@ -118,6 +124,7 @@ export const FocusModesSheet: React.FC<FocusModesSheetProps> = ({
     { key: 'strict', Ic: Shield, on: strictOn, title: c.strict, desc: labels.strictDesc, chevron: false, onPress: onStrict },
     // Ekran kendiliğinden kararıp kilitleniyordu; katı modda bu bile "ayrıldın" sayılıyordu.
     { key: 'awake', Ic: Sun, on: keepAwakeOn, title: labels.keepAwake, desc: labels.keepAwakeDesc, chevron: false, onPress: onKeepAwake },
+    { key: 'zen', Ic: Maximize2, on: autoZenOn, title: c.autoZen, desc: c.autoZenDesc, chevron: false, onPress: onAutoZen },
   ];
 
   return (

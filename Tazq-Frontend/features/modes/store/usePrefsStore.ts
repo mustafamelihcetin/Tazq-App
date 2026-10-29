@@ -154,6 +154,9 @@ interface PrefsState {
    */
   focusKeepAwake: boolean;
   setFocusKeepAwake: (v: boolean) => void;
+  /** Seans başlayınca ekran kendiliğinden zen'e (tam ekran) geçsin mi? (varsayılan: evet) */
+  focusAutoZen: boolean;
+  setFocusAutoZen: (v: boolean) => void;
   /**
    * Kapatılan son haftanın anahtarı (o haftanın pazartesi günü, 'YYYY-MM-DD').
    *
@@ -545,6 +548,8 @@ export const usePrefsStore = create<PrefsState>()(
       setFocusScene: (v) => set({ focusScene: v }),
       focusKeepAwake: true,
       setFocusKeepAwake: (v) => set({ focusKeepAwake: v }),
+      focusAutoZen: true,
+      setFocusAutoZen: (v) => set({ focusAutoZen: v }),
       lastClosedWeek: '',
       setLastClosedWeek: (weekStartKey) => set({ lastClosedWeek: weekStartKey }),
       sleepHealthOptIn: 'unset',

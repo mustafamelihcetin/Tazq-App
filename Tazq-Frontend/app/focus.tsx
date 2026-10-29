@@ -298,7 +298,7 @@ export default function FocusScreen() {
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { trigger: triggerAchievement } = useAchievementStore();
   // Derin odak tercihleri artık prefs store'da (cihazda kalıcı) — her seansda sıfırlanmaz.
-  const { focusBreathMode, setFocusBreathMode, focusAmbientSound, setFocusAmbientSound, focusPreset, setFocusPreset, focusKeepAwake, setFocusKeepAwake, focusScene, setFocusScene, uiMode } = usePrefsStore();
+  const { focusBreathMode, setFocusBreathMode, focusAmbientSound, setFocusAmbientSound, focusPreset, setFocusPreset, focusKeepAwake, setFocusKeepAwake, focusAutoZen, setFocusAutoZen, focusScene, setFocusScene, uiMode } = usePrefsStore();
   // Sahne: hareket + palet + vurgu birlikte (bkz. focusScenes.ts).
   const scene = sceneOf(focusScene);
   const [sc1, sc2, sc3] = sceneLights(scene, theme);
@@ -445,11 +445,12 @@ export default function FocusScreen() {
   // (clock-watching'i azaltır). Kullanıcı bu seansda zen'e elle dokunduysa zorlamaz; tek dokunuşla çıkılır.
   useEffect(() => {
     if (!isActive) { userToggledZenRef.current = false; return; }
+    if (!focusAutoZen) return; // kullanıcı kapattıysa ekran olduğu gibi kalır
     const id = setTimeout(() => {
       if (useFocusStore.getState().isActive && !userToggledZenRef.current) setZenMode(true);
     }, 2500);
     return () => clearTimeout(id);
-  }, [isActive]);
+  }, [isActive, focusAutoZen]);
   // Opaklık çan eğrisi: sin(value·π) → başta 0, ortada tepe (0.28), sonda 0. Böylece döngü
   // başa dönerken (value 1→0) halka zaten görünmez olduğundan "pat" atlama olmaz, akış kesintisiz.
   const rp0Style = useAnimatedStyle(() => ({ opacity: 0.28 * Math.sin(rp0.value * Math.PI), transform: [{ scale: 1 + rp0.value * 0.22 }] }));
@@ -831,11 +832,10 @@ export default function FocusScreen() {
   useEffect(() => {
     if (atZero && totalSeconds > 0 && !completedRef.current) {
       completedRef.current = true;
-      // Ses ve titreşim AYNI tıkta: eskiden ses 250 ms ertelenip üstüne yükleniyordu,
-      // titreşimden ve ritüelin ilk karesinden kopuk geliyordu.
+      // Titreşim sesin GERÇEKTEN başladığı an gelir (bkz. completionChime): eskiden ses
+      // 250 ms ertelenip üstüne yükleniyordu, titreşimden kopuk geliyordu.
       // Seans bitimi sesi — soundEffects toggle'ından bağımsız, her zaman çalar.
-      playCompletionChime();
-      haptic.success();
+      playCompletionChime(() => haptic.alarm());
 
       const { pomodoroMode: isPomo, pomodoroPhase: phase, pomodoroRound: round, sessionKind: kind, finishedAt } = useFocusStore.getState();
       /*
@@ -2210,10 +2210,12 @@ export default function FocusScreen() {
         pomodoroOn={pomodoroMode}
         strictOn={strictMode}
         keepAwakeOn={focusKeepAwake || strictMode}
+        autoZenOn={focusAutoZen}
         onBreath={() => { haptic.select(); setModesSheetVisible(false); setTimeout(() => setBreathPickerVisible(true), 260); }}
         onPomodoro={() => { haptic.select(); togglePomodoroMode(); if (!pomodoroMode) setDuration(activePreset.workMins); }}
         onStrict={() => { haptic.select(); setStrictMode(!strictMode); }}
         onKeepAwake={() => { haptic.select(); setFocusKeepAwake(!focusKeepAwake); }}
+        onAutoZen={() => { haptic.select(); setFocusAutoZen(!focusAutoZen); }}
         scene={scene.id}
         onScene={(id) => { haptic.select(); setFocusScene(id); }}
       />
