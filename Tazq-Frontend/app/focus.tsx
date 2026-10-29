@@ -16,6 +16,7 @@ import { useShallow } from 'zustand/react/shallow';
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
+import { preloadCompletionChime, playCompletionChime, releaseCompletionChime } from '@/features/focus/completionChime';
 import { FocusService } from '@/shared/services/api';
 import { useAchievementStore, checkFocusAchievement } from '@/features/user';
 import { usePrefsStore } from '@/features/modes';
@@ -321,7 +322,6 @@ export default function FocusScreen() {
 
   // Sound
   const soundRef = useRef<AudioPlayer | null>(null);
-  const chimePlayerRef = useRef<AudioPlayer | null>(null);
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playRequestIdRef = useRef(0);
@@ -512,10 +512,7 @@ export default function FocusScreen() {
     clearFade();
     clearCrossfade();
     stopAmbientSound();
-    if (chimePlayerRef.current) {
-      try { chimePlayerRef.current.pause(); chimePlayerRef.current.release(); } catch (e) { swallow('focus.stopAllSounds', e); }
-      chimePlayerRef.current = null;
-    }
+    releaseCompletionChime();
   };
 
   // stepMs: adım aralığı. Varsayılan hızlı (seans geçişleri); önizleme için daha büyük değer =
@@ -825,32 +822,20 @@ export default function FocusScreen() {
     return () => sub.remove();
   }, []);
 
-  const playCompletionSound = () => {
-    try {
-      const p = createAudioPlayer(require('../assets/sounds/focus_done.mp3'));
-      p.volume = 0.85;
-      p.play();
-      chimePlayerRef.current = p;
-      setTimeout(() => {
-        try {
-          p.release();
-          if (chimePlayerRef.current === p) chimePlayerRef.current = null;
-        } catch (e) { swallow('focus.doneChimeRelease', e); }
-      }, 8000);
-    } catch (e) {
-      swallow('focus.chimePlay', e);
-    }
-  };
+  // Çan seans sürerken hazırlanır ki bitişte yükleme gecikmesi olmasın (bkz. completionChime).
+  useEffect(() => {
+    if (isActive) preloadCompletionChime();
+  }, [isActive]);
 
   // ── Session completion / Pomodoro transitions ─────────────────────────────
   useEffect(() => {
     if (atZero && totalSeconds > 0 && !completedRef.current) {
       completedRef.current = true;
+      // Ses ve titreşim AYNI tıkta: eskiden ses 250 ms ertelenip üstüne yükleniyordu,
+      // titreşimden ve ritüelin ilk karesinden kopuk geliyordu.
+      // Seans bitimi sesi — soundEffects toggle'ından bağımsız, her zaman çalar.
+      playCompletionChime();
       haptic.success();
-      // Seans bitimi sesi — soundEffects toggle'ından bağımsız, her zaman çalar
-      setTimeout(() => {
-        playCompletionSound();
-      }, 250);
 
       const { pomodoroMode: isPomo, pomodoroPhase: phase, pomodoroRound: round, sessionKind: kind, finishedAt } = useFocusStore.getState();
       /*
@@ -1065,9 +1050,7 @@ export default function FocusScreen() {
       setSummaryMinutes(minutesDone);
       setSummaryCompleted(false);
       setSummaryVisible(true);
-      setTimeout(() => {
-        playCompletionSound();
-      }, 250);
+      playCompletionChime(); // özetle aynı anda; gecikme modalla sesi ayırıyordu
     } else {
       // Kaydedilmeyen seans için özet göstermek yanıltıcı olur; sayaç sıfırlanır.
       reset();
