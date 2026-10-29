@@ -244,3 +244,4 @@ const styles = StyleSheet.create({
   hero: { borderRadius: R.lg, borderWidth: B.thin, padding: S.lg },
   list: { borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden' },
 });
+export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

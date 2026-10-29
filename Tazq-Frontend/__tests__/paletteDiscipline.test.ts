@@ -113,7 +113,6 @@ const CEILING: Record<string, number> = {
   // yazısının beyazı palet jetonlarına bağlandı. Beyaz yazı ayrıca koyu temada paletin
   // AÇIKÇA reddettiği durumdu (primary üstünde 3.65:1, AA'dan kalıyor) — `onPrimary` ve
   // `onTertiary` tam bu iş için ölçülmüş çiftler.
-  'shared/components/ErrorBoundary.tsx': 4,
   // 4 → 0 → LİSTEDEN ÇIKTI: "atlandı" durumunun kehribarı üç ayrı yerde elle
   // yazılıydı ve koyu temada ikon ile zemin FARKLI iki kehribar oluyordu (#FBBF24 vs
   // #D97706). Üçü de `theme.warning`a bağlandı; rozet çerçevesi de `surfaceCard`a.

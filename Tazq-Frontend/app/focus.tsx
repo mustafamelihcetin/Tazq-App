@@ -2427,3 +2427,4 @@ const styles = StyleSheet.create({
   transitionTitle: { fontSize: F.display, fontWeight: '700', letterSpacing: -0.5 },
   transitionSub: { fontSize: F.subhead, fontWeight: '600', textAlign: 'center' },
 });
+export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

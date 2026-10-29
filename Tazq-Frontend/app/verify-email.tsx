@@ -271,3 +271,4 @@ const styles = StyleSheet.create({
   resendText: { fontSize: moderateScale(14), fontWeight: '500' },
   resendLink: { fontSize: moderateScale(14), fontWeight: '700' },
 });
+export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

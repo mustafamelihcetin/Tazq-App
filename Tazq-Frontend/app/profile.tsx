@@ -938,3 +938,4 @@ const styles = StyleSheet.create({
 });
 
 
+export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

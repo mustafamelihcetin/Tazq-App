@@ -511,3 +511,4 @@ const styles = StyleSheet.create({
   askOptionSub: { fontSize: F.caption, fontWeight: '500', marginTop: S.xxs },
 });
 
+export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

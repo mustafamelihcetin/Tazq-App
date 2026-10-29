@@ -271,7 +271,6 @@ const ROLE_CEILING: Record<string, number> = {
   'features/user/components/MomentumPulse.tsx': 3,
   'shared/components/ChromeShell.tsx': 1,
   'shared/components/CustomAlert.tsx': 1,
-  'shared/components/ErrorBoundary.tsx': 1,
   'shared/components/PeekMenu.tsx': 1,
   'shared/components/PremiumStatChip.tsx': 1,
   'shared/components/SupportModal.tsx': 1,

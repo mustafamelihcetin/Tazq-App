@@ -387,3 +387,4 @@ const styles = StyleSheet.create({
   navBtn: { width: 36, height: 36, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   close: { borderRadius: R.lg, borderWidth: B.thin, padding: S.lg, gap: S.xxs },
 });
+export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

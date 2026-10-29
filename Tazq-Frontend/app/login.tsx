@@ -794,3 +794,4 @@ const styles = StyleSheet.create({
   modalSend: { flex: 2, height: verticalScale(48), borderRadius: R.sm + 4, alignItems: 'center', justifyContent: 'center' },
 });
 
+export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

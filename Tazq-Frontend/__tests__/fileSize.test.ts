@@ -255,7 +255,7 @@ const KNOWN_LARGE: Record<string, number> = {
   */
   // 1680 → 1809: Ürün İçgörüleri bölümü (dönemsel mod benimsenmesi, haftalık
   // elde tutma, sürüm dağılımı) — İstatistik sekmesine eklendi.
-  'app/admin.tsx': 1853, // +43: admin "Kitle" kartı (kayıtlı/kayıtsız cihaz sayıları + mağaza kanalı durumu)
+  'app/admin.tsx': 1854, // +1 (2026-10-29): rota hata sınırı dışa aktarımı · +43: admin "Kitle" kartı (kayıtlı/kayıtsız cihaz sayıları + mağaza kanalı durumu)
   // 1690 → 1718: plan başlatılmadan ÖNCE mevcut yük söyleniyor (kaç aktif hedef,
   // bugün kaç plan işi). Kullanıcı toplamı ancak uyguladıktan SONRA öğreniyordu.
   'features/modes/components/TurkishModeBanner.tsx': 1735, // +17: günlük değerlendirme anahtarı yuva-bazlı, çift-tık kilidi ref'e taşındı

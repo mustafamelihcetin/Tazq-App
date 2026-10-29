@@ -112,3 +112,4 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     }
 });
+export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

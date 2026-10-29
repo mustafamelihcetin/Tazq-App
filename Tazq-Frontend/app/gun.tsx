@@ -519,3 +519,4 @@ const styles = StyleSheet.create({
   closeRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
   closeAction: { paddingHorizontal: S.sm, paddingVertical: S.xs },
 });
+export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

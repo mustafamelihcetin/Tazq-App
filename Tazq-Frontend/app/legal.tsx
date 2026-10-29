@@ -53,3 +53,4 @@ const styles = StyleSheet.create({
     fontFamily: 'Jakarta-SemiBold',
   },
 });
+export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

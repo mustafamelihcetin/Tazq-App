@@ -394,3 +394,4 @@ export default function PromoScreen() {
     </View>
   );
 }
+export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

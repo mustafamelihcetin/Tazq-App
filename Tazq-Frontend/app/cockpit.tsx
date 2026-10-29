@@ -1658,3 +1658,4 @@ const styles = StyleSheet.create({
   saveBtnText: { fontSize: F.subhead, fontWeight: '600' },
 });
 
+export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

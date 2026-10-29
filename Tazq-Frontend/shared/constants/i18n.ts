@@ -4,6 +4,13 @@ export type Language = 'en' | 'tr';
 
 export const translations = {
   en: {
+    crash: {
+      title: 'A small hiccup',
+      body: "Something on this screen didn't load. Your data is safe — nothing was lost.",
+      retry: 'Try again',
+      home: 'Back to home',
+      reported: "We've been notified automatically.",
+    },
     welcome: {
       title: 'Welcome to TAZQ',
       sub: 'Your premium digital workspace, sculpted for clarity and designed for touch.',
@@ -496,6 +503,13 @@ export const translations = {
     },
   },
   tr: {
+    crash: {
+      title: 'Küçük bir aksilik oldu',
+      body: 'Bu ekranda bir şey yüklenemedi. Verilerin güvende, hiçbir şey kaybolmadı.',
+      retry: 'Tekrar dene',
+      home: 'Ana sayfaya dön',
+      reported: 'Bize otomatik olarak bildirildi.',
+    },
     welcome: {
       title: 'TAZQ\'a Hoş Geldiniz',
       sub: 'Netlik için yontulmuş, dokunuş için tasarlanmış premium dijital çalışma alanınız.',

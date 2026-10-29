@@ -429,3 +429,4 @@ export default function OdemelerScreen() {
     </View>
   );
 }
+export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

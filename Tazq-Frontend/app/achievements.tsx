@@ -420,3 +420,4 @@ export default function AchievementsScreen() {
     </View>
   );
 }
+export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

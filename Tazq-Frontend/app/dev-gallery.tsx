@@ -33,6 +33,9 @@ export default function DevGallery() {
 function Gallery() {
   const { theme, isDark, setTheme } = useAppTheme();
   const [ring, setRing] = useState(2);
+  const [crash, setCrash] = useState(false);
+  // Hata sınırı denemesi (madde 10): render sırasında fırlatır → rota sınırının yedek ekranı.
+  if (crash) throw new Error('dev-gallery: yapay çökme');
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
@@ -41,6 +44,9 @@ function Gallery() {
           <Text style={{ fontSize: F.title, fontWeight: '700', color: theme.onSurface, flex: 1 }}>Galeri</Text>
           <Touchable accessibilityRole="button" accessibilityLabel={isDark ? 'Açık temaya geç' : 'Koyu temaya geç'} onPress={() => setTheme(isDark ? 'light' : 'dark')} style={[styles.chip, { backgroundColor: theme.primaryContainer }]}>
             <Text style={{ color: theme.onPrimaryContainer, fontSize: F.footnote, fontWeight: '600' }}>{isDark ? 'Açık tema' : 'Koyu tema'}</Text>
+          </Touchable>
+          <Touchable accessibilityRole="button" accessibilityLabel="Yapay çökme" onPress={() => setCrash(true)} style={[styles.chip, { backgroundColor: theme.surfaceField }]}>
+            <Text style={{ color: theme.onSurface, fontSize: F.footnote, fontWeight: '600' }}>Çökme testi</Text>
           </Touchable>
         </View>
 
@@ -135,3 +141,4 @@ const styles = StyleSheet.create({
   swatch: { width: 20, height: 20, borderRadius: R.sm, borderWidth: HAIRLINE },
   dot: { width: 24, height: 24, borderRadius: R.full },
 });
+export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer
