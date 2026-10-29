@@ -105,3 +105,17 @@ export const useTourRun = create<TourRunState>((set) => ({
   request: (requested) => set({ requested }),
   clearRequest: () => set({ requested: null }),
 }));
+
+/**
+ * TUR TEKLİFİNİN KENDİLİĞİNDEN EMEKLİLİĞİ (kullanıcı kararı 2026-10-29).
+ *
+ * Teklif her girişte çıkıyor, kaldırmanın tek yolu ×'ti. Teklifi GÖREN ama dokunmadan
+ * ayrılan kullanıcı büyük olasılıkla turu istemiyor; onu × aramaya zorlamak, aynı
+ * soruyu her girişte yeniden sormaktır. Eşik "gördü mü": sekmeler arası hızlı geçişte
+ * teklif fark edilmemiş olabilir, bir şans daha verilir. Tur her zaman Ayarlar'dan açılır.
+ */
+export const BEACON_SEEN_MS = 3000;
+
+export function shouldRetireBeacon({ visibleMs, started }: { visibleMs: number; started: boolean }): boolean {
+  return !started && visibleMs >= BEACON_SEEN_MS;
+}

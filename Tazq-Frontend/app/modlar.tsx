@@ -5,7 +5,7 @@ import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { MotiView, AnimatePresence } from 'moti';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BookOpen, GraduationCap, ChevronRight, CalendarDays, X, Info, BarChart3, Flame, Zap, Sparkles, Target, CheckCircle2, Dumbbell, Activity, FileText, Briefcase, PiggyBank, Ban, Trophy } from 'lucide-react-native';
+import { BookOpen, GraduationCap, ChevronRight, CalendarDays, X, BarChart3, Flame, Zap, Sparkles, Target, CheckCircle2, Dumbbell, Activity, FileText, Briefcase, PiggyBank, Ban, Trophy } from 'lucide-react-native';
 import { AppIcon } from '@/shared/components/AppIcon';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -118,6 +118,9 @@ function levelTemplateIdFromMinutes(min?: number): string {
   return 'level-ileri';                 // 2+ saat
 }
 import { TurkishModeBanner } from '@/features/modes';
+import { ModeStatusPill, ModeRoadmapSheet } from '@/features/modes/components/ModeRoadmap';
+import { useActiveModeSummary } from '@/features/modes/hooks/useActiveModeSummary';
+import { stripEmoji } from '@/shared/utils/emoji';
 import { TasarrufCard } from '@/features/modes/components/modes/TasarrufCard';
 import { BirakmaCard } from '@/features/modes/components/modes/BirakmaCard';
 import { TezCard } from '@/features/modes/components/modes/TezCard';
@@ -174,6 +177,8 @@ export default function ModlarScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { theme, colorScheme } = useAppTheme();
+  const modeSummary = useActiveModeSummary();
+  const [roadmapVisible, setRoadmapVisible] = useState(false);
   const isDark = colorScheme === 'dark';
   /*
      `Dimensions.get()` ilk değeri DONDURUR: cihaz döndürülünce, bölünmüş ekranda ya da
@@ -678,12 +683,6 @@ export default function ModlarScreen() {
     seasonal.tasarrufMode ||
     seasonal.birakmaMode
   );
-  // Etiket adlarındaki ham emoji'leri temizle (ör. preset adı "⚖️ Kilo Yönetimi").
-  // İkon zaten flat olarak ayrı gösteriliyor; metinde ham emoji tema ile çelişir.
-  const stripEmoji = (s: string) => s
-    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}]/gu, '')
-    .replace(/\s+/g, ' ')
-    .trim();
   // Her aday hem DOLGU rengini (color) hem KÜÇÜK YAZI rengini (textColor) taşır —
   // geri sayım rakamı dolgu tonuyla, 'gün kaldı'/'N mod' etiketleri AA geçen
   // metin tonuyla çizilir.
@@ -965,23 +964,11 @@ export default function ModlarScreen() {
           noktayı işaret ederdi.
         */}
         <ScreenHeader
-          left={
-            <Touchable
-              onPress={() => {
-                haptic.surface();
-                usePrefsStore.getState().setTourCompleted('modlar', false);
-                // Elle istendi → teklif balonu atlanır, tur hemen başlar (bkz. useTourRun).
-                useTourRun.getState().request('modlar');
-              }}
-              style={styles.headerIconBtn}
-              accessibilityRole="button"
-              accessibilityLabel={language === 'tr' ? 'Modları tanıt' : 'Show modes walkthrough'}
-              accessibilityHint={language === 'tr' ? 'Yaşam modlarının nasıl çalıştığını adım adım gösterir' : 'Walks you through how life modes work'}
-            >
-              <ChromeShell />
-              <Info size={ICON.md} color={theme.onSurface} />
-            </Touchable>
-          }
+          /*
+            Sol üst eskiden tur modalı açıyordu (Ayarlar'da zaten var). Yerine aktif
+            hedeflerin bugünkü durumu; dokununca yol haritası (madde 7, bkz. ModeRoadmap).
+          */
+          left={<ModeStatusPill summary={modeSummary} onPress={() => { haptic.surface(); setRoadmapVisible(true); }} />}
           title={language === 'tr' ? 'Yaşam Modları' : 'Life Modes'}
           right={
             <TourTarget id="overview" spotRadius={R.full}>
@@ -1000,7 +987,7 @@ export default function ModlarScreen() {
         />
 
       <View style={{ flex: 1 }}>
-          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
           <Animated.ScrollView
             ref={scrollViewRef}
             style={{ flex: 1 }}
@@ -1295,6 +1282,7 @@ export default function ModlarScreen() {
         </KeyboardAvoidingView>
       </View>
 
+      <ModeRoadmapSheet visible={roadmapVisible} summary={modeSummary} onClose={() => setRoadmapVisible(false)} />
       {tourOn && <HelpTourModal pageId="modlar" scrollRef={scrollViewRef} />}
       <BottomNavBar />
 

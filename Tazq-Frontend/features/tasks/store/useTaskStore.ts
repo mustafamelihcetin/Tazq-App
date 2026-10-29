@@ -4,6 +4,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SubtaskItem, RecurrenceType, Priority } from '@/shared/services/api';
 import { swallow } from '@/shared/utils/swallow';
+import { stripEmoji } from '@/shared/utils/emoji';
 import { hasArchivedTag } from '@/features/tasks/utils/taskTags';
 
 export interface Task {
@@ -277,7 +278,12 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
   }
 }));
 
+/** Ekranda gösterilecek başlık — dil seçilir ve eski mod görevlerindeki emoji ayıklanır (bkz. stripEmoji). */
 export function getLocalizedTaskTitle(task: { title: string; description?: string | null }, isTr: boolean): string {
+  return stripEmoji(rawLocalizedTitle(task, isTr));
+}
+
+function rawLocalizedTitle(task: { title: string; description?: string | null }, isTr: boolean): string {
   if (!task.description) return task.title;
   if (task.description.startsWith('{"tr":')) {
     try {

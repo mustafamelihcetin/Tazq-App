@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, StyleSheet, Animated, TouchableWithoutFeedback, Easing, Alert, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated, TouchableWithoutFeedback, Easing, BackHandler } from 'react-native';
 import { swallow } from '@/shared/utils/swallow';
 import { AppBlur } from '@/shared/components/AppBlur';
 import { GlassSurface } from '@/shared/components/GlassSurface';
@@ -7,93 +7,75 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { Touchable } from './Touchable';
 import { S, R, F } from '@/shared/constants/tokens';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
-import { AlertCircle, Info, Trash2, CheckCircle2 } from 'lucide-react-native';
+import { AlertCircle, Info, Trash2 } from 'lucide-react-native';
 
-let alertRef: any = null;
+/*
+  ── SİSTEM UYARI PENCERESİ YOK (kullanıcı kararı 2026-10-29) ──────────────────────
+  Android'de her uyarı bilerek sistemin AlertDialog'una düşüyordu (teal, uygulamadan
+  kopuk). Gerekçe: uyarı kendisi bir native Modal'dı; başka bir Modal'ın üstünde
+  açılınca Android'de donma, iOS'ta hiç görünmeme oluyordu.
+  Çözüm Modal'ı kaldırmak: uyarı, EN ÜSTTEKİ yuvaya (AlertHost) çizilen bir örtü.
+  Kök yuva _layout'ta; bir sayfa/sheet Modal'ı uyarı açıyorsa kendi içine de bir
+  AlertHost koyar — o açıkken uyarılar onun içinde, yani Modal'ın üstünde görünür.
+  Arayüz Alert.alert ile aynı: çağıran kod değişmez.
+*/
+export interface AlertButton { text?: string; style?: 'default' | 'cancel' | 'destructive'; onPress?: () => void }
+type Show = (title: string, message?: string, buttons?: AlertButton[]) => void;
+
+const hosts: { id: string; show: Show }[] = [];
+const pending: Parameters<Show>[] = [];
 
 export const CustomAlert = {
-  alert: (title: string, message?: string, buttons?: any[], options?: any) => {
-    if (Platform.OS === 'android') {
-      // Use native OS dialog to prevent nested native modal deadlocks/freezes on Android
-      Alert.alert(title, message, buttons, options);
-    } else if (alertRef) {
-      alertRef.show(title, message, buttons, options);
-    } else {
-      // GELİŞTİRİCİ UYARISI: bileşen ağaca eklenmemiş. Kullanıcı için sonuç yok —
-      // sistem uyarısına düşülüyor. Release'de bastırılıyor (bkz. _layout.tsx).
-      if (__DEV__) console.warn('CustomAlertModal not mounted, using fallback');
-      Alert.alert(title, message, buttons, options);
-    }
-  }
+  alert: (title: string, message?: string, buttons?: AlertButton[], _options?: unknown) => {
+    const top = hosts[hosts.length - 1];
+    if (top) top.show(title, message, buttons);
+    else pending.push([title, message, buttons]); // kök yuva bağlanınca gösterilir
+  },
 };
 
-export function CustomAlertModal() {
+export function AlertHost({ testID = 'alert-host' }: { testID?: string }) {
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
-  
+
   const [visible, setVisible] = useState(false);
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState<string | undefined>('');
-  const [buttons, setButtons] = useState<any[]>([]);
-  
+  const [buttons, setButtons] = useState<AlertButton[]>([]);
+
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.95));
   const [slideAnim] = useState(new Animated.Value(20));
+  const idRef = useRef(`${testID}-${Math.random().toString(36).slice(2, 8)}`);
 
   useEffect(() => {
-    alertRef = {
-      show: (t: string, m?: string, b?: any[], o?: any) => {
-        setTitle(t);
-        setMessage(m);
-        if (!b || b.length === 0) {
-          setButtons([{ text: language === 'tr' ? 'Tamam' : 'OK' }]);
-        } else {
-          setButtons(b);
-        }
-        
-        setVisible(true);
-        Animated.parallel([
-          Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-            easing: Easing.out(Easing.exp),
-          }),
-          Animated.timing(scaleAnim, {
-            toValue: 1,
-            duration: 400,
-            useNativeDriver: true,
-            easing: Easing.out(Easing.back(1.5)),
-          }),
-          Animated.timing(slideAnim, {
-            toValue: 0,
-            duration: 400,
-            useNativeDriver: true,
-            easing: Easing.out(Easing.exp),
-          })
-        ]).start();
-      }
+    const show: Show = (t, m, b) => {
+      setTitle(t);
+      setMessage(m);
+      setButtons(!b || b.length === 0 ? [{ text: language === 'tr' ? 'Tamam' : 'OK' }] : b);
+      setVisible(true);
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true, easing: Easing.out(Easing.exp) }),
+        Animated.timing(scaleAnim, { toValue: 1, duration: 400, useNativeDriver: true, easing: Easing.out(Easing.back(1.5)) }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true, easing: Easing.out(Easing.exp) }),
+      ]).start();
+    };
+    const entry = { id: idRef.current, show };
+    hosts.push(entry);
+    while (hosts[hosts.length - 1] === entry && pending.length) show(...pending.shift()!);
+    return () => {
+      const i = hosts.indexOf(entry);
+      if (i >= 0) hosts.splice(i, 1);
     };
   }, [language]);
 
   const hide = (callback?: () => void) => {
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-        easing: Easing.in(Easing.ease),
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 10,
-        duration: 200,
-        useNativeDriver: true,
-        easing: Easing.in(Easing.ease),
-      })
+      Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true, easing: Easing.in(Easing.ease) }),
+      Animated.timing(slideAnim, { toValue: 10, duration: 200, useNativeDriver: true, easing: Easing.in(Easing.ease) }),
     ]).start(() => {
       setVisible(false);
       // Callback'i bir sonraki tick'e ertele + izole et: buton onPress'i istisna atsa
-      // bile overlay kapanır ve uygulama kilitlenmez (dokunuş bloklanmaz).
+      // bile örtü kapanır ve uygulama kilitlenmez (dokunuş bloklanmaz).
       if (callback) {
         setTimeout(() => {
           try { callback(); } catch (e) { swallow('customAlert.onPress', e); }
@@ -102,21 +84,37 @@ export function CustomAlertModal() {
     });
   };
 
+  // Android geri tuşu = "Vazgeç" (varsa); sistem penceresinin davranışıyla aynı.
+  useEffect(() => {
+    if (!visible) return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      hide(buttons.find(b => b.style === 'cancel')?.onPress);
+      return true;
+    });
+    return () => sub.remove();
+  }, [visible, buttons]);
+
   if (!visible) return null;
 
   const isDestructive = buttons.some(b => b.style === 'destructive');
   const IconComponent = isDestructive ? Trash2 : (title.toLowerCase().includes('hata') || title.toLowerCase().includes('error') ? AlertCircle : Info);
   const iconColor = isDestructive ? theme.error : theme.primary;
+  /*
+    MENÜ (birden çok seçenek, ör. alışkanlık menüsü: Mola ver · Dinlendir · Sil):
+    çöp kutusu ikonu menüyü bir silme onayı gibi gösteriyordu ve her seçenek dolu mavi
+    düğmeydi (cihazda görüldü). Menüde ikon yok, sıradan seçenekler sade; kırmızı yalnız
+    yıkıcı olanda. Tek eylemli onaylar eskisi gibi.
+  */
+  const isMenu = buttons.filter(b => b.style !== 'cancel').length > 1;
 
   // Sıralama: Cancel solda, Primary/Destructive sağda olmalı.
   // Gelen array genelde [Cancel, Destructive] şeklindedir.
   // Eğer buton etiketlerinden biri uzunsa, taşmayı önlemek için dikey sıralamaya geçiyoruz.
-  const hasLongButtonText = buttons.some(b => b.text && b.text.length > 12);
+  const hasLongButtonText = buttons.some(b => !!b.text && b.text.length > 12);
   const isVertical = buttons.length > 2 || hasLongButtonText;
 
   return (
-    <Modal transparent visible={true} animationType="none" onRequestClose={() => hide()}>
-      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
+      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]} testID={`alert-card-${testID}`}>
         {/* Boş dokunma yakalayıcı (dışarı dokunarak kapatma KAPALI) — ağacın dışında. */}
         <TouchableWithoutFeedback accessible={false} onPress={() => { /* disable tap to close by default */ }}>
           <AppBlur material="thin">
@@ -138,9 +136,11 @@ export function CustomAlertModal() {
           <GlassSurface radius={R.sheet} />
 
           <View style={styles.content}>
-            <View style={[styles.iconContainer, { backgroundColor: iconColor + '15' }]}>
-              <IconComponent size={24} color={iconColor} strokeWidth={2.5} />
-            </View>
+            {!isMenu && (
+              <View style={[styles.iconContainer, { backgroundColor: iconColor + '15' }]}>
+                <IconComponent size={24} color={iconColor} strokeWidth={2.5} />
+              </View>
+            )}
             <Text style={[styles.title, { color: theme.onSurface }]}>{title}</Text>
             {!!message && (
               <Text style={[styles.message, { color: theme.onSurfaceVariant }]}>{message}</Text>
@@ -148,10 +148,10 @@ export function CustomAlertModal() {
           </View>
           
           <View style={[styles.buttonContainer, { flexDirection: isVertical ? 'column' : 'row' }]}>
-            {buttons.map((btn, idx) => {
+            {buttons.map((btn: AlertButton, idx: number) => {
               const isBtnDestructive = btn.style === 'destructive';
               const isCancel = btn.style === 'cancel';
-              const isPrimary = !isCancel && !isBtnDestructive;
+              const isPrimary = !isCancel && !isBtnDestructive && !isMenu;
               
               const btnBg = isBtnDestructive
                 ? theme.error
@@ -159,7 +159,7 @@ export function CustomAlertModal() {
                   ? theme.primary 
                   : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)');
                   
-              const textColor = isCancel ? theme.onSurface : '#FFFFFF';
+              const textColor = isPrimary || isBtnDestructive ? '#FFFFFF' : theme.onSurface;
 
               return (
                 <Touchable 
@@ -197,13 +197,16 @@ export function CustomAlertModal() {
           </View>
         </Animated.View>
       </Animated.View>
-    </Modal>
   );
 }
 
+/** Kök yuva — eski adıyla (_layout bunu bağlıyor). */
+export const CustomAlertModal = AlertHost;
+
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFill as any,
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    elevation: 1000, // Android: kardeş görünümlerin (FAB, sekme çubuğu) üstünde
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 999999,

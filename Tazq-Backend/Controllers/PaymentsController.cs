@@ -16,10 +16,12 @@ namespace Tazq_App.Controllers
     public class PaymentsController : ControllerBase
     {
         private readonly IPaymentService _paymentService;
+        private readonly FxRateService _fx;
 
-        public PaymentsController(IPaymentService paymentService)
+        public PaymentsController(IPaymentService paymentService, FxRateService fx)
         {
             _paymentService = paymentService;
+            _fx = fx;
         }
 
         private int? GetUserId()
@@ -36,6 +38,8 @@ namespace Tazq_App.Controllers
             public PaymentRecurrence Recurrence { get; set; } = PaymentRecurrence.Monthly;
             public DateTime? NextDueDate { get; set; }
             public string? Category { get; set; }
+            /// <summary>ISO 4217 (TRY/USD/EUR/GBP); boş = ana birim.</summary>
+            public string? Currency { get; set; }
         }
 
         public class MarkPaidRequest
@@ -61,7 +65,7 @@ namespace Tazq_App.Controllers
 
             try
             {
-                var payment = await _paymentService.CreatePaymentAsync(userId.Value, req.Title, req.Amount, req.DueDay, req.Recurrence, req.NextDueDate, req.Category);
+                var payment = await _paymentService.CreatePaymentAsync(userId.Value, req.Title, req.Amount, req.DueDay, req.Recurrence, req.NextDueDate, req.Category, req.Currency);
                 return Ok(payment);
             }
             catch (InvalidOperationException ex) when (ex.Message.StartsWith("PAYMENT_LIMIT_REACHED"))
@@ -76,7 +80,7 @@ namespace Tazq_App.Controllers
             var userId = GetUserId();
             if (userId == null) return Unauthorized();
 
-            var payment = await _paymentService.UpdatePaymentAsync(userId.Value, id, req.Title, req.Amount, req.DueDay, req.Recurrence, req.NextDueDate, req.Category);
+            var payment = await _paymentService.UpdatePaymentAsync(userId.Value, id, req.Title, req.Amount, req.DueDay, req.Recurrence, req.NextDueDate, req.Category, req.Currency);
             if (payment == null) return NotFound();
             return Ok(payment);
         }
@@ -90,6 +94,23 @@ namespace Tazq_App.Controllers
             var success = await _paymentService.DeletePaymentAsync(userId.Value, id);
             if (!success) return NotFound();
             return NoContent();
+        }
+
+        /// <summary>Ödeme geçmişi — son `months` ay (1–24), yeniden eskiye.</summary>
+        [HttpGet("history")]
+        public async Task<IActionResult> GetHistory([FromQuery] int months = 6)
+        {
+            var userId = GetUserId();
+            if (userId == null) return Unauthorized();
+            return Ok(await _paymentService.GetHistoryAsync(userId.Value, months));
+        }
+
+        /// <summary>Günlük kur (EUR tabanlı). Alınamazsa 503 — istemci yaklaşık toplamı gizler.</summary>
+        [HttpGet("fx")]
+        public async Task<IActionResult> GetFx()
+        {
+            var fx = await _fx.GetRatesAsync();
+            return fx == null ? StatusCode(503) : Ok(fx);
         }
 
         [HttpPost("{id}/mark-paid")]

@@ -254,7 +254,7 @@ clearPlanIds('tez');
                 accent={TEZ}
                 value={planSpecs.tez?.personalNote ?? ''}
                 onChangeText={(v) => setPersonalNote('tez', v)}
-                placeholder={tr ? 'Eklemek istediğin bir şey var mı? (opsiyonel)' : 'Anything else to add? (optional)'}
+                placeholder={tr ? 'Not ekle (isteğe bağlı)' : 'Add a note (optional)'}
                 maxLength={140}
               />
               <View style={{ flexDirection: 'row', gap: S.sm }}>

@@ -97,7 +97,7 @@ export default function VerifyEmailScreen() {
         <SafeAreaView style={styles.safeArea}>
           <BackButton onPress={() => router.replace('/register')} style={[styles.backButton, { top: insets.top + 12 }]} />
 
-          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
             <ScrollView
               style={styles.keyboardView}
               contentContainerStyle={[styles.scrollContent, { justifyContent: 'center', paddingVertical: isSmallScreen ? 16 : 32 }]}

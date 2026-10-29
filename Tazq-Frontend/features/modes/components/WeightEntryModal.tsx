@@ -107,7 +107,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
         style={{ flex: 1, justifyContent: 'flex-end' }}
       >
         <Touchable

@@ -521,6 +521,32 @@ export async function cancelHabitReminder(habitId: string): Promise<void> {
 // ─── Habit At-Risk (20:30) ────────────────────────────────────────────────────
 // Schedule once; cancel if user already completed their habits today.
 
+/**
+ * MOMENTUM KORUMA (madde 11): her açılışta 48 saat sonrasına tek bir geri çağrı kurulur,
+ * öncekinin yerine geçer (bkz. shared/utils/comeback). Kapalıysa (sabah özeti kapalı) iptal.
+ */
+export async function scheduleComeback(locale: string = 'tr', enabled: boolean = true): Promise<void> {
+  if (!Notifications || isExpoGo) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync('comeback').catch(() => {});
+    if (!enabled) return;
+    const { comebackTime, COMEBACK_COPY } = require('@/shared/utils/comeback');
+    const copy = COMEBACK_COPY[locale === 'en' ? 'en' : 'tr'];
+    await Notifications.scheduleNotificationAsync({
+      identifier: 'comeback',
+      content: { title: copy.title, body: copy.body, sound: 'default', data: { type: 'comeback' } },
+      trigger: { type: 'date', date: comebackTime() },
+    });
+  } catch (e) { swallow('notifications.scheduleComeback', e); }
+}
+
+/** Açılışta çağrılır: tercih ve dili kendisi okur (bkz. _layout). */
+export function refreshComeback(): void {
+  const prefs = require('@/features/modes/store/usePrefsStore').usePrefsStore.getState();
+  const lang = require('@/shared/store/useLanguageStore').useLanguageStore.getState().language;
+  void scheduleComeback(lang, prefs.morningBrief !== false);
+}
+
 export async function scheduleHabitAtRisk(
   habitCount: number,
   locale: string = 'en'

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Check, Clock3, Sparkles, SunMoon } from 'lucide-react-native';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
@@ -19,7 +19,9 @@ import { completeTask, setTaskDue, archiveTask, localDateISO, timeAtHour } from 
 import { useFocusStore } from '@/features/focus';
 import { haptic } from '@/shared/utils/haptics';
 import { langOf } from '@/shared/utils/lang';
-import { scopeDay, isOverdueBefore } from '@/features/dashboard/utils/dayScope';
+import { scopeDay, scopeOtherDay, isOverdueBefore } from '@/features/dashboard/utils/dayScope';
+import { useFocusHistoryStore } from '@/features/report/useFocusHistoryStore';
+import { isFocusWorthy } from '@/features/focus/focusWorthy';
 
 /**
  * BUGÜN — günün SAAT ekseni.
@@ -104,16 +106,39 @@ export default function GunScreen() {
 
   const now = new Date();
   /*
+    TARİH PARAMETRESİ (madde 5): Haftalık ekranın gün listesi buraya taşındı. Ekran artık
+    bugün dışındaki bir günü de açar — geçmiş gün KAYIT (salt okunur), gelecek gün PLAN
+    (saate yerleştirmek tarihi de o güne yazar). Parametre yoksa ya da bugünse eski davranış.
+  */
+  const { date: dateParam } = useLocalSearchParams<{ date?: string }>();
+  const dayDate = useMemo(() => {
+    const m = typeof dateParam === 'string' ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateParam) : null;
+    return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12) : null;
+  }, [dateParam]);
+  const startOfToday = new Date(now); startOfToday.setHours(0, 0, 0, 0);
+  const mode: 'today' | 'past' | 'future' = !dayDate || dayDate.toDateString() === now.toDateString()
+    ? 'today' : dayDate < startOfToday ? 'past' : 'future';
+  const isToday = mode === 'today';
+  const focusSessions = useFocusHistoryStore(s => s.sessions);
+  const otherDayFocus = useMemo(() => {
+    if (!dayDate || isToday) return 0;
+    const key = dayDate.toDateString();
+    return focusSessions.reduce((sum, x) => (new Date(x.startedAt).toDateString() === key ? sum + x.minutes : sum), 0);
+  }, [focusSessions, dayDate, isToday]);
+  /*
     GÜNÜN TANIMI ana ekranla AYNI (bkz. dayScope.ts). Eskiden yalnız vadesi tam bugün
     olanlar sayılıyordu: ana ekran "1/5" derken burası "1/4" diyordu ve dünden kalan
     iş bu ekranda hiç görünmüyordu — yani tam da "günü kapat"ın işi olan iş.
   */
-  const scope = useMemo(() => scopeDay(tasks, now), [tasks]);
+  const scope = useMemo(() => (isToday || !dayDate ? scopeDay(tasks, now) : scopeOtherDay(tasks, dayDate)), [tasks, isToday, dayDate]);
   const today = useMemo(() => [...scope.incomplete, ...scope.completed], [scope]);
+  // Gecikme yalnız BUGÜNÜN kavramı: başka günde her iş kendi saatinde durur.
+  const overdueHere = (task: Task) => isToday && isOverdueBefore(task, now);
 
   // Gecikmiş iş saat eksenine dünkü saatiyle çizilmez — yerleştirilmeyi bekler.
-  const timed = today.filter(task => hourOf(task.dueTime) != null && !isOverdueBefore(task, now));
-  const untimed = today.filter(task => !task.isCompleted && (hourOf(task.dueTime) == null || isOverdueBefore(task, now)));
+  const timed = today.filter(task => hourOf(task.dueTime) != null && !overdueHere(task));
+  // Geçmiş gün salt okunur: yerleştirilecek iş listesi yok.
+  const untimed = mode === 'past' ? [] : today.filter(task => !task.isCompleted && (hourOf(task.dueTime) == null || overdueHere(task)));
   const unfinished = today.filter(task => !task.isCompleted);
   const doneCount = today.length - unfinished.length;
 
@@ -124,8 +149,9 @@ export default function GunScreen() {
   */
   const [startHour, endHour] = useMemo(() => {
     const hours = timed.map(task => hourOf(task.dueTime)!).filter(h => h != null);
-    const min = Math.min(DAY_START_HOUR, now.getHours(), ...(hours.length ? hours : [DAY_START_HOUR]));
-    const max = Math.max(DAY_END_HOUR, now.getHours(), ...(hours.length ? hours : [DAY_END_HOUR]));
+    const nowH = isToday ? now.getHours() : DAY_START_HOUR;
+    const min = Math.min(DAY_START_HOUR, nowH, ...(hours.length ? hours : [DAY_START_HOUR]));
+    const max = Math.max(DAY_END_HOUR, nowH, ...(hours.length ? hours : [DAY_END_HOUR]));
     return [Math.max(0, min), Math.min(23, max)];
   }, [timed, now]);
 
@@ -140,9 +166,12 @@ export default function GunScreen() {
     // Gecikmiş işi bir saate koymak onu BUGÜNE almak demek; yalnız saat değişirse dünün
     // tarihinde kalıp ekrandan kaybolurdu.
     const picked = today.find(task => task.id === placingId);
-    setTaskDue(placingId, picked && isOverdueBefore(picked, now)
-      ? { dueDate: localDateISO(0), dueTime: timeAtHour(hour) }
-      : { dueTime: timeAtHour(hour) });
+    // Başka bir günün planında saat, o günün tarihiyle birlikte yazılır.
+    setTaskDue(placingId, !isToday && dayDate
+      ? { dueDate: dayDate.toISOString(), dueTime: timeAtHour(hour) }
+      : picked && isOverdueBefore(picked, now)
+        ? { dueDate: localDateISO(0), dueTime: timeAtHour(hour) }
+        : { dueTime: timeAtHour(hour) });
     setPlacingId(null);
   };
 
@@ -199,11 +228,12 @@ export default function GunScreen() {
       icon: <Check size={ICON.sm} color={theme.success} />,
       onPress: () => { haptic.success(); completeTask(menuTask.id); },
     }]),
-    {
+    // Anlık eylemde (su iç, tartıl…) odak önerilmez — bkz. focusWorthy.
+    ...(isFocusWorthy(menuTask) ? [{
       label: d.actionFocus,
       icon: <Sparkles size={ICON.sm} color={theme.primary} />,
       onPress: () => focusOn(menuTask),
-    },
+    }] : []),
     {
       label: hourOf(menuTask.dueTime) == null ? d.actionTime : d.actionClearTime,
       icon: <Clock3 size={ICON.sm} color={theme.onSurfaceVariant} />,
@@ -263,8 +293,10 @@ export default function GunScreen() {
 
       <ScreenHeader
         onBack={() => router.back()}
-        title={d.title}
-        subtitle={now.toLocaleDateString(DATE_LOCALE[lang], { day: 'numeric', month: 'long', weekday: 'long' })}
+        title={isToday ? d.title : (dayDate ?? now).toLocaleDateString(DATE_LOCALE[lang], { day: 'numeric', month: 'long' })}
+        subtitle={isToday
+          ? now.toLocaleDateString(DATE_LOCALE[lang], { day: 'numeric', month: 'long', weekday: 'long' })
+          : `${(dayDate ?? now).toLocaleDateString(DATE_LOCALE[lang], { weekday: 'long' })} · ${mode === 'past' ? d.pastLabel : d.futureLabel}`}
         scrollY={scrollY}
       />
 
@@ -299,20 +331,20 @@ export default function GunScreen() {
             <Text style={[styles.summaryValue, { color: theme.onSurface }]}>
               {doneCount}/{today.length}
             </Text>
-            <Text style={[styles.summaryLabel, { color: theme.onSurfaceVariant }]}>{d.summaryTasks}</Text>
+            <Text style={[styles.summaryLabel, { color: theme.onSurfaceVariant }]}>{isToday ? d.summaryTasks : mode === 'past' ? d.summaryDoneOn : d.summaryPlanned}</Text>
           </View>
-          <View style={{ width: HAIRLINE, alignSelf: 'stretch', backgroundColor: theme.outlineVariant }} />
-          <View style={{ flex: 1 }}>
+          {mode !== 'future' && <View style={{ width: HAIRLINE, alignSelf: 'stretch', backgroundColor: theme.outlineVariant }} />}
+          {mode !== 'future' && <View style={{ flex: 1 }}>
             <Text style={[styles.summaryValue, { color: theme.onSurface }]}>
-              {dailyFocusMinutes}
-              {dailyGoalMinutes > 0 && (
+              {isToday ? dailyFocusMinutes : otherDayFocus}
+              {isToday && dailyGoalMinutes > 0 && (
                 <Text style={[styles.summaryLabel, { color: theme.onSurfaceMuted }]}>
                   {` / ${dailyGoalMinutes} ${d.goal}`}
                 </Text>
               )}
             </Text>
             <Text style={[styles.summaryLabel, { color: theme.onSurfaceVariant }]}>{d.summaryFocus}</Text>
-          </View>
+          </View>}
         </BentoCard>
 
         {/*
@@ -352,7 +384,7 @@ export default function GunScreen() {
             <View style={[styles.group, { backgroundColor: theme.surfaceCard, borderColor: theme.outline, borderWidth: isDark ? B.thin : 0 }]}>
               {untimed.map((task, idx) => {
                 const picked = placingId === task.id;
-                const overdue = isOverdueBefore(task, now);
+                const overdue = overdueHere(task);
                 const title = getLocalizedTaskTitle(task, tr);
                 return (
                   <Touchable
@@ -385,11 +417,11 @@ export default function GunScreen() {
           </View>
         )}
 
-        {/* ── Saat ekseni ─────────────────────────────────────────────────── */}
-        <View style={{ gap: 0 }}>
+        {/* ── Saat ekseni (başka günde boşsa çizilmez: on beş boş satır bilgi değil) ── */}
+        {(isToday || today.length > 0) && <View style={{ gap: 0 }}>
           {hours.map(hour => {
             const items = timed.filter(task => hourOf(task.dueTime) === hour);
-            const isNow = hour === now.getHours();
+            const isNow = isToday && hour === now.getHours();
             const placing = placingId != null;
             return (
               <Touchable
@@ -421,10 +453,14 @@ export default function GunScreen() {
               </Touchable>
             );
           })}
-        </View>
+        </View>}
 
-        {/* ── Günü kapat ──────────────────────────────────────────────────── */}
-        {today.length === 0 ? (
+        {/* ── Günü kapat (yalnız bugün; başka günde boşsa kısa açıklama) ────── */}
+        {!isToday ? (today.length === 0 && (
+          <BentoCard index={1} style={{ padding: S.lg }}>
+            <Text style={[styles.sectionHint, { color: theme.onSurfaceVariant }]}>{mode === 'past' ? d.pastEmpty : d.futureEmpty}</Text>
+          </BentoCard>
+        )) : today.length === 0 ? (
           <BentoCard index={1} style={{ padding: S.lg, gap: S.xs }}>
             <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>{d.empty}</Text>
             <Text style={[styles.sectionHint, { color: theme.onSurfaceVariant }]}>{d.emptyHint}</Text>

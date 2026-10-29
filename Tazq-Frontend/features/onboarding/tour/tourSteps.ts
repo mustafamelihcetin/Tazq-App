@@ -106,12 +106,12 @@ export const TOUR_STEPS: Record<FirstRunPage, TourStepDef[]> = {
     {
       target: 'weekStrip',
       title: { tr: 'Haftanın günleri', en: 'Your week' },
-      body: { tr: 'Bir güne dokun; o günün işleri aşağıda açılır.', en: 'Tap a day to see its tasks below.' },
+      body: { tr: 'Bir güne dokun; alışkanlıklar o güne göre işaretlenir.', en: 'Tap a day; habits are marked for that day.' },
     },
     {
       target: 'dailySection',
-      title: { tr: 'Günün detayı', en: 'Day detail' },
-      body: { tr: 'Seçtiğin günün görevleri; halkaya dokununca görev tamamlanır.', en: 'Tasks for the day you picked; tap a ring to complete one.' },
+      title: { tr: 'Takvimde aç', en: 'Open in calendar' },
+      body: { tr: 'Seçtiğin günün işleri takvimde açılır: geçmiş gün kayıt, gelecek gün plan.', en: 'The day you picked opens in the calendar: past days as a log, future days as a plan.' },
     },
     {
       target: 'weeklyReview',

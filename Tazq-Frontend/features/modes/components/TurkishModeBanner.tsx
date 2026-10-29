@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import {
-  View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, Platform,
-  ActivityIndicator, Animated, useWindowDimensions, Alert, TextInput
-} from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, Platform, ActivityIndicator, Animated, useWindowDimensions, TextInput } from 'react-native';
+import { CustomAlert as Alert, AlertHost } from '@/shared/components/CustomAlert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MotiView } from 'moti';
 import { X, ChevronRight, Check, Zap, ArrowLeft, Flame, Target, RefreshCw, Trash2, TrendingUp, CheckCircle2, Circle, Star, Shield, Lightbulb, Pencil, Sparkles, Layers } from 'lucide-react-native';
@@ -29,6 +27,9 @@ import { modeAccent as resolveModeAccent, modeAccentOn } from '@/shared/constant
 import { useActiveModeSummary } from '@/features/modes/hooks/useActiveModeSummary';
 import { haptic } from '@/shared/utils/haptics';
 import { swallow } from '@/shared/utils/swallow';
+import { splitForFirstDay, interleaveStaged } from '@/features/modes/utils/stagedRollout';
+import { useStagedPlanStore } from '@/features/modes/store/useStagedPlanStore';
+import { roomLeft } from '@/features/habits/utils/habitLimit';
 
 interface Props {
   mode: TurkishMode;
@@ -258,8 +259,9 @@ export const TurkishModeBanner: React.FC<Props> = ({
 
   // Plan view data — active habits/tasks from this plan
   const todayKey = fmtDateKey();
+  // İstatistik yalnız aktiflerden; "zaten eklendi mi" denetimi (yukarıda) TÜM listeyle.
   const planHabits = useMemo(
-    () => habits.filter(h => planHabitIds.includes(h.id)),
+    () => habits.filter(h => planHabitIds.includes(h.id) && !h.pausedAt),
     [habits, planHabitIds]
   );
   const planTasks = useMemo(
@@ -294,6 +296,8 @@ export const TurkishModeBanner: React.FC<Props> = ({
   })), [planTasks]);
 
   const completedPlanTasks = planTaskStats.filter(t => t.done).length;
+
+  const bestStreak = planHabitStats.length > 0 ? Math.max(...planHabitStats.map(h => h.streak)) : 0;
   const totalPlanTasks = planTaskStats.length;
   const avgHabitWeekPct = planHabitStats.length > 0
     ? Math.round(planHabitStats.reduce((s, h) => s + h.weekDone / 7, 0) / planHabitStats.length * 100)
@@ -343,7 +347,6 @@ export const TurkishModeBanner: React.FC<Props> = ({
 
     const completedTodayCount = planHabitStats.filter(h => h.doneToday).length;
     const allTodayCompleted = planHabitStats.length > 0 && completedTodayCount === planHabitStats.length;
-    const bestStreak = planHabitStats.length > 0 ? Math.max(...planHabitStats.map(h => h.streak)) : 0;
 
     const isHigh = avgHabitWeekPct >= 70 || (totalPlanTasks > 0 && completedPlanTasks / totalPlanTasks >= 0.70);
     const isLow = avgHabitWeekPct < 35;
@@ -513,8 +516,20 @@ export const TurkishModeBanner: React.FC<Props> = ({
 
     if (selectedTemplate?.dailyGoalMinutes) setDailyGoal(selectedTemplate.dailyGoalMinutes);
 
+    /*
+      KADEMELİ AÇILIM (madde 4): ilk gün 1 alışkanlık + en önemli görev; kalanlar sıraya
+      girer ve ilerledikçe günde birer açılır (bkz. stagedRollout). Kilo girişi zinciri ve
+      Ramazan öncesi tarihli görevler kendi akışlarında — sıraya girmez.
+    */
+    const isRamazanPreStart = mode.type === 'ramazan' && !isRamazanActive;
+    const staged = splitForFirstDay(newHabits.filter(h => !deselectedHabits.has(h.name)), newTasks,
+      { pinned: (t) => isRamazanPreStart || !!t.tags?.includes('weight_entry') });
+    // Alışkanlık sınırı (madde 6): yer yoksa ilk günün alışkanlığı da sıraya girer.
+    const room = roomLeft(useHabitStore.getState().habits);
+    const habitsNow = staged.habitsNow.slice(0, room);
+    const habitsWaiting = [...staged.habitsNow.slice(room), ...staged.habitsLater];
     const addedHabitIds: string[] = [];
-    for (const h of newHabits.filter(h => !deselectedHabits.has(h.name))) {
+    for (const h of habitsNow) {
       const hid = `habit_${mode.type}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       const habitName = tr ? h.nameTr : h.name;
       addHabit(habitName, h.emoji, h.color, hid, mode.type, h.nameTr, h.name);
@@ -628,7 +643,22 @@ export const TurkishModeBanner: React.FC<Props> = ({
     };
     const extraVisibleTag = visibleTagsMap[mode.type];
 
-    for (const task of newTasks) {
+    const planSlot = activeSlot ?? (['exam', 'yks', 'kpss'].includes(mode.type) ? 'exam' : mode.type);
+    const tagsFor = (task: ModeTask) => {
+      const t = Array.from(new Set([mode.type, activeSlot ?? mode.type, ...(task.tags ?? [])]));
+      if (extraVisibleTag && !t.includes(extraVisibleTag)) t.push(extraVisibleTag);
+      return t;
+    };
+    useStagedPlanStore.getState().setQueue(planSlot, interleaveStaged(
+      staged.tasksLater.map(task => ({
+        titleTr: taskPrefix ? formatWithPrefix(task.titleTr, taskPrefix) : task.titleTr,
+        titleEn: taskPrefix ? formatWithPrefix(task.titleEn, taskPrefix) : task.titleEn,
+        descTr: task.descTr, descEn: task.descEn, priority: task.priority, tags: tagsFor(task),
+      })),
+      habitsWaiting.map(h => ({ nameTr: h.nameTr, nameEn: h.name, emoji: h.emoji, color: h.color, modeType: mode.type })),
+    ));
+
+    for (const task of staged.tasksNow) {
       let taskTitleTr = task.titleTr;
       let taskTitleEn = task.titleEn;
 
@@ -646,12 +676,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
         ...(task.descEn && { descEn: task.descEn }),
       });
       
-      const slotTag = activeSlot ?? mode.type;
-      const finalTags = Array.from(new Set([mode.type, slotTag, ...(task.tags ?? [])]));
-      if (extraVisibleTag && !finalTags.includes(extraVisibleTag)) {
-        finalTags.push(extraVisibleTag);
-      }
-      const translatedTags = finalTags.map(tag => translateTag(tag, tr ? 'tr' : 'en'));
+      const translatedTags = tagsFor(task).map(tag => translateTag(tag, tr ? 'tr' : 'en'));
 
       try {
         const created = await TaskService.createTask({
@@ -1004,12 +1029,11 @@ export const TurkishModeBanner: React.FC<Props> = ({
         </View>
         <View style={[styles.progressDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }]} />
         <View style={styles.progressStat}>
-          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.progressNum, { color: modeAccent }]}>
-            {(() => {
-              const best = planHabitStats.length > 0 ? Math.max(...planHabitStats.map(h => h.streak)) : 0;
-              return best > 0 ? `${best}🔥` : '0';
-            })()}
-          </Text>
+          {/* Alev metne gömülü ham emoji idi ("5🔥"); artık temaya uyan ikon. */}
+          <View style={styles.streakRow}>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.progressNum, { color: modeAccent }]}>{bestStreak}</Text>
+            {bestStreak > 0 && <Flame size={ICON.sm} color={modeAccent} />}
+          </View>
           <Text style={[styles.progressLabel, { color: theme.onSurfaceVariant }]}>
             {tr ? 'en uzun seri' : 'best streak'}
           </Text>
@@ -1239,9 +1263,10 @@ export const TurkishModeBanner: React.FC<Props> = ({
                         );
                       })}
                     </View>
-                    <Text style={[styles.streakText, { color: h.streak > 0 ? '#FF6B35' : theme.onSurfaceVariant }]}>
-                      {h.streak > 0 ? `🔥 ${h.streak}` : (tr ? 'seri yok' : 'no streak')}
-                    </Text>
+                    <View style={styles.streakRow}>
+                      {h.streak > 0 && <Flame size={ICON.xs} color={STREAK_HOT} />}
+                      <Text style={[styles.streakText, { color: h.streak > 0 ? STREAK_HOT : theme.onSurfaceVariant }]}>{h.streak > 0 ? String(h.streak) : (tr ? 'seri yok' : 'no streak')}</Text>
+                    </View>
                   </View>
                 </View>
                 <View style={[styles.doneBadge, { backgroundColor: h.doneToday ? (h.color ?? modeAccent) + '22' : 'transparent', borderColor: h.doneToday ? (h.color ?? modeAccent) + '60' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)') }]}>
@@ -1395,7 +1420,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   `softwareKeyboardLayoutMode: "resize"` ile calisiyor (bkz. app.json):
                   pencere zaten kuculuyor, ikinci kez itmek sayfayi ekrandan tasirirdi.
                 */
-                marginBottom: Platform.OS === 'ios' ? keyboardHeight : 0,
+                marginBottom: keyboardHeight,
               },
             ]}
           >
@@ -1626,6 +1651,17 @@ export const TurkishModeBanner: React.FC<Props> = ({
                     </Text>
                   </View>
                 )}
+                {!applied && !allDone && (() => {
+                  const sp = splitForFirstDay(newHabits.filter(h => !deselectedHabits.has(h.name)), newTasks, { pinned: (t) => !!t.tags?.includes('weight_entry') });
+                  const later = sp.habitsLater.length + sp.tasksLater.length;
+                  const full = roomLeft(habits) === 0 && sp.habitsNow.length > 0;
+                  return later > 0 || full ? (
+                    <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, paddingHorizontal: S.xs, marginBottom: S.sm }}>
+                      {(tr ? STAGED_HINT.tr : STAGED_HINT.en)(sp.habitsNow.length + sp.tasksNow.length, later)}
+                      {full ? ` ${(tr ? STAGED_HINT.fullTr : STAGED_HINT.fullEn)}` : ''}
+                    </Text>
+                  ) : null;
+                })()}
                 <Touchable
                   onPress={applied ? () => setSheetVisible(false) : applyAll}
                   activeOpacity={0.85}
@@ -1646,6 +1682,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
             )}
           </Animated.View>
         </View>
+        <AlertHost />{/* modal içinden açılan uyarı burada, modalın üstünde (bkz. CustomAlert) */}
       </Modal>
     </>
   );
@@ -1656,8 +1693,18 @@ const LOAD_HINT = {
   tr: (goals: number, today: number) => `Şu an ${goals} aktif hedefin var · bugün ${today} plan işi`,
   en: (goals: number, today: number) => `You have ${goals} active goals · ${today} plan tasks today`,
 };
+// Kademeli açılım başlamadan söylenir: "7 öğe" görüp ilk gün 2 bulan kullanıcı şaşırmasın.
+const STAGED_HINT = {
+  tr: (now: number, later: number) => `Bugün ${now} öğeyle başlarsın; kalan ${later} öğe, ilerledikçe günde bir açılır.`,
+  en: (now: number, later: number) => `You start with ${now} today; the other ${later} unlock one a day as you make progress.`,
+  // Sınır dolu (madde 6): alışkanlıklar yer açılınca eklenir.
+  fullTr: 'Alışkanlık sınırın (7) dolu: bu modun alışkanlıkları sen birini dinlendirince eklenir.',
+  fullEn: 'Your habit limit (7) is full: this mode\'s habits are added once you rest one.',
+};
 
+const STREAK_HOT = '#FF6B35'; // seri vurgusu — mod rengine değil seriye ait
 const styles = StyleSheet.create({
+  streakRow: { flexDirection: 'row', alignItems: 'center', gap: S.xxs },
   banner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     borderRadius: R.lg, borderWidth: B.thin,

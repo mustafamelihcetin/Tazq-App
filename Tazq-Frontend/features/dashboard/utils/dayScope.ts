@@ -65,6 +65,26 @@ export function scopeDay<T extends ScopableTask>(tasks: T[], now: Date = new Dat
   return { incomplete, undated, completed };
 }
 
+/**
+ * Bugün DIŞINDAKİ bir günün kapsamı (Takvim: geçmiş = kayıt, gelecek = plan).
+ *
+ * `scopeDay`'den farkı bilinçli: orada önceki günlerden taşan gecikmiş işler bugüne
+ * dahildir (günü kapatmanın konusu onlar). Başka bir günde bu kural yanlış olurdu —
+ * 27 Ekim'e bakan kullanıcı 20 Ekim'den kalan işi "o günün işi" diye görmemeli.
+ */
+export function scopeOtherDay<T extends ScopableTask>(tasks: T[], day: Date): Omit<DayScope<T>, 'undated'> {
+  const start = new Date(day); start.setHours(0, 0, 0, 0);
+  const startMs = start.getTime();
+  const endMs = startMs + 86400000;
+  // Öğlenden: gün anahtarı gece yarısını bir önceki güne sayıyor (seri günü kuralı).
+  const key = todayKey(new Date(startMs + 12 * 3600000));
+  const inDay = (t: T) => { const ms = dueAt(t); return ms !== null && ms >= startMs && ms < endMs; };
+  return {
+    incomplete: tasks.filter(t => t && !t.isCompleted && inDay(t)),
+    completed: tasks.filter(t => t?.isCompleted && (wasCompletedOn(t, key) || inDay(t))),
+  };
+}
+
 /** Vadesi bugünden ÖNCE olan bitmemiş görev mi (Günüm'de "Süresi geçti"). */
 export function isOverdueBefore(t: ScopableTask, now: Date = new Date()): boolean {
   const ms = dueAt(t);

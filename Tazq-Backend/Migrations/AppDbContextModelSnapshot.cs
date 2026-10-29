@@ -278,6 +278,10 @@ namespace Tazq_Backend.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Currency")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
                     b.Property<int>("DueDay")
                         .HasColumnType("integer");
 
@@ -304,6 +308,47 @@ namespace Tazq_Backend.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Payments");
+                });
+
+            modelBuilder.Entity("Tazq_App.Models.PaymentRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("Currency")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<string>("CycleKey")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime>("PaidAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("PaymentId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "PaidAt");
+
+                    b.ToTable("PaymentRecords");
                 });
 
             modelBuilder.Entity("Tazq_App.Models.RefreshToken", b =>

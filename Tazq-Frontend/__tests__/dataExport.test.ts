@@ -31,13 +31,15 @@ describe('veri dışa aktarma', () => {
     expect(code).not.toMatch(/password/i);
   });
 
-  it('kullanıcıdan yalnız kimlik alanları alınır', () => {
-    expect(src).toContain('return { id: s.user?.id, name: s.user?.name, email: s.user?.email };');
+  it('kullanıcıdan yalnız ad ve e-posta alınır — kimlik numarası bile yok (madde 8)', () => {
+    expect(src).toContain('return { name: u?.name, email: u?.email };');
+    expect(src).not.toMatch(/user\??\.id/);
   });
 
-  it('biçim SÜRÜMLÜ — ileride şema değişirse okunabilsin', () => {
-    // Sürümsüz bir dışa aktarma, biçim bir kez değişince çöpe döner.
-    expect(src).toContain('formatVersion: 1');
+  it('ham veri temizleme hattından geçmeden yazılmaz', () => {
+    // Davranış testleri: __tests__/exportPackage.test.ts
+    expect(src).toContain('buildExportPackage(src');
+    expect(src).not.toMatch(/JSON\.stringify\(src/);
   });
 
   it('paylaşım desteği ÖNCE kontrol edilir', () => {
@@ -63,7 +65,7 @@ describe('veri dışa aktarma', () => {
   });
 
   it('buluta giden veriler de eksiksiz', () => {
-    for (const key of ['tasks', 'habits', 'focus', 'achievements', 'preferences']) {
+    for (const key of ['tasks', 'habits', 'focusSessions', 'achievements', 'preferences', 'payments', 'budget']) {
       expect(src).toMatch(new RegExp(`${key}: safe\\(`));
     }
   });

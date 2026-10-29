@@ -29,6 +29,8 @@ export interface Payment {
   /** "Bu dönem ödendi mi" — aylık "YYYY-MM", yıllık "YYYY", tek seferlik "once". */
   lastPaidCycleKey?: string | null;
   category?: string | null;
+  /** ISO 4217; boş = ana birim (bkz. features/payments/utils/money). */
+  currency?: string | null;
 }
 
 interface PaymentsState {
@@ -42,6 +44,9 @@ interface PaymentsState {
   removePayment: (id: number) => void;
   setLoading: (loading: boolean) => void;
   setCurrency: (currency: CurrencyCode) => void;
+  /** Geçmiş grafiği açık mı — varsayılan kapalı, cihaza özgü (bkz. PaymentsHistoryCard). */
+  chartOpen: boolean;
+  setChartOpen: (open: boolean) => void;
 }
 
 export const usePaymentsStore = create<PaymentsState>()(
@@ -50,6 +55,8 @@ export const usePaymentsStore = create<PaymentsState>()(
       payments: [],
       isLoading: false,
       currency: null,
+      chartOpen: false,
+      setChartOpen: (chartOpen) => set({ chartOpen }),
       setPayments: (payments) => set({ payments }),
       addPayment: (payment) => set({ payments: [...get().payments, payment] }),
       updatePayment: (id, patch) =>

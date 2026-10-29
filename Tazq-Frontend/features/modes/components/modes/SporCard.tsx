@@ -404,10 +404,10 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
     if (isKilo && twNum > 0 && cwNum > 0) {
       const reached = cwNum > twNum ? kiloLatest <= twNum : kiloLatest >= twNum;
       summary = reached
-        ? (tr ? `🎉 Hedefine ulaştın! ${cwNum} → ${kiloLatest} kg (hedef ${twNum} kg)` : `🎉 Goal reached! ${cwNum} → ${kiloLatest} kg (target ${twNum} kg)`)
+        ? (tr ? `Hedefine ulaştın! ${cwNum} → ${kiloLatest} kg (hedef ${twNum} kg)` : `Goal reached! ${cwNum} → ${kiloLatest} kg (target ${twNum} kg)`)
         : (tr ? `Süre doldu. ${cwNum} → ${kiloLatest} kg · hedef ${twNum} kg. Az kaldı, devam edelim mi?` : `Time's up. ${cwNum} → ${kiloLatest} kg · target ${twNum} kg. Almost there — keep going?`);
     } else {
-      summary = tr ? `"${goal}" hedefinin süresi doldu. Programını tamamladın 💪 Uzatmak ister misin?` : `"${goal}" deadline reached. You completed your program 💪 Want to extend?`;
+      summary = tr ? `"${goal}" hedefinin süresi doldu. Programını tamamladın. Uzatmak ister misin?` : `"${goal}" deadline reached. You completed your program. Want to extend?`;
     }
     Alert.alert(tr ? 'Hedef Sonucu' : 'Goal Result', summary, [
       { text: tr ? 'Süreyi uzat (+4 hafta)' : 'Extend (+4 weeks)', onPress: () => { setSeasonalPref('sporDate', dateKeyFromNow(28)); reviewHandledRef.current = false; setTimeout(() => runAdaptations(true), 300); } },
@@ -762,7 +762,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                 accent={SPOR}
                 value={planSpecs.spor?.personalNote ?? ''}
                 onChangeText={(v) => setPersonalNote('spor', v)}
-                placeholder={tr ? 'Eklemek istediğin bir şey var mı? (opsiyonel)' : 'Anything else to add? (optional)'}
+                placeholder={tr ? 'Not ekle (isteğe bağlı)' : 'Add a note (optional)'}
                 maxLength={140}
               />
               {!!sporDisabledHint && (

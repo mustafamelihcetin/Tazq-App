@@ -159,7 +159,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
+      <KeyboardAvoidingView behavior="padding" style={styles.backdrop}>
         <AppBlur material="thin" />
         {/* Perdeye dokunmak yalnız klavyeyi kapatır; bu ekranın tek çıkışı "Başla". */}
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>

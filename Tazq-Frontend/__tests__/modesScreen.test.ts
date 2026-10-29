@@ -95,14 +95,15 @@ describe('toplam yük ve başlık düzeni', () => {
     expect(MODLAR).toMatch(/bugün toplam \$\{n\} plan görevin var/);
   });
 
-  it('özet ikonu sağda, tanıtım solda — Haftalık Merkez ile aynı kural', () => {
+  it('özet ikonu sağda, durum rozeti solda (madde 7: tur modalı kalktı — Ayarlar\'da var)', () => {
     const header = MODLAR.slice(MODLAR.indexOf('<ScreenHeader'), MODLAR.indexOf('<View style={{ flex: 1 }}>'));
     const leftIdx = header.indexOf('left={');
     const rightIdx = header.indexOf('right={');
     expect(leftIdx).toBeGreaterThan(-1);
     expect(rightIdx).toBeGreaterThan(leftIdx);
     expect(header.slice(rightIdx)).toContain("router.push('/mod-ozet')");
-    expect(header.slice(leftIdx, rightIdx)).toContain("setTourCompleted('modlar', false)");
+    expect(header.slice(leftIdx, rightIdx)).toContain('<ModeStatusPill');
+    expect(header.slice(leftIdx, rightIdx)).not.toContain("setTourCompleted('modlar', false)");
   });
 
   it('turun hedefi özet düğmesiyle birlikte taşındı', () => {

@@ -3,7 +3,7 @@ import { View, Text, Modal, ScrollView, TextInput, ActivityIndicator, Platform, 
 import { Send } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SupportService, MySupportMessage } from '@/shared/services/api';
-import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
+import { CustomAlert as Alert, AlertHost } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
@@ -113,7 +113,7 @@ export const SupportModal: React.FC<SupportModalProps> = ({
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
         style={styles.modalOverlay}
       >
         {/* Sayfanın arka planı — ekran okuyucuda adsız bir kontrol olarak belirmesin. */}
@@ -272,6 +272,7 @@ export const SupportModal: React.FC<SupportModalProps> = ({
           </View>
         </View>
       </KeyboardAvoidingView>
+      <AlertHost />{/* modal içinden açılan uyarı burada, modalın üstünde (bkz. CustomAlert) */}
     </Modal>
   );
 };

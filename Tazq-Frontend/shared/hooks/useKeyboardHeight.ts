@@ -17,10 +17,13 @@ import { Keyboard, Platform } from 'react-native';
  * PLATFORM FARKI:
  *  · iOS   — `will` olayları klavye ANIMASYONUNDAN ÖNCE gelir; sayfa klavyeyle
  *            birlikte hareket eder, arkadan yetişmez.
- *  · Android — `will` olayları YOKTUR, `did` kullanılır. Ayrıca uygulama
- *            `softwareKeyboardLayoutMode: "resize"` ile çalıştığı için (bkz. app.json)
- *            pencere zaten küçülür; yükseklik uygulamak İKİNCİ kez itmek olur.
- *            Bu yüzden çağıran taraf değeri genelde yalnız iOS'ta kullanır.
+ *  · Android — `will` olayları YOKTUR, `did` kullanılır.
+ *
+ * İKİ PLATFORMDA DA UYGULANIR (2026-10-29, cihazda görüldü). Eskiden "Android'de
+ * `softwareKeyboardLayoutMode: resize` pencereyi zaten küçültür" denip değer yalnız
+ * iOS'ta kullanılıyordu. Uygulama kenardan kenara (edge-to-edge) çizildiğinden beri
+ * Android pencereyi KÜÇÜLTMÜYOR: hızlı taslak, görev formu ve mod kurulumunun yazı
+ * alanları klavyenin altında kalıyordu.
  */
 export function useKeyboardHeight(): number {
   const [height, setHeight] = useState(0);

@@ -58,6 +58,46 @@ namespace Tazq_App.Models
 		[MaxLength(40)]
 		public string? Category { get; set; }
 
+		/// <summary>
+		/// ISO 4217 (TRY/USD/EUR/GBP). null = kullanıcının ana para birimi. Eskiden tek
+		/// global tercih vardı; 200 ₺ kira, 20 $ abonelik ve 100 € spor salonu aynı listede
+		/// yaşayamıyordu (madde 12).
+		/// </summary>
+		[MaxLength(3)]
+		public string? Currency { get; set; }
+
 		public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+	}
+
+	/// <summary>
+	/// ÖDEME GEÇMİŞİ — her "ödendi" işareti bir kayıt. Eskiden yalnız LastPaidCycleKey
+	/// vardı; ay değişince geçen ayın ödemesi hiçbir yerde kalmıyordu. Başlık, tutar ve
+	/// birim o ANIN fotoğrafıdır: ödeme sonradan değişse/silinse de geçmiş doğru kalır.
+	/// </summary>
+	[Microsoft.EntityFrameworkCore.Index(nameof(UserId), nameof(PaidAt))] // geçmiş sorgusu: kullanıcı + tarih penceresi
+	public class PaymentRecord
+	{
+		[Key]
+		[DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+		public int Id { get; set; }
+
+		public int UserId { get; set; }
+
+		/// <summary>Ödeme silinince null (geçmiş korunur).</summary>
+		public int? PaymentId { get; set; }
+
+		[Required]
+		[MaxLength(100)]
+		public string Title { get; set; } = string.Empty;
+
+		public decimal Amount { get; set; }
+
+		[MaxLength(3)]
+		public string? Currency { get; set; }
+
+		[MaxLength(16)]
+		public string CycleKey { get; set; } = string.Empty;
+
+		public DateTime PaidAt { get; set; } = DateTime.UtcNow;
 	}
 }

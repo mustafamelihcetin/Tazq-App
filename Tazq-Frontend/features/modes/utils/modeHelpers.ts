@@ -17,6 +17,7 @@
 import { localizeSporGoal } from './turkishModes';
 import { swallow } from '@/shared/utils/swallow';
 import { parseDateKey, calendarDayOf } from '@/shared/utils/dateKey';
+import { stripEmoji } from '@/shared/utils/emoji';
 
 type TaskLike = { id: number; tags?: string[] | null };
 
@@ -75,12 +76,6 @@ const MODE_COLORS = {
   ramazan: '#6366F1',
 } as const;
 
-// Etiket adlarındaki ham emoji'leri temizler (ör. preset adı "⚖️ Kilo Yönetimi").
-// İkon/çip zaten flat tema ikonu gösteriyor; metinde ham emoji tutarsız durur.
-const stripEmoji = (s: string) => s
-  .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}]/gu, '')
-  .replace(/\s+/g, ' ')
-  .trim();
 
 /**
  * Bu fonksiyon `getModeInfoForTask` içinden, görev satırlarındaki "X gün kaldı"

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated, TouchableWithoutFeedback } from 'react-native';
-import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
+import { CustomAlert as Alert, AlertHost } from '@/shared/components/CustomAlert';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { track } from '@/shared/utils/analytics';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
@@ -771,11 +771,13 @@ export default function SettingsScreen() {
                 sub={exporting ? (language === 'tr' ? 'Hazırlanıyor…' : 'Preparing…') : (language === 'tr' ? 'Tüm kayıtlarının bir kopyası' : 'A copy of all your records')}
                 bg={A.legal}
                 right={exporting ? <ActivityIndicator size="small" color={theme.onSurfaceVariant} /> : undefined}
-                onPress={exporting ? undefined : async () => {
+                onPress={exporting ? undefined : () => {
+                  // Biçim seçimi (madde 8): okunabilir özet ya da tam ayrıntılı JSON.
+                  const run = async (format: 'md' | 'json') => {
                   setExporting(true);
                   try {
                     const { exportUserData } = require('@/shared/utils/dataExport');
-                    const res = await exportUserData();
+                    const res = await exportUserData(format);
                     if (res.ok) {
                       haptic.success();
                     } else {
@@ -794,6 +796,12 @@ export default function SettingsScreen() {
                   } finally {
                     setExporting(false);
                   }
+                  };
+                  Alert.alert(t.exportFormat.title, t.exportFormat.body, [
+                    { text: t.exportFormat.md, onPress: () => run('md') },
+                    { text: t.exportFormat.json, onPress: () => run('json') },
+                    { text: t.exportFormat.cancel, style: 'cancel' },
+                  ]);
                 }}
                 theme={theme}
               />
@@ -907,6 +915,7 @@ export default function SettingsScreen() {
             </View>
           </MotiView>
         </View>
+        <AlertHost />{/* modal içinden açılan uyarı burada, modalın üstünde (bkz. CustomAlert) */}
       </Modal>
 
       <SupportModal

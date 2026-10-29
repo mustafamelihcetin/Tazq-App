@@ -31,6 +31,8 @@ import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { PlanLifecycleRow } from '@/features/modes/components/PlanPauseRow';
 import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 import { haptic } from '@/shared/utils/haptics';
+import { roomLeft } from '@/features/habits/utils/habitLimit';
+import { HABIT_LIMIT_COPY } from '@/features/habits/utils/habitLimitCopy';
 
 export function BirakmaCard() {
   const { theme, isDark } = useAppTheme();
@@ -106,7 +108,13 @@ export function BirakmaCard() {
     }
     const content = buildBirakmaPlan('' as QuitType, trigger);
     const habitIds: string[] = [];
-    content.habits.forEach((h, i) => {
+    // Alışkanlık sınırı (madde 6): yalnız yer kadarı eklenir, fazlası için neden anlatılır.
+    const room = roomLeft(useHabitStore.getState().habits);
+    if (content.habits.length > room) {
+      const lc = HABIT_LIMIT_COPY[useLanguageStore.getState().language === 'en' ? 'en' : 'tr'];
+      Alert.alert(lc.fullTitle, lc.fullBody);
+    }
+    content.habits.slice(0, room).forEach((h, i) => {
       const id = `habit_birakma_${i}_${Date.now()}`;
       addHabit(h.name, h.emoji, h.color, id, 'birakma');
       habitIds.push(id);
@@ -345,7 +353,7 @@ export function BirakmaCard() {
             accent={C}
             value={planSpecs.birakma?.personalNote ?? ''}
             onChangeText={(v) => setPersonalNote('birakma', v)}
-            placeholder={tr ? 'Eklemek istediğin bir şey var mı? (opsiyonel)' : 'Anything else to add? (optional)'}
+            placeholder={tr ? 'Not ekle (isteğe bağlı)' : 'Add a note (optional)'}
             maxLength={140}
           />
           <Touchable disabled={!addValid} onPress={addSelected} style={{ marginTop: S.xs, backgroundColor: addValid ? C : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), borderRadius: R.full, paddingVertical: S.sm + 2, alignItems: 'center' }}>

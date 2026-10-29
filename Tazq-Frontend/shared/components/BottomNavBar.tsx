@@ -304,6 +304,7 @@ const BottomNavBarInner = () => {
                 return (
                   <Touchable
                     key={tab.id}
+                    testID={`tab-${tab.id}`} // uçtan uca testler (maestro): "Görevler" metni sayfada da geçiyor
                     onPress={() => handlePress(tab.path)}
                     activeOpacity={0.7}
                     style={styles.tab}

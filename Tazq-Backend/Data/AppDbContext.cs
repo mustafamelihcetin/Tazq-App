@@ -20,6 +20,7 @@ namespace Tazq_App.Data
 		public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
 		public DbSet<AppInstall> AppInstalls { get; set; }
 		public DbSet<Payment> Payments { get; set; }
+		public DbSet<PaymentRecord> PaymentRecords { get; set; }
 
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)

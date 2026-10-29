@@ -389,8 +389,8 @@ export function buildBirakmaPlan(type: QuitType, trigger?: TriggerId): ModePlanC
 // Bırakma kilometre taşı kutlama görevi (Stage 5 günlük üretimde kullanılır).
 export function birakmaMilestoneTask(days: number, tr: boolean): ModeDraftTask {
   return {
-    title: tr ? `🎉 ${days}. gün! Bu seriyi koru` : `🎉 Day ${days}! Keep the streak`,
-    titleEn: `🎉 Day ${days}! Keep the streak`,
+    title: tr ? `${days}. gün! Bu seriyi koru` : `Day ${days}! Keep the streak`,
+    titleEn: `Day ${days}! Keep the streak`,
     priority: 'Low',
     tags: ['birakma', `birakma_m${days}`],
   };

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { localizeSporGoal } from '@/features/modes/utils/turkishModes';
-import { useHabitStore } from '@/features/habits';
+import { useActiveHabitList } from '@/features/habits';
 import { useActiveTasks } from '@/features/tasks';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -97,7 +97,7 @@ export function useActiveModeSummary(): ModeSummary {
   const names = t.modeNames;
   const prefs = usePrefsStore();
   const seasonal = prefs.seasonal;
-  const habits = useHabitStore(s => s.habits);
+  const habits = useActiveHabitList(); // dinlenen plan alışkanlığı bugünün yükü değil
   // Arşivlenmişler hariç: özet AKTİF planı anlatır.
   const tasks = useActiveTasks();
 

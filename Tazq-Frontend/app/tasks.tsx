@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, TextInput, Platform, useWindowDimensions, Animated as RNAnimated, AppState, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Platform, useWindowDimensions, Animated as RNAnimated, AppState } from 'react-native';
+import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { AppBlur } from '@/shared/components/AppBlur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -201,14 +202,37 @@ export default function ActionCenter() {
   const searchInputRef = useRef<TextInput>(null);
   useEffect(() => {
     if (showSearch) {
-      setTimeout(() => {
+      // Klavye, çubuk ve liste boşluğu yerine oturduktan SONRA (250 ms animasyon):
+      // üçü aynı anda açılınca düşük donanımda açılış kare başına ~40 ms'ye çıkıyordu.
+      const id = setTimeout(() => {
         searchInputRef.current?.focus();
-      }, 150);
+      }, 280);
+      return () => clearTimeout(id);
     }
   }, [showSearch]);
   const sortBy = usePrefsStore(s => s.taskSortBy);
   const setSortBy = usePrefsStore(s => s.setTaskSortBy);
   const [showSortMenu, setShowSortMenu] = useState(false);
+  /*
+    MENÜ DÜĞMEYE BAĞLI. Konum `insets.top + 70` diye sabit yazılıydı: başlık yüksekliği
+    ve güvenli alan cihaza göre değiştiği için menü bazı cihazlarda düğmeden kopup aşağı
+    kayıyordu. Artık düğme ölçülür, menü tam altından ve düğmenin köşesinden büyüyerek açılır.
+  */
+  const rootRef = useRef<View>(null);
+  const sortBtnRef = useRef<View>(null);
+  const [sortAnchor, setSortAnchor] = useState<{ top: number; left: number } | null>(null);
+  const toggleSortMenu = () => {
+    haptic.surface();
+    if (showSortMenu) { setShowSortMenu(false); return; }
+    const root = rootRef.current, btn = sortBtnRef.current;
+    if (!root || !btn) { setShowSortMenu(true); return; }
+    root.measureInWindow((_rx, ry, _rw, _rh) => {
+      btn.measureInWindow((bx, by, _bw, bh) => {
+        setSortAnchor({ top: by - ry + bh + S.xs, left: bx });
+        setShowSortMenu(true);
+      });
+    });
+  };
   const hideCompleted = usePrefsStore(s => s.taskHideCompleted);
   const setHideCompleted = usePrefsStore(s => s.setTaskHideCompleted);
   // Açık ufkun ötesindeki görevler katlı mı (bkz. utils/horizon). Oturumluk: her
@@ -1365,7 +1389,7 @@ export default function ActionCenter() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.background }}>
+    <View ref={rootRef} style={{ flex: 1, backgroundColor: theme.background }}>
       
         {/* Floating TopBar */}
         <ScreenHeader
@@ -1378,7 +1402,7 @@ export default function ActionCenter() {
                 </Touchable>
             ) : (
                 // Sol: Sırala & Filtrele. Sağ: Ara (büyüteç). Back butonu YOK — alt navigasyondan gezilir.
-                <Touchable onPress={() => { setShowSortMenu(!showSortMenu); haptic.surface(); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sırala ve filtrele' : 'Sort and filter'}>
+                <Touchable ref={sortBtnRef} onPress={toggleSortMenu} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sırala ve filtrele' : 'Sort and filter'}>
                     <ChromeShell />
                     <View>
                         <SlidersHorizontal size={ICON.md} color={(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) ? theme.primary : theme.onSurface} />
@@ -1449,7 +1473,7 @@ export default function ActionCenter() {
                 from={{ opacity: 0, translateY: -8, scale: 0.95 }}
                 animate={{ opacity: 1, translateY: 0, scale: 1 }}
                 exit={{ opacity: 0, translateY: -8, scale: 0.95 }}
-                style={[styles.sortMenu, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderColor: theme.outline, top: insets.top + 70, left: S.lg }]}
+                style={[styles.sortMenu, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderColor: theme.outline, top: sortAnchor?.top ?? insets.top + 70, left: sortAnchor?.left ?? S.lg, transformOrigin: 'top left' }]}
               >
                 {/*
                   ALTI FİLTRE SATIRI TEK TOGGLE'A İNDİ.
@@ -1623,7 +1647,7 @@ export default function ActionCenter() {
             extraData={{ highlightedId, isBulkMode, selectedIds, completingIds, language, expandedId }}
             onScroll={onScroll}
             scrollEventThrottle={16}
-            ListHeaderComponent={() => (
+            ListHeaderComponent={( // öğe, bileşen değil: her render yeniden kurulmasın (arama boşluğu zıplıyordu)
         <React.Fragment>
             <MotiView animate={{ height: showSearch ? 52 : 0 }} transition={{ type: 'timing', duration: 250 }} />
             <View style={{ paddingBottom: S.md }}>

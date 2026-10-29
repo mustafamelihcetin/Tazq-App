@@ -580,3 +580,18 @@ export type AppTheme = typeof lightPalette;
 // Biri diğerine token eklenip ötekine eklenmezse burası hata verir.
 const _darkPaletteMatchesLight: AppTheme = darkPalette;
 void _darkPaletteMatchesLight;
+
+/*
+  NEFES SEANSI PALETİ (madde 14) — seans ekranı temadan bağımsız KOYU ve sakindir
+  (odak ekranı gibi: göz kapanmaya yakınken parlak zemin rahatsız eder). Her amacın
+  kendi doygunluğu düşük tonu var; madde 15'teki "göz yoran renk" uyarısıyla aynı
+  ilke: pastel yapraklar, koyu zemin, vurgu yalnız yazı/düğmede.
+    petals: kürenin iki yaprak tonu (ekran karışımıyla üst üste biner)
+    bg:     zemin (üst → alt) · accent: başlık, düğme, ilerleme
+*/
+export const BreathPalette = {
+  sigh:      { petals: ['#5EC4B0', '#4A9BB0'], bg: ['#0B1E24', '#06121A'], accent: '#7DD3C0' }, // Sakinleş — deniz
+  box:       { petals: ['#7C8CF0', '#5B6FD8'], bg: ['#10142C', '#080B1A'], accent: '#A5B4FC' }, // Odaklan — çivit
+  sleep:     { petals: ['#A78BDA', '#7C6BC4'], bg: ['#160F2A', '#0A0718'], accent: '#C4B5FD' }, // Uyu — lavanta
+  resonance: { petals: ['#8CC79E', '#5FA383'], bg: ['#0E1D17', '#07110D'], accent: '#A7D7B5' }, // Denge — adaçayı
+} as const;

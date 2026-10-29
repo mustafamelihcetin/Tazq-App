@@ -1,19 +1,6 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  useWindowDimensions,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  TouchableWithoutFeedback,
-  Keyboard,
-  ScrollView,
-  Alert,
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, useWindowDimensions, KeyboardAvoidingView, Platform, ActivityIndicator, TouchableWithoutFeedback, Keyboard, ScrollView } from 'react-native';
+import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
@@ -289,7 +276,7 @@ export default function RegisterScreen() {
           <BackButton onPress={() => router.back()} style={[styles.backButton, { top: insets.top + 12 }]} />
           <KeyboardAvoidingView
             style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior="padding"
           >
           <ScrollView
             style={styles.keyboardView}

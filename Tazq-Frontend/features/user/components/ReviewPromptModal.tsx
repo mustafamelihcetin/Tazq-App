@@ -112,7 +112,7 @@ export function ReviewPromptModal({ visible, onClose, theme, tr }: Props) {
           kalıyordu (iOS'ta ekran kaymaz, modal olduğu yerde durur). KAV içeriği
           klavyenin üstüne taşır. */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
         style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: S.lg }}
       >
         <MotiView

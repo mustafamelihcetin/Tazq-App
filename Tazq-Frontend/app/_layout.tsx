@@ -539,6 +539,8 @@ export default function RootLayout() {
           router.push('/cockpit');
         } else if (data.type === 'weekly') {
           router.push('/report');
+        } else if (data.type === 'comeback') {
+          router.push('/'); // ana sayfa: günün yıldızı ve tek küçük adım orada
         } else {
           router.push('/tasks');
         }
@@ -691,13 +693,18 @@ export default function RootLayout() {
       finalizeDueSession();
     };
 
+    // Momentum koruma (madde 11): her açılışta 48 saatlik geri çağrıyı ileri it.
+    const pushComeback = () => { try { require('@/shared/utils/notifications').refreshComeback(); } catch (e) { swallow('layout.comeback', e); } };
+
     // Run on startup
     checkTimerRehydration();
+    pushComeback();
 
     // Run when app returns to foreground
     const handleAppStateChange = (nextAppState: string) => {
       if (nextAppState === 'active') {
         checkTimerRehydration();
+        pushComeback();
       } else {
         if (nextAppState === 'background') onAppBackground();
         // Arka plana geçerken bekleyen alt görev yazmalarını HEMEN gönder: 800 ms'lik

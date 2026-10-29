@@ -8,6 +8,8 @@ import { useActiveTasks, getLocalizedTaskTitle, isSomeday, type Task } from '@/f
 import { calendarDayOf, dateKeyFromNow } from '@/shared/utils/dateKey';
 import { whenLabel } from '@/features/tasks/utils/horizon';
 import { useFocusSheetTheme } from '@/features/focus/hooks/useFocusSheetTheme';
+import { isFocusWorthy } from '@/features/focus/focusWorthy';
+import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 
 /**
  * SEANSIN KONUSU — isteğe bağlı bir etiket, bir TALİMAT değil.
@@ -119,6 +121,7 @@ export function orderForFocus(tasks: Task[], today: string): Task[] {
   const workable = tasks.filter((t) => {
     if (!t || t.isCompleted || isSomeday(t)) return false;
     if ((t.tags ?? []).some((tag) => REMINDER_TAGS.has(tag))) return false;
+    if (!isFocusWorthy(t)) return false; // anlık eylem (su iç, tartıl…) seansa bağlanmaz
     const day = calendarDayOf(t.dueDate);
     return !day || day <= today; // ileri tarihli iş bugünün konusu değil
   });
@@ -135,6 +138,7 @@ export const FocusTaskPicker: React.FC<FocusTaskPickerProps> = ({ visible, langu
   const [text, setText] = useState('');
   const tasks = useActiveTasks();
   const c = COPY[language];
+  const keyboardHeight = useKeyboardHeight();
   const today = dateKeyFromNow(0);
   const list = useMemo(() => orderForFocus(tasks, today), [tasks, today]);
 
@@ -155,7 +159,8 @@ export const FocusTaskPicker: React.FC<FocusTaskPickerProps> = ({ visible, langu
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         <Touchable accessibilityRole="button" accessibilityLabel={c.close} style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
-        <View style={{ maxHeight: '76%', borderTopLeftRadius: R.sheet, borderTopRightRadius: R.sheet, paddingHorizontal: S.lg, paddingTop: S.md, paddingBottom: S.xl, overflow: 'hidden' }}>
+        {/* Klavye payı iki platformda (bkz. useKeyboardHeight): serbest başlık yazılırken liste klavyenin altında kalmasın. */}
+        <View style={{ maxHeight: '76%', marginBottom: keyboardHeight, borderTopLeftRadius: R.sheet, borderTopRightRadius: R.sheet, paddingHorizontal: S.lg, paddingTop: S.md, paddingBottom: S.xl, overflow: 'hidden' }}>
           <GlassSurface corners="top" />
           <View style={{ alignItems: 'center', marginBottom: S.md }}>
             <View style={{ width: 36, height: 4, borderRadius: R.xs, backgroundColor: theme.onSurface + '1F' }} />

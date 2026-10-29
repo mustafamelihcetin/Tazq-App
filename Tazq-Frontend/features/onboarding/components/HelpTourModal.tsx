@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
-import { useTourRun, type FirstRunPage } from '@/features/onboarding/utils/firstRun';
+import { useTourRun, shouldRetireBeacon, type FirstRunPage } from '@/features/onboarding/utils/firstRun';
 import { TOUR_STEPS, AUTO_START_PAGES } from '@/features/onboarding/tour/tourSteps';
 import { SpotlightTour } from '@/features/onboarding/components/SpotlightTour';
 import { TourBeacon } from '@/features/onboarding/components/TourBeacon';
@@ -49,6 +50,21 @@ export function HelpTourModal({ pageId, scrollRef }: Props) {
     useTourRun.getState().setRunning(null);
     setTourCompleted(pageId, true);
   };
+  /*
+    Teklif görüldü ama dokunulmadan sayfadan çıkıldı → bir daha sorulmaz (bkz.
+    shouldRetireBeacon). Odak kaybı (blur) dinleniyor: sekme değişiminde ekran bazen
+    bağlı kalıyor, unmount beklemek yetmezdi.
+  */
+  const startedRef = useRef(started);
+  startedRef.current = started;
+  useFocusEffect(useCallback(() => {
+    const shownAt = Date.now();
+    return () => {
+      if (shouldRetireBeacon({ visibleMs: Date.now() - shownAt, started: startedRef.current })) {
+        setTourCompleted(pageId, true);
+      }
+    };
+  }, [pageId, setTourCompleted]));
 
   const steps = TOUR_STEPS[pageId] ?? [];
   if (steps.length === 0) return null;

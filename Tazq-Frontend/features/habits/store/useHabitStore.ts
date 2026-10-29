@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { inferSleepFromNames } from '@/features/habits/utils/sleepHabit';
+import { daysBetween } from '@/features/habits/utils/habitLimit';
 
 export interface Habit {
   id: string;
@@ -24,6 +25,12 @@ export interface Habit {
    * Health Connect ile "onaylı asistan" akışı bu etikete bakar. Manuel/diğerlerinde undefined.
    */
   healthMetric?: 'sleep';
+  /**
+   * DİNLENDİRİLDİ (duraklatıldı) — 'YYYY-MM-DD'. Sınıra sayılmaz, bugünün listesinde
+   * çıkmaz (madde 6). Geri alınca NULL yazılır, alan silinmez: birleştirme yereli
+   * tercih ediyor ama silinmiş alan buluttaki eski değeri geri getirirdi.
+   */
+  pausedAt?: string | null;
 }
 
 interface HabitState {
@@ -36,6 +43,10 @@ interface HabitState {
   setWeeklyGoal: (goal: string) => void;
   getStreak: (habit: Habit) => number;
   setHabits: (habits: Habit[]) => void;
+  /** Geri alınabilir duraklatma (bkz. habitLimit). */
+  pauseHabit: (id: string, today?: string) => void;
+  /** Dinlenme günleri MOLA sayılır — seri bozulmaz. */
+  resumeHabit: (id: string, today?: string) => void;
 }
 
 export function fmtDateKey(d: Date = new Date()): string {
@@ -94,6 +105,18 @@ export const useHabitStore = create<HabitState>()(
       habits: [],
       weeklyGoal: '',
       setHabits: (habits) => set({ habits }),
+      pauseHabit: (id, today = fmtDateKey()) =>
+        set({ habits: get().habits.map(h => (h.id === id ? { ...h, pausedAt: today } : h)) }),
+      resumeHabit: (id, today = fmtDateKey()) =>
+        set({
+          habits: get().habits.map(h => {
+            if (h.id !== id || !h.pausedAt) return h;
+            const done = new Set(h.completedDates ?? []);
+            const rest = daysBetween(h.pausedAt, today).filter(d => !done.has(d));
+            const skipped = Array.from(new Set([...(h.skippedDates ?? []), ...rest])).sort();
+            return { ...h, pausedAt: null, skippedDates: skipped };
+          }),
+        }),
       addHabit: (name, emoji, color, id, planMode, nameTr, nameEn) =>
         set((s) => {
           // Çift-isim koruması (büyük/küçük harf duyarsız) — aynı alışkanlık iki kez eklenmez.

@@ -188,7 +188,8 @@ describe('yoğunluk', () => {
      * → 321 (2026-10-24): Günüm'deki tamamla halkası — çekirdek eylem (görev bitirme)
      *   başka her listede success titreşiyor; burada sessiz kalması tutarsızlıktı.
      * → 322 (2026-10-29): odak modlarındaki "Otomatik Zen" anahtarı — seçim anahtarları titreşir.
+     * → 324 (2026-10-29): alışkanlığı dinlendir / geri getir — gerçek eylem onayı (madde 6).
      */
-    expect(hap).toBeLessThanOrEqual(322);
+    expect(hap).toBeLessThanOrEqual(324);
   });
 });

@@ -34,3 +34,33 @@ export function stripLeadingEmoji(value?: string | null): string {
   const raw = value ?? '';
   return raw.replace(LEADING_EMOJI, '').trim() || raw;
 }
+
+/**
+ * Metnin HER YERİNDEKİ renkli emojileri gösterim için ayıklar (madde 2).
+ * Önceden modlar, mod özeti ve modeHelpers'ta üç ayrı kopyası vardı; o kopyalar
+ * ✓ ➔ ★ gibi tipografik işaretleri de siliyordu.
+ *
+ * Neden gösterimde: modların eskiden ürettiği görev başlıkları kullanıcı verisinde
+ * emojiyle kayıtlı ("💪 Güç & Kas"). Veriyi toplu yeniden yazmak geri dönüşsüz ve
+ * sunucuya dokunuyor; ekrana çizmemek aynı sonucu risksiz verir. Yeni üretilen
+ * metinlerde zaten emoji yok.
+ *
+ * Tipografik işaretler emoji değildir, korunur: her platformda aynı çizilir ve yazı
+ * rengini alır (✓ ✦ ➔ ★ ✔ — kullanıcı kararı 2026-10-29).
+ *
+ * Yalnız emojiden oluşan metin (ör. kullanıcı bir alışkanlığa yalnız "💧" yazdıysa)
+ * DOKUNULMADAN döner: boş başlık, emojili başlıktan kötüdür.
+ */
+const KEEP = new Set(['✓', '✔', '✦', '➔', '★', '☆', '→', '←']);
+// Extended_Pictographic: emoji tabanları; FE0F/FE0E: sunum seçicileri; 200D: ZWJ;
+// 1F1E6–1F1FF: bayrak harfleri; 1F3FB–1F3FF: ten rengi; 20E3: tuş kapağı.
+const EMOJI = /\p{Extended_Pictographic}|[\u{1F1E6}-\u{1F1FF}\u{1F3FB}-\u{1F3FF}️︎‍⃣]/gu;
+
+export function stripEmoji(text: string): string {
+  if (!text) return '';
+  const out = text
+    .replace(EMOJI, (ch) => (KEEP.has(ch) ? ch : ' '))
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  return out || text;
+}

@@ -115,7 +115,7 @@ export const QuickAddSheet: React.FC<QuickAddSheetProps> = ({
           accessibilityRole="button"
           accessibilityLabel={q.close}
         />
-        <View style={[styles.wrapper, { marginBottom: Platform.OS === 'ios' ? keyboardHeight : 0 }]}>
+        <View style={[styles.wrapper, { marginBottom: keyboardHeight }]}>
           <Animated.View
             style={[
               animatedStyle,

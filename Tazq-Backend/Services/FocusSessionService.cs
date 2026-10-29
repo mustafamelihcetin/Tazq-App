@@ -79,9 +79,12 @@ namespace Tazq_App.Services
 
               Davranış birebir aynı: aynı satırlar, aynı sıra, aynı sayı.
             */
+            // `Completed` filtresi YOK: erken bitirilen seansın dakikaları da odaktır
+            // (ürün kararı 2026-10-29). İstemci bunları sayıyor, sunucu saymıyordu —
+            // ana sayfa "5 dk" derken Haftalık ve Geri Bakış "0 dk" gösteriyordu.
             var sessions = await _db.FocusSessions
                 .AsNoTracking()
-                .Where(f => f.UserId == userId && f.Completed)
+                .Where(f => f.UserId == userId)
                 .Select(f => new { f.StartedAt, f.DurationMinutes })
                 .ToListAsync();
 
@@ -170,7 +173,7 @@ namespace Tazq_App.Services
 
             return await _db.FocusSessions
                 .AsNoTracking()
-                .Where(f => f.UserId == userId && f.Completed && f.StartedAt >= since)
+                .Where(f => f.UserId == userId && f.StartedAt >= since) // erken bitenler dahil (bkz. GetUserStatsAsync)
                 .OrderBy(f => f.StartedAt)
                 .Select(f => new FocusSessionRow { StartedAt = f.StartedAt, Minutes = f.DurationMinutes })
                 .ToListAsync();

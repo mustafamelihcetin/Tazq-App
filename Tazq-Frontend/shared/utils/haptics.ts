@@ -133,6 +133,15 @@ export const haptic = {
     if (Platform.OS === 'android') Vibration.vibrate([0, 70, 110, 70]); // iki kısa vuruş, çanın iki notasıyla
     else safe(Expo.notificationAsync(Expo.NotificationFeedbackType.Success));
   },
+  /**
+   * NEFES FAZI — "şimdi al / ver". Gözler kapalıyken tek yol gösterici; alarm gibi
+   * sistem dokunma ayarından bağımsız (Android'de motor doğrudan, çok kısa ve hafif).
+   */
+  breath: () => {
+    if (!enabled()) return;
+    if (Platform.OS === 'android') Vibration.vibrate(28);
+    else safe(Expo.impactAsync(Expo.ImpactFeedbackStyle.Soft));
+  },
 };
 
 /**

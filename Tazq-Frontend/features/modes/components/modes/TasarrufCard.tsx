@@ -34,6 +34,8 @@ import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 import { haptic } from '@/shared/utils/haptics';
 import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
 import { daysLeftOf as planDaysLeftOf } from '@/features/modes/utils/planTaskOps';
+import { roomLeft } from '@/features/habits/utils/habitLimit';
+import { HABIT_LIMIT_COPY } from '@/features/habits/utils/habitLimitCopy';
 
 const fmtMoney = (n: number) => n.toLocaleString('tr-TR');
 
@@ -180,7 +182,13 @@ export function TasarrufCard() {
     haptic.success();
     const content = buildTasarrufPlan(budgetType, spendingArea);
     const habitIds: string[] = [];
-    content.habits.forEach((h, i) => {
+    // Alışkanlık sınırı (madde 6): yalnız yer kadarı eklenir, fazlası için neden anlatılır.
+    const room = roomLeft(useHabitStore.getState().habits);
+    if (content.habits.length > room) {
+      const lc = HABIT_LIMIT_COPY[useLanguageStore.getState().language === 'en' ? 'en' : 'tr'];
+      Alert.alert(lc.fullTitle, lc.fullBody);
+    }
+    content.habits.slice(0, room).forEach((h, i) => {
       const id = `habit_tasarruf_${i}_${Date.now()}`;
       addHabit(h.name, h.emoji, h.color, id, 'tasarruf');
       habitIds.push(id);
@@ -426,7 +434,7 @@ export function TasarrufCard() {
                 accent={C}
                 value={planSpecs.tasarruf?.personalNote ?? ''}
                 onChangeText={(v) => setPersonalNote('tasarruf', v)}
-                placeholder={tr ? 'Eklemek istediğin bir şey var mı? (opsiyonel)' : 'Anything else to add? (optional)'}
+                placeholder={tr ? 'Not ekle (isteğe bağlı)' : 'Add a note (optional)'}
                 maxLength={140}
               />
             </>

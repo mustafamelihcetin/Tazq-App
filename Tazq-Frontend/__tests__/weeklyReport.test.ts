@@ -231,7 +231,9 @@ describe('haftalık yüzeylerin ROL AYRIMI', () => {
   });
 
   it('alışkanlık ekleme ekranın İÇİNDE hâlâ var — kaldırılan şey yalnız tekrardı', () => {
-    expect((COCKPIT.match(/setAddVisible\(true\)/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    // İki giriş de sınır denetiminden geçer (madde 6, bkz. openAddHabit).
+    expect((COCKPIT.match(/onPress=\{openAddHabit\}/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    expect(COCKPIT).toContain('setAddVisible(true)');
   });
 
   it('iki ekran aynı hesap motorunu kullanır', () => {

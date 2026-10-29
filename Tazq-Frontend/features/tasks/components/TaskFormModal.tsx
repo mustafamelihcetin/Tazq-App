@@ -26,8 +26,11 @@
  *  · Koyu temada kayıt göstergesi siyahtı, hatırlatıcı anahtarı rolsüz bir resimdi.
  */
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, TextInput, Platform, ActivityIndicator, ScrollView, Animated as RNAnimated, Keyboard, Pressable, useWindowDimensions, Alert } from 'react-native';
-import { X, Sparkles, Mic, Repeat, Trash2, Plus, Check } from 'lucide-react-native';
+import { View, Text, StyleSheet, Modal, TextInput, Platform, ActivityIndicator, ScrollView, Animated as RNAnimated, Keyboard, Pressable, useWindowDimensions } from 'react-native';
+import { CustomAlert as Alert, AlertHost } from '@/shared/components/CustomAlert';
+import { X, Sparkles, Mic, Repeat, Trash2, Plus, Check, Lock } from 'lucide-react-native';
+import { isModeContentTask, protectModeContent } from '@/features/tasks/utils/modeTaskEdit';
+import { getLocalizedTaskTitle, getLocalizedTaskDescription } from '@/features/tasks/store/useTaskStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
@@ -170,6 +173,8 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
   const { width: winW, height: winH } = useWindowDimensions();
   const isTablet = winW >= TABLET_MIN;
   const c = taskFormCopy(language);
+  // Mod görevi: başlık ve iki dilli yük kilitli (bkz. modeTaskEdit — ham JSON 'Notlar'a düşüyordu).
+  const locked = isModeContentTask(task);
   const [form, setForm] = useState<TaskForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [titleError, setTitleError] = useState(false);
@@ -189,7 +194,8 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
     focusedField === f ? theme.primary + '1A' : theme.surfaceField;
   // Ortak hook (bkz. useKeyboardHeight). Android `resize` modunda pencere zaten küçülür.
   const keyboardHeight = useKeyboardHeight();
-  const iosKeyboard = Platform.OS === 'ios' ? keyboardHeight : 0;
+  // İki platformda da: edge-to-edge'de Android penceresi küçülmüyor (bkz. useKeyboardHeight).
+  const iosKeyboard = keyboardHeight;
 
   /*
     KAPATMA TEK KAPIDAN — X, arka plan, geri tuşu ve aşağı kaydırma aynı yolu izler.
@@ -261,8 +267,8 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
       if (task) {
         const loaded: TaskForm = {
-          title: task.title,
-          description: task.description || '',
+          title: locked ? getLocalizedTaskTitle(task, langOf(language) === 'tr') : task.title,
+          description: locked ? (getLocalizedTaskDescription(task, langOf(language) === 'tr') ?? '') : task.description || '',
           priority: (task.priority as Priority) || 'Medium',
           // YEREL GÜN — ham `.split('T')[0]` sunucunun ISO damgasının UTC gününü alıyordu;
           // yerel gün UTC'den farklıysa (gece kuşağı) form yanlış günle açılıp, tarihe hiç
@@ -422,11 +428,13 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
       const safeDueDate = !form.dueDate && form.dueTime ? toDateKey(new Date()) : form.dueDate;
       // YENİ görevde cümleden alana aktarılan kısımlar başlıktan çıkar ("Sunumu bitir yarın
       // 15:00 acil" → "Sunumu bitir"; cihazda görüldü). Düzenlemede motor çalışmaz, başlık olduğu gibi.
-      const title = task ? form.title.trim() : titleOf(form.title.trim(), understand(form.title.trim(), langOf(language)));
+      // Mod görevinde başlık + iki dilli yük olduğu gibi korunur (bkz. modeTaskEdit).
+      const kept = protectModeContent(task, form);
+      const title = task ? kept.title : titleOf(form.title.trim(), understand(form.title.trim(), langOf(language)));
       await onSave({
         ...form,
         title,
-        description: form.description.trim(),
+        description: kept.description,
         dueDate: safeDueDate,
       });
       onClose();
@@ -547,7 +555,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
               {/* BAŞLIK + NOT — tek gruplu kart (Hatırlatıcılar), başlık formun en büyük yazısı. */}
               <View style={styles.titleCard}>
                 <Pressable
-                  onPress={() => titleInputRef.current?.focus()}
+                  onPress={() => { if (!locked) titleInputRef.current?.focus(); }}
                   accessible={false}
                   style={[styles.titleRow, { backgroundColor: titleError ? theme.error + '14' : fieldFill('title') }]}
                 >
@@ -557,6 +565,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     placeholder={isListeningTitle ? t.listeningLabel : c.titlePlaceholder}
                     placeholderTextColor={theme.onSurfaceMuted}
                     value={form.title}
+                    editable={!locked}
                     onChangeText={handleTitleChange}
                     onFocus={() => setFocusedField('title')}
                     onBlur={() => setFocusedField(null)}
@@ -568,7 +577,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     underlineColorAndroid="transparent"
                   />
                   {hasNlpHint(nlpHint) ? <Sparkles size={ICON.sm} color={theme.primary} /> : null}
-                  <Touchable
+                  {locked ? <Lock size={ICON.sm} color={theme.onSurfaceMuted} /> : <Touchable
                     onPress={() => toggleVoice('title')}
                     style={styles.micBtn}
                     accessibilityRole="button"
@@ -576,11 +585,11 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     accessibilityState={{ busy: isListeningTitle }}
                   >
                     <VoiceWave active={isListeningTitle} theme={theme} />
-                  </Touchable>
+                  </Touchable>}
                 </Pressable>
                 <View style={[styles.cardSeparator, { backgroundColor: theme.separator }]} />
                 <Pressable
-                  onPress={() => descInputRef.current?.focus()}
+                  onPress={() => { if (!locked) descInputRef.current?.focus(); }}
                   accessible={false}
                   style={[styles.notesRow, { backgroundColor: fieldFill('desc') }]}
                 >
@@ -590,6 +599,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     placeholder={isListeningDesc ? t.listeningLabel : c.notesPlaceholder}
                     placeholderTextColor={theme.onSurfaceMuted}
                     value={form.description}
+                    editable={!locked}
                     onChangeText={handleDescriptionChange}
                     onFocus={() => setFocusedField('desc')}
                     onBlur={() => setFocusedField(null)}
@@ -598,7 +608,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     accessibilityLabel={t.taskDescription}
                     underlineColorAndroid="transparent"
                   />
-                  <Touchable
+                  {!locked && <Touchable
                     onPress={() => toggleVoice('description')}
                     style={styles.micBtn}
                     accessibilityRole="button"
@@ -606,11 +616,16 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     accessibilityState={{ busy: isListeningDesc }}
                   >
                     <VoiceWave active={isListeningDesc} theme={theme} />
-                  </Touchable>
+                  </Touchable>}
                 </Pressable>
               </View>
 
-              {titleError ? (
+              {locked ? (
+                <View style={styles.smartHint}>
+                  <Lock size={ICON.xs} color={theme.onSurfaceMuted} />
+                  <Text style={[styles.helper, { color: theme.onSurfaceVariant, flex: 1 }]}>{c.modeLocked}</Text>
+                </View>
+              ) : titleError ? (
                 <Text accessibilityLiveRegion="polite" style={[styles.helper, { color: theme.error }]}>{c.titleRequired}</Text>
               ) : hasNlpHint(nlpHint) ? (
                 <NlpHintRow hint={nlpHint} theme={theme} />
@@ -811,6 +826,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
           </RNAnimated.View>
         </View>
       </View>
+      <AlertHost />{/* modal içinden açılan uyarı burada, modalın üstünde (bkz. CustomAlert) */}
     </Modal>
   );
 };

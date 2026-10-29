@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated, TouchableWithoutFeedback } from 'react-native';
-import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
+import { CustomAlert as Alert, AlertHost } from '@/shared/components/CustomAlert';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { track } from '@/shared/utils/analytics';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
@@ -614,7 +614,7 @@ export default function ProfileScreen() {
 
       {/* Edit Profile Modal */}
       <Modal visible={editModalVisible} transparent animationType="none" onShow={() => editSlideIn()}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: 'flex-end' }}>
             <Touchable style={StyleSheet.absoluteFill} onPress={() => setEditModalVisible(false)} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'} />
               <Animated.View style={[editSlide, styles.modalContent, { maxHeight: sheetMaxHeight(height, insets.top) }]}>
                 <GlassSurface radius={R.sheet} />
@@ -895,6 +895,7 @@ export default function ProfileScreen() {
                 </View>
               </Animated.View>
         </KeyboardAvoidingView>
+        <AlertHost />{/* modal içinden açılan uyarı burada, modalın üstünde (bkz. CustomAlert) */}
       </Modal>
 
       {/* Support Modal */}

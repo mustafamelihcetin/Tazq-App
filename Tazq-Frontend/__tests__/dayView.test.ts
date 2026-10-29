@@ -24,8 +24,10 @@ describe('Bugün ekranı — günün saat ekseni', () => {
     // Sabit 08–22 yazmak, sabah 6'daki işi ekranın dışında bırakırdı.
     expect(DAY).toContain('DAY_START_HOUR');
     expect(DAY).toContain('DAY_END_HOUR');
-    expect(DAY).toMatch(/Math\.min\(DAY_START_HOUR, now\.getHours\(\)/);
-    expect(DAY).toMatch(/Math\.max\(DAY_END_HOUR, now\.getHours\(\)/);
+    // "Şimdi" pencerenin içinde kalır — yalnız BUGÜN; başka günde şimdi işareti yok (madde 5).
+    expect(DAY).toMatch(/const nowH = isToday \? now\.getHours\(\) : DAY_START_HOUR/);
+    expect(DAY).toMatch(/Math\.min\(DAY_START_HOUR, nowH/);
+    expect(DAY).toMatch(/Math\.max\(DAY_END_HOUR, nowH/);
   });
 
   it('"şimdi" işareti var — gün akıyor, liste değil', () => {

@@ -28,6 +28,7 @@ import { SectionHeader } from '@/shared/components/SectionHeader';
 import { MyDayHabits } from '@/features/dashboard/components/MyDayHabits';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
 import { ArrowLeft, BarChart3, BrainCircuit, CalendarDays, Check, CheckCircle2, ChevronRight, Coffee, Flame, Plus, Rocket, Trash2, TrendingUp, Zap } from 'lucide-react-native';
+import { useHighlight, HighlightHeader } from '@/features/dashboard/components/HighlightHeader';
 import { TaskService, AuthService } from '@/shared/services/api';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
@@ -46,7 +47,7 @@ import { computeMomentum } from '@/shared/utils/momentum';
 import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, contentMaxWidth, sideInset, HAIRLINE, navBarSpace, fabSafeBottom, topBarSpace, TOP_BAR_HEIGHT, TOP_BAR_LIFT, TOP_ITEM_SIZE, TOP_AVATAR_SIZE, touchSlop } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, TurkishModeBanner, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
-import { useHabitStore, fmtDateKey, useSleepHealthSync } from '@/features/habits';
+import { useHabitStore, fmtDateKey, useSleepHealthSync, useActiveHabitList } from '@/features/habits';
 import { todayKey, daysBetween, wasActiveOn, decideStreak, wasCompletedOn, legacyDayString, weekdayIndex } from '@/features/dashboard/utils/streakDay';
 import { buildWeekStrip } from '@/features/dashboard/utils/weekStrip';
 import { useActivityHealthSync } from '@/features/modes/hooks/useActivityHealthSync';
@@ -90,6 +91,7 @@ import { savedLocallyMessage } from '@/shared/utils/saveFeedback';
 import { celebrate } from '@/features/user/utils/celebrate';
 import { scopeDay } from '@/features/dashboard/utils/dayScope';
 import { TodayRings } from '@/features/dashboard/components/TodayRings';
+import { isFocusWorthy } from '@/features/focus/focusWorthy';
 
 
 // Hoş geldin (profil kurulumu) oturum başına yalnızca bir kez — remount'ta sıfırlanmasın diye
@@ -317,7 +319,7 @@ export default function HomeScreen() {
 
 
   // Alışkanlıklar (dashboard hızlı giriş şeridi) — tek dokunuşla bugünü işaretle.
-  const habits = useHabitStore(s => s.habits);
+  const habits = useActiveHabitList(); // dinlenenler bugünün listesinde yok (madde 6)
   // Uyku sağlık senkronu — onaylı asistan (iOS HealthKit; desteklenmeyen yerde sessiz no-op).
   useSleepHealthSync();
   // Hareket görevleri (yürüyüş/koşu/antrenman) — uyku senkronuyla aynı sözleşme:
@@ -1187,6 +1189,7 @@ export default function HomeScreen() {
       return a.title.localeCompare(b.title);
     });
   })();
+  const highlight = useHighlight(myDayTasks.filter(item => !item.isCompleted), demoActive);
 
   // Today's Habits
   const myDayHabits = (() => {
@@ -1396,7 +1399,8 @@ export default function HomeScreen() {
       (bkz. useFocusStore → currentTaskId / taskFocusMinutes). Sıradaki iş yoksa
       boş geçmek yine doğru — o zaman gerçekten bir konu yok.
     */
-    const target = topTaskToday;
+    // Anlık eylem (su iç…) seansın konusu olamaz: sıradaki odaklanılabilir iş seçilir.
+    const target = [...todayTasksIncomplete, ...undatedTasksIncomplete].find(isFocusWorthy);
     setCurrentTask(target ? getLocalizedTaskTitle(target, tr) : '', target?.id ?? null);
     // Store yolu: `setState` seansın BİTİŞ ANINI kurmuyor → kilitli telefonda sayaç geri kalıyordu.
     useFocusStore.getState().setDuration(25);
@@ -1514,7 +1518,7 @@ export default function HomeScreen() {
         onCheck={isDemoId(item.id) ? undefined : () => handleCheckTask(item.id)}
         // İlk bekleyen görev = SIRADAKİ: odak çağrısı satırın yanında (ayrı kart değil).
         // Görevi odak ekranına SEÇİLİ götürür; seans başlamaz (bkz. startQuickFocus farkı).
-        onFocus={index === 0 && !item.isCompleted ? (isDemoId(item.id)
+        onFocus={index === 0 && !item.isCompleted && isFocusWorthy(item.original || item) ? (isDemoId(item.id)
           // Turda örnek satır da "Odaklan"ı gösterir (adım onu anlatıyor); örtü dokunuşu
           // yuttuğu için işlevsiz bir gösterim — gerçek görev seçilmez.
           ? () => {}
@@ -1989,7 +1993,7 @@ export default function HomeScreen() {
 
                   {/* Render Incomplete Tasks */}
                   {(() => {
-                    const incompleteTasks = myDayTasks.filter(item => !item.isCompleted);
+                    const incompleteTasks = highlight.ordered; // yıldız önde (madde 11)
                     const visibleIncomplete = showAllIncomplete ? incompleteTasks : incompleteTasks.slice(0, 4);
                     
                     if (incompleteTasks.length === 0) {
@@ -2004,6 +2008,7 @@ export default function HomeScreen() {
 
                     return (
                       <View>
+                        {highlight.star && incompleteTasks.length > 1 && <HighlightHeader others={highlight.others} />}
                         {visibleIncomplete.map((item, idx) => {
                           const isLast = idx === visibleIncomplete.length - 1;
                           return renderMyDayItem(item, isLast, idx);

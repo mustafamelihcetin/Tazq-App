@@ -4,6 +4,13 @@ export type Language = 'en' | 'tr';
 
 export const translations = {
   en: {
+    exportFormat: {
+      title: 'Choose a format',
+      body: 'Readable: a tidy summary you can open anywhere. JSON: every detail, for moving your data to another app.',
+      md: 'Readable (Markdown)',
+      json: 'JSON',
+      cancel: 'Cancel',
+    },
     crash: {
       title: 'A small hiccup',
       body: "Something on this screen didn't load. Your data is safe — nothing was lost.",
@@ -236,6 +243,13 @@ export const translations = {
     weeklyFocusLabel: 'WEEKLY FOCUS',
     /** "Bugün" ekranı — günün saat ekseni, yerleştirme ve günü kapatma. */
     dayView: {
+      pastLabel: 'Day log',
+      futureLabel: 'Plan ahead',
+      summaryDoneOn: 'done that day',
+      summaryPlanned: 'planned',
+      pastEmpty: 'Nothing was planned or finished that day.',
+      futureEmpty: 'Nothing planned yet. Add a task with this date and place it on an hour.',
+      openInCalendar: 'Open in calendar',
       title: 'Today',
       summaryTasks: 'done today',
       summaryFocus: 'min focused',
@@ -417,6 +431,7 @@ export const translations = {
     },
     /** Ödeme takibi — görevlerden ayrı yüzey (bkz. app/odemeler.tsx, PaymentsSummaryCard). */
     payments: {
+      mainCurrency: 'Main currency',
       title: 'Payments',
       summaryEmpty: 'Track bills separately from your tasks',
       summaryFilled: (count: number, left: number) => `${count} payments this month · ${left} left`,
@@ -503,6 +518,13 @@ export const translations = {
     },
   },
   tr: {
+    exportFormat: {
+      title: 'Biçim seç',
+      body: 'Okunabilir: her yerde açılan derli toplu bir özet. JSON: tüm ayrıntılar; verini başka bir uygulamaya taşımak için.',
+      md: 'Okunabilir (Markdown)',
+      json: 'JSON',
+      cancel: 'Vazgeç',
+    },
     crash: {
       title: 'Küçük bir aksilik oldu',
       body: 'Bu ekranda bir şey yüklenemedi. Verilerin güvende, hiçbir şey kaybolmadı.',
@@ -732,6 +754,13 @@ export const translations = {
     weeklyFocusLabel: 'HAFTALIK ODAK',
     /** "Bugün" ekranı — günün saat ekseni, yerleştirme ve günü kapatma. */
     dayView: {
+      pastLabel: 'Gün kaydı',
+      futureLabel: 'İleri plan',
+      summaryDoneOn: 'o gün bitti',
+      summaryPlanned: 'planlı',
+      pastEmpty: 'O gün planlanan ya da biten bir iş yok.',
+      futureEmpty: 'Henüz plan yok. Bu tarihle bir görev ekleyip bir saate yerleştirebilirsin.',
+      openInCalendar: 'Takvimde aç',
       title: 'Bugün',
       summaryTasks: 'iş bitti',
       summaryFocus: 'dk odak',
@@ -880,6 +909,7 @@ export const translations = {
     },
     /** Ödeme takibi — görevlerden ayrı yüzey (bkz. app/odemeler.tsx, PaymentsSummaryCard). */
     payments: {
+      mainCurrency: 'Ana para birimi',
       title: 'Ödemeler',
       summaryEmpty: 'Faturalarını görevlerden ayrı takip et',
       summaryFilled: (count: number, left: number) => `Bu ay ${count} ödeme · ${left} kaldı`,

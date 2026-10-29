@@ -146,11 +146,17 @@ describe('form sayfası içinden sorulan sorular', () => {
   const path = require('path');
   const src: string = fs.readFileSync(path.resolve(__dirname, '../features/tasks/components/TaskFormModal.tsx'), 'utf8');
 
-  it('CustomAlert (ikinci Modal) kullanılmaz', () => {
-    expect(src).not.toMatch(/from '@\/shared\/components\/CustomAlert'/);
+  /*
+    Eskiden kural tersiydi: CustomAlert ikinci bir native Modal'dı, form Modal'ının
+    üstünde iOS'ta görünmüyordu → sistem uyarısı kullanılıyordu. 2026-10-29'dan beri
+    uyarı Modal DEĞİL, yuvaya çizilen örtü; form kendi yuvasını taşır (bkz. CustomAlert).
+  */
+  it('uyarı uygulamanın kendi penceresi — sistem Alert yok', () => {
+    expect(src).toMatch(/from '@\/shared\/components\/CustomAlert'/);
+    expect(src).not.toMatch(/import \{[^}]*\bAlert\b[^}]*\} from 'react-native'/);
   });
 
-  it('sistem uyarısı react-native\'den gelir', () => {
-    expect(src).toMatch(/import \{[^}]*\bAlert\b[^}]*\} from 'react-native'/);
+  it('form Modal\'ı kendi uyarı yuvasını taşır (uyarı formun üstünde görünür)', () => {
+    expect(src).toMatch(/<AlertHost \/>[^\n]*\n\s*<\/Modal>/);
   });
 });

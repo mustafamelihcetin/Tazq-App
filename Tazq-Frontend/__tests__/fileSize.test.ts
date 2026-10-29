@@ -53,7 +53,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // İlk kez 800 satırı geçti: Ramazan bildirimlerindeki saat dilimi hatası
   // düzeltildi (calendarDayOf+parseDateKey — bu dosyadaki diğer zamanlayıcılarla
   // aynı desen), gerekçe yorumu satır ekledi.
-  'shared/utils/notifications.ts': 897, // +23: sınav geri sayım bildirimleri yuva-bazlı kimliğe geçti (exam2/exam3 artık bildirim alıyor) // +16: sabah özeti aktif hedefe göre kişiselleşiyor (activeGoal) // +50 (2026-10-18): payment-due bildirim kategorisi + schedule/cancelPaymentDueNotif (scheduleExamCountdownNotifs ile aynı kalıp)
+  'shared/utils/notifications.ts': 917, // +20 (2026-10-30, madde 11): 48 saatlik geri çağrı (scheduleComeback + refreshComeback; tercihleri kendisi okur ki _layout şişmesin) // +23: sınav geri sayım bildirimleri yuva-bazlı kimliğe geçti (exam2/exam3 artık bildirim alıyor) // +16: sabah özeti aktif hedefe göre kişiselleşiyor (activeGoal) // +50 (2026-10-18): payment-due bildirim kategorisi + schedule/cancelPaymentDueNotif (scheduleExamCountdownNotifs ile aynı kalıp)
   /*
     SÖZLÜK — doğası gereği uzun ve bölünmesi YANLIŞ olurdu.
 
@@ -67,7 +67,7 @@ const KNOWN_LARGE: Record<string, number> = {
   */
   // 860 → 870: misafirin "cihazdaki verileri sil" metinleri (iki dil).
   // 870 → 874: tasarruf ve bırakma da birer mod adı — özet ikisini hiç görmüyordu.
-  'shared/constants/i18n.ts': 1018, // +4 (2026-10-25): tanıtım turlarını yeniden gösterme satırı (iki dil) // +18 (2026-10-24): Ödemeler ay özeti + göreli vade metinleri (iki dil × 9) // +2 (2026-10-24): Sıradaki kartı etiketi ("SIRADAKİ" — Aktif Görev + Günlük Hedef birleşti)
+  'shared/constants/i18n.ts': 1039, // +2 (2026-10-29): ödemeler ana para birimi · +14 (2026-10-29): dışa aktarma biçim seçimi · +5 (2026-10-29): çökme ekranı + takvim gün kipleri (iki dil) · +4 (2026-10-25): tanıtım turlarını yeniden gösterme satırı (iki dil) // +18 (2026-10-24): Ödemeler ay özeti + göreli vade metinleri (iki dil × 9) // +2 (2026-10-24): Sıradaki kartı etiketi ("SIRADAKİ" — Aktif Görev + Günlük Hedef birleşti)
   // 2820 → 2817: baştaki emojiyi silen üç ayrı uygulamadan ikisi (biri hatalıydı,
   // \p{Emoji} rakamları da yiyordu) shared/utils/emoji.ts'e indi.
   // 2817 → 2820: YKS/KPSS/Ramazan'ın DİL kapısı (İngilizce arayüzde takvimle
@@ -233,14 +233,14 @@ const KNOWN_LARGE: Record<string, number> = {
   // Mantık kancada ve bileşende; burada yalnız bağlantı.
   // 2311 → 2315: hızlı eklemede "… yarın için eklendi" (ana sayfa yalnız bugünü gösterir).
   // 2315 → 2318: hızlı eklemede görev oluşturma anahtarı (ikiz görev önlemi).
-  'app/index.tsx': 2369, // +10: tarih chip'i payload'ı, boş plan 'Görev ekle' bağlantısı, değerlendirme isteğinin modal kapısı · +3 tur kapısı · +1 hızlı odak store yolu · +25 haftalık sayılar ortak motordan (yerel gün; sunucunun UTC kırılımı üç ekranda farklı sayı veriyordu) · +4 tarihsiz görev için ayrı toast mesajı // +4 (2026-10-18): PaymentsSummaryCard mod kartının altına eklendi
+  'app/index.tsx': 2372, // +3 (2026-10-30, madde 11): Günün Yıldızı — mantık+başlık HighlightHeader'a taşındı, burada yalnız kanca çağrısı ve tek satır JSX // +10: tarih chip'i payload'ı, boş plan 'Görev ekle' bağlantısı, değerlendirme isteğinin modal kapısı · +3 tur kapısı · +1 hızlı odak store yolu · +25 haftalık sayılar ortak motordan (yerel gün; sunucunun UTC kırılımı üç ekranda farklı sayı veriyordu) · +4 tarihsiz görev için ayrı toast mesajı // +4 (2026-10-18): PaymentsSummaryCard mod kartının altına eklendi
   // İlk kez 800'ü geçti: widget/Watch köprüsünün tek başlatma noktası (bildirim
   // dinleyicisiyle aynı desen — [isLoggedIn] bağımlı, tek yerde kurulur).
   // 810 → 816: widget köprüsü artık gorev/mod store'larını da dinliyor (bkz.
   // widgetBridge bug düzeltmesi — görev/mod değişince widget hiç güncellenmiyordu).
   // 816 → 819: widget/Watch köprüsü splash'te çökmeye yol açtığı için geçici
   // olarak yorum satırına alındı (kök sebep doğrulanana kadar).
-  'app/_layout.tsx': 881, // +1 (2026-10-29): focus ekranı animasyonsuz (sekme tutarlılığı) // +2: anonim kurulum ping'i (günde bir) // +17: sabah özeti en yakın aktif hedefe göre kişiselleşiyor (goalSig) // +16: widget/Watch köprüsü yeniden açıldı (ana-kuyruk sertleştirmesiyle, bkz. TazqWidgetBridgeModule.swift) // +5: tema değişince widget'ı da tazeleyen abonelik (unsubTheme) // +14: WCSession aktivasyon yarışı için gecikmeli zorla-gönderim (activationRetry) // +6 (2026-10-18): 'open-payments' bildirim aksiyonu yönlendirmesi
+  'app/_layout.tsx': 888, // +7 (2026-10-30, madde 10-11): rota hata sınırı dışa aktarımı, 'comeback' bildirim yönlendirmesi ve açılışta refreshComeback çağrısı // +1 (2026-10-29): focus ekranı animasyonsuz (sekme tutarlılığı) // +2: anonim kurulum ping'i (günde bir) // +17: sabah özeti en yakın aktif hedefe göre kişiselleşiyor (goalSig) // +16: widget/Watch köprüsü yeniden açıldı (ana-kuyruk sertleştirmesiyle, bkz. TazqWidgetBridgeModule.swift) // +5: tema değişince widget'ı da tazeleyen abonelik (unsubTheme) // +14: WCSession aktivasyon yarışı için gecikmeli zorla-gönderim (activationRetry) // +6 (2026-10-18): 'open-payments' bildirim aksiyonu yönlendirmesi
   // İlk kez 800 satırı geçti: onboarding'in "şu an neyle uğraşıyorsun?" sorusu
   // (durum seçimi + mod sorusuyla aynı desende ikinci bir modal, bkz. dosya başı notu).
   'app/onboarding.tsx': 515, // 816 → 515 (2026-10-25): slayt görselleri OnboardingVisuals'a taşındı, ölü görseller silindi · +1 (2026-10-25): goHome içe aktarımı (çift ana sayfa düzeltmesi)
@@ -255,10 +255,10 @@ const KNOWN_LARGE: Record<string, number> = {
   */
   // 1680 → 1809: Ürün İçgörüleri bölümü (dönemsel mod benimsenmesi, haftalık
   // elde tutma, sürüm dağılımı) — İstatistik sekmesine eklendi.
-  'app/admin.tsx': 1854, // +1 (2026-10-29): rota hata sınırı dışa aktarımı · +43: admin "Kitle" kartı (kayıtlı/kayıtsız cihaz sayıları + mağaza kanalı durumu)
+  'app/admin.tsx': 1855, // +1 (2026-10-29): modal içi uyarı yuvası · +1 (2026-10-29): rota hata sınırı dışa aktarımı · +43: admin "Kitle" kartı (kayıtlı/kayıtsız cihaz sayıları + mağaza kanalı durumu)
   // 1690 → 1718: plan başlatılmadan ÖNCE mevcut yük söyleniyor (kaç aktif hedef,
   // bugün kaç plan işi). Kullanıcı toplamı ancak uyguladıktan SONRA öğreniyordu.
-  'features/modes/components/TurkishModeBanner.tsx': 1735, // +17: günlük değerlendirme anahtarı yuva-bazlı, çift-tık kilidi ref'e taşındı
+  'features/modes/components/TurkishModeBanner.tsx': 1782, // +10 (2026-10-29): alışkanlık sınırı — ilk gün payı ve uyarı (madde 6) · +34 (2026-10-29): kademeli açılım — ilk gün ayrımı, sıra ve bilgi satırı (madde 4) · +3 (2026-10-29): seri alevi emoji yerine ikon (madde 2) · +17: günlük değerlendirme anahtarı yuva-bazlı, çift-tık kilidi ref'e taşındı
   // 1523 → 1529: ERİŞİLEBİLİRLİK. Alışkanlık satırının adı, durumu ve serisi ekran
   // okuyucuya hiç ulaşmıyordu (durum renkle, seri rozetle söyleniyordu).
   // 1529 → 1530: CAM SAYFALAR. Alışkanlık ekleme ve plan sayfaları ortak cam yüzeye bağlandı.
@@ -316,7 +316,7 @@ const KNOWN_LARGE: Record<string, number> = {
   */
   // 1233 → 1214: başlık işleyicisi taslak denetimine (features/tasks/nlp/draft) devredildi.
   // 1214 → 1215: hazır etiketlerin dili ortak yardımcıdan (langOf) — satır içi dil dallanması yok.
-  'features/tasks/components/TaskFormModal.tsx': 940, // +2 (2026-10-25): hatırlatıcı saati kullanıcının verimli saatinden (productivityHour + prefs içe aktarımı) · +11 (2026-10-25): form yalnız açılışta/başka görevde dolar (eşitlemede yazılanlar silinmesin) · +3: açılışta odak rengi sıfırlanır · +4 (2026-10-25): yeni görevde başlık titleOf ile temizlenir (cihazda görüldü) // +5 (2026-10-25): iOS'ta Modal üstü Modal sunulmuyor — sistem uyarısı gerekçesi · 1270 → 915 (2026-10-25): Yeni Hedef yeniden tasarımı — tarih/saat/hatırlatıcı ScheduleSection'a, seçiciler SegmentedControl'e, tarih kuralları taskFormDates'e // +1 (2026-10-24): upperFor içe aktarımı (Türkçe büyük harf) // +42: yerel-gün tarih ayrıştırma, ay-sonu kenetleme, saat/tarih tutarlılığı, alt-görev mutasyon düzeltmesi // +12 (2026-10-19): başlık/açıklama/alt-görev kutularının HER YERİ odaklamalı (Pressable+ref, bkz. ModeField.tsx'teki aynı düzeltme)
+  'features/tasks/components/TaskFormModal.tsx': 956, // +1 (2026-10-29): klavye payı Android'de de · +2 (2026-10-29): sistem Alert yerine uygulama uyarısı + yuva · +13 (2026-10-29): mod görevi metin kilidi + korumalı kayıt (madde 3) · +2 (2026-10-25): hatırlatıcı saati kullanıcının verimli saatinden (productivityHour + prefs içe aktarımı) · +11 (2026-10-25): form yalnız açılışta/başka görevde dolar (eşitlemede yazılanlar silinmesin) · +3: açılışta odak rengi sıfırlanır · +4 (2026-10-25): yeni görevde başlık titleOf ile temizlenir (cihazda görüldü) // +5 (2026-10-25): iOS'ta Modal üstü Modal sunulmuyor — sistem uyarısı gerekçesi · 1270 → 915 (2026-10-25): Yeni Hedef yeniden tasarımı — tarih/saat/hatırlatıcı ScheduleSection'a, seçiciler SegmentedControl'e, tarih kuralları taskFormDates'e // +1 (2026-10-24): upperFor içe aktarımı (Türkçe büyük harf) // +42: yerel-gün tarih ayrıştırma, ay-sonu kenetleme, saat/tarih tutarlılığı, alt-görev mutasyon düzeltmesi // +12 (2026-10-19): başlık/açıklama/alt-görev kutularının HER YERİ odaklamalı (Pressable+ref, bkz. ModeField.tsx'teki aynı düzeltme)
   // 1150 → 1180: planın KULLANICI SEÇMEDEN başlamasını engelleyen kapı. Üretim koşulu
   // birçok modda yalnız "mod açık + ad + tarih" idi; tarih girilir girilmez plan uygulanmış
   // sayılıp kart bölüm değiştiriyor, yeniden kurulup kapanıyordu. Artış dokuz koşula
@@ -324,7 +324,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // "sadeleştirmede" geri alınır.
   // 1180 → 1199: duraklatma kapısı. Görev üreten dört ayrı yol var; kapı hepsinin
   // geçtiği tek noktaya (applyTasks) kondu, çağrı yerlerine dağıtılmadı.
-  'features/modes/hooks/usePlanAdaptations.ts': 1275, // +19: ikinci/üçüncü yuva alışkanlık süpürmesi, yerel-gün geçmiş-görev kontrolü // +36: sekiz çağrı noktası arasında eşzamanlı çalışmayı birleştiren modül-seviyeli kilit (adaptationRunInFlight) // +5 (2026-10-18): sınav slotlarında konu seviyesi (pickTopic) + weakTopicIds ağırlıklandırma // +13 (2026-10-19): mülakat/tez/spor slotlarında da alan-etiketleme (pickWeightedArea) // +3 (2026-10-19): weakTopicIds artık pickSubject çağrısından ÖNCE okunup ona da iletiliyor (ders seviyesi ağırlıklandırma)
+  'features/modes/hooks/usePlanAdaptations.ts': 1276, // +1 (2026-10-29): kademeli açılım çağrısı · +19: ikinci/üçüncü yuva alışkanlık süpürmesi, yerel-gün geçmiş-görev kontrolü // +36: sekiz çağrı noktası arasında eşzamanlı çalışmayı birleştiren modül-seviyeli kilit (adaptationRunInFlight) // +5 (2026-10-18): sınav slotlarında konu seviyesi (pickTopic) + weakTopicIds ağırlıklandırma // +13 (2026-10-19): mülakat/tez/spor slotlarında da alan-etiketleme (pickWeightedArea) // +3 (2026-10-19): weakTopicIds artık pickSubject çağrısından ÖNCE okunup ona da iletiliyor (ders seviyesi ağırlıklandırma)
   // 910 → 864: hesap silme ve şifre değiştirmenin ÖLÜ kopyası kaldırıldı. Modal
   // işaretlemesi settings.tsx'e taşınırken bu dosyadaki state + iki handler geride
   // kalmıştı; hiçbiri çağrılmıyordu ama `deleteAccount`ın hatalı sürümü iki dosyada
@@ -341,7 +341,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // İlk kez 800 satırı geçti: admin panelinin Ürün İçgörüleri tipleri
   // (AdminModeAdoption/AdminRetentionCohort/AdminVersionShare) + X-App-Version
   // başlığı eklendi. API katmanı doğası gereği büyür — her uç nokta bir satır.
-  'shared/services/api.ts': 954, // +14 (2026-10-25): alışkanlık eşitleme istemcisi (HabitSyncService) // +19: anonim kurulum ping'i + admin audience istemcisi // +13: otomatik tekrar yalnız idempotent metodlarda (POST/PATCH çift kayıt riski) // +26: ERR_NETWORK için "çevrimdışı" demeden önce tek seferlik hızlı yeniden deneme (soğuk başlatma yarışı) // +39 (2026-10-18): PaymentService (ödeme takibi — görevlerden ayrı yüzey) // +11 (2026-10-19): pingInstall'a eksik X-App-Signature başlığı eklendi (önceden var olan 403 hatası)
+  'shared/services/api.ts': 981, // +27 (2026-10-29): ödeme geçmişi + kur uçları, ödeme birimi (madde 12) · +14 (2026-10-25): alışkanlık eşitleme istemcisi (HabitSyncService) // +19: anonim kurulum ping'i + admin audience istemcisi // +13: otomatik tekrar yalnız idempotent metodlarda (POST/PATCH çift kayıt riski) // +26: ERR_NETWORK için "çevrimdışı" demeden önce tek seferlik hızlı yeniden deneme (soğuk başlatma yarışı) // +39 (2026-10-18): PaymentService (ödeme takibi — görevlerden ayrı yüzey) // +11 (2026-10-19): pingInstall'a eksik X-App-Signature başlığı eklendi (önceden var olan 403 hatası)
   // İlk kez 800 satırı geçti: duraklatma + geçmiş hedefler + bulut/yerel bozuk
   // veriye karşı tek nokta koruma (bkz. PLAN_ID_KEYS/sanitizePlanIds). Sözlük gibi
   // değil, bölünebilir — bir sonraki büyüme bu dosyayı gerçekten küçültmeli.

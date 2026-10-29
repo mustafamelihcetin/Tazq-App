@@ -61,7 +61,13 @@ describe('açılış — sistem splash\'i ile aynı zemin', () => {
 
       (Android 12+ sistemin kendi başlatıcı ikonunu gösteriyor; o davranış bizde değil.)
     */
-    expect(splashPlugin.image).toBe('./assets/brand/splash_logo.png');
+    /*
+      2026-10-29: açık temada logo KOYU (splash_logo_dark.png). splash_logo.png tamamen
+      beyazdı; #F4F4F5 zeminde neredeyse görünmüyor, ardından gelen AnimatedSplash ise
+      koyu yazıyla açılıyordu — "beyaz ekranda beyaz logo, sonra splash" geçişi.
+    */
+    expect(splashPlugin.image).toBe('./assets/brand/splash_logo_dark.png');
+    expect(splashPlugin.dark.image).toBe('./assets/brand/splash_logo.png');
     expect(splashPlugin.image).not.toContain('icon.png');
     expect(SPLASH).not.toContain('icon.png');
   });

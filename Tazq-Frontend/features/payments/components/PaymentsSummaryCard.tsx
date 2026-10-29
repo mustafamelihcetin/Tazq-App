@@ -9,7 +9,8 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePaymentsStore, type Payment } from '@/features/payments/store/usePaymentsStore';
 import { nextDueDateOf } from '@/features/payments/utils/paymentDates';
-import { currencySymbol, defaultCurrencyFor } from '@/shared/utils/currency';
+import { defaultCurrencyFor } from '@/shared/utils/currency';
+import { totalsByCurrency, formatTotals } from '@/features/payments/utils/money';
 
 const INTL_LOCALE: Record<'tr' | 'en', string> = { tr: 'tr-TR', en: 'en-US' };
 
@@ -30,7 +31,7 @@ export function PaymentsSummaryCard() {
   const t = fullT.payments;
   const payments = usePaymentsStore(s => s.payments);
   const currencyPref = usePaymentsStore(s => s.currency);
-  const symbol = currencySymbol(currencyPref ?? defaultCurrencyFor(language));
+  const main = currencyPref ?? defaultCurrencyFor(language);
 
   const today = new Date();
   const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -46,8 +47,8 @@ export function PaymentsSummaryCard() {
   const overdue = urgent.filter(x => x.diffDays < 0);
   const isOverdue = overdue.length > 0;
   const relevant = isOverdue ? overdue : urgent;
-  const totalAmount = relevant.reduce((sum, x) => sum + x.p.amount, 0);
-  const amountStr = `${totalAmount.toLocaleString(INTL_LOCALE[language], { maximumFractionDigits: 2 })} ${symbol}`;
+  // Birim birim (madde 12): 20 $ ile 200 ₺ toplanıp "220 ₺" yazılamaz.
+  const amountStr = formatTotals(totalsByCurrency(relevant.map(x => ({ amount: x.p.amount, currency: x.p.currency })), main), language === 'en' ? 'en' : 'tr');
   const message = isOverdue ? t.urgentOverdue(relevant.length, amountStr) : t.urgentDueSoon(relevant.length, amountStr);
   const tone = isOverdue ? theme.error : theme.warning;
 

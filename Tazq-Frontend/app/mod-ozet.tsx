@@ -14,6 +14,7 @@ import { track } from '@/shared/utils/analytics';
 import { renderModeEmojiIcon } from '@/features/modes';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { ProgressRail } from '@/shared/components/ProgressRail';
+import { stripEmoji } from '@/shared/utils/emoji';
 
 /**
  * MODLARIN ÖZETİ — "karmaşık ve çirkin, uygulamayla uyuşmuyor" (2026-09-20).
@@ -38,11 +39,6 @@ import { ProgressRail } from '@/shared/components/ProgressRail';
  * desen `app/modlar.tsx`teki "Geçmiş Hedefler" bölümünde de kullanılıyor).
  */
 
-// Etiketteki ham emoji'leri temizle (preset adı "⚖️ Kilo Yönetimi" gibi).
-const stripEmoji = (s: string) => s
-  .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}]/gu, '')
-  .replace(/\s+/g, ' ')
-  .trim();
 
 /** Bir mod satırının gün metni — ayrı yerlerde üç kez yazılmasın diye tek fonksiyon. */
 function daysLabel(days: number | null, tr: boolean): string {
@@ -133,7 +129,7 @@ export default function ModOzetScreen() {
 
       {activeCount === 0 ? (
         <View style={[styles.center, { paddingTop: topBarSpace(insets.top) }]}>
-          <Text style={{ fontSize: 40, marginBottom: S.md }}>🧭</Text>
+          <View style={{ marginBottom: S.md }}><Compass size={ICON.xl} color={theme.primary} strokeWidth={1.6} /></View>
           <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', textAlign: 'center', marginBottom: S.sm }}>{tr ? 'Henüz aktif mod yok' : 'No active modes yet'}</Text>
           <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, textAlign: 'center', lineHeight: 20, marginBottom: S.lg }}>{tr ? 'Bir hedef aç — buradan tüm modlarının gidişatını tek bakışta görürsün.' : 'Turn on a goal — track all your modes at a glance here.'}</Text>
           <TouchableOpacity onPress={() => router.back()} style={{ paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: theme.primary }} accessibilityRole="button">

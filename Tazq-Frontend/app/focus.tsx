@@ -298,7 +298,7 @@ export default function FocusScreen() {
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { trigger: triggerAchievement } = useAchievementStore();
   // Derin odak tercihleri artık prefs store'da (cihazda kalıcı) — her seansda sıfırlanmaz.
-  const { focusBreathMode, setFocusBreathMode, focusAmbientSound, setFocusAmbientSound, focusPreset, setFocusPreset, focusKeepAwake, setFocusKeepAwake, focusAutoZen, setFocusAutoZen, focusScene, setFocusScene, uiMode } = usePrefsStore();
+  const { focusAmbientSound, setFocusAmbientSound, focusPreset, setFocusPreset, focusKeepAwake, setFocusKeepAwake, focusAutoZen, setFocusAutoZen, focusScene, setFocusScene, uiMode } = usePrefsStore();
   // Sahne: hareket + palet + vurgu birlikte (bkz. focusScenes.ts).
   const scene = sceneOf(focusScene);
   const [sc1, sc2, sc3] = sceneLights(scene, theme);
@@ -329,11 +329,7 @@ export default function FocusScreen() {
   const ambientSound = focusAmbientSound as AmbientSound;
   const setAmbientSound = setFocusAmbientSound as (v: AmbientSound) => void;
 
-  // Breath cue phase — synced to glow animation
-  const [breathPhase, setBreathPhase] = useState<'in' | 'hold_in' | 'out' | 'hold_out'>('in');
-  const breathMode = focusBreathMode;
-  const setBreathMode = setFocusBreathMode;
-  const [breathPickerVisible, setBreathPickerVisible] = useState(false);
+  // Nefes artık ayrı bir seans (app/nefes.tsx, madde 14): sayacın üstündeki ipucu kaldırıldı.
   const [modesSheetVisible, setModesSheetVisible] = useState(false);
   const [zenMode, setZenMode] = useState(false);
 
@@ -376,7 +372,6 @@ export default function FocusScreen() {
     const handleBackPress = () => {
       if (customVisible) { setCustomVisible(false); return true; }
       if (modesSheetVisible) { setModesSheetVisible(false); return true; }
-      if (breathPickerVisible) { setBreathPickerVisible(false); return true; }
       if (taskPickerVisible) { setTaskPickerVisible(false); return true; }
       if (pomodoroInfoVisible) { setPomodoroInfoVisible(false); return true; }
       if (summaryVisible) { 
@@ -389,7 +384,7 @@ export default function FocusScreen() {
 
     const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
     return () => backHandler.remove();
-  }, [customVisible, modesSheetVisible, breathPickerVisible, taskPickerVisible, pomodoroInfoVisible, summaryVisible, summaryCompleted, completionRitual]);
+  }, [customVisible, modesSheetVisible, taskPickerVisible, pomodoroInfoVisible, summaryVisible, summaryCompleted, completionRitual]);
 
   const WHEEL_ITEM_H = 56;
   const WHEEL_MINS = Array.from({ length: 180 }, (_, i) => i + 1);
@@ -464,10 +459,6 @@ export default function FocusScreen() {
 
   const { panResponder: customPan, animatedStyle: customSlide, prepare: prepareCustom, slideIn: customSlideIn } = useSwipeToDismiss({
     onDismiss: () => setCustomVisible(false),
-  });
-
-  const { panResponder: breathPan, animatedStyle: breathSlide, prepare: prepareBreath, slideIn: breathSlideIn } = useSwipeToDismiss({
-    onDismiss: () => setBreathPickerVisible(false),
   });
 
   // ── Ambient sound ────────────────────────────────────────────────────────
@@ -655,112 +646,6 @@ export default function FocusScreen() {
       }
     }
   }, [isActive, ambientSound]);
-
-  // Breath cue cycle
-  const breathSecondsRef = useRef(0);
-  useEffect(() => {
-    if (!isActive || breathMode === 'off') {
-      setBreathPhase('in');
-      breathSecondsRef.current = 0;
-      return;
-    }
-    const iv = setInterval(() => {
-      const next = breathSecondsRef.current + 1;
-      breathSecondsRef.current = next;
-      if (breathMode === 'classic') {
-        const mod = next % 8;
-        if (mod < 4) setBreathPhase('in');
-        else setBreathPhase('out');
-      } else if (breathMode === 'box') {
-        const mod = next % 16;
-        if (mod < 4) setBreathPhase('in');
-        else if (mod < 8) setBreathPhase('hold_in');
-        else if (mod < 12) setBreathPhase('out');
-        else setBreathPhase('hold_out');
-      } else if (breathMode === 'calm') {
-        const mod = next % 19;
-        if (mod < 4) setBreathPhase('in');
-        else if (mod < 11) setBreathPhase('hold_in');
-        else setBreathPhase('out');
-      }
-    }, 1000);
-    return () => clearInterval(iv);
-  }, [isActive, breathMode]);
-
-  const getBreathText = () => {
-    if (breathMode === 'off') return '';
-    if (breathPhase === 'in') return language === 'tr' ? 'NEFES AL' : 'INHALE';
-    if (breathPhase === 'hold_in') return language === 'tr' ? 'TUT' : 'HOLD';
-    if (breathPhase === 'out') return language === 'tr' ? 'NEFES VER' : 'EXHALE';
-    if (breathPhase === 'hold_out') return language === 'tr' ? 'BOŞ BEKLE' : 'HOLD OUT';
-    return '';
-  };
-
-  const circleScaleAnim = useRef(new Animated.Value(1)).current;
-  const glowScaleAnim = useRef(new Animated.Value(0.88)).current;
-
-  useEffect(() => {
-    if (!isActive || breathMode === 'off') {
-      Animated.parallel([
-        Animated.timing(circleScaleAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(glowScaleAnim, {
-          toValue: 0.88,
-          duration: 300,
-          useNativeDriver: true,
-        })
-      ]).start();
-      return;
-    }
-
-    let targetCircleScale = 1.0;
-    let targetGlowScale = 0.88;
-    
-    if (zenMode) {
-      if (breathPhase === 'in' || breathPhase === 'hold_in') {
-        targetCircleScale = 1.05;
-        targetGlowScale = 1.14;
-      } else {
-        targetCircleScale = 0.95;
-        targetGlowScale = 0.88;
-      }
-    } else {
-      targetCircleScale = 1.0;
-      if (breathPhase === 'in' || breathPhase === 'hold_in') {
-        targetGlowScale = 1.14;
-      } else {
-        targetGlowScale = 0.88;
-      }
-    }
-
-    let duration = 4000;
-    if (breathPhase === 'in') {
-      duration = 4000;
-    } else if (breathPhase === 'out') {
-      duration = breathMode === 'calm' ? 8000 : 4000;
-    } else if (breathPhase === 'hold_in') {
-      duration = breathMode === 'calm' ? 7000 : 4000;
-    } else if (breathPhase === 'hold_out') {
-      duration = 4000;
-    }
-
-    Animated.parallel([
-      Animated.timing(circleScaleAnim, {
-        toValue: targetCircleScale,
-        duration: duration,
-        useNativeDriver: true,
-      }),
-      Animated.timing(glowScaleAnim, {
-        toValue: targetGlowScale,
-        duration: duration,
-        useNativeDriver: true,
-      })
-    ]).start();
-
-  }, [isActive, breathPhase, breathMode, zenMode]);
 
   // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => { rehydrateTimer(); }, []);
@@ -1242,9 +1127,9 @@ export default function FocusScreen() {
                   transition={{ type: 'timing', duration: 220 }}
                 >
                   {/* Tek "modlar" butonu — soldaki X ile aynı boyut/biçim → header simetrik.
-                      3 mod (Nefes/Pomodoro/Katı) alt-sheet'te açılır. Aktif mod varsa buton vurgulanır. */}
+                      Modlar (Pomodoro/Katı/…) alt-sheet'te açılır; Nefes ayrı seansa götürür. Aktif mod varsa buton vurgulanır. */}
                   {(() => {
-                    const anyModeOn = breathMode !== 'off' || pomodoroMode || strictMode;
+                    const anyModeOn = pomodoroMode || strictMode;
                     return (
                       <Touchable
                         accessibilityRole="button"
@@ -1263,7 +1148,7 @@ export default function FocusScreen() {
             </AnimatePresence>
 
             {/* Seans sırasında aktif modlar yazı ile belirtilir (pill gizliyken) */}
-            {isActive && (strictMode || pomodoroMode || breathMode !== 'off') && (
+            {isActive && (strictMode || pomodoroMode) && (
               <MotiView
                 key="active-mode-tags"
                 from={{ opacity: 0, translateY: -4 }}
@@ -1271,11 +1156,6 @@ export default function FocusScreen() {
                 transition={{ type: 'timing', duration: 260 }}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, flexWrap: 'wrap', justifyContent: 'flex-end' }}
               >
-                {breathMode !== 'off' && (
-                  <View style={{ paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: theme.primary + '18' }}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primary }}>{language === 'tr' ? 'Nefes' : 'Breath'}</Text>
-                  </View>
-                )}
                 {pomodoroMode && (
                   <View style={{ paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: theme.primary + '18' }}>
                     <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primary }}>Pomodoro</Text>
@@ -1415,39 +1295,6 @@ export default function FocusScreen() {
             <MotiView style={[styles.timerContainer, { width: timerSize, height: timerSize }]} pointerEvents="auto">
             {/* Saniyeye bağlı progress'i SVG/zen-orbit Animated.Value'larına besler (görünmez, null render) */}
             <ProgressDriver progressAnim={progressAnim} nativeProgressAnim={nativeProgressAnim} />
-            {/* Volumetric Outer Halo / Corona */}
-            <Animated.View
-              pointerEvents="none"
-              style={[
-                styles.breathGlow,
-                {
-                  backgroundColor: pomodoroPhase === 'break' && pomodoroMode ? theme.tertiary : theme.primary,
-                  borderRadius: timerSize / 2,
-                  width: timerSize,
-                  height: timerSize,
-                  transform: [{ scale: Animated.multiply(glowScaleAnim, 1.1) }],
-                  opacity: isActive && breathMode !== 'off' ? ((isDark || (zenMode && isActive)) ? 0.08 : 0.04) : 0,
-                }
-              ]}
-            />
-
-            {/* Inner Core Glowing Orb */}
-            <Animated.View
-              pointerEvents="none"
-              style={[
-                styles.breathGlow,
-                {
-                  backgroundColor: pomodoroPhase === 'break' && pomodoroMode ? theme.tertiary : theme.primary,
-                  borderRadius: timerSize / 2,
-                  width: timerSize,
-                  height: timerSize,
-                  transform: [{ scale: Animated.multiply(glowScaleAnim, 0.95) }],
-                  opacity: isActive && breathMode !== 'off' ? ((isDark || (zenMode && isActive)) ? 0.20 : 0.12) : 0,
-                  borderWidth: (zenMode && isActive) ? 1.5 : 0,
-                  borderColor: (pomodoroPhase === 'break' && pomodoroMode ? theme.tertiary : theme.primary) + '50',
-                }
-              ]}
-            />
 
             {/* SVG ring */}
             {(() => {
@@ -1601,14 +1448,6 @@ export default function FocusScreen() {
                 height: '100%',
                 zIndex: 10,
                 borderRadius: timerSize / 2,
-                transform: [{ scale: circleScaleAnim }],
-                // iOS ısı düzeltmesi: bu view breath modunda circleScaleAnim ile her karede
-                // ölçekleniyor. Üzerindeki shadowRadius:30 gölge (shadowPath yok) hareketli view'da
-                // her frame offscreen pass ile yeniden rasterize edilir → cihaz ısınır. Breath aktifken
-                // gölgeyi kapat: 0.1 opaklıktaki siyah gölge parlayan orb altında zaten görünmez.
-                ...(isActive && breathMode !== 'off'
-                  ? { shadowColor: 'transparent', shadowOpacity: 0, elevation: 0 }
-                  : null),
               }]}
             >
               {/* Basılı tutma bir TOPRAKLANMA jesti, adı olan bir düğme değil:
@@ -1750,7 +1589,7 @@ export default function FocusScreen() {
                       </Touchable>
                     )}
 
-                    {/* Breath cue — fades between phases in sync with glow animation */}
+                    {/* Duraklatıldı göstergesi (eski nefes ipucunun yeri; nefes artık ayrı seans) */}
                     <View style={{ height: 28, marginTop: S.sm, justifyContent: 'center', alignItems: 'center', width: '100%' }}>
                       {/* DURAKLATILDI — duraklamış sayaç hiçbir şey söylemiyordu: ekran
                           donmuş gibi görünüyor, kullanıcı neden ilerlemediğini anlamıyordu. */}
@@ -1759,22 +1598,6 @@ export default function FocusScreen() {
                           {L.paused}
                         </Text>
                       )}
-                      <AnimatePresence>
-                        {isActive && breathMode !== 'off' && (
-                          <MotiView
-                            key={`normal-breath-${breathPhase}`}
-                            from={{ opacity: 0, scale: 0.92, translateY: 9 }}
-                            animate={{ opacity: 1, scale: 1, translateY: 0 }}
-                            exit={{ opacity: 0, scale: 0.96, translateY: -9 }}
-                            transition={{ type: 'timing', duration: 900 }}
-                            style={{ position: 'absolute', alignItems: 'center', width: '100%' }}
-                          >
-                            <Text style={[styles.timerText, styles.timerGlow, { fontSize: 15, letterSpacing: 3, fontWeight: '300', textAlign: 'center', color: '#FFFFFF' }]}>
-                              {getBreathText()}
-                            </Text>
-                          </MotiView>
-                        )}
-                      </AnimatePresence>
                     </View>
                   </MotiView>
 
@@ -1788,28 +1611,9 @@ export default function FocusScreen() {
                     transition={{ type: 'timing', duration: 400 }}
                     style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.md }]}
                   >
-                    {breathMode !== 'off' ? (
-                      <View style={{ alignItems: 'center', justifyContent: 'center', minHeight: 80, width: '100%' }}>
-                        <AnimatePresence>
-                          <MotiView
-                            key={`zen-breath-${breathPhase}`}
-                            from={{ opacity: 0, scale: 0.96 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.96 }}
-                            transition={{ type: 'timing', duration: 400 }}
-                            style={{ position: 'absolute', alignItems: 'center', width: '100%' }}
-                          >
-                            <Text style={{ fontFamily: 'Jakarta-Bold', fontSize: Math.round(timerSize * 0.088), letterSpacing: 5, color: pomodoroPhase === 'break' && pomodoroMode ? theme.tertiary : theme.primary, textAlign: 'center' }}>
-                              {getBreathText()}
-                            </Text>
-                          </MotiView>
-                        </AnimatePresence>
-                      </View>
-                    ) : (
                       <View style={{ height: 40, alignItems: 'center', justifyContent: 'center' }}>
                         <Sparkles size={ICON.lg} color={theme.onSurface} style={{ opacity: 0.2 }} />
                       </View>
-                    )}
                     {/* Sahnenin parlak çekirdeği üstünde de okunsun: beyaz + yumuşak gölge (gri %25 Kor'da kayboluyordu). */}
                     <Text style={{ fontFamily: 'Jakarta-SemiBold', fontSize: 10, color: '#FFFFFF', opacity: 0.55, marginTop: S.slg, letterSpacing: 1, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } }}>
                       {language === 'tr' ? 'Çıkmak için dokun' : 'Tap to exit Zen Mode'}
@@ -2207,12 +2011,11 @@ export default function FocusScreen() {
         onClose={() => setModesSheetVisible(false)}
         language={language === 'en' ? 'en' : 'tr'}
         labels={{ keepAwake: L.keepAwake, keepAwakeDesc: L.keepAwakeDesc, strictDesc: L.strictDesc }}
-        breathOn={breathMode !== 'off'}
         pomodoroOn={pomodoroMode}
         strictOn={strictMode}
         keepAwakeOn={focusKeepAwake || strictMode}
         autoZenOn={focusAutoZen}
-        onBreath={() => { haptic.select(); setModesSheetVisible(false); setTimeout(() => setBreathPickerVisible(true), 260); }}
+        onBreath={() => { haptic.select(); setModesSheetVisible(false); router.push('/nefes'); }}
         onPomodoro={() => { haptic.select(); togglePomodoroMode(); if (!pomodoroMode) setDuration(activePreset.workMins); }}
         onStrict={() => { haptic.select(); setStrictMode(!strictMode); }}
         onKeepAwake={() => { haptic.select(); setFocusKeepAwake(!focusKeepAwake); }}
@@ -2220,90 +2023,6 @@ export default function FocusScreen() {
         scene={scene.id}
         onScene={(id) => { haptic.select(); setFocusScene(id); }}
       />
-
-      {/* ── Breath Picker Bottom Sheet Modal ────────────────────────────────── */}
-      <Modal
-        visible={breathPickerVisible}
-        transparent
-        animationType="none"
-        onShow={breathSlideIn}
-        onRequestClose={() => setBreathPickerVisible(false)}
-      >
-        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <Touchable style={styles.modalOverlay} activeOpacity={1} onPress={() => setBreathPickerVisible(false)} />
-          <Animated.View
-            style={[
-              breathSlide,
-              styles.customSheet,
-              { paddingBottom: S.xxl },
-            ]}
-          >
-            <GlassSurface corners="top" />
-            <View {...breathPan.panHandlers} style={{ paddingTop: S.md, paddingBottom: S.lmd, alignItems: 'center' }}>
-              <View style={[styles.sheetHandle, { backgroundColor: sheetDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
-            </View>
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: sheetTheme.onSurface, paddingHorizontal: S.lg }]}>
-              {language === 'tr' ? 'Nefes Egzersizi' : 'Breathing Exercise'}
-            </Text>
-            <Text style={[styles.sheetSub, { color: sheetTheme.onSurfaceMuted, paddingHorizontal: S.lg, marginBottom: S.md }]}>
-              {language === 'tr' ? 'Odağınızı artırmak ve zihninizi sakinleştirmek için bir ritim seçin' : 'Select a rhythm to boost focus and calm your mind'}
-            </Text>
-
-            <View style={{ width: '100%', paddingHorizontal: S.lg, gap: S.smd }}>
-              {(['classic', 'box', 'calm', 'off'] as const).map((mode) => {
-                const isActive = breathMode === mode;
-                const title = mode === 'classic'
-                  ? (language === 'tr' ? 'Klasik Nefes (4s Al - 4s Ver)' : 'Classic Breath (4s In - 4s Out)')
-                  : mode === 'box'
-                    ? (language === 'tr' ? 'Kutu Nefesi (4s Al - 4s Tut - 4s Ver - 4s Tut)' : 'Box Breathing (4s In - 4s Hold - 4s Out - 4s Hold)')
-                    : mode === 'calm'
-                      ? (language === 'tr' ? 'Sakinleştirici Nefes (4s Al - 7s Tut - 8s Ver)' : 'Calming Breath (4s In - 7s Hold - 8s Out)')
-                      : (language === 'tr' ? 'Kapalı' : 'Off');
-
-                const desc = mode === 'classic'
-                  ? (language === 'tr' ? 'Sakinlik ve denge sağlar (Koherent Solunum)' : 'Promotes calm and balance (Coherent Breathing)')
-                  : mode === 'box'
-                    ? (language === 'tr' ? 'Odağı toplar ve stresi sıfırlar (Kutu Nefesi)' : 'Stabilizes concentration and resets stress (Box Breathing)')
-                    : mode === 'calm'
-                      ? (language === 'tr' ? 'Kaygıyı azaltır ve derin gevşeme sağlar (4-7-8 Tekniği)' : 'Reduces anxiety and triggers deep relaxation (4-7-8 Technique)')
-                      : (language === 'tr' ? 'Ekrandaki solunum rehberini ve animasyonunu gizler' : 'Hides breathing guidance and animations');
-
-                return (
-                  <Touchable
-                    key={mode}
-                    onPress={() => {
-                      setBreathMode(mode);
-                      setBreathPickerVisible(false);
-                      haptic.select();
-                    }}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      backgroundColor: isActive ? sheetTheme.primary + '18' : (sheetDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
-                      borderRadius: R.lg,
-                      padding: S.md,
-                      borderWidth: B.medium,
-                      borderColor: isActive ? sheetTheme.primary : 'transparent',
-                    }}
-                  >
-                    <View style={{ flex: 1, gap: S.xs }}>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: isActive ? sheetTheme.primary : sheetTheme.onSurface }}>
-                        {title}
-                      </Text>
-                      <Text style={{ fontSize: F.caption2, color: sheetTheme.onSurfaceVariant }}>
-                        {desc}
-                      </Text>
-                    </View>
-                    {isActive && (
-                      <CheckCircle2 size={ICON.md} color={sheetTheme.primary} />
-                    )}
-                  </Touchable>
-                );
-              })}
-            </View>
-          </Animated.View>
-        </View>
-      </Modal>
 
       <FocusTaskPicker
         visible={taskPickerVisible}

@@ -404,8 +404,8 @@ export function buildMaratonAdaptationTasks(
       description: JSON.stringify({ 
         tr: `Hazırlık süresi yetersiz`, 
         en: `Insufficient preparation time`,
-        descTr: `⚠️ Seçilen ${targetEvent} hedefi için ideal olarak en az ${minWeeks} hafta hazırlanmak gerekir. Sizin yarışa ${weeksLeft} haftanız var. Sakatlanma riskini azaltmak için hedefinizi gözden geçirebilirsiniz.`,
-        descEn: `⚠️ ${targetEvent} ideally requires at least ${minWeeks} weeks of base building. You only have ${weeksLeft} weeks. Reconsider your target to prevent injury.`
+        descTr: `Seçilen ${targetEvent} hedefi için ideal olarak en az ${minWeeks} hafta hazırlanmak gerekir. Sizin yarışa ${weeksLeft} haftanız var. Sakatlanma riskini azaltmak için hedefinizi gözden geçirebilirsiniz.`,
+        descEn: `${targetEvent} ideally requires at least ${minWeeks} weeks of base building. You only have ${weeksLeft} weeks. Reconsider your target to prevent injury.`
       }),
       priority: 'High',
       dueDate: daysFromNow(1),
@@ -697,8 +697,8 @@ export function buildMulakatAdaptationTasks(
 
   if (daysLeft === 0 && !hasDuplicateAdaptation(existingTasks, 'mulakat_day', 7, true)) {
     tasks.push({
-      title: tr ? `Bugün ${name}! Derin nefes al — hazırsın, güven kendine 💪` : `Today is ${name}! Deep breath — you're ready, trust yourself 💪`,
-      description: JSON.stringify({ tr: `Bugün ${name}! Derin nefes al — hazırsın, güven kendine 💪`, en: `Today is ${name}! Deep breath — you're ready, trust yourself 💪` }),
+      title: tr ? `Bugün ${name}! Derin nefes al — hazırsın, güven kendine.` : `Today is ${name}! Deep breath — you're ready, trust yourself.`,
+      description: JSON.stringify({ tr: `Bugün ${name}! Derin nefes al — hazırsın, güven kendine.`, en: `Today is ${name}! Deep breath — you're ready, trust yourself.` }),
       priority: 'High',
       dueDate: daysFromNow(0),
       isCompleted: false,

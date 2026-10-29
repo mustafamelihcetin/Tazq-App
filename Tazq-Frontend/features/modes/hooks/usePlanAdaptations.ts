@@ -51,6 +51,7 @@ import { MODE_TASK_TAGS, PLAN_TAGS, retireModeTasksByTag } from '@/features/mode
 import { getExtraPool, ensureExtraPool } from '@/features/modes/utils/planPoolSync';
 import { parseDateKey, calendarDayOf } from '@/shared/utils/dateKey';
 import { isSlotPausedNow, markPausedHabitsSkipped } from '@/features/modes/utils/pauseOps';
+import { releaseStagedPlanItems } from '@/features/modes/utils/stagedRollout';
 
 const LAST_RUN_KEY = 'plan_adaptations_last_run';
 
@@ -1251,7 +1252,7 @@ export function usePlanAdaptations() {
       ]).then(() => {
         // Önce tek seferlik migrasyon (eski gelecek-tarihli döküm görevlerini temizle),
         // sonra günlük üretimi çalıştır.
-        runPlanMigrationOnce().finally(() => run());
+        runPlanMigrationOnce().finally(() => run().finally(() => releaseStagedPlanItems()));
       });
     }
 
@@ -1259,7 +1260,7 @@ export function usePlanAdaptations() {
       if (nextStatus === 'active') {
         const { user: currentUser } = useAuthStore.getState();
         if (currentUser) {
-          run();
+          run().finally(() => releaseStagedPlanItems()); // kademeli açılım (bkz. stagedRollout)
         }
       }
     };

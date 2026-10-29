@@ -17,7 +17,7 @@ import { TazqLogo } from '@/shared/components/TazqLogo';
 import { AppBlur } from '@/shared/components/AppBlur';
 import { ICON, S, R, F, scale, verticalScale, moderateScale, B } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
-import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
+import { CustomAlert as Alert, AlertHost } from '@/shared/components/CustomAlert';
 import { validateLogin, isValidEmail } from '@/shared/utils/validation';
 import { httpStatusOf, isNetworkError, errorMessage, errorCode, httpDataOf } from '@/shared/utils/errors';
 import { readGoogleResponse, isGoogleCancel, googleFailureSuffix } from '@/features/user/utils/googleResponse';
@@ -310,7 +310,7 @@ export default function LoginScreen() {
         <SafeAreaView style={styles.safeArea}>
           <KeyboardAvoidingView
             style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior="padding"
             keyboardVerticalOffset={Platform.OS === 'android' ? 0 : 0}
           >
           <ScrollView
@@ -593,7 +593,7 @@ export default function LoginScreen() {
 
         <Modal visible={forgotVisible} transparent animationType="fade">
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior="padding"
             style={{ flex: 1 }}
           >
           <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
@@ -736,6 +736,7 @@ export default function LoginScreen() {
           </View>
           </TouchableWithoutFeedback>
           </KeyboardAvoidingView>
+          <AlertHost />{/* modal içinden açılan uyarı burada, modalın üstünde (bkz. CustomAlert) */}
         </Modal>
       </View>
     </TouchableWithoutFeedback>

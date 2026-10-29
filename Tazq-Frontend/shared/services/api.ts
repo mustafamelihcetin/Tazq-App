@@ -521,6 +521,19 @@ export interface PaymentPayload {
   recurrence: 'Once' | 'Monthly' | 'Yearly';
   nextDueDate?: string | null;
   category?: string | null;
+  /** ISO 4217; boş = ana birim (madde 12). */
+  currency?: string | null;
+}
+
+/** Ödeme geçmişinin bir kaydı — "ödendi" anının fotoğrafı (bkz. backend PaymentRecord). */
+export interface PaymentRecordRow {
+  id: number;
+  paymentId?: number | null;
+  title: string;
+  amount: number;
+  currency?: string | null;
+  cycleKey: string;
+  paidAt: string;
 }
 
 /**
@@ -560,6 +573,20 @@ export const PaymentService = {
   markPaid: async (id: number, cycleKey: string) => {
     const response = await api.post(`/api/payments/${id}/mark-paid`, { cycleKey });
     return response.data;
+  },
+  /** Son `months` ayın ödemeleri, yeniden eskiye. */
+  getHistory: async (months = 6): Promise<PaymentRecordRow[]> => {
+    const response = await api.get('/api/payments/history', { params: { months } });
+    return Array.isArray(response.data) ? response.data : [];
+  },
+  /** Günlük ECB kuru (EUR tabanlı). Sunucu alamazsa 503 → çağıran yaklaşık toplamı gizler. */
+  getFx: async (): Promise<{ date: string; base: string; rates: Record<string, number> } | null> => {
+    try {
+      const response = await api.get('/api/payments/fx');
+      return response.data?.rates ? response.data : null;
+    } catch {
+      return null;
+    }
   },
   unmarkPaid: async (id: number) => {
     const response = await api.post(`/api/payments/${id}/unmark-paid`);

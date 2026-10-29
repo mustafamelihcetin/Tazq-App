@@ -106,6 +106,7 @@ export function AndroidNavCapsule({ tabs, theme, isDark, showLabels }: { tabs: N
           return (
             <Touchable
               key={tab.id}
+              testID={`tab-${tab.id}`} // uçtan uca testler (maestro) — iOS çubuğuyla aynı kimlik
               onPress={tab.onPress}
               activeOpacity={0.7}
               accessibilityRole="tab"

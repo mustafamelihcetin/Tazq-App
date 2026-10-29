@@ -29,9 +29,11 @@ interface Props {
   progress: number;
   allPaid: boolean;
   overdue: { count: number; amount: string } | null;
+  /** Birden çok para birimi varsa ana birimde yaklaşık kalan (madde 12); yoksa/kur yoksa verilmez. */
+  approx?: string | null;
 }
 
-export const PaymentsMonthCard = React.memo(({ theme, isDark, t, language, remaining, paid, total, progress, allPaid, overdue }: Props) => {
+export const PaymentsMonthCard = React.memo(({ theme, isDark, t, language, remaining, paid, total, progress, allPaid, overdue, approx }: Props) => {
   const pct = Math.round(Math.min(1, Math.max(0, progress)) * 100);
   return (
     <View
@@ -46,7 +48,10 @@ export const PaymentsMonthCard = React.memo(({ theme, isDark, t, language, remai
           <Text style={{ flex: 1, color: theme.onSurface, fontSize: F.title3, fontWeight: W.semibold }}>{t.allPaid}</Text>
         </View>
       ) : (
-        <Text style={[styles.amount, { color: theme.onSurface }]} numberOfLines={1} adjustsFontSizeToFit>{remaining}</Text>
+        <>
+          <Text style={[styles.amount, { color: theme.onSurface }]} numberOfLines={1} adjustsFontSizeToFit>{remaining}</Text>
+          {approx ? <Text style={[styles.sub, { color: theme.onSurfaceVariant }]}>{approx}</Text> : null}
+        </>
       )}
 
       <View style={[styles.track, { backgroundColor: theme.success + '29' }]}>

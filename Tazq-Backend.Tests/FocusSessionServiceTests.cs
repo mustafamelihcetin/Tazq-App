@@ -58,7 +58,9 @@ namespace Tazq_Backend.Tests
 
             var stats = await _service.GetUserStatsAsync(userId);
 
-            Assert.Equal(2.0, stats.TotalFocusHours);
+            // Erken bitirilen seansın dakikaları da odaktır (ürün kararı 2026-10-29):
+            // istemci bunları sayıyordu, sunucu saymıyordu — ekranlar farklı rakam gösteriyordu.
+            Assert.Equal(3.0, stats.TotalFocusHours);
         }
 
         [Fact]
@@ -167,7 +169,7 @@ namespace Tazq_Backend.Tests
             bir önceki güne yazılıyordu ve kullanıcı grafikte yanlış günü görüyordu.
         */
         [Fact]
-        public async Task GetSessionsAsync_ReturnsOnlyOwnCompletedSessionsWithinWindow()
+        public async Task GetSessionsAsync_ReturnsOwnSessionsIncludingEarlyFinishedWithinWindow()
         {
             var now = DateTime.UtcNow;
             _context.FocusSessions.AddRange(
@@ -178,12 +180,13 @@ namespace Tazq_Backend.Tests
             );
             await _context.SaveChangesAsync();
 
+            // "yarım" (erken bitirilen) seans da gelir: o 5 dakika gerçek odaktı.
             var week = await _service.GetSessionsAsync(1, 7);
-            Assert.Single(week);
-            Assert.Equal(25, week[0].Minutes);
+            Assert.Equal(2, week.Count);
+            Assert.Equal(30, week.Sum(r => r.Minutes));
 
             var month = await _service.GetSessionsAsync(1, 30);
-            Assert.Equal(2, month.Count);
+            Assert.Equal(3, month.Count);
             Assert.True(month[0].StartedAt <= month[1].StartedAt); // eskiden yeniye
         }
 

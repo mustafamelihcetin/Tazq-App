@@ -125,8 +125,8 @@ clearPlanIds('ramazan');
             <Text style={{ fontSize: F.caption, fontWeight: '500', marginTop: S.xxs, color: ramadanStatus.isActive ? accent : seasonal.ramazan && ramadanStatus.period ? accent : theme.onSurfaceVariant, opacity: ramadanStatus.isActive ? 0.9 : seasonal.ramazan && ramadanStatus.period ? 0.75 : 0.55 }}>
               {ramadanStatus.isActive && ramadanStatus.period
                 ? (tr
-                    ? `🌙 ${formatRamadanDate(ramadanStatus.period.start, 'tr')} – ${formatRamadanDate(ramadanStatus.period.end, 'tr')} · ${ramadanStatus.daysRemaining} gün kaldı`
-                    : `🌙 ${formatRamadanDate(ramadanStatus.period.start, 'en')} – ${formatRamadanDate(ramadanStatus.period.end, 'en')} · ${ramadanStatus.daysRemaining} days left`)
+                    ? `${formatRamadanDate(ramadanStatus.period.start, 'tr')} – ${formatRamadanDate(ramadanStatus.period.end, 'tr')} · ${ramadanStatus.daysRemaining} gün kaldı`
+                    : `${formatRamadanDate(ramadanStatus.period.start, 'en')} – ${formatRamadanDate(ramadanStatus.period.end, 'en')} · ${ramadanStatus.daysRemaining} days left`)
                 : seasonal.ramazan && ramadanStatus.period
                 ? (tr
                     ? `${formatRamadanDate(ramadanStatus.period.start, 'tr', ramadanStatus.period.year !== new Date().getFullYear())} · ${ramadanStatus.daysUntilStart} gün`
@@ -180,7 +180,7 @@ clearPlanIds('ramazan');
                 inputStyle={{ fontSize: F.caption }}
                 value={planSpecs.ramazan?.personalNote ?? ''}
                 onChangeText={(v) => setPersonalNote('ramazan', v)}
-                placeholder={tr ? 'Eklemek istediğin bir şey var mı? (opsiyonel)' : 'Anything else to add? (optional)'}
+                placeholder={tr ? 'Not ekle (isteğe bağlı)' : 'Add a note (optional)'}
                 maxLength={140}
               />
             </View>

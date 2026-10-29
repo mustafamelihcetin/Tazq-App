@@ -409,6 +409,8 @@ builder.Services.AddSingleton<IStoreMetricsService, StoreMetricsService>();
 builder.Services.AddScoped<ISystemService, SystemService>();
 builder.Services.AddScoped<IFocusSessionService, FocusSessionService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+// Tek örnek: önbellek paylaşılsın (bkz. FxRateService).
+builder.Services.AddSingleton(sp => new FxRateService(sp.GetRequiredService<IHttpClientFactory>().CreateClient("fx"), sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>()));
 builder.Services.AddScoped<IHabitSyncService, HabitSyncService>();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IGroqService, GroqService>();

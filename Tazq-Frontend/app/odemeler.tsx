@@ -22,6 +22,9 @@ import { createPaymentAction, deletePaymentAction, markPaymentPaidAction, unmark
 import { nextDueDateOf, activeCycleKeyOf, paymentView, type PaymentView } from '@/features/payments/utils/paymentDates';
 import { PaymentRow } from '@/features/payments/components/PaymentRow';
 import { PaymentsMonthCard } from '@/features/payments/components/PaymentsMonthCard';
+import { PaymentsHistoryCard } from '@/features/payments/components/PaymentsHistoryCard';
+import { totalsByCurrency, formatTotals, formatMoney, approxTotal, withLocalPaid, type FxRates } from '@/features/payments/utils/money';
+import { PaymentService, type PaymentRecordRow } from '@/shared/services/api';
 import { schedulePaymentDueNotif, cancelPaymentDueNotif } from '@/shared/utils/notifications';
 import { formatPlanDate } from '@/features/modes/utils/planTaskOps';
 import { CURRENCIES, currencySymbol, defaultCurrencyFor, type CurrencyCode } from '@/shared/utils/currency';
@@ -54,7 +57,14 @@ export default function OdemelerScreen() {
   const currency: CurrencyCode = currencyPref ?? defaultCurrencyFor(language);
   const symbol = currencySymbol(currency);
 
-  useEffect(() => { refreshPayments(); }, []);
+  /*
+    GEÇMİŞ + KUR (madde 12). Kur alınamazsa null: yaklaşık toplam ve çevrilmiş grafik
+    değerleri gizlenir/eksik işaretlenir — uydurma kur yok (bkz. money.ts).
+  */
+  const [history, setHistory] = useState<PaymentRecordRow[]>([]);
+  const [fx, setFx] = useState<FxRates | null>(null);
+  const loadHistory = () => { PaymentService.getHistory(12).then(setHistory).catch(() => {}); };
+  useEffect(() => { refreshPayments(); loadHistory(); PaymentService.getFx().then(setFx); }, []);
 
   const today = new Date();
   const rows = useMemo(() => {
@@ -82,6 +92,8 @@ export default function OdemelerScreen() {
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [recurrence, setRecurrence] = useState<PaymentRecurrence>('Monthly');
+  // Ödeme BAŞINA birim (madde 12): 200 ₺ kira ile 20 $ abonelik aynı listede. Varsayılan ana birim.
+  const [payCurrency, setPayCurrency] = useState<CurrencyCode>(currency);
   // Monthly — "ayın kaçı" GÜN GRİDİ (1-31), bir sayı yazmaktan ya da tam bir takvimden
   // (ay/yıl seçmek zorunda bırakmak) daha doğrudan: aylık bir fatura için önemli olan
   // tek bilgi gündür. Yearly/Once — gerçek bir TARİH gerekiyor (ay/yıl de önemli),
@@ -95,7 +107,7 @@ export default function OdemelerScreen() {
   const titleProvider = useMemo(() => matchProvider(title), [title]);
 
   const resetForm = () => {
-    setTitle(''); setAmount(''); setRecurrence('Monthly'); setDueDayValue(new Date().getDate()); setAnchorDate(new Date()); setShowPicker(false); setProviderSuggestions([]);
+    setTitle(''); setAmount(''); setRecurrence('Monthly'); setPayCurrency(currency); setDueDayValue(new Date().getDate()); setAnchorDate(new Date()); setShowPicker(false); setProviderSuggestions([]);
   };
 
   const openAdd = () => { haptic.select(); setShowAdd(true); };
@@ -119,6 +131,7 @@ export default function OdemelerScreen() {
       recurrence,
       nextDueDate,
       category: null,
+      currency: payCurrency,
     });
     // Sonuç HER ZAMAN bildirilir — sessiz başarısızlık yok.
     if (result === 'ok') showToast(t.addedToast, 'success');
@@ -131,11 +144,12 @@ export default function OdemelerScreen() {
     haptic.select();
     const cycleKey = activeCycleKeyOf(payment, today);
     await markPaymentPaidAction(payment.id, cycleKey);
+    loadHistory();
     if (payment.id > 0) void cancelPaymentDueNotif(payment.id);
     showToast(
       t.markedPaidToast(payment.title),
       'success',
-      { label: t.undo, onAction: () => { void unmarkPaymentPaidAction(payment.id); } },
+      { label: t.undo, onAction: () => { void unmarkPaymentPaidAction(payment.id).then(loadHistory); } },
     );
   };
 
@@ -174,14 +188,21 @@ export default function OdemelerScreen() {
     }
   }, [rows, language]);
 
+  const lang: 'tr' | 'en' = language === 'en' ? 'en' : 'tr';
   const locale = INTL_LOCALE[language];
   const formatAmount = (n: number) => `${n.toLocaleString(locale, { maximumFractionDigits: 2 })} ${symbol}`;
-  const formatDue = (d: Date) => d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+  const formatDue = (d: Date) => d.toLocaleDateString(locale, { day: 'numeric', month: 'long' });
 
-  const sum = (list: PaymentView[]) => list.reduce((acc, v) => acc + v.p.amount, 0);
-  const monthTotal = sum(thisMonth);
-  const monthPaid = sum(thisMonth.filter(v => v.status === 'paid'));
+  // Birim birim kesin toplamlar; ilerleme ve "≈" ana birimde (kur varsa).
+  const totalsOf = (list: PaymentView[]) => totalsByCurrency(list.map(v => ({ amount: v.p.amount, currency: v.p.currency })), currency);
+  const paidList = thisMonth.filter(v => v.status === 'paid');
+  const unpaidList = thisMonth.filter(v => v.status !== 'paid');
   const overdueList = thisMonth.filter(v => v.status === 'overdue');
+  const multiCurrency = totalsOf(thisMonth).length > 1;
+  const approxPaid = approxTotal(totalsOf(paidList), currency, fx);
+  const approxAll = approxTotal(totalsOf(thisMonth), currency, fx);
+  const approxLeft = approxTotal(totalsOf(unpaidList), currency, fx);
+  const monthProgress = approxAll && approxPaid != null ? approxPaid / approxAll : thisMonth.length ? paidList.length / thisMonth.length : 0;
 
   const renderGroup = (list: PaymentView[]) => (
     <View>
@@ -192,7 +213,7 @@ export default function OdemelerScreen() {
           position={list.length === 1 ? 'only' : i === 0 ? 'first' : i === list.length - 1 ? 'last' : 'middle'}
           theme={theme}
           t={t}
-          amountLabel={formatAmount(v.p.amount)}
+          amountLabel={formatMoney(v.p.amount, v.p.currency || currency, lang)}
           dateLabel={formatDue(v.date)}
           onToggle={() => (v.status === 'paid' ? unmarkPaymentPaidAction(v.p.id) : handleMarkPaid(v.p))}
           onDelete={() => handleDelete(v.p)}
@@ -297,15 +318,14 @@ export default function OdemelerScreen() {
 
                 <View style={{ gap: S.sm }}>
                   <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.3, textTransform: 'uppercase' }}>{upperFor(t.sectionHowMuch, language)}</Text>
-                  <ModeField accent={theme.primary} value={amount} onChangeText={setAmount} placeholder={t.amountPlaceholder} keyboardType="decimal-pad" suffix={<Text style={{ color: theme.onSurfaceVariant, fontWeight: '600' }}>{symbol}</Text>} />
-                  {/* Para birimi TEK global tercih (ödeme başına değil) — bkz. currency.ts
-                      başlığı. Uygulama TR'de daha çok indirilse de arayüzü İngilizce de
-                      sunduğundan ₺'yi sabit basmak yanlıştı. */}
+                  <ModeField accent={theme.primary} value={amount} onChangeText={setAmount} placeholder={t.amountPlaceholder} keyboardType="decimal-pad" suffix={<Text style={{ color: theme.onSurfaceVariant, fontWeight: '600' }}>{currencySymbol(payCurrency)}</Text>} />
+                  {/* Para birimi ÖDEME BAŞINA (madde 12); varsayılan ana birim. Ana birim
+                      sayfanın altında seçilir (bkz. currency.ts). */}
                   <View style={{ flexDirection: 'row', gap: S.xs }}>
                     {CURRENCIES.map(c => {
-                      const active = currency === c.code;
+                      const active = payCurrency === c.code;
                       return (
-                        <Touchable key={c.code} onPress={() => { haptic.select(); setCurrencyPref(c.code); }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.medium, borderColor: active ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? theme.primary + '18' : 'transparent' }} activeOpacity={0.7}>
+                        <Touchable key={c.code} onPress={() => { haptic.select(); setPayCurrency(c.code); }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.medium, borderColor: active ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? theme.primary + '18' : 'transparent' }} activeOpacity={0.7}>
                           <Text style={{ fontSize: F.caption, fontWeight: '600', color: active ? theme.primary : theme.onSurfaceVariant }}>{c.symbol} {c.code}</Text>
                         </Touchable>
                       );
@@ -401,13 +421,37 @@ export default function OdemelerScreen() {
                 isDark={isDark}
                 t={t}
                 language={language}
-                remaining={formatAmount(monthTotal - monthPaid)}
-                paid={formatAmount(monthPaid)}
-                total={formatAmount(monthTotal)}
-                progress={monthTotal > 0 ? monthPaid / monthTotal : 0}
-                allPaid={monthPaid >= monthTotal}
-                overdue={overdueList.length ? { count: overdueList.length, amount: formatAmount(sum(overdueList)) } : null}
+                remaining={formatTotals(totalsOf(unpaidList), lang)}
+                paid={formatTotals(totalsOf(paidList), lang)}
+                total={formatTotals(totalsOf(thisMonth), lang)}
+                progress={monthProgress}
+                allPaid={unpaidList.length === 0}
+                overdue={overdueList.length ? { count: overdueList.length, amount: formatTotals(totalsOf(overdueList), lang) } : null}
+                approx={multiCurrency && approxLeft != null ? `≈ ${formatMoney(Math.round(approxLeft), currency, lang)}` : null}
               />
+            )}
+
+            {(history.length > 0 || payments.length > 0) && (
+              <PaymentsHistoryCard theme={theme} isDark={isDark} lang={lang} main={currency} fx={fx}
+                records={withLocalPaid(history, payments)} />
+            )}
+
+            {/* ANA PARA BİRİMİ — toplamların "≈" satırı ve grafik bu birimde. Yeni ödemenin
+                varsayılanı da bu; her ödeme kendi birimini korur. */}
+            {payments.length > 0 && (
+              <View style={{ gap: S.sm }}>
+                {sectionTitle(t.mainCurrency)}
+                <View style={{ flexDirection: 'row', gap: S.xs }}>
+                  {CURRENCIES.map(c => {
+                    const active = currency === c.code;
+                    return (
+                      <Touchable key={c.code} onPress={() => { haptic.select(); setCurrencyPref(c.code); setPayCurrency(c.code); }} accessibilityRole="button" accessibilityState={{ selected: active }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.medium, borderColor: active ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? theme.primary + '18' : 'transparent' }} activeOpacity={0.7}>
+                        <Text style={{ fontSize: F.caption, fontWeight: '600', color: active ? theme.primary : theme.onSurfaceVariant }}>{c.symbol} {c.code}</Text>
+                      </Touchable>
+                    );
+                  })}
+                </View>
+              </View>
             )}
 
             {thisMonth.length > 0 && (

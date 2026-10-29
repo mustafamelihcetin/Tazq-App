@@ -21,7 +21,7 @@ import { ICON, S, R, F, B, MAX_W, HAIRLINE } from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
-import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
+import { CustomAlert as Alert, AlertHost } from '@/shared/components/CustomAlert';
 import { swallow } from '@/shared/utils/swallow';
 import { haptic } from '@/shared/utils/haptics';
 
@@ -1846,6 +1846,7 @@ export default function AdminScreen() {
             </View>
           </MotiView>
         </View>
+        <AlertHost />{/* modal içinden açılan uyarı burada, modalın üstünde (bkz. CustomAlert) */}
       </Modal>
     </SafeAreaView>
   );

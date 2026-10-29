@@ -344,7 +344,7 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
                 accent={ACCENT}
                 value={planSpecs.mulakat?.personalNote ?? ''}
                 onChangeText={(v) => setPersonalNote('mulakat', v)}
-                placeholder={tr ? 'Eklemek istediğin bir şey var mı? (opsiyonel)' : 'Anything else to add? (optional)'}
+                placeholder={tr ? 'Not ekle (isteğe bağlı)' : 'Add a note (optional)'}
                 maxLength={140}
               />
               <View style={{ flexDirection: 'row', gap: S.sm }}>

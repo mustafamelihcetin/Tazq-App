@@ -107,6 +107,7 @@ function clearLocalUserData() {
   safe(() => require('@/features/focus/store/useFocusStore').useFocusStore.getState().reset());
   safe(() => require('@/features/habits/store/useHabitStore').useHabitStore.setState({ habits: [] }));
   safe(() => require('@/features/modes/store/usePrefsStore').usePrefsStore.getState().resetUserData());
+  safe(() => require('@/features/modes/store/useStagedPlanStore').useStagedPlanStore.getState().reset()); // kademeli açılım sırası
   safe(() => require('@/shared/store/useBudgetStore').useBudgetStore.getState().reset());
   safe(() => require('@/shared/store/useQuitStore').useQuitStore.getState().reset());
   // `clearAll` (resetInputs DEĞİL): çıkışta kilo geçmişi de cihazdan silinmeli.
