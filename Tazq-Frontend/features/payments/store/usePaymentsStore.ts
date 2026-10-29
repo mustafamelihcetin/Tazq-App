@@ -56,7 +56,12 @@ export const usePaymentsStore = create<PaymentsState>()(
         set({ payments: get().payments.map(p => (p.id === id ? { ...p, ...patch } : p)) }),
       removePayment: (id) => set({ payments: get().payments.filter(p => p.id !== id) }),
       setLoading: (loading) => set({ isLoading: loading }),
-      setCurrency: (currency) => set({ currency }),
+      setCurrency: (currency) => {
+        set({ currency });
+        // Tercih snapshot'ıyla buluta (bkz. currencyCloud). Başarısızsa bir sonraki
+        // girişte hydrate "bulut ≠ yerel" görüp yeniden gönderir.
+        require('@/features/modes/store/usePrefsStore').usePrefsStore.getState().syncToCloud();
+      },
     }),
     {
       name: 'tazq-payments',

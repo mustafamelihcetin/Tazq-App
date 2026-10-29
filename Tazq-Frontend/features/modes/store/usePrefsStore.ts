@@ -733,7 +733,7 @@ export const usePrefsStore = create<PrefsState>()(
 
       syncToCloud: async () => {
         const state = get() as any;
-        const snapshot: Record<string, any> = {};
+        const snapshot: Record<string, any> = { ...require('@/features/payments/currencyCloud').currencySnapshot() }; // para birimi
         for (const key of CLOUD_PREF_KEYS) snapshot[key] = state[key];
         // Başarımları da aynı transport ile taşı (sahibi useAchievementStore).
         // Böylece "kutlandı" hafızası, kutladığı metrik (sunucudaki streak) kadar kalıcı olur.
@@ -814,8 +814,8 @@ export const usePrefsStore = create<PrefsState>()(
               require('@/features/user/store/useAchievementStore').useAchievementStore.getState().applyCloud(parsed.__achievements);
             } catch (e) { swallow('prefsStore.applyCloudAchievements', e, { capture: true }); }
           }
-          // Kilo geçmişi buluta hiç gönderilmediği için burada geri yüklenecek bir şey de
-          // yok (gerekçe: syncToCloud içindeki not).
+          if (require('@/features/payments/currencyCloud').applyCloudCurrency(parsed.__currency)) get().syncToCloud();
+          // Kilo geçmişi buluta hiç gitmez, geri yüklenecek bir şey yok (bkz. syncToCloud).
         } catch (err) {
           swallow('prefsStore.hydrateFromCloud', err, { capture: true });
         }
