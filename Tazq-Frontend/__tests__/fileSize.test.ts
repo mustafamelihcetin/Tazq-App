@@ -240,7 +240,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // widgetBridge bug düzeltmesi — görev/mod değişince widget hiç güncellenmiyordu).
   // 816 → 819: widget/Watch köprüsü splash'te çökmeye yol açtığı için geçici
   // olarak yorum satırına alındı (kök sebep doğrulanana kadar).
-  'app/_layout.tsx': 880, // +2: anonim kurulum ping'i (günde bir) // +17: sabah özeti en yakın aktif hedefe göre kişiselleşiyor (goalSig) // +16: widget/Watch köprüsü yeniden açıldı (ana-kuyruk sertleştirmesiyle, bkz. TazqWidgetBridgeModule.swift) // +5: tema değişince widget'ı da tazeleyen abonelik (unsubTheme) // +14: WCSession aktivasyon yarışı için gecikmeli zorla-gönderim (activationRetry) // +6 (2026-10-18): 'open-payments' bildirim aksiyonu yönlendirmesi
+  'app/_layout.tsx': 881, // +1 (2026-10-29): focus ekranı animasyonsuz (sekme tutarlılığı) // +2: anonim kurulum ping'i (günde bir) // +17: sabah özeti en yakın aktif hedefe göre kişiselleşiyor (goalSig) // +16: widget/Watch köprüsü yeniden açıldı (ana-kuyruk sertleştirmesiyle, bkz. TazqWidgetBridgeModule.swift) // +5: tema değişince widget'ı da tazeleyen abonelik (unsubTheme) // +14: WCSession aktivasyon yarışı için gecikmeli zorla-gönderim (activationRetry) // +6 (2026-10-18): 'open-payments' bildirim aksiyonu yönlendirmesi
   // İlk kez 800 satırı geçti: onboarding'in "şu an neyle uğraşıyorsun?" sorusu
   // (durum seçimi + mod sorusuyla aynı desende ikinci bir modal, bkz. dosya başı notu).
   'app/onboarding.tsx': 515, // 816 → 515 (2026-10-25): slayt görselleri OnboardingVisuals'a taşındı, ölü görseller silindi · +1 (2026-10-25): goHome içe aktarımı (çift ana sayfa düzeltmesi)
