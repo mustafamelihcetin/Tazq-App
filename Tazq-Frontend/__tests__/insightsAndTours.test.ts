@@ -55,9 +55,10 @@ describe('Profil — koyu tema kontrastı ve ham hex', () => {
     expect(saveBlock).toContain('theme.onPrimary');
   });
 
-  it('en uzun seri ikonu ham hex değil theme.streak kullanır', () => {
+  it('en uzun seri ham hex kullanmaz', () => {
+    // 2026-10-31: istatistik ikonları kalktı (ProgressCard — sayılar ikonsuz); ham turuncu geri gelmesin.
     expect(SRC).not.toContain('#ff9f0a');
-    expect(SRC).toContain('theme.streak');
+    expect(read('features/user/components/ProgressCard.tsx')).not.toMatch(/#[0-9a-fA-F]{6}/);
   });
 });
 

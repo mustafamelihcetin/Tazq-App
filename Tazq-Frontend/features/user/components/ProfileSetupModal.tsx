@@ -28,7 +28,9 @@ import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { ICON, S, R, F, B, MAX_W } from '@/shared/constants/tokens';
 import { AVATAR_CONFIGS } from '@/features/user';
-import { AVATAR_RINGS, RING_NONE, hasRing } from '@/features/user/utils/avatarRings';
+import { ringOptions, ringStoreValue, type RingChoice } from '@/features/user/utils/avatarRings';
+import { useThemeStore } from '@/shared/store/useThemeStore';
+import { ACCENT_FEATURED } from '@/shared/constants/Colors';
 import { SegmentedControl } from '@/shared/components/SegmentedControl';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
@@ -97,7 +99,9 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
   const c = COPY[language === 'tr' ? 'tr' : 'en'];
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState('m1');
-  const [ring, setRing] = useState<string>(AVATAR_RINGS[1].color);
+  const accent = useThemeStore(s => s.accent);
+  const setAccent = useThemeStore(s => s.setAccent);
+  const [ring, setRing] = useState<RingChoice>(accent);
   const [hour, setHour] = useState<Hour>('morning');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,8 +111,8 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
     if (!visible) return;
     setName(isNamePlaceholder ? '' : currentName);
     setAvatar('m1');
-    // Varsayılan halka marka mavisi: "Yok" ile açılan önizleme sönük duruyordu.
-    setRing(AVATAR_RINGS[1].color);
+    // Varsayılan halka o anki vurgu: "Yok" ile açılan önizleme sönük duruyordu.
+    setRing(accent);
     setHour('morning');
     setError(null);
   }, [visible, currentName, isNamePlaceholder]);
@@ -123,7 +127,9 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
     setError(null);
     setLoading(true);
     try {
-      await onSave(isNamePlaceholder ? trimmed : currentName, avatar, ring, '', hour, '');
+      // Çerçeve rengi = vurgu rengi (bkz. avatarRings.ts): seçim uygulamanın rengini de belirler.
+      if (ring !== 'none') setAccent(ring);
+      await onSave(isNamePlaceholder ? trimmed : currentName, avatar, ringStoreValue(ring), '', hour, '');
       haptic.success();
     } catch {
       setError(c.saveErr);
@@ -135,7 +141,10 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
 
   const firstName = (isNamePlaceholder ? name : currentName).trim().split(' ')[0];
   const image = AVATAR_CONFIGS.find((a) => a.key === avatar)?.image;
-  const ringed = hasRing(ring);
+  // İlk açılışta yalnız 6 seçkin ton (tek sıra); 18'in tamamı ve çerçeveyi kapatmak Ayarlar → Görünüm'de (tek yer).
+  const rings = ringOptions(isDark).filter(o => o.key !== 'none' && ACCENT_FEATURED.includes(o.key));
+  const ringed = ring !== 'none';
+  const ringColor = rings.find(o => o.key === ring)?.color ?? theme.primary;
   const inner = PREVIEW - 2 * (ringed ? RING_W : B.thin);
 
   /*
@@ -182,7 +191,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                   styles.preview,
                   {
                     borderWidth: ringed ? RING_W : B.thin,
-                    borderColor: ringed ? ring : theme.outlineVariant,
+                    borderColor: ringed ? ringColor : theme.outlineVariant,
                     backgroundColor: theme.surfaceField,
                   },
                 ]}
@@ -252,11 +261,11 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
             <View>
               <Text style={[styles.label, { color: theme.onSurfaceMuted }]}>{c.ring}</Text>
               <View accessibilityRole="radiogroup" style={{ gap: S.sm }}>
-                {rows(AVATAR_RINGS, ringCols).map((row, r) => (
+                {rows(rings, ringCols).map((row, r) => (
                   <View key={r} style={[styles.row, styles.ringRow]}>
                     {row.map((opt) => {
-                      const selected = opt.color === ring;
-                      const none = opt.color === RING_NONE;
+                      const selected = opt.key === ring;
+                      const none = opt.key === 'none';
                       return (
                         <Touchable
                           key={opt.key}
@@ -264,7 +273,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                           accessibilityState={{ selected, checked: selected }}
                           accessibilityLabel={language === 'tr' ? opt.tr : opt.en}
                           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                          onPress={() => { if (!selected) { haptic.select(); setRing(opt.color); } }}
+                          onPress={() => { if (!selected) { haptic.select(); setRing(opt.key); } }}
                           style={[styles.dotRing, { borderColor: selected ? (none ? theme.onSurfaceVariant : opt.color) : 'transparent' }]}
                         >
                           <View

@@ -771,14 +771,6 @@ export const TurkishModeBanner: React.FC<Props> = ({
       });
     };
 
-    const cycleColor = (idx: number) => {
-      setCustomHabits(prev => {
-        const next = [...prev];
-        const cur = QUICK_COLORS.indexOf(next[idx].color);
-        next[idx] = { ...next[idx], color: QUICK_COLORS[(cur + 1) % QUICK_COLORS.length] };
-        return next;
-      });
-    };
 
     const suggest = () => {
       const toast = useToastStore.getState().show;
@@ -876,10 +868,10 @@ export const TurkishModeBanner: React.FC<Props> = ({
                 accessibilityRole="button"
                 accessibilityLabel={tr ? 'Simgeyi değiştir' : 'Change icon'}
                 hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
-                style={{ width: 34, height: 34, borderRadius: R.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: h.color + '20', borderWidth: B.thin, borderColor: h.color + '40' }}
+                style={{ width: 34, height: 34, borderRadius: R.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: modeAccent + '20', borderWidth: B.thin, borderColor: modeAccent + '40' }}
                 activeOpacity={0.7}
               >
-                {renderModeEmojiIcon(h.emoji, 16, h.color)}
+                {renderModeEmojiIcon(h.emoji, 16, modeAccent)}
               </Touchable>
               <TextInput
                 value={h.nameTr}
@@ -890,12 +882,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                 returnKeyType="next"
                 underlineColorAndroid="transparent"
               />
-              <Touchable
-                accessibilityRole="button"
-                accessibilityLabel={tr ? 'Rengi değiştir' : 'Change color'}
-                hitSlop={{ top: 12, bottom: 12, left: 10, right: 2 }}
-                onPress={() => cycleColor(idx)}
-                style={{ width: 20, height: 20, borderRadius: R.full, backgroundColor: h.color, borderWidth: B.medium, borderColor: isDark ? 'rgba(255,255,255,0.4)' : '#fff' }} activeOpacity={0.7} />
+              {/* Renk seçimi yok: mod alışkanlığı modunun rengini taşır (bkz. features/habits/utils/habitColor). */}
               <Touchable accessibilityRole="button" accessibilityLabel={tr ? 'Alışkanlığı kaldır' : 'Remove habit'} onPress={() => setCustomHabits(prev => prev.filter((_, i) => i !== idx))} style={{ padding: S.xs }} activeOpacity={0.7}>
                 <X size={ICON.sm} color={theme.onSurfaceVariant} />
               </Touchable>
@@ -1247,8 +1234,8 @@ export const TurkishModeBanner: React.FC<Props> = ({
             </Text>
             {planHabitStats.map(h => (
               <View key={h.id} style={[styles.planViewRow, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }]}>
-                <View style={[styles.habitIconSm, { backgroundColor: (h.color ?? modeAccent) + '22' }]}>
-                  {renderModeEmojiIcon(h.emoji ?? '📌', 16, h.color ?? modeAccent)}
+                <View style={[styles.habitIconSm, { backgroundColor: modeAccent + '22' }]}>
+                  {renderModeEmojiIcon(h.emoji ?? '📌', 16, modeAccent)}
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.planViewName, { color: theme.onSurface }]} numberOfLines={1}>{h.name}</Text>
@@ -1259,7 +1246,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                         const dates = Array.isArray(h.completedDates) ? h.completedDates : [];
                         const done = dates.includes(k);
                         return (
-                          <View key={i} style={[styles.dot, { backgroundColor: done ? (h.color ?? modeAccent) : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)') }]} />
+                          <View key={i} style={[styles.dot, { backgroundColor: done ? modeAccent : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)') }]} />
                         );
                       })}
                     </View>
@@ -1269,9 +1256,9 @@ export const TurkishModeBanner: React.FC<Props> = ({
                     </View>
                   </View>
                 </View>
-                <View style={[styles.doneBadge, { backgroundColor: h.doneToday ? (h.color ?? modeAccent) + '22' : 'transparent', borderColor: h.doneToday ? (h.color ?? modeAccent) + '60' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)') }]}>
+                <View style={[styles.doneBadge, { backgroundColor: h.doneToday ? modeAccent + '22' : 'transparent', borderColor: h.doneToday ? modeAccent + '60' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)') }]}>
                   {h.doneToday
-                    ? <Check size={ICON.xs} color={h.color ?? modeAccent} strokeWidth={3} />
+                    ? <Check size={ICON.xs} color={modeAccent} strokeWidth={3} />
                     : <Circle size={ICON.xs} color={theme.onSurfaceVariant} strokeWidth={1.5} />}
                 </View>
               </View>
@@ -1495,9 +1482,9 @@ export const TurkishModeBanner: React.FC<Props> = ({
                       </View>
                       <View style={{ flexDirection: 'row', gap: S.xs, flexWrap: 'wrap', marginTop: S.xs }}>
                         {tpl.habits.slice(0, 4).map((h) => (
-                          <View key={h.name} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: h.color + '18', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xs }}>
-                            {renderModeEmojiIcon(h.emoji, 10, h.color)}
-                            <Text style={{ fontSize: 10, fontWeight: '600', color: h.color, letterSpacing: 0.2 }}>{tr ? h.nameTr : h.name}</Text>
+                          <View key={h.name} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: modeAccent + '18', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xs }}>
+                            {renderModeEmojiIcon(h.emoji, 10, modeAccent)}
+                            <Text style={{ fontSize: 10, fontWeight: '600', color: modeAccent, letterSpacing: 0.2 }}>{tr ? h.nameTr : h.name}</Text>
                           </View>
                         ))}
                         {tpl.tasks.length > 0 && (
@@ -1599,15 +1586,15 @@ export const TurkishModeBanner: React.FC<Props> = ({
                         style={[styles.itemRow, { opacity: exists || skipped ? 0.4 : 1 }]}
                         activeOpacity={exists ? 1 : 0.7}
                       >
-                        <View style={[styles.itemDot, { backgroundColor: (skipped ? '#94A3B8' : h.color) + '30', borderColor: (skipped ? '#94A3B8' : h.color) + '60' }]}>
-                          {renderModeEmojiIcon(h.emoji, 15, skipped ? '#94A3B8' : h.color)}
+                        <View style={[styles.itemDot, { backgroundColor: (skipped ? '#94A3B8' : modeAccent) + '30', borderColor: (skipped ? '#94A3B8' : modeAccent) + '60' }]}>
+                          {renderModeEmojiIcon(h.emoji, 15, skipped ? '#94A3B8' : modeAccent)}
                         </View>
                         <Text style={[styles.itemText, { color: theme.onSurface, flex: 1, textDecorationLine: skipped ? 'line-through' : 'none' }]}>{tr ? h.nameTr : h.name}</Text>
                         {exists
                           ? <Check size={ICON.sm} color={theme.tertiary} strokeWidth={2.5} />
                           : skipped
                           ? <X size={ICON.sm} color={theme.onSurfaceVariant} strokeWidth={2} />
-                          : <Check size={ICON.sm} color={h.color} strokeWidth={2.5} />}
+                          : <Check size={ICON.sm} color={modeAccent} strokeWidth={2.5} />}
                       </Touchable>
                     );
                   })}

@@ -10,7 +10,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, Download, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ArrowLeft , Vibrate, Footprints, UserPlus, MailCheck, Sparkles } from 'lucide-react-native';
+import { Bell, Moon, Languages, LogOut, Download, ChevronRight, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ArrowLeft, Vibrate, Footprints, UserPlus, MailCheck, Sparkles, CalendarRange, SunMoon, Leaf, ShieldCheck } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { AuthService, FocusService } from '@/shared/services/api';
 import { SleepHealth } from '@/shared/services/sleepHealth';
@@ -35,19 +35,19 @@ import { healthSourceName } from '@/shared/utils/healthSource';
 import { Asset } from 'expo-asset';
 import { usePrefsStore } from '@/features/modes';
 import { useSporStore } from '@/features/modes/store/useSporStore';
-import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { useTaskStore } from '@/features/tasks';
 import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '@/shared/utils/achievementIcons';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { DeleteAccountModal } from '@/features/user/components/DeleteAccountModal';
-import { playSoundEffect } from '@/shared/utils/soundEffects';
 import { httpDataOf } from '@/shared/utils/errors';
 import { SectionHeader } from '@/shared/components/SectionHeader';
 import { SettingsCard, SettingItem, ToggleRow, RowDivider, SettingsActionRow, ChoiceRow, settingsAccents } from '@/shared/components/SettingsRows';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { haptic } from '@/shared/utils/haptics';
+import { canStaff, isAnalystOnly } from '@/shared/utils/staffRoles';
+import { AccentPicker } from '@/features/user/components/AccentPicker';
 import { goHome } from '@/shared/utils/authNavigation';
 
 /**
@@ -81,7 +81,9 @@ export default function SettingsScreen() {
   const markSection = (dom: string, y: number) => { sectionY.current[dom] = y; tryScroll(); };
   // AYRI SAYFA: her kategori tek başına. show() yalnızca istenen bölümü gösterir;
   // param yoksa (doğrudan /settings) hepsi görünür (geriye dönük).
-  const show = (cat: string) => !section || section === cat;
+  const KNOWN = ['notify', 'system', 'health', 'legal'];
+  // Bilinmeyen anahtar (eski bağlantı, yazım hatası) BOŞ sayfa açıyordu → hepsini göster.
+  const show = (cat: string) => !section || !KNOWN.includes(section as string) || section === cat;
   const catTitle =
     section === 'notify' ? (language === 'tr' ? 'Bildirimler' : 'Notifications')
     : section === 'system' ? (language === 'tr' ? 'Görünüm & Dil' : 'Appearance & Language')
@@ -95,14 +97,10 @@ export default function SettingsScreen() {
   const contentW = useContentMaxWidth();
   const bestStreak = useFocusStore(s => s.bestStreak);
   const streakFreezeAvailable = useFocusStore(s => s.streakFreezeAvailable);
-  const useStreakFreeze = useFocusStore(s => s.useStreakFreeze);
   const dailyGoalMinutes = useFocusStore(s => s.dailyGoalMinutes);
   const setDailyGoal = useFocusStore(s => s.setDailyGoal);
   const updateBestStreak = useFocusStore(s => s.updateBestStreak);
   const checkStreakFreezeReset = useFocusStore(s => s.checkStreakFreezeReset);
-  const focusPoints = useFocusStore(s => s.focusPoints);
-  const streakShields = useFocusStore(s => s.streakShields);
-  const { habits, toggleDate } = useHabitStore();
   const { tasks } = useTaskStore();
   const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects, hapticFeedback, setHapticFeedback, motto, setMotto, productivityHour, setProductivityHour, avatarBorderColor, setAvatarBorderColor, uiMode, setUiMode, gender, setGender, sleepHealthOptIn, setSleepHealthOptIn, sleepGoalHours, setSleepGoalHours, hideNotificationContent, setHideNotificationContent, activityHealthOptIn, setActivityHealthOptIn } = usePrefsStore();
   const [sleepSupported] = useState(() => SleepHealth.isSupported());
@@ -343,40 +341,6 @@ export default function SettingsScreen() {
   };
 
 
-  const handleStreakFreeze = () => {
-    if (streakShields <= 0) {
-      showToast(
-        language === 'tr' ? 'Hiç kalkanınız kalmadı! Puan toplayarak kalkan kazanın.' : 'No shields left! Earn shields by collecting focus points.',
-        'error'
-      );
-      return;
-    }
-    Alert.alert(
-      language === 'tr' ? 'Streak Kalkanını Etkinleştir' : 'Activate Streak Shield',
-      language === 'tr'
-        ? 'Bir kalkan tüketerek bugünkü tüm alışkanlıkları yapıldı olarak işaretlemek istiyor musunuz?'
-        : 'Do you want to consume one shield to mark all today\'s habits as completed?',
-      [
-        { text: t.cancel, style: 'cancel' },
-        { text: language === 'tr' ? 'Kullan' : 'Use', onPress: () => {
-          useStreakFreeze();
-          const todayKey = fmtDateKey();
-          habits.forEach(h => {
-            if (!h.completedDates.includes(todayKey)) toggleDate(h.id, todayKey);
-          });
-          haptic.success();
-          if (soundEffects) {
-            playSoundEffect(require('../assets/sounds/freeze.mp3'), {
-              context: 'profile.streakFreezeSound',
-              volume: 0.75,
-              releaseAfterMs: 3000,
-            });
-          }
-          showToast(language === 'tr' ? 'Kalkan başarıyla kullanıldı!' : 'Shield successfully used!', 'success');
-        } }
-      ]
-    );
-  };
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -436,7 +400,7 @@ export default function SettingsScreen() {
                 />
                 <RowDivider theme={theme} />
                 <ToggleRow
-                    icon={<CalendarDays size={ICON.md} color="#FFFFFF" />}
+                    icon={<CalendarRange size={ICON.md} color="#FFFFFF" />}
                     bg={A.notify}
                     title={language === 'tr' ? 'Haftalık Özet' : 'Weekly Summary'}
                     subtitle={language === 'tr' ? 'Pazar akşamı momentum özeti' : 'Momentum recap on Sunday evening'}
@@ -455,15 +419,38 @@ export default function SettingsScreen() {
                     onValueChange={toggleCalendarSync}
                     theme={theme} isDark={isDark}
                 />
+                <RowDivider theme={theme} />
+                {/*
+                  MAHREMİYET — bildirim kilit ekranında çıkıyor ve gövdesinde görev adı
+                  duruyor; yanındaki herkes okuyabiliyor. Kullanıcı o metni kendisi için
+                  yazmıştı ("Doktor: test sonucu", "Ayrılık konuşması"…).
+
+                  Bunu bir içerik SÜZGECİYLE çözmek yanlış olurdu: metin kullanıcının
+                  kendi cihazında kendisine gösteriliyor, kimseyi rahatsız etmiyor.
+                  Doğru olan kararı kullanıcıya bırakmak.
+                */}
+                <ToggleRow
+                    icon={<EyeOff size={ICON.md} color="#FFFFFF" />}
+                    bg={A.notify}
+                    title={language === 'tr' ? 'Bildirimde içeriği gizle' : 'Hide content in notifications'}
+                    subtitle={language === 'tr'
+                      ? 'Kilit ekranında görev adı yerine genel bir metin görünür'
+                      : 'Shows a generic message instead of the task name'}
+                    value={hideNotificationContent}
+                    onValueChange={applyHideNotificationContent}
+                    theme={theme} isDark={isDark}
+                />
             </SettingsCard>
 
             </>)}
             {show('system') && (<>
-            {/* ── GÖRÜNÜM & DİL ── */}
-            <SectionHeader onLayout={e => markSection('system', e.nativeEvent.layout.y)} title={language === 'tr' ? 'GÖRÜNÜM & DİL' : 'APPEARANCE & LANGUAGE'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
+            {/* ── GÖRÜNÜM & DİL (2026-10-31 düzeni): GÖRÜNÜM = ekran nasıl görünür (tema, renk, dil);
+                 DENEYİM = uygulama nasıl davranır (ses, titreşim, sade mod). Bildirim gizliliği
+                 Bildirimler'e, odak puanı/seri kalkanı (ayar değil, ödül) Profil'e taşındı. ── */}
+            <SectionHeader onLayout={e => markSection('system', e.nativeEvent.layout.y)} title={language === 'tr' ? 'GÖRÜNÜM' : 'APPEARANCE'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
             <SettingsCard theme={theme} isDark={isDark}>
                 <ChoiceRow
-                    icon={<Moon size={ICON.md} color="#FFFFFF" />}
+                    icon={<SunMoon size={ICON.md} color="#FFFFFF" />}
                     label={t.appearance}
                     bg={A.system}
                     options={[{ key: 'system', label: t.themeSystem }, { key: 'light', label: t.themeLight }, { key: 'dark', label: t.themeDark }]}
@@ -472,6 +459,9 @@ export default function SettingsScreen() {
                     theme={theme}
                     isDark={isDark}
                 />
+                <RowDivider theme={theme} />
+                {/* Vurgu rengi: ölçülü aileden, canlı önizlemeyle (bkz. AccentPicker, Colors.ts → AccentPalettes). */}
+                <AccentPicker lang={language === 'en' ? 'en' : 'tr'} />
                 <RowDivider theme={theme} />
                 {/* Dil adı kendi dilinde yazılır (iOS/Android dil seçicilerinin kuralı). */}
                 <ChoiceRow
@@ -483,19 +473,6 @@ export default function SettingsScreen() {
                     onChange={(k) => { haptic.select(); setLanguage(k); }}
                     theme={theme}
                     isDark={isDark}
-                />
-                <RowDivider theme={theme} />
-                <ToggleRow
-                    icon={<Zap size={ICON.md} color="#FFFFFF" />}
-                    bg={A.system}
-                    title={language === 'tr' ? 'Sade Mod' : 'Lite Mode'}
-                    /* Sekme seti de daralıyor: Modlar VE Haftalık gizleniyor (bkz. BottomNavBar
-                       → LITE_TAB_IDS). Etiket yalnız 'modlar' diyordu; Haftalık Merkez'in
-                       kaybolması sürpriz oluyordu. */
-                    subtitle={language === 'tr' ? 'İvme skorunu, kutlamaları, Modlar ve Haftalık sekmelerini gizler' : 'Hides momentum, celebrations, Modes & Weekly tabs'}
-                    value={uiMode === 'lite'}
-                    onValueChange={(v: boolean) => { haptic.select(); setUiMode(v ? 'lite' : 'pro'); track('ui_mode_changed', { mode: v ? 'lite' : 'pro' }); }}
-                    theme={theme} isDark={isDark}
                 />
             </SettingsCard>
 
@@ -525,56 +502,17 @@ export default function SettingsScreen() {
                     theme={theme} isDark={isDark}
                 />
                 <RowDivider theme={theme} />
-                {/*
-                  MAHREMİYET — bildirim kilit ekranında çıkıyor ve gövdesinde görev adı
-                  duruyor; yanındaki herkes okuyabiliyor. Kullanıcı o metni kendisi için
-                  yazmıştı ("Doktor: test sonucu", "Ayrılık konuşması"…).
-
-                  Bunu bir içerik SÜZGECİYLE çözmek yanlış olurdu: metin kullanıcının
-                  kendi cihazında kendisine gösteriliyor, kimseyi rahatsız etmiyor.
-                  Doğru olan kararı kullanıcıya bırakmak.
-                */}
                 <ToggleRow
-                    icon={<Bell size={ICON.md} color="#FFFFFF" />}
+                    icon={<Leaf size={ICON.md} color="#FFFFFF" />}
                     bg={A.core}
-                    title={language === 'tr' ? 'Bildirimde içeriği gizle' : 'Hide content in notifications'}
-                    subtitle={language === 'tr'
-                      ? 'Kilit ekranında görev adı yerine genel bir metin görünür'
-                      : 'Shows a generic message instead of the task name'}
-                    value={hideNotificationContent}
-                    onValueChange={applyHideNotificationContent}
+                    title={language === 'tr' ? 'Sade Mod' : 'Lite Mode'}
+                    /* Sekme seti de daralıyor: Modlar VE Haftalık gizleniyor (bkz. BottomNavBar
+                       → LITE_TAB_IDS). Etiket yalnız 'modlar' diyordu; Haftalık Merkez'in
+                       kaybolması sürpriz oluyordu. */
+                    subtitle={language === 'tr' ? 'İvme skorunu, kutlamaları, Modlar ve Haftalık sekmelerini gizler' : 'Hides momentum, celebrations, Modes & Weekly tabs'}
+                    value={uiMode === 'lite'}
+                    onValueChange={(v: boolean) => { haptic.select(); setUiMode(v ? 'lite' : 'pro'); track('ui_mode_changed', { mode: v ? 'lite' : 'pro' }); }}
                     theme={theme} isDark={isDark}
-                />
-                <RowDivider theme={theme} />
-                <SettingItem
-                    icon={<Zap size={ICON.md} color="#FFFFFF" />}
-                    label={language === 'tr' ? 'Odak Puanları' : 'Focus Points'}
-                    sub={language === 'tr' ? `${focusPoints} XP · Her 100 puanda 1 kalkan kazanırsın` : `${focusPoints} XP · Gain 1 shield every 100 points`}
-                    bg={A.core}
-                    value={`${focusPoints}/100`}
-                    theme={theme}
-                />
-                <RowDivider theme={theme} />
-                <SettingItem
-                    icon={<Shield size={ICON.md} color="#FFFFFF" />}
-                    label={t.streakFreeze}
-                    sub={language === 'tr' ? `${streakShields}/3 kalkan hazır — seriyi korur` : `${streakShields}/3 shields ready — protects streak`}
-                    bg={A.streak}
-                    right={
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
-                        {[1, 2, 3].map((num) => (
-                          <Shield
-                            key={num}
-                            size={12}
-                            color={num <= streakShields ? (isDark ? '#2DD4BF' : '#0D9488') : theme.onSurfaceVariant}
-                            fill={num <= streakShields ? (isDark ? '#2DD4BF' : '#0D9488') : 'transparent'}
-                            opacity={num <= streakShields ? 1 : 0.25}
-                          />
-                        ))}
-                      </View>
-                    }
-                    onPress={handleStreakFreeze}
-                    theme={theme}
                 />
             </SettingsCard>
 
@@ -675,7 +613,7 @@ export default function SettingsScreen() {
                 />
                 <RowDivider theme={theme} />
                 <SettingItem
-                    icon={<Shield size={ICON.md} color="#FFFFFF" />}
+                    icon={<ShieldCheck size={ICON.md} color="#FFFFFF" />}
                     label={t.privacyPolicy || (language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy')}
                     bg={A.legal}
                     onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacy' } })}
@@ -686,7 +624,7 @@ export default function SettingsScreen() {
                     icon={<MessageSquare size={ICON.md} color="#FFFFFF" />}
                     label={(t as any).support?.title || (language === 'tr' ? 'Destek & İletişim' : 'Support & Contact')}
                     sub={(t as any).support?.sub || (language === 'tr' ? 'Soru ve önerilerini ilet' : 'Send questions & feedback')}
-                    bg={A.core}
+                    bg={A.legal}
                     onPress={() => setSupportModalVisible(true)}
                     theme={theme}
                 />
@@ -696,7 +634,7 @@ export default function SettingsScreen() {
                     icon={<Sparkles size={ICON.md} color="#FFFFFF" />}
                     label={t.tourReplay.title}
                     sub={t.tourReplay.sub}
-                    bg={A.core}
+                    bg={A.legal}
                     onPress={() => { usePrefsStore.setState({ completedTours: {} }); showToast(t.tourReplay.done, 'success'); goHome(router); }}
                     theme={theme}
                 />
@@ -705,14 +643,14 @@ export default function SettingsScreen() {
             {/* Ham indigo hex yerine A.system — settingsAccents zaten AYNI
                 indigo'yu tema-duyarlı veriyor (bkz. 'Görünüm & Dil' satırı); burada
                 sabit hex yazmak iki ayrı kopya demekti. */}
-            {user?.role === 'Admin' && (
+            {canStaff(user?.role, 'staff') && (
               <Touchable
                 onPress={() => router.push('/admin')}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: A.system + (isDark ? '1F' : '14'), borderRadius: R.md, paddingVertical: S.md, paddingHorizontal: S.md, marginTop: S.xl, borderWidth: B.thin, borderColor: A.system + (isDark ? '40' : '26') }}
               >
                 <Shield size={ICON.md} color={A.system} />
                 <Text style={{ color: A.system, fontWeight: '700', fontSize: F.body, flex: 1 }}>
-                  {language === 'tr' ? 'Admin Paneli' : 'Admin Panel'}
+                  {isAnalystOnly(user?.role) ? (language === 'tr' ? 'Analiz Merkezi' : 'Analytics') : (language === 'tr' ? 'Admin Paneli' : 'Admin Panel')}
                 </Text>
                 <ChevronRight size={ICON.sm} color={A.system} />
               </Touchable>
@@ -749,7 +687,7 @@ export default function SettingsScreen() {
                   icon={<MailCheck size={ICON.md} color="#FFFFFF" />}
                   label={t.verifyEmail.rowTitle}
                   sub={t.verifyEmail.rowSub}
-                  bg={A.notify}
+                  bg={A.legal}
                   onPress={() => router.push({ pathname: '/verify-email', params: { email: user.email } })}
                   theme={theme}
                 />
@@ -759,7 +697,7 @@ export default function SettingsScreen() {
                 <SettingItem
                   icon={<Lock size={ICON.md} color="#FFFFFF" />}
                   label={language === 'tr' ? 'Şifre Değiştir' : 'Change Password'}
-                  bg={A.system}
+                  bg={A.legal}
                   onPress={openChangePassword}
                   theme={theme}
                 />

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Animated, Platform } from 'react-native';
+import { View, Text, Animated, Platform, type FlatList } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -18,7 +18,7 @@ import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { haptic } from '@/shared/utils/haptics';
 import { usePaymentsStore, type Payment, type PaymentRecurrence } from '@/features/payments/store/usePaymentsStore';
-import { createPaymentAction, deletePaymentAction, markPaymentPaidAction, unmarkPaymentPaidAction, refreshPayments, type CreatePaymentResult } from '@/features/payments/utils/paymentActions';
+import { createPaymentAction, updatePaymentAction, deletePaymentAction, markPaymentPaidAction, unmarkPaymentPaidAction, refreshPayments, type CreatePaymentResult } from '@/features/payments/utils/paymentActions';
 import { nextDueDateOf, activeCycleKeyOf, paymentView, type PaymentView } from '@/features/payments/utils/paymentDates';
 import { PaymentRow } from '@/features/payments/components/PaymentRow';
 import { PaymentsMonthCard } from '@/features/payments/components/PaymentsMonthCard';
@@ -89,6 +89,10 @@ export default function OdemelerScreen() {
   // Ödeme yoksa form BAŞTAN AÇIK — boş bir davet yerine doldurmaya hazır bir form
   // (ExamCard/TezCard'ın `expanded` init deseniyle AYNI mantık).
   const [showAdd, setShowAdd] = useState(() => usePaymentsStore.getState().payments.length === 0);
+  // Düzenleme (2026-10-31, kullanıcı: "ödenecekleri sonradan düzenleyebilmeli, şu an yalnız sil var"):
+  // aynı form, o ödemenin değerleriyle dolar; kaydet = güncelle.
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const listRef = useRef<FlatList<never>>(null);
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [recurrence, setRecurrence] = useState<PaymentRecurrence>('Monthly');
@@ -107,10 +111,33 @@ export default function OdemelerScreen() {
   const titleProvider = useMemo(() => matchProvider(title), [title]);
 
   const resetForm = () => {
-    setTitle(''); setAmount(''); setRecurrence('Monthly'); setPayCurrency(currency); setDueDayValue(new Date().getDate()); setAnchorDate(new Date()); setShowPicker(false); setProviderSuggestions([]);
+    setEditingId(null); setTitle(''); setAmount(''); setRecurrence('Monthly'); setPayCurrency(currency); setDueDayValue(new Date().getDate()); setAnchorDate(new Date()); setShowPicker(false); setProviderSuggestions([]);
   };
 
   const openAdd = () => { haptic.select(); setShowAdd(true); };
+
+  const openEdit = (p: Payment) => {
+    setEditingId(p.id);
+    setTitle(p.title);
+    setAmount(p.amount.toLocaleString(locale, { useGrouping: false, maximumFractionDigits: 2 })); // yerel ondalık ayıracı
+    setRecurrence(p.recurrence);
+    setPayCurrency((p.currency as CurrencyCode) || currency);
+    setDueDayValue(p.dueDay);
+    setAnchorDate(p.nextDueDate ? new Date(p.nextDueDate) : new Date());
+    setShowPicker(false); setProviderSuggestions([]);
+    setShowAdd(true);
+    listRef.current?.scrollToOffset({ offset: 0, animated: true }); // form listenin başında
+  };
+
+  // Uzun bas: Düzenle / Sil (kaydırarak silme aynen duruyor).
+  const handleMenu = (p: Payment) => {
+    haptic.select();
+    Alert.alert(p.title, formatMoney(p.amount, p.currency || currency, lang), [
+      { text: t.edit, onPress: () => openEdit(p) },
+      { text: t.delete, style: 'destructive', onPress: () => handleDelete(p) },
+      { text: t.cancel, style: 'cancel' },
+    ]);
+  };
 
   const canSave = title.trim() !== '' && parseFloat(amount.replace(',', '.')) > 0;
 
@@ -124,6 +151,13 @@ export default function OdemelerScreen() {
     const day = isMonthly ? dueDayValue : anchorDate.getDate();
     const nextDueDate = isMonthly ? null : anchorDate.toISOString();
 
+    if (editingId != null) {
+      const r = await updatePaymentAction(editingId, { title: title.trim(), amount: amountNum, dueDay: day, recurrence, nextDueDate, currency: payCurrency });
+      if (r === 'failed') { showToast(t.updateFailedToast, 'error'); return; }
+      showToast(r === 'queued' ? t.queuedToast : t.updatedToast, 'success');
+      setShowAdd(false); resetForm();
+      return;
+    }
     const result: CreatePaymentResult = await createPaymentAction({
       title: title.trim(),
       amount: amountNum,
@@ -217,6 +251,8 @@ export default function OdemelerScreen() {
           dateLabel={formatDue(v.date)}
           onToggle={() => (v.status === 'paid' ? unmarkPaymentPaidAction(v.p.id) : handleMarkPaid(v.p))}
           onDelete={() => handleDelete(v.p)}
+          onMenu={() => handleMenu(v.p)}
+          onEdit={() => openEdit(v.p)}
         />
       ))}
     </View>
@@ -253,6 +289,7 @@ export default function OdemelerScreen() {
       />
 
       <Animated.FlatList
+        ref={listRef}
         data={[] as never[]}
         onScroll={onScroll}
         scrollEventThrottle={16}
@@ -397,7 +434,7 @@ export default function OdemelerScreen() {
                     <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.body }}>{t.cancel}</Text>
                   </Touchable>
                   <Touchable onPress={handleSave} disabled={!canSave} style={{ flex: 2, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.smd, backgroundColor: canSave ? theme.primary : theme.primary + '55' }} activeOpacity={0.8}>
-                    <Text style={{ color: theme.onPrimary ?? '#fff', fontWeight: '700', fontSize: F.body }}>{t.add}</Text>
+                    <Text style={{ color: theme.onPrimary ?? '#fff', fontWeight: '700', fontSize: F.body }}>{editingId != null ? t.save : t.add}</Text>
                   </Touchable>
                 </View>
               </FormReveal>
@@ -427,6 +464,7 @@ export default function OdemelerScreen() {
                 progress={monthProgress}
                 allPaid={unpaidList.length === 0}
                 overdue={overdueList.length ? { count: overdueList.length, amount: formatTotals(totalsOf(overdueList), lang) } : null}
+                next={unpaidList[0] ? { title: unpaidList[0].p.title, days: unpaidList[0].days } : null}
                 approx={multiCurrency && approxLeft != null ? `≈ ${formatMoney(Math.round(approxLeft), currency, lang)}` : null}
               />
             )}

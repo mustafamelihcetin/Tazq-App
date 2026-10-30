@@ -140,6 +140,8 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { JetBrainsMono_500Medium, JetBrainsMono_600SemiBold } from '@expo-google-fonts/jetbrains-mono';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
+import { activeHabits } from '@/features/habits/utils/habitLimit';
+import { pendingOn } from '@/features/habits/utils/habitSchedule';
 import { usePrefsStore } from '@/features/modes';
 import { useThemeStore } from '@/shared/store/useThemeStore';
 import { reportInstallOncePerDay } from '@/shared/utils/installPing';
@@ -310,6 +312,10 @@ export default function RootLayout() {
     welcomeStatus !== 'pending' &&
     completedTours?.dashboard === true;
 
+  // Bugün bekleyen alışkanlık sayısı değişince akşam özeti yeniden kurulur ("2 alışkanlık bekliyor"
+  // diyen bildirim, hepsi işaretlendikten sonra çalmasın). Sayı seçici: yalnız sayı değişince tetikler.
+  const habitsPendingToday = useHabitStore(s => pendingOn(activeHabits(s.habits), fmtDateKey()).length);
+
   useEffect(() => {
     if (!isLoggedIn) return;
     if (notifPermission !== 'granted') return;
@@ -333,11 +339,15 @@ export default function RootLayout() {
       // Akşam yarına düştüyse (21:00 geçti) o günün tamamlananı henüz yok.
       const completedToday = eveningIsToday ? completedOn(allTasks, toDateKey(now)) : 0;
 
-      // Habit streak from cockpit store — best-effort
+      // Alışkanlık serisi ve akşamın bekleyen alışkanlıkları. Eskiden `h.streak` okunuyordu —
+      // alışkanlıkta böyle bir alan YOK, sabah özetindeki seri hep 0 gidiyordu.
       let streak = 0;
+      let habitsPendingEvening = 0;
       try {
-        const { habits } = require('@/features/habits').useHabitStore.getState();
-        streak = habits?.reduce((max: number, h: any) => Math.max(max, h.streak ?? 0), 0) ?? 0;
+        const hs = useHabitStore.getState();
+        const live = activeHabits(hs.habits);
+        streak = live.reduce((max, h) => Math.max(max, hs.getStreak(h)), 0);
+        habitsPendingEvening = pendingOn(live, fmtDateKey(eveningAt)).length;
       } catch (e) { swallow('layout.readHabitStreakForBrief', e); }
 
       // Morning brief: today's task count + streak + (varsa) en yakın hedef (respects user preference)
@@ -352,7 +362,7 @@ export default function RootLayout() {
 
       // Evening brief: completed today vs still pending (respects user preference)
       if (eveningBriefEnabled) {
-        scheduleEveningBrief(completedToday, pending, language || 'en', currentUser?.name, eveningAt);
+        scheduleEveningBrief(completedToday, pending, language || 'en', currentUser?.name, eveningAt, habitsPendingEvening);
       } else {
         cancelEveningBrief();
       }
@@ -373,7 +383,7 @@ export default function RootLayout() {
     girilince sabah özeti aynı oturumda hedef-farkında hâle gelsin — bir sonraki soğuk
     açılışı beklemesin.
   */
-  }, [isLoggedIn, notifPermission, morningBriefEnabled, eveningBriefEnabled, language, productivityHour, notifSig, goalSig]);
+  }, [isLoggedIn, notifPermission, morningBriefEnabled, eveningBriefEnabled, language, productivityHour, notifSig, goalSig, habitsPendingToday]);
 
   /*
     HATIRLATICILAR GÖREVLERLE BİRLİKTE YAŞAR.

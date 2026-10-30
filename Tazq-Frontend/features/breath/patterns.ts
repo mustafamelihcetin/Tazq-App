@@ -28,17 +28,29 @@ export interface BreathPhase { kind: PhaseKind; sec: number; /** fazın sonunda 
 export interface BreathPattern {
   id: BreathId;
   phases: BreathPhase[];
-  /** Önerilen süre (dk) — seçici bununla açılır. */
-  minutes: 1 | 3 | 5;
+  /** Önerilen süre (dk) — seçici bununla açılır; seçenekler arasında "önerilen" diye işaretlenir. */
+  minutes: number;
+  /**
+   * Bu tekniğe uygun süre seçenekleri (dk; 4-7-8'de nefes sayısından türetilir, kesirli olabilir).
+   * 2026-10-31 (kullanıcı: "her moda göre bilimsele uygun dakika/saniye önerilmeli"): eskiden dört
+   * modda da aynı 1/3/5 dk vardı — 4-7-8'de 5 dk (16 döngü) tekniğin önerisinin 4 katıydı,
+   * rezonansta 1 dk etkisi ölçülmemiş bir süreydi. Kaynaklar `breathCopy.items[id].dose`'ta.
+   */
+  options: number[];
+  /** Nefes sayısıyla verilen teknik (4-7-8): etiket "4 nefes", süre değil. */
+  byBreaths?: boolean;
   /** Kürenin yaprak sayısı: kutuda 4 (kare), diğerlerinde ritme uygun. */
   petals: number;
 }
 
 export const BREATH_PATTERNS: BreathPattern[] = [
-  { id: 'sigh', minutes: 5, petals: 6, phases: [{ kind: 'in', sec: 2, to: 0.78 }, { kind: 'top', sec: 1, to: 1 }, { kind: 'out', sec: 6, to: 0 }] },
-  { id: 'box', minutes: 3, petals: 4, phases: [{ kind: 'in', sec: 4, to: 1 }, { kind: 'hold', sec: 4, to: 1 }, { kind: 'out', sec: 4, to: 0 }, { kind: 'rest', sec: 4, to: 0 }] },
-  { id: 'sleep', minutes: 1, petals: 8, phases: [{ kind: 'in', sec: 4, to: 1 }, { kind: 'hold', sec: 7, to: 1 }, { kind: 'out', sec: 8, to: 0 }] },
-  { id: 'resonance', minutes: 5, petals: 6, phases: [{ kind: 'in', sec: 5.5, to: 1 }, { kind: 'out', sec: 5.5, to: 0 }] },
+  // Balban 2023: günde 5 dk (her iki kol); 1 dk anlık rahatlama için.
+  { id: 'sigh', minutes: 5, options: [1, 3, 5], petals: 6, phases: [{ kind: 'in', sec: 2, to: 0.78 }, { kind: 'top', sec: 1, to: 1 }, { kind: 'out', sec: 6, to: 0 }] },
+  { id: 'box', minutes: 5, options: [2, 5, 10], petals: 4, phases: [{ kind: 'in', sec: 4, to: 1 }, { kind: 'hold', sec: 4, to: 1 }, { kind: 'out', sec: 4, to: 0 }, { kind: 'rest', sec: 4, to: 0 }] },
+  // Weil: ilk ay 4 nefes, sonra en çok 8. Döngü 19 sn → 76 / 152 sn.
+  { id: 'sleep', minutes: (4 * 19) / 60, options: [(4 * 19) / 60, (8 * 19) / 60], byBreaths: true, petals: 8, phases: [{ kind: 'in', sec: 4, to: 1 }, { kind: 'hold', sec: 7, to: 1 }, { kind: 'out', sec: 8, to: 0 }] },
+  // Lehrer: etki 10–20 dk'lık seanslarda; 5 dk kısa başlangıç.
+  { id: 'resonance', minutes: 10, options: [5, 10, 20], petals: 6, phases: [{ kind: 'in', sec: 5.5, to: 1 }, { kind: 'out', sec: 5.5, to: 0 }] },
 ];
 
 export const patternOf = (id: string | null | undefined): BreathPattern =>

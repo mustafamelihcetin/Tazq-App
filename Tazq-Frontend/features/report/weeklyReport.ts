@@ -1,3 +1,4 @@
+import { scheduleOf, isPlannedDay, type PlanFields } from '@/features/habits/utils/habitSchedule';
 import { toDateKey, parseDateKey, calendarDayOf } from '@/shared/utils/dateKey';
 
 /**
@@ -35,7 +36,7 @@ export interface ReportTask {
   tags?: string[] | null;
 }
 
-export interface ReportHabit {
+export interface ReportHabit extends Pick<PlanFields, 'schedule'> {
   id: string;
   name?: string;
   completedDates?: string[];
@@ -129,11 +130,16 @@ export function habitDenominator(habits: ReportHabit[], days: string[], todayKey
   let total = 0;
   for (const h of habits) {
     const created = h.createdAt ? toDateKey(new Date(h.createdAt)) : null;
+    const s = scheduleOf(h);
+    let lived = 0;
     for (const day of days) {
       if (day > todayKey) continue;                    // gelecek günler beklenmez
       if (created && day < created) continue;          // kurulmadan önce beklenmez
-      total++;
+      if (!isPlannedDay(h, day)) continue;             // "Pzt-Çar-Cum": planlanmayan gün beklenmez
+      lived++;
     }
+    // "Haftada N": hafta başına en çok N beklenir (yaşanan günü aşmadan).
+    total += s.kind === 'weekly' ? Math.min(s.times, lived) : lived;
   }
   return total;
 }
@@ -271,6 +277,8 @@ export function weekLabel(range: WeekRange, lang: Lang): string {
 const STORY = {
   tr: {
     empty: 'Bu hafta henüz kayıt yok. Tek bir seans bile hikâyeyi başlatır.',
+    // Geçmiş hafta için "henüz"/"başlatır" yanlış: o hafta bitti (2026-10-30, hafta kaydırırken görüldü).
+    emptyPast: 'Bu haftadan kayıt yok — dinlenme haftası.',
     days: (n: number) => `${n} gün odaklandın`,
     best: (day: string) => `en iyi günün ${day}`,
     tasks: (n: number) => `${n} iş bitirdin`,
@@ -280,6 +288,7 @@ const STORY = {
   },
   en: {
     empty: 'Nothing recorded this week yet. One session starts the story.',
+    emptyPast: 'Nothing recorded this week — a rest week.',
     days: (n: number) => `You focused on ${n} day${n === 1 ? '' : 's'}`,
     best: (day: string) => `your best day was ${day}`,
     tasks: (n: number) => `you finished ${n} task${n === 1 ? '' : 's'}`,
@@ -293,9 +302,9 @@ const STORY = {
  * HAFTANIN HİKÂYESİ — çıplak sayı yerine bir cümle.
  * "İlerliyorum" hissi kıyastan ve anlatıdan doğar; dört ayrı sayıdan değil.
  */
-export function weekStory(summary: WeekSummary, delta: WeekDelta, lang: Lang): string {
+export function weekStory(summary: WeekSummary, delta: WeekDelta, lang: Lang, past = false): string {
   const c = STORY[lang];
-  if (summary.totalFocusMin === 0 && summary.totalTasks === 0) return c.empty;
+  if (summary.totalFocusMin === 0 && summary.totalTasks === 0) return past ? c.emptyPast : c.empty;
 
   const parts: string[] = [];
   if (summary.activeDays > 0) parts.push(c.days(summary.activeDays));

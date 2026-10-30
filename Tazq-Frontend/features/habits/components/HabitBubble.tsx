@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text } from 'react-native';
-import { Coffee, Flame, CheckCircle2 } from 'lucide-react-native';
+import { Canvas, Circle, Path, Skia } from '@shopify/react-native-skia';
+import { Easing, useDerivedValue, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
+import { Coffee } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { CompletionBurst } from '@/shared/components/CompletionBurst';
+import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
 // Saf metin yardımcısı utils'e taşındı (uyku sınıflandırıcısı da kullanıyor);
 // buradan yeniden dışa veriliyor ki mevcut içe aktarmalar kırılmasın.
 import { compactHabitLabel } from '@/features/habits/utils/habitLabel';
@@ -10,33 +13,53 @@ import { describeHabit } from '@/shared/utils/a11y';
 export { compactHabitLabel };
 import { renderModeEmojiIcon } from '@/features/modes';
 import type { AppTheme } from '@/shared/constants/Colors';
-import { F, S, ICON, R } from '@/shared/constants/tokens';
+import { DISPLAY_FONT } from '@/shared/components/DisplayPanel';
+import { F, S, R, ICON } from '@/shared/constants/tokens';
 
-/**
- * Etiket satır yüksekliği. 9.5pt yazının doğal satır aralığından biraz açık: iki satır
- * alt alta gelince harfler birbirine değmesin. Yuvanın yüksekliği bunun İKİ katı
- * (bkz. aşağıdaki not) — sabit tutuluyor ki kısa ve uzun adlar aynı hizada bitsin.
- */
+/*
+  ALIŞKANLIKTA RENK = NEREDEN GELDİĞİ, DURUM = BİÇİM (2026-10-30). Mod alışkanlığı modunun rengini,
+  elle eklenen kullanıcının ölçülmüş paletten seçtiği rengi taşır (bkz. habitColor.ts). "Yapıldı mı"yı
+  renk tonu değil DOLULUK söyler: boş iz → bekliyor, dolan yay + dolu disk → yapıldı. Böylece renk
+  tek anlam taşır (ön-dikkat), renk körü kullanıcı da durumu biçimden okur.
+*/
+
+/*
+  ALIŞKANLIK HALKASI (2026-10-30) — kullanıcı: "ana sayfadaki alışkanlıklar kısmı çok çirkin;
+  yukarıdaki ekranla uyumlu, şık, premium, işlevsel, minimalist; animasyonel de olabilir".
+  Eski baloncuk: nötr çerçeve + dolgu + iki rozet (alev, tik) + dört renk kuralı.
+  Yeni dil — üstteki dijital panelin ve gün çiçeğinin akrabası:
+    · İnce bir İZ halkası; ilerleme alışkanlığın renginde bir YAY olarak dolar (Skia, animasyonlu).
+      Miktarlıda yay adım adım (3/8), tekilde tek dokunuşta tam tur.
+    · Tamamlanınca iç disk yumuşakça renklenir + tek seferlik kıvılcım. Rozet yok, yay söyler.
+    · Mola: kehribar kesik iz + fincan. Dün kaçtıysa ("iki kez kaçırma") köşede küçük nokta:
+      bugün yaparsan zincir sürer.
+    · Sayaç (3/8, haftalık 2/3) eş aralıklı rakamla, panelle aynı dijital yazı.
+  Hareket azaltılmışsa yay animasyonsuz çizilir.
+*/
+
+/** Etiket satır yüksekliği; yuva iki satırlık sabit yükseklik taşır (kısa ve uzun adlar aynı hizada biter). */
 const LABEL_LINE = 12;
 
 /**
- * YUVA GENİŞLİĞİ — baloncuktan geniş, çünkü ETİKETİ o taşıyor.
- *
- * ── ÖLÇÜLEN SORUN ─────────────────────────────────────────────────────────────
- * Bu sayı 62 idi ve düzeltilmesi gerektiği ÖLÇÜLEREK belgelenmişti: 268 alışkanlık
- * adının 218'i 18 karakterden uzun; 62pt'ye satır başına ~11 karakter sığıyor, yani
- * "Direnç antrenmanı", "Günlük protein hedefi" gibi adların hiçbiri tam görünmüyordu.
- * 78pt'de satır başına ~17, iki satırda ~34 karakter sığıyor.
- *
- * Ama düzeltme BURAYA hiç ulaşmamış: 78 yalnız MyDayHabits'teki "Ekle" kısayoluna
- * uygulanmış, gerçek baloncuklar 62'de kalmıştı. İki sonucu vardı — etiketler
- * kesilmeye devam ediyordu ve "Ekle" kutusu ötekilerden geniş olduğu için şeridin
- * ritmi bozuktu (oysa oradaki not "dolu baloncuklarla aynı boyutta" diyor).
- *
- * Sayı artık burada ve TEK: etiketi çizen bileşen, yuvasının genişliğini de tanımlar.
+ * YUVA GENİŞLİĞİ — halkadan geniş, çünkü ETİKETİ o taşıyor. 268 alışkanlık adının 218'i 18
+ * karakterden uzun; 78pt'de iki satırda ~34 karakter sığar. Sayı TEK: şeritteki "Ekle" de bunu okur.
  */
 export const HABIT_SLOT = 78;
 
+const SIZE = 52;
+const STROKE = 3;
+
+/** İlerleme yayı — Canvas'ın İÇİNDE (yol nesnesi yalnız gerçek Skia ortamında kurulur). */
+const Arc = ({ progress, color }: { progress: SharedValue<number>; color: string }) => {
+  const path = useMemo(() => {
+    const p = Skia.Path.Make();
+    const r = SIZE / 2 - STROKE / 2;
+    p.addArc({ x: SIZE / 2 - r, y: SIZE / 2 - r, width: r * 2, height: r * 2 }, -90, 359.9);
+    return p;
+  }, []);
+  const end = useDerivedValue(() => progress.value);
+  return <Path path={path} style="stroke" strokeWidth={STROKE} strokeCap="round" color={color} start={0} end={end} />;
+};
 
 export interface HabitBubbleProps {
   item: any;
@@ -48,61 +71,49 @@ export interface HabitBubbleProps {
 }
 
 export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, tr, onPress, onLongPress }) => {
-  const streakVal = item.streak || 0;
-  const size = 50;
+  const reduce = useReduceMotion();
   /*
-    İYİMSER DOLUM (2026-10-25, cihazda ölçüldü). Baloncuk ancak ana sayfa (2300+ satır) baştan
-    çizilince doluyordu; yavaş telefonda dokunuştan sonra 1-3 sn hiçbir şey olmuyordu. Artık
-    önce YEREL durum çizilir (yalnız bu baloncuk), asıl kayıt bir sonraki karede yapılır.
-    Gerçek değer gelince yerel durum devreden çıkar.
+    İYİMSER ÇİZİM (2026-10-25, cihazda ölçüldü): halka ana sayfa baştan çizilmeden önce
+    yerel durumla dolar; asıl kayıt bir sonraki karede yapılır.
   */
-  const [optimistic, setOptimistic] = useState<boolean | null>(null);
-  useEffect(() => { setOptimistic(null); }, [item.isCompleted]);
-  const isCompleted = optimistic ?? item.isCompleted;
-  const isSkipped = item.isSkipped;
-  // Tamamlama anında tek seferlik kıvılcım (geri almada değil).
+  const target: number = item.target ?? 1;
+  const [optCount, setOptCount] = useState<number | null>(null);
+  const [optDone, setOptDone] = useState<boolean | null>(null);
+  useEffect(() => { setOptCount(null); setOptDone(null); }, [item.isCompleted, item.count]);
+  const isCompleted: boolean = optDone ?? !!item.isCompleted;
+  const count: number = optCount ?? item.count ?? (item.isCompleted ? target : 0);
+  const isSkipped: boolean = !!item.isSkipped;
+  const ratio = isSkipped ? 0 : isCompleted ? 1 : Math.min(1, count / target);
+
+  // Yay ve iç disk animasyonla gelir (ilk çizimde de: şerit açılırken halkalar dolar).
+  const progress = useSharedValue(0);
+  const fill = useSharedValue(0);
+  useEffect(() => {
+    const cfg = { duration: reduce ? 0 : 520, easing: Easing.out(Easing.cubic) };
+    progress.value = withTiming(ratio, cfg);
+    fill.value = withTiming(isCompleted ? 1 : 0, { duration: reduce ? 0 : 360 });
+  }, [ratio, isCompleted, reduce]);
+  const discOpacity = useDerivedValue(() => fill.value * (isDark ? 0.24 : 0.16));
+
   const [burst, setBurst] = useState(0);
   const handlePress = () => {
-    if (!item.isCompleted) setBurst(b => b + 1);
-    setOptimistic(!item.isCompleted);
+    if (target > 1) {
+      const next = count >= target ? 0 : count + 1;
+      if (next >= target) setBurst(b => b + 1);
+      setOptCount(next);
+      setOptDone(next >= target);
+    } else {
+      if (!item.isCompleted) setBurst(b => b + 1);
+      setOptDone(!item.isCompleted);
+    }
     requestAnimationFrame(() => onPress());
   };
 
-  // Flat styling:
-  // 1. The outer circle border is ALWAYS a quiet neutral color (borderını boyamıyoruz).
-  // 2. Completed state uses a soft mode-colored background tint (flat).
-  // 3. The icon and the badges are painted in the solid mode's color.
-
-  /*
-    SERİ CANLILIĞI (2026-10-30): seri uzadıkça dolgu bir kademe doygunlaşır (3 → 7 → 14 gün).
-    Çerçeve kuralı korunur (hep nötr); canlılık yalnız dolgudan gelir, sürekli animasyon yok.
-  */
-  const streakTint = streakVal >= 14 ? (isDark ? '40' : '2E') : streakVal >= 7 ? (isDark ? '33' : '22') : (isDark ? '24' : '15');
-  const bgColor = isCompleted
-    ? item.color + streakTint // soft flat tint matching the mode's color
-    : isSkipped
-    // Kehribar TEK kaynaktan: ikon ve zemin aynı jetondan türüyor. Elle yazıldığında
-    // koyu temada ikon (#FBBF24) ile zemin (#D97706) farklı iki kehribar oluyordu.
-    ? theme.warning + (isDark ? '26' : '14')
-    : 'transparent';
-
-  const borderColor = isDark
-    ? 'rgba(255, 255, 255, 0.1)'
-    : 'rgba(0, 0, 0, 0.06)';
-
-  const iconColor = isCompleted
-    ? item.color // icon is solid mode color!
-    : isSkipped
-    ? theme.warning
-    : isDark
-    ? 'rgba(255, 255, 255, 0.45)' // quiet neutral icon when pending
-    : 'rgba(0, 0, 0, 0.4)';
-
-  /*
-    Sesli ad TAM addır, görsel etiket ise KIRPILMIŞ (compactHabitLabel) — kırpma bir
-    yer darlığı çözümüdür, isim değil. Baloncuğun içinde metin yok; ekran okuyucu
-    burada yalnız "düğme" duyuyordu.
-  */
+  const meta: string | null = isSkipped ? null
+    : target > 1 && !isCompleted && count > 0 ? `${count}/${target}`
+    : (item.weekBadge ?? null);
+  const track = isSkipped ? theme.warning + '66' : theme.onSurface + (isDark ? '33' : '24');
+  const iconColor = isSkipped ? theme.warning : isCompleted ? item.color : theme.onSurfaceVariant;
   const a11yLabel = item.title ?? item.name ?? '';
 
   return (
@@ -111,95 +122,39 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
       onLongPress={onLongPress}
       activeOpacity={0.7}
       accessibilityRole="button"
-      accessibilityLabel={describeHabit({ doneToday: isCompleted, skipped: isSkipped, streak: streakVal }, a11yLabel, tr ? 'tr' : 'en')}
+      accessibilityLabel={describeHabit({ doneToday: isCompleted, skipped: isSkipped, streak: item.streak }, a11yLabel, tr ? 'tr' : 'en') + (meta ? `, ${meta}` : '')}
       accessibilityState={{ checked: !!isCompleted }}
-      accessibilityHint={tr ? 'Dokun: işaretle · Basılı tut: seçenekler' : 'Tap to toggle · Long press for options'}
+      accessibilityHint={tr ? 'Dokun: işaretle · Basılı tut: mola' : 'Tap to check · Hold for a break'}
       style={{ alignItems: 'center', width: HABIT_SLOT, gap: S.sm }}
     >
-      <View style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: bgColor,
-        borderWidth: 1.5,
-        borderColor: borderColor,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
-        <CompletionBurst trigger={burst} color={item.color} radius={size / 2} />
-        {/* Atlandı ikonu, zemin ve ikon rengiyle AYNI jetondan (bkz. yukarıdaki not). */}
-        {isSkipped ? (
-          <Coffee size={ICON.md} color={theme.warning} />
-        ) : (
-          renderModeEmojiIcon(item.emoji ?? '📌', 20, iconColor)
+      <View style={{ width: SIZE, height: SIZE, alignItems: 'center', justifyContent: 'center' }}>
+        <Canvas style={{ position: 'absolute', width: SIZE, height: SIZE }}>
+          <Circle cx={SIZE / 2} cy={SIZE / 2} r={SIZE / 2 - STROKE * 1.5} color={item.color} opacity={discOpacity} />
+          <Circle cx={SIZE / 2} cy={SIZE / 2} r={SIZE / 2 - STROKE / 2} style="stroke" strokeWidth={STROKE} color={track} />
+          <Arc progress={progress} color={item.color} />
+        </Canvas>
+        <CompletionBurst trigger={burst} color={item.color} radius={SIZE / 2} />
+        {isSkipped ? <Coffee size={ICON.md} color={theme.warning} /> : renderModeEmojiIcon(item.emoji ?? '📌', 20, iconColor)}
+        {item.missed && !isCompleted && !isSkipped && (
+          <View accessible={false} style={{ position: 'absolute', top: 1, right: 1, width: S.sm, height: S.sm, borderRadius: R.full, backgroundColor: theme.warning, borderWidth: 1.5, borderColor: theme.surfaceCard }} />
         )}
-
-        {streakVal >= 3 && !isSkipped && (
-          <View style={{
-            position: 'absolute',
-            bottom: -3,
-            right: -3,
-            backgroundColor: item.color, // flame badge colored matching the mode's color!
-            borderRadius: R.sm,
-            paddingHorizontal: S.xs,
-            paddingVertical: S.xxs,
-            flexDirection: 'row',
-            alignItems: 'center',
-            borderWidth: 1.5,
-            // Rozet, ARKASINDAKİ yüzeyin rengiyle çevrelenip oyulmuş gibi duruyor;
-            // o yüzey kartın kendisi (bkz. BentoCard → surfaceCard).
-            borderColor: theme.surfaceCard,
-          }}>
-            <Flame size={ICON.xs} color="#FFFFFF" fill="#FFFFFF" />
-            <Text style={{ fontSize: F.caption, fontWeight: '700', color: '#FFFFFF', marginLeft: S.xxs }}>{streakVal}</Text>
-          </View>
-        )}
-
-        {isCompleted && (
-          <View style={{
-            position: 'absolute',
-            top: -2,
-            right: -2,
-            backgroundColor: item.color, // checkmark badge colored matching the mode's color!
-            borderRadius: R.full,
-            width: 13,
-            height: 13,
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderWidth: 1,
-            // Rozet, ARKASINDAKİ yüzeyin rengiyle çevrelenip oyulmuş gibi duruyor;
-            // o yüzey kartın kendisi (bkz. BentoCard → surfaceCard).
-            borderColor: theme.surfaceCard,
-          }}>
-            <CheckCircle2 size={ICON.xs} color="#FFFFFF" />
+        {!!meta && (
+          <View style={{ position: 'absolute', bottom: -S.xs, paddingHorizontal: S.xs, borderRadius: R.full, backgroundColor: theme.surfaceCard }}>
+            <Text style={{ fontFamily: DISPLAY_FONT.digits, fontSize: F.caption, color: theme.onSurface, fontVariant: ['tabular-nums'] }}>{meta}</Text>
           </View>
         )}
       </View>
 
-      {/*
-        İKİ SATIR — tek satırdayken alışkanlıkların NEREDEYSE HEPSİ kesiliyordu.
-        62pt'lik yuvada 9.5pt yazı ~11 karakter alır; "Direnç antrenmanı", "Günlük
-        protein hedefi", "Kalori fazlası" gibi gerçek adların hiçbiri sığmıyor. Ekranda
-        yan yana beş tane "Direnç antre…" durunca sayfa bitmemiş görünüyor — kullanıcı
-        bunu tasarım tercihi değil, eksik iş diye okur.
-
-        Yükseklik SABİT (iki satırlık): bir etiket bir satır, komşusu iki satır olursa
-        baloncuklar aynı hizada başlasa da satır altı tırtıklı biter. Sabit yükseklikle
-        ritim korunuyor, kısa adlar da aynı yuvayı kaplıyor.
-
-        `opacity` KALDIRILDI: ölçülmüş rengi kullanım yerinde kısmak kontrastı geçersiz
-        kılar (bkz. colorContrast.test.ts) — bu dosyada 0.8 ile %20 kısılıyordu, üstelik
-        zaten 9.5pt olan bir yazıda. Soluk görünüm artık renk SEVİYESİNDEN geliyor.
-      */}
+      {/* İKİ SATIR, sabit yükseklik: tek satırda adların neredeyse hepsi kesiliyordu. Üstü çizilmez —
+          alışkanlık 'iptal' değil 'yapıldı'; yay bunu söylüyor. Soluk görünüm renk SEVİYESİNDEN gelir. */}
       <Text
         style={{
           fontSize: F.caption,
           lineHeight: LABEL_LINE,
           height: LABEL_LINE * 2,
-          fontWeight: '700',
+          fontWeight: '600',
           color: isCompleted ? theme.onSurfaceMuted : theme.onSurface,
           textAlign: 'center',
-          // Üstü ÇİZİLMEZ: alışkanlık 'iptal' değil 'yapıldı' — tik rozeti bunu söylüyor (bkz. cockpit).
           width: '100%',
         }}
         numberOfLines={2}

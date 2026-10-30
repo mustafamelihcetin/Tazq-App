@@ -336,9 +336,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+// Ekip rolleri (Support/Moderator/Admin): rol her istekte DB'den okunur — bkz. StaffRoleHandler.
+builder.Services.AddAuthorization(Tazq_App.Authorization.StaffPolicy.Register);
+builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, Tazq_App.Authorization.StaffRoleHandler>();
 builder.Services.AddSingleton<IJwtService, JwtService>();
 // Grace süresi dolmuş silinmiş hesapları kalıcı temizleyen arka plan servisi
+// Arka plan işlerinin son çalışma/hata durumu (admin → Sistem → Arka plan işleri).
+builder.Services.AddSingleton<Tazq_App.Services.JobHealth>();
 builder.Services.AddHostedService<Tazq_App.Services.AccountPurgeService>();
+// Çökme kayıtları: çözülmüş 30 gün, hepsi en çok 90 gün (bkz. CrashLog).
+builder.Services.AddHostedService<Tazq_App.Services.CrashRetentionService>();
 // Request dışı yan işler (mail) için kuyruk + tüketici. Singleton kuyruk, her iş kendi scope'unda.
 builder.Services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
 builder.Services.AddHostedService<QueuedHostedService>();
@@ -405,10 +412,16 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IContentService, ContentService>();
 builder.Services.AddScoped<ISupportService, SupportService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+builder.Services.AddScoped<ISupportTemplateService, SupportTemplateService>();
 builder.Services.AddSingleton<IStoreMetricsService, StoreMetricsService>();
 builder.Services.AddScoped<ISystemService, SystemService>();
 builder.Services.AddScoped<IFocusSessionService, FocusSessionService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+// IMemoryCache KOŞULSUZ: yukarıdaki AddMemoryCache yalnız Redis'siz (yerel) dalda çalışıyor.
+// Canlıda Redis var → kayıt yoktu → FxRateService kurulamadı → PaymentsController'ın TÜM uçları
+// 500 verdi (2026-10-30, yayın sonrası). AddMemoryCache tekrar çağrılsa da güvenli (TryAdd).
+builder.Services.AddMemoryCache();
 // Tek örnek: önbellek paylaşılsın (bkz. FxRateService).
 builder.Services.AddSingleton(sp => new FxRateService(sp.GetRequiredService<IHttpClientFactory>().CreateClient("fx"), sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>()));
 builder.Services.AddScoped<IHabitSyncService, HabitSyncService>();

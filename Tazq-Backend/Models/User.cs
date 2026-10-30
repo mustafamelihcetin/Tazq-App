@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
@@ -90,6 +90,10 @@ namespace Tazq_App.Models
         // Hesabın oluşturulma anı (UTC). Günlük admin kayıt özeti bu alana dayanır.
         // Sütun eklenmeden önceki satırlar migration'da 2000-01-01 damgasını alır:
         // o tarih "kayıt zamanı bilinmiyor" demektir, gerçek bir kayıt anı değildir.
+        // ANALİZE DAHİL Mİ (2026-10-31): null = varsayılan kural (normal kullanıcı dahil, ekip rolleri hariç);
+        // true/false = süper adminin açık kararı (ör. test hesabı hariç). Bkz. AdminService.Audience.
+        public bool? AnalyticsInclude { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // E-posta doğrulama. Google/Apple ile girenlerde sağlayıcı doğruladığı için true;

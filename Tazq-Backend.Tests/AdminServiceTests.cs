@@ -249,6 +249,36 @@ namespace Tazq_Backend.Tests
         }
 
         [Fact]
+        public async Task GetUsersAsync_Filters_AndCountsOnFirstPage()
+        {
+            var now = DateTime.UtcNow;
+            var active = await SeedUserAsync(2, "active@test.com"); active.LastActiveAt = now.AddDays(-1); active.IsEmailVerified = true;
+            var stale = await SeedUserAsync(3, "stale@test.com"); stale.LastActiveAt = now.AddDays(-30); stale.IsEmailVerified = true;
+            var unverified = await SeedUserAsync(4, "new@test.com");
+            var banned = await SeedUserAsync(5, "ban@test.com"); banned.IsBanned = true; banned.IsEmailVerified = true;
+            var tempBanOver = await SeedUserAsync(6, "temp@test.com"); tempBanOver.BannedUntil = now.AddDays(-1); tempBanOver.IsEmailVerified = true;
+            var tempBan = await SeedUserAsync(7, "temp2@test.com"); tempBan.BannedUntil = now.AddDays(2); tempBan.IsEmailVerified = true;
+            await SeedUserAsync(8, "staff@test.com", "Analyst");
+            var gone = await SeedUserAsync(9, "gone@test.com"); gone.DeletedAt = now; gone.LastActiveAt = now;
+            await _context.SaveChangesAsync();
+
+            Assert.Equal(new[] { 2 }, (await _service.GetUsersAsync(1, 30, null, "name", true, "active")).Users.Select(u => u.Id));
+            Assert.Equal(new[] { 5, 7 }, (await _service.GetUsersAsync(1, 30, null, "name", true, "banned")).Users.Select(u => u.Id).OrderBy(i => i));
+            // Silinmiş hesap aktif/doğrulanmamış sayılmaz; yalnız "silinmiş" çipinde görünür.
+            Assert.DoesNotContain(9, (await _service.GetUsersAsync(1, 30, null, "name", true, "unverified")).Users.Select(u => u.Id));
+            Assert.Equal(new[] { 9 }, (await _service.GetUsersAsync(1, 30, null, "name", true, "deleted")).Users.Select(u => u.Id));
+            Assert.Equal(8, (await _service.GetUsersAsync(1, 30, null, "name", true, "nonsense")).Total); // bilinmeyen = filtre yok
+
+            var first = await _service.GetUsersAsync(1, 30, null, "name", true, "banned");
+            Assert.NotNull(first.Counts);
+            Assert.Equal(1, first.Counts!["active"]);
+            Assert.Equal(2, first.Counts["banned"]);
+            Assert.Equal(1, first.Counts["staff"]);
+            Assert.Equal(1, first.Counts["deleted"]);
+            Assert.Null((await _service.GetUsersAsync(2, 30, null, "name", true)).Counts); // yalnız ilk sayfa
+        }
+
+        [Fact]
         public async Task GetUsersAsync_ShouldClampInvalidPaging()
         {
             for (int i = 2; i < 10; i++) await SeedUserAsync(i, $"u{i}@test.com");
@@ -294,6 +324,32 @@ namespace Tazq_Backend.Tests
             Assert.Equal(30, stats.TotalFocusMinutes);
             Assert.Equal(1, stats.ActiveToday);
             Assert.Equal(7, stats.DailyTrend.Count); // her zaman 7 günlük pencere
+        }
+
+        [Fact]
+        public async Task GetStatsAsync_WeeklyComparison_SplitsLast7DaysFromPrevious7()
+        {
+            var now = DateTime.UtcNow;
+            _context.Users.AddRange(
+                new User { Id = 2, Email = "a@t.com", Name = "A", CreatedAt = now.AddDays(-2), LastActiveAt = now },
+                new User { Id = 3, Email = "b@t.com", Name = "B", CreatedAt = now.AddDays(-10), LastActiveAt = now.AddDays(-3) },
+                new User { Id = 4, Email = "c@t.com", Name = "C", CreatedAt = now.AddDays(-30), LastActiveAt = now.AddDays(-20) });
+            _context.FocusSessions.AddRange(
+                new FocusSession { UserId = 2, TaskName = "f", DurationMinutes = 40, Completed = true, StartedAt = now.AddDays(-1) },
+                new FocusSession { UserId = 3, TaskName = "f", DurationMinutes = 25, Completed = true, StartedAt = now.AddDays(-9) },
+                new FocusSession { UserId = 3, TaskName = "f", DurationMinutes = 10, Completed = false, StartedAt = now.AddDays(-9) }); // yarım kalanın süresi de odak
+            await _context.SaveChangesAsync();
+
+            var s = await _service.GetStatsAsync();
+
+            Assert.Equal(1, s.SeenToday);
+            Assert.Equal(2, s.Seen7d);
+            Assert.Equal(1, s.NewUsers7d);
+            Assert.Equal(1, s.NewUsersPrev7d);
+            Assert.Equal(40, s.FocusMinutes7d);
+            Assert.Equal(35, s.FocusMinutesPrev7d);
+            // Gün etiketi istemcide biçimlenir: ISO tarih, bugün son sırada.
+            Assert.Equal(now.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture), s.DailyTrend[^1].Date);
         }
 
         // ─── KVKK ihracı ────────────────────────────────────────────────────────

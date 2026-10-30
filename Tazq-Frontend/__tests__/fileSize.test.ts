@@ -53,7 +53,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // İlk kez 800 satırı geçti: Ramazan bildirimlerindeki saat dilimi hatası
   // düzeltildi (calendarDayOf+parseDateKey — bu dosyadaki diğer zamanlayıcılarla
   // aynı desen), gerekçe yorumu satır ekledi.
-  'shared/utils/notifications.ts': 917, // +20 (2026-10-30, madde 11): 48 saatlik geri çağrı (scheduleComeback + refreshComeback; tercihleri kendisi okur ki _layout şişmesin) // +23: sınav geri sayım bildirimleri yuva-bazlı kimliğe geçti (exam2/exam3 artık bildirim alıyor) // +16: sabah özeti aktif hedefe göre kişiselleşiyor (activeGoal) // +50 (2026-10-18): payment-due bildirim kategorisi + schedule/cancelPaymentDueNotif (scheduleExamCountdownNotifs ile aynı kalıp)
+  'shared/utils/notifications.ts': 937, // +20 (2026-10-30): akşam özeti bekleyen alışkanlıkları da söyler — ayrı bildirim yerine (gün sonu) · +20 (2026-10-30, madde 11): 48 saatlik geri çağrı (scheduleComeback + refreshComeback; tercihleri kendisi okur ki _layout şişmesin) // +23: sınav geri sayım bildirimleri yuva-bazlı kimliğe geçti (exam2/exam3 artık bildirim alıyor) // +16: sabah özeti aktif hedefe göre kişiselleşiyor (activeGoal) // +50 (2026-10-18): payment-due bildirim kategorisi + schedule/cancelPaymentDueNotif (scheduleExamCountdownNotifs ile aynı kalıp)
   /*
     SÖZLÜK — doğası gereği uzun ve bölünmesi YANLIŞ olurdu.
 
@@ -67,7 +67,7 @@ const KNOWN_LARGE: Record<string, number> = {
   */
   // 860 → 870: misafirin "cihazdaki verileri sil" metinleri (iki dil).
   // 870 → 874: tasarruf ve bırakma da birer mod adı — özet ikisini hiç görmüyordu.
-  'shared/constants/i18n.ts': 1039, // +2 (2026-10-29): ödemeler ana para birimi · +14 (2026-10-29): dışa aktarma biçim seçimi · +5 (2026-10-29): çökme ekranı + takvim gün kipleri (iki dil) · +4 (2026-10-25): tanıtım turlarını yeniden gösterme satırı (iki dil) // +18 (2026-10-24): Ödemeler ay özeti + göreli vade metinleri (iki dil × 9) // +2 (2026-10-24): Sıradaki kartı etiketi ("SIRADAKİ" — Aktif Görev + Günlük Hedef birleşti)
+  'shared/constants/i18n.ts': 1051, // +10 (2026-10-31): ödeme düzenleme metinleri (tr/en) · +2 (2026-10-30): modeToday.daysShort — ince plan satırında gün sayısı kesilmesin · +2 (2026-10-29): ödemeler ana para birimi · +14 (2026-10-29): dışa aktarma biçim seçimi · +5 (2026-10-29): çökme ekranı + takvim gün kipleri (iki dil) · +4 (2026-10-25): tanıtım turlarını yeniden gösterme satırı (iki dil) // +18 (2026-10-24): Ödemeler ay özeti + göreli vade metinleri (iki dil × 9) // +2 (2026-10-24): Sıradaki kartı etiketi ("SIRADAKİ" — Aktif Görev + Günlük Hedef birleşti)
   // 2820 → 2817: baştaki emojiyi silen üç ayrı uygulamadan ikisi (biri hatalıydı,
   // \p{Emoji} rakamları da yiyordu) shared/utils/emoji.ts'e indi.
   // 2817 → 2820: YKS/KPSS/Ramazan'ın DİL kapısı (İngilizce arayüzde takvimle
@@ -240,7 +240,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // widgetBridge bug düzeltmesi — görev/mod değişince widget hiç güncellenmiyordu).
   // 816 → 819: widget/Watch köprüsü splash'te çökmeye yol açtığı için geçici
   // olarak yorum satırına alındı (kök sebep doğrulanana kadar).
-  'app/_layout.tsx': 888, // +7 (2026-10-30, madde 10-11): rota hata sınırı dışa aktarımı, 'comeback' bildirim yönlendirmesi ve açılışta refreshComeback çağrısı // +1 (2026-10-29): focus ekranı animasyonsuz (sekme tutarlılığı) // +2: anonim kurulum ping'i (günde bir) // +17: sabah özeti en yakın aktif hedefe göre kişiselleşiyor (goalSig) // +16: widget/Watch köprüsü yeniden açıldı (ana-kuyruk sertleştirmesiyle, bkz. TazqWidgetBridgeModule.swift) // +5: tema değişince widget'ı da tazeleyen abonelik (unsubTheme) // +14: WCSession aktivasyon yarışı için gecikmeli zorla-gönderim (activationRetry) // +6 (2026-10-18): 'open-payments' bildirim aksiyonu yönlendirmesi
+  'app/_layout.tsx': 897, // +9 (2026-10-30): akşam özetine bekleyen alışkanlık sayısı + sabah serisi gerçek seriden (h.streak alanı yoktu) · +7 (2026-10-30, madde 10-11): rota hata sınırı dışa aktarımı, 'comeback' bildirim yönlendirmesi ve açılışta refreshComeback çağrısı // +1 (2026-10-29): focus ekranı animasyonsuz (sekme tutarlılığı) // +2: anonim kurulum ping'i (günde bir) // +17: sabah özeti en yakın aktif hedefe göre kişiselleşiyor (goalSig) // +16: widget/Watch köprüsü yeniden açıldı (ana-kuyruk sertleştirmesiyle, bkz. TazqWidgetBridgeModule.swift) // +5: tema değişince widget'ı da tazeleyen abonelik (unsubTheme) // +14: WCSession aktivasyon yarışı için gecikmeli zorla-gönderim (activationRetry) // +6 (2026-10-18): 'open-payments' bildirim aksiyonu yönlendirmesi
   // İlk kez 800 satırı geçti: onboarding'in "şu an neyle uğraşıyorsun?" sorusu
   // (durum seçimi + mod sorusuyla aynı desende ikinci bir modal, bkz. dosya başı notu).
   'app/onboarding.tsx': 515, // 816 → 515 (2026-10-25): slayt görselleri OnboardingVisuals'a taşındı, ölü görseller silindi · +1 (2026-10-25): goHome içe aktarımı (çift ana sayfa düzeltmesi)
@@ -255,7 +255,7 @@ const KNOWN_LARGE: Record<string, number> = {
   */
   // 1680 → 1809: Ürün İçgörüleri bölümü (dönemsel mod benimsenmesi, haftalık
   // elde tutma, sürüm dağılımı) — İstatistik sekmesine eklendi.
-  'app/admin.tsx': 1855, // +1 (2026-10-29): modal içi uyarı yuvası · +1 (2026-10-29): rota hata sınırı dışa aktarımı · +43: admin "Kitle" kartı (kayıtlı/kayıtsız cihaz sayıları + mağaza kanalı durumu)
+  'app/admin.tsx': 1631, // +3 (2026-10-31): kullanıcı filtre çipleri (bileşen UserFilterChips.tsx) · +3 (2026-10-31): arka plan iş sağlığı kartı (bileşen features/admin/components/JobHealthCard.tsx, madde 9) · +8 (2026-10-30): destek hazır yanıt çipleri + düzenleyici bağlantısı (bileşen features/admin'de) · −251 (2026-10-30): istatistik sekmesi features/admin/components/AdminInsights.tsx'e taşındı · +4 (2026-10-30): Analist rolü (anonim liste, arama yok) · +10 (2026-10-30): ekip rolleri — sekme/eylem görünürlüğü role göre (madde 9, RBAC) · +1 (2026-10-29): modal içi uyarı yuvası · +1 (2026-10-29): rota hata sınırı dışa aktarımı · +43: admin "Kitle" kartı (kayıtlı/kayıtsız cihaz sayıları + mağaza kanalı durumu)
   // 1690 → 1718: plan başlatılmadan ÖNCE mevcut yük söyleniyor (kaç aktif hedef,
   // bugün kaç plan işi). Kullanıcı toplamı ancak uyguladıktan SONRA öğreniyordu.
   'features/modes/components/TurkishModeBanner.tsx': 1782, // +10 (2026-10-29): alışkanlık sınırı — ilk gün payı ve uyarı (madde 6) · +34 (2026-10-29): kademeli açılım — ilk gün ayrımı, sıra ve bilgi satırı (madde 4) · +3 (2026-10-29): seri alevi emoji yerine ikon (madde 2) · +17: günlük değerlendirme anahtarı yuva-bazlı, çift-tık kilidi ref'e taşındı
@@ -341,7 +341,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // İlk kez 800 satırı geçti: admin panelinin Ürün İçgörüleri tipleri
   // (AdminModeAdoption/AdminRetentionCohort/AdminVersionShare) + X-App-Version
   // başlığı eklendi. API katmanı doğası gereği büyür — her uç nokta bir satır.
-  'shared/services/api.ts': 981, // +27 (2026-10-29): ödeme geçmişi + kur uçları, ödeme birimi (madde 12) · +14 (2026-10-25): alışkanlık eşitleme istemcisi (HabitSyncService) // +19: anonim kurulum ping'i + admin audience istemcisi // +13: otomatik tekrar yalnız idempotent metodlarda (POST/PATCH çift kayıt riski) // +26: ERR_NETWORK için "çevrimdışı" demeden önce tek seferlik hızlı yeniden deneme (soğuk başlatma yarışı) // +39 (2026-10-18): PaymentService (ödeme takibi — görevlerden ayrı yüzey) // +11 (2026-10-19): pingInstall'a eksik X-App-Signature başlığı eklendi (önceden var olan 403 hatası)
+  'shared/services/api.ts': 1047, // +3 (2026-10-31): analize dahil/hariç (setAnalytics) · +18 (2026-10-31): destek konuşması (yanıt/bitir) + çökme grupları istemcisi ve tipleri · +2 (2026-10-31): kullanıcı filtresi + sayılar · +8 (2026-10-31): arka plan iş sağlığı tipi + istemcisi (madde 9) · +11 (2026-10-30): destek şablonları istemcisi · +15 (2026-10-30): Analiz Merkezi raporu tipi + istemcisi · +9 (2026-10-30): AdminStats haftalık kıyas + kohort ISO hafta alanları (admin istatistik sadeleşmesi) · +27 (2026-10-29): ödeme geçmişi + kur uçları, ödeme birimi (madde 12) · +14 (2026-10-25): alışkanlık eşitleme istemcisi (HabitSyncService) // +19: anonim kurulum ping'i + admin audience istemcisi // +13: otomatik tekrar yalnız idempotent metodlarda (POST/PATCH çift kayıt riski) // +26: ERR_NETWORK için "çevrimdışı" demeden önce tek seferlik hızlı yeniden deneme (soğuk başlatma yarışı) // +39 (2026-10-18): PaymentService (ödeme takibi — görevlerden ayrı yüzey) // +11 (2026-10-19): pingInstall'a eksik X-App-Signature başlığı eklendi (önceden var olan 403 hatası)
   // İlk kez 800 satırı geçti: duraklatma + geçmiş hedefler + bulut/yerel bozuk
   // veriye karşı tek nokta koruma (bkz. PLAN_ID_KEYS/sanitizePlanIds). Sözlük gibi
   // değil, bölünebilir — bir sonraki büyüme bu dosyayı gerçekten küçültmeli.

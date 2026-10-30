@@ -5,13 +5,12 @@ import { Touchable } from '@/shared/components/Touchable';
 import { BreathPalette } from '@/shared/constants/Colors';
 import { S, R, F, W, B, ICON, MIN_TOUCH } from '@/shared/constants/tokens';
 import { useLowPowerGraphics } from '@/shared/hooks/useLowPowerGraphics';
-import { BREATH_PATTERNS, type BreathId } from '@/features/breath/patterns';
+import { BREATH_PATTERNS, patternOf, cyclesFor, type BreathId } from '@/features/breath/patterns';
 import { BREATH_COPY } from '@/features/breath/breathCopy';
 import { BreathPreview } from '@/features/breath/components/BreathOrb';
 import { BREATH_SOUNDS, type BreathSound } from '@/features/breath/breathCues';
 
 const INK = '#FFFFFF';
-const DURATIONS = [1, 3, 5] as const;
 
 const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <View style={{ gap: S.xs, marginTop: S.xs }}>
@@ -20,10 +19,12 @@ const Row = ({ label, children }: { label: string; children: React.ReactNode }) 
   </View>
 );
 
-const Chip = ({ on, accent, label, onPress }: { on: boolean; accent: string; label: string; onPress: () => void }) => (
-  <Touchable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }}
+const Chip = ({ on, accent, label, recommended, onPress }: { on: boolean; accent: string; label: string; recommended?: string; onPress: () => void }) => (
+  <Touchable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }} accessibilityLabel={recommended ? `${label}, ${recommended}` : label}
     style={{ minHeight: MIN_TOUCH, paddingHorizontal: S.md, borderRadius: R.full, justifyContent: 'center', borderWidth: B.thin, borderColor: on ? accent : 'rgba(255,255,255,0.14)', backgroundColor: on ? 'rgba(255,255,255,0.08)' : 'transparent' }}>
-    <Text style={{ fontSize: F.body, fontWeight: on ? W.semibold : W.regular, color: on ? accent : INK }}>{label}</Text>
+    <Text style={{ fontSize: F.body, fontWeight: on ? W.semibold : W.regular, color: on ? accent : INK }}>
+      {label}{recommended ? <Text style={{ fontSize: F.caption2, color: accent }}>{'  ★'}</Text> : null}
+    </Text>
   </Touchable>
 );
 
@@ -39,6 +40,10 @@ export function BreathPicker({ lang, id, minutes, sound, theme, onPick, onMinute
   const c = BREATH_COPY[lang];
   const low = useLowPowerGraphics();
   const accent = BreathPalette[id].accent;
+  const pattern = patternOf(id);
+  // Seçenek ve etiket tekniğe göre: 4-7-8 nefes sayısıyla, diğerleri dakikayla (bkz. patterns.options).
+  const doseLabel = (m: number) => (pattern.byBreaths ? c.breaths(cyclesFor(pattern, m)) : c.minutes(m));
+  const same = (a: number, b: number) => Math.abs(a - b) < 0.01;
 
   return (
     <View style={{ flex: 1 }}>
@@ -79,10 +84,11 @@ export function BreathPicker({ lang, id, minutes, sound, theme, onPick, onMinute
         </View>
 
         <Row label={c.duration}>
-          {DURATIONS.map(m => (
-            <Chip key={m} on={m === minutes} accent={accent} label={c.minutes(m)} onPress={() => onMinutes(m)} />
+          {pattern.options.map(m => (
+            <Chip key={m} on={same(m, minutes)} accent={accent} label={doseLabel(m)} recommended={same(m, pattern.minutes) ? c.recommended : undefined} onPress={() => onMinutes(m)} />
           ))}
         </Row>
+        <Text style={{ fontSize: F.caption, lineHeight: 18, color: 'rgba(255,255,255,0.55)' }}>{c.items[id].dose}</Text>
         {/* Ses teması: dokununca kısa önizleme çalar (herkes aynı sesi sevmez). */}
         <Row label={c.soundLabel}>
           {BREATH_SOUNDS.map(t => (
@@ -94,7 +100,7 @@ export function BreathPicker({ lang, id, minutes, sound, theme, onPick, onMinute
 
       <View style={{ paddingHorizontal: S.md, paddingBottom: S.md }}>
         <Touchable onPress={onStart} accessibilityRole="button" style={{ minHeight: 56, borderRadius: R.full, alignItems: 'center', justifyContent: 'center', backgroundColor: accent }}>
-          <Text style={{ fontSize: F.callout, fontWeight: W.semibold, color: BreathPalette[id].bg[1] }}>{c.start(minutes)}</Text>
+          <Text style={{ fontSize: F.callout, fontWeight: W.semibold, color: BreathPalette[id].bg[1] }}>{c.start(doseLabel(minutes))}</Text>
         </Touchable>
       </View>
     </View>

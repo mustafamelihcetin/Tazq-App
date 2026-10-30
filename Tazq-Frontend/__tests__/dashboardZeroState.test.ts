@@ -57,9 +57,10 @@ describe('dashboard sırası', () => {
     expect(src).toMatch(/greeting=\{/);
     expect(src).toMatch(/topSlot=\{<ModeTodayCard bare /);
     const body = read('features/dashboard/components/TodayRings.tsx');
-    // Ekranın sırası: durum şeridi → plan → halkalar.
+    // Ekranın sırası: durum şeridi → plan → çiçek + cümle.
     expect(body.indexOf('<DisplayStatus')).toBeLessThan(body.indexOf('{topSlot}'));
-    expect(body.indexOf('{topSlot}')).toBeLessThan(body.indexOf('<Svg'));
+    // 2026-10-30: halkalar → yaşayan cümle + gün çiçeği (bkz. TodayRings → DayOrb).
+    expect(body.indexOf('{topSlot}')).toBeLessThan(body.indexOf('<DayOrb '));
   });
 
   it('plan kartı mod yoksa HİÇ çizilmez — boş bir kutu bırakmaz', () => {

@@ -41,10 +41,11 @@ const styleOf = (node: any) =>
   Object.assign({}, ...[node.props.style].flat(Infinity).filter(Boolean));
 
 describe('MyDayHabits', () => {
-  it('bölüm başlığını ve ipucunu gösterir', () => {
-    const { getByText } = setup();
-    expect(getByText('BUGÜNKÜ ALIŞKANLIKLARIM')).toBeTruthy();
-    expect(getByText('Alışkanlığı tamamlamak için bas, mola için basılı tut')).toBeTruthy();
+  it('panel dilinde başlık ve sayaç gösterir — her gün okunan talimat satırı yok', () => {
+    const { getByText, queryByText } = setup();
+    expect(getByText('ALIŞKANLIKLAR')).toBeTruthy();
+    expect(getByText('0/2')).toBeTruthy();
+    expect(queryByText(/bas, mola için basılı tut/)).toBeNull();
   });
 
   it('ekleme kısayolunu HER ZAMAN gösterir — dolu da olsa', () => {
@@ -92,7 +93,7 @@ describe('MyDayHabits', () => {
 
   it('İngilizcede etiketler çevrilir', () => {
     const { getByText } = setup({ tr: false, habits: [] });
-    expect(getByText('MY DAILY HABITS')).toBeTruthy();
+    expect(getByText('HABITS')).toBeTruthy();
     expect(getByText('Add')).toBeTruthy();
   });
 

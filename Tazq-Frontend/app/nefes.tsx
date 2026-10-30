@@ -20,6 +20,7 @@ import { BreathPicker } from '@/features/breath/components/BreathPicker';
 import { BreathRun } from '@/features/breath/components/BreathRun';
 import { BreathOrb } from '@/features/breath/components/BreathOrb';
 import { previewBreathSound, hushBreathCues, releaseBreathCues, ensureBreathAudioMode, type BreathSound } from '@/features/breath/breathCues';
+import { autoMarkHabits } from '@/features/habits/utils/autoMark';
 import { preloadCompletionChime, playCompletionChime } from '@/features/focus/completionChime';
 
 /*
@@ -52,7 +53,7 @@ export default function BreathScreen() {
   const close = () => (router.canGoBack() ? router.back() : goHome(router));
   const start = () => { haptic.commit(); setLast(id); preloadCompletionChime(); setStage({ kind: 'run', key: Date.now() }); };
   const end = (sec: number, full: boolean) => {
-    if (sec >= MIN_RECORD_SEC) record({ at: new Date().toISOString(), id, sec: Math.round(sec) });
+    if (sec >= MIN_RECORD_SEC) { record({ at: new Date().toISOString(), id, sec: Math.round(sec) }); autoMarkHabits('breath'); }
     if (full) playCompletionChime(() => haptic.alarm());
     setStage(sec >= MIN_RECORD_SEC ? { kind: 'done', sec, full } : { kind: 'pick' });
   };

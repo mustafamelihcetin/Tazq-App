@@ -266,29 +266,44 @@ describe('Haftalık Merkez — gün seçimi EKRANIN TAMAMINI kapsar', () => {
   const COCKPIT = fs.readFileSync(path.join(__dirname, '..', 'app/cockpit.tsx'), 'utf8');
 
   it('alışkanlık işaretleme SEÇİLİ güne yazılır — bugüne değil', () => {
-    expect(COCKPIT).toContain('toggleDate(id, selectedDay)');
-    expect(COCKPIT).not.toContain('toggleDate(id, todayKey)');
+    // 2026-10-30: ızgarada hücre O GÜNÜ işaretler — gün seçmeye bile gerek yok; gün verilmezse seçili gün.
+    expect(COCKPIT).toContain('const handleToggleHabit = (id: string, day: string = selectedDay)');
+    // 2026-10-31: kartta TEK eylem — soldaki ✓ BUGÜNÜ işaretler (görev satırı kalıbı); geçmiş gün
+    // alışkanlığın sayfasındaki takvimden düzeltilir (O GÜNE yazılır, bugüne değil).
+    expect(COCKPIT).toContain('onToday={h => handleToggleHabit(h.id, todayKey)}');
+    const detail = fs.readFileSync(path.join(__dirname, '..', 'app/aliskanlik.tsx'), 'utf8');
+    expect(detail).toContain('onPress={() => mark(key)}');
+    expect(detail).toContain('tapHabit(habit.id, key)');
+    expect(COCKPIT).toContain('tapHabit(id, day)');
+    expect(COCKPIT).not.toContain('tapHabit(id, todayKey)');
     expect(COCKPIT).toContain('toggleSkipDate(id, selectedDay)');
   });
 
   it('GELECEK bir gün işaretlenemez', () => {
-    expect(COCKPIT).toMatch(/if \(isFutureDay\)[\s\S]{0,200}return;/);
+    expect(COCKPIT).toMatch(/if \(day > todayKey\)[\s\S]{0,200}return;/);
+    expect(COCKPIT).toContain('isFuture: d.key > todayKey');
   });
 
   it('bugün dışında tamamlananlar da listede kalır — düzeltilebilsin', () => {
-    expect(COCKPIT).toContain('if (!isSelectedToday) return true;');
+    // 2026-10-30: alışkanlık kartı HİÇBİR alışkanlığı gizlemez; yapılan da kalır, ✓ seçili günü düzeltir.
+    expect(COCKPIT).toContain('<WeekHabits');
+    expect(COCKPIT).toContain('habits={personalHabits}');
+    expect(COCKPIT).not.toContain('return !safeDates.includes(selectedDay);');
   });
 
   it('satıra dokunmak artık menü açar; onay düğmesinde gizli jest yok', () => {
-    const row = COCKPIT.slice(COCKPIT.indexOf('<SwipeableHabitItem'), COCKPIT.indexOf('</SwipeableHabitItem>'));
-    expect(row).toContain('onPress={() => handleLongPressHabit(habit.id, habit.name)}');
-    expect(row).not.toContain('toggleHabitExpand');
-    // Onay düğmesinin uzun basışı (mola) kalktı: kaydırma ve menü zaten yapıyor.
-    expect(row).not.toMatch(/onPress=\{\(\) => handleToggleHabit\(habit\.id\)\}\s*onLongPress/);
+    // Satır başlığı (ad) → menü; işaretleme yalnız hücrelerde (gizli üçüncü jest yok).
+    const head = COCKPIT.slice(COCKPIT.indexOf('renderName='), COCKPIT.indexOf('<WideSplit>', COCKPIT.indexOf('renderName=')));
+    // 2026-10-30: ada dokunmak alışkanlığın SAYFASINI açar (takvim, seri, desen); basılı tutmak hızlı menü.
+    expect(head).toContain("router.push({ pathname: '/aliskanlik', params: { id: habit.id } })");
+    expect(head).toContain('onLongPress={() => handleLongPressHabit(habit.id, habit.name)}');
+    expect(head).not.toContain('handleToggleHabit');
   });
 
   it('haftanın özeti alışkanlıkların ÜSTÜNDE', () => {
-    expect(COCKPIT.indexOf('── BU HAFTA')).toBeLessThan(COCKPIT.indexOf('── HABITS ──'));
+    // 2026-10-30: haftanın sayıları hafta panelinin İÇİNDE, alışkanlık listesinin üstünde.
+    expect(COCKPIT.indexOf('── HAFTA PANELİ')).toBeLessThan(COCKPIT.indexOf('── ALIŞKANLIKLAR'));
+    expect(COCKPIT.indexOf('<TourTarget id="weeklyReview"')).toBeLessThan(COCKPIT.indexOf('<WeekHabits'));
   });
 
   it('şerit noktası görevi DE alışkanlığı DA sayar', () => {
@@ -310,9 +325,10 @@ describe('Haftalık Merkez — gün seçimi EKRANIN TAMAMINI kapsar', () => {
   });
 
   it('"bugüne dön" gün seçiminin yapıldığı yerde ve yalnız gerektiğinde', () => {
-    // Kartın "BU HAFTA" etiketi kaldırıldı (bölüm başlığıyla tekrar ediyordu) — şerit artık tur hedefinden başlar.
-    const strip = COCKPIT.slice(COCKPIT.indexOf('<TourTarget id="weekStrip"'), COCKPIT.indexOf('styles.weekRow'));
-    expect(strip).toContain('{!isSelectedToday && (');
-    expect(strip).toContain('setSelectedDay(todayKey)');
+    // 2026-10-30: hafta panelinde bugün her zaman şeritte (vurgulu); ona dokunmak bugüne döner.
+    // Ayrı bir "Bugün" düğmesi gereksiz — seçim ve dönüş aynı yerde, aynı jest.
+    const strip = COCKPIT.slice(COCKPIT.indexOf('<TourTarget id="weekStrip"'), COCKPIT.indexOf('<TourTarget id="dailySection"'));
+    expect(strip).toContain('isToday: d.isToday');
+    expect(strip).toContain('onSelectDay={setSelectedDay}');
   });
 });

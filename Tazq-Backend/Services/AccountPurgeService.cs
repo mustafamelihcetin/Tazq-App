@@ -10,12 +10,15 @@ namespace Tazq_App.Services
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<AccountPurgeService> _logger;
+        private readonly JobHealth _health;
         private static readonly TimeSpan Interval = TimeSpan.FromHours(24);
 
-        public AccountPurgeService(IServiceScopeFactory scopeFactory, ILogger<AccountPurgeService> logger)
+        public AccountPurgeService(IServiceScopeFactory scopeFactory, ILogger<AccountPurgeService> logger, JobHealth health)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
+            _health = health;
+            _health.Register(JobHealth.AccountPurge, Interval);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -41,10 +44,12 @@ namespace Tazq_App.Services
                         await db.SaveChangesAsync(stoppingToken);
                         _logger.LogInformation("AccountPurgeService: {Count} süresi dolmuş hesap kalıcı olarak silindi.", expired.Count);
                     }
+                    _health.Ok(JobHealth.AccountPurge);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "AccountPurgeService çalışırken hata oluştu.");
+                    _health.Fail(JobHealth.AccountPurge, ex);
                 }
 
                 try { await Task.Delay(Interval, stoppingToken); } catch { }

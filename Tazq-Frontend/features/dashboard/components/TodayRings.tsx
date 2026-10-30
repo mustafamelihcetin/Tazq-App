@@ -1,15 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Svg, { Circle, G } from 'react-native-svg';
 import { runOnJS, useReducedMotion, useSharedValue } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { useTween } from '@/shared/hooks/useTween';
+import { MotiView } from 'moti';
 import { Check } from 'lucide-react-native';
-import { DisplayPanel, DisplayStatus, DisplayDivider, DisplayReadout } from '@/shared/components/DisplayPanel';
+import { DisplayPanel, DisplayStatus, DisplayDivider } from '@/shared/components/DisplayPanel';
+import { DayOrb, petalsOf } from '@/features/dashboard/components/DayOrb';
+import { buildDaySentence } from '@/features/dashboard/utils/daySentence';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { TourTarget } from '@/shared/components/TourContext';
 import { Touchable } from '@/shared/components/Touchable';
-import { CompletionBurst } from '@/shared/components/CompletionBurst';
 import { F, S, R, W, ICON } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
@@ -19,81 +19,38 @@ import type { DayStat } from '@/features/dashboard/utils/dayHistory';
 import { TodayDetail, type DetailKind, type DetailTask, type DetailHabit } from '@/features/dashboard/components/TodayDetail';
 
 /*
-  ── BUGÜN — ÜÇ HALKA (Apple Activity · can-it-be-done/season3/AppleActivity) ──
-  Ana sayfa vitrindir; ilk bakışta "günüm nasıl gidiyor" tek nesnede okunmalı.
-  Eskiden üç ayrı yüzey vardı: Momentum kartı, BUGÜN kartı (görev halkası + odak
-  çizgisi) ve alışkanlık sayısı hiçbir yerde. Artık tek kart, üç ölçü:
+  ── BUGÜN — YAŞAYAN CÜMLE + GÜN ÇİÇEĞİ ───────────────────────────────────────────
+  Ana sayfa vitrindir; 2 saniyede "bugün beni ne bekliyor, nasıl gidiyorum" söylenmeli.
+  Önce iç içe halkalardı ("renkler çirkin, bakınca anlaşılmıyor" — iç halka kısa kalır, aynı
+  oran farklı uzunlukta görünür), sonra yatay ölçerler ("demode"). Kullanıcı: "grafik şart
+  değil, daha geniş düşün". Şimdi BİLGİYİ okunur bir cümle taşır (bkz. daySentence): "Bugün
+  seni ⟨3 görev⟩, ⟨90 dk odak⟩ ve ⟨1 alışkanlık⟩ bekliyor." — haplar dokunulabilir, bitince
+  tiklenir; HİSSİ her işin bir yaprak olduğu çiçek (bkz. DayOrb). Bileşen adı geçmişten
+  (testler ve çağıranlar bu adla bağlı).
 
-    dış  → GÖREV       (bugün biten / bugünün işi)
-    orta → ODAK        (dakika / günlük odak hedefi)
-    iç   → ALIŞKANLIK  (yapılan / bugünkü alışkanlık)
+  DİJİTAL PANEL: gömülü bir ekran (DisplayPanel, temaya uyar). Sıra: durum şeridi
+  (gün · tarih · canlı saat) → aktif dönemin plan satırı (`topSlot`) → çiçek + cümle → momentum.
 
-  Referanstan alınan kurallar:
-   · İZ, halkanın KENDİ renginin soluk hâli (Constants.ts → `bg`) — gri çember değil;
-     halka tek nesne okunur, boşluk "bu ölçünün dolmamış kısmı" der.
-   · Açılışta halkalar SIRAYLA dolar (AppleActivity → timing). Sakin modda dolu çizilir.
-   · Renk ÖLÇÜYE sabittir; hedefe ulaşmayı renk değişimi değil göstergedeki tik anlatır
-     (renk her zaman aynı şeyi söylesin). Mor YOK (bkz. uxConsistency "çapraz-hue").
-
-  Momentum aynı kartın ALTINDA, saç teliyle ayrılmış (MomentumPulse `embedded`).
-
-  DİJİTAL PANEL (2026-10-30, kullanıcı: "dijital ekran gibi, derli toplu"): kart artık
-  gömülü bir ekran (DisplayPanel, temaya uyar). Sıra: durum şeridi (gün · tarih · canlı saat)
-  → aktif dönemin plan satırı (`topSlot`) → halkalar + gösterge okumaları → momentum.
-  Okumalar araç göstergesi gibi: küçük etiket, altında sabit genişlikli rakam.
-
-  HAFTAYI KAYDIR (2026-10-30, kullanıcı: "etkileşimli, hareketli ama boş değil, anlam katsın"):
-  halkaları yatayda sürüklemek ekranı GEÇMİŞ GÜNLERE akıtır (sağa → dün, evvelsi gün…); halkalar
-  ve sayılar o günün değerlerine akar, her gün değişiminde hafif tik. Altta 7 nokta nerede
+  GÜNLERİ KAYDIR: cümleyi/çiçeği yatayda sürüklemek ekranı GEÇMİŞ GÜNLERE akıtır (sağa → dün…);
+  cümle o günü geçmiş zamanla anlatır, her gün değişiminde hafif tik. Altta 7 nokta nerede
   olunduğunu söyler, dokununca o güne gider. Geçmişteyken saatin yerinde "Bugün" düğmesi.
-  Dikey kaydırma her zaman sayfanındır (failOffsetY). Kutlama yalnız CANLI tamamlamada.
+  Dikey kaydırma her zaman sayfanındır (failOffsetY).
 
-  HEDEF ANI (2026-10-30): bir halka gün içinde hedefe ULAŞTIĞI an o halkadan ışık dışa
-  açılır (CompletionBurst). Açılışta zaten dolu olan halka patlamaz — kutlama, tamamlama
-  anına aittir. Renk yine değişmez; tik + bu tek seferlik ışık anlatır.
+  HEDEF ANI: çiçekte yeni bir yaprak dolduğu an tek seferlik kıvılcım (DayOrb →
+  CompletionBurst). Açılışta zaten dolu yapraklar patlamaz.
 */
-
-const SIZE = 112;
-const STROKE = 11;
-const GAP = 3;
-const C = SIZE / 2;
-const radiusAt = (i: number) => C - STROKE / 2 - 1 - i * (STROKE + GAP);
 
 interface Metric {
   label: string;
   value: string;
   progress: number; // 0..1 (taşma kırpılır)
   reached: boolean;
-  /** Renk TONU — temadan çözülür (birincil · seri · üçüncül). */
-  tone: 'primary' | 'streak' | 'tertiary';
+  /** Cümle ve çiçek için ham sayılar (değer metni biçimlenmiş hâli). */
+  done: number;
+  total: number;
 }
 type Resolved = Metric & { color: string };
 
-const Ring = React.memo(({ index, metric, reduceMotion }: { index: number; metric: Resolved; reduceMotion: boolean }) => {
-  const r = radiusAt(index);
-  const len = 2 * Math.PI * r;
-  /*
-    Dolum JS'te ilerler, düz prop olarak çizilir (bkz. useTween). Reanimated
-    `animatedProps` ile çizilen yay, tur sırasında ana sayfa yeniden çizildikçe BOŞ
-    kalıyordu (cihazda görüldü). Açılışta halkalar SIRAYLA dolar (AppleActivity → timing).
-  */
-  const p = useTween(Math.min(1, Math.max(0, metric.progress)), { duration: 1100, delay: index * 140, reduceMotion, initial: 0 });
-  return (
-    <>
-      <Circle cx={C} cy={C} r={r} fill="none" stroke={metric.color + '29'} strokeWidth={STROKE} />
-      <Circle
-        cx={C} cy={C} r={r} fill="none"
-        stroke={metric.color}
-        strokeWidth={STROKE}
-        strokeLinecap="round"
-        strokeDasharray={`${len}`}
-        strokeDashoffset={len * (1 - p)}
-        // Sıfırda yuvarlak uç bir nokta bırakır — boş halkada yay hiç çizilmez.
-        opacity={p > 0.001 ? 1 : 0}
-      />
-    </>
-  );
-});
 
 export interface TodayRingsProps {
   label: string;
@@ -121,21 +78,10 @@ export interface TodayRingsProps {
   padding: number;
 }
 
-/** `reached` false → true geçişlerini sayar (ilk çizimdeki dolu hâl sayılmaz). */
-function useReachBursts(metrics: Metric[]): number[] {
-  const prev = useRef(metrics.map(m => m.reached));
-  const [counts, setCounts] = useState(() => metrics.map(() => 0));
-  useEffect(() => {
-    const now = metrics.map(m => m.reached);
-    if (now.some((r, i) => r && !prev.current[i])) setCounts(c => c.map((v, i) => (now[i] && !prev.current[i] ? v + 1 : v)));
-    prev.current = now;
-  }, [metrics.map(m => m.reached).join(',')]);
-  return counts;
-}
 
 export const TodayRings = React.memo<TodayRingsProps>(({ tourId, padding, ...rest }) => (
   <View style={styles.wrap}>
-    <TourTarget id={tourId ?? 'today'} spotRadius={R.lg}>
+    <TourTarget id={tourId ?? 'today'} spotRadius={R.md}>
       <DisplayPanel padding={padding}>
         <RingsBody {...rest} />
       </DisplayPanel>
@@ -144,6 +90,7 @@ export const TodayRings = React.memo<TodayRingsProps>(({ tourId, padding, ...res
 ));
 
 /** Panelin içi: durum şeridi, plan yuvası, halkalar + okumalar, momentum. */
+const KINDS: DetailKind[] = ['tasks', 'focus', 'habits'];
 const SCRUB_STEP = 34; // bir gün = bu kadar yatay sürükleme (px)
 const BACK_COPY = { tr: { today: 'Bugün', back: 'Bugüne dön', yesterday: 'Dün' }, en: { today: 'Today', back: 'Back to today', yesterday: 'Yesterday' } };
 
@@ -152,9 +99,9 @@ function pastMetrics(raw: [Metric, Metric, Metric], d: DayStat): [Metric, Metric
   const goal = Number(/\/(\d+)/.exec(raw[1].value)?.[1] ?? 0);
   const ratio = (a: number, b: number) => (b > 0 ? a / b : 0);
   return [
-    { ...raw[0], value: d.tasksTotal > 0 ? `${d.tasksDone}/${d.tasksTotal}` : '—', progress: ratio(d.tasksDone, d.tasksTotal), reached: d.tasksTotal > 0 && d.tasksDone >= d.tasksTotal },
-    { ...raw[1], value: raw[1].value.replace(/^\d+/, String(d.focusMin)), progress: ratio(d.focusMin, goal), reached: goal > 0 && d.focusMin >= goal },
-    { ...raw[2], value: d.habitsTotal > 0 ? `${d.habitsDone}/${d.habitsTotal}` : '—', progress: ratio(d.habitsDone, d.habitsTotal), reached: d.habitsTotal > 0 && d.habitsDone >= d.habitsTotal },
+    { ...raw[0], value: d.tasksTotal > 0 ? `${d.tasksDone}/${d.tasksTotal}` : '—', progress: ratio(d.tasksDone, d.tasksTotal), reached: d.tasksTotal > 0 && d.tasksDone >= d.tasksTotal, done: d.tasksDone, total: d.tasksTotal },
+    { ...raw[1], value: raw[1].value.replace(/^\d+/, String(d.focusMin)), progress: ratio(d.focusMin, goal), reached: goal > 0 && d.focusMin >= goal, done: d.focusMin, total: goal },
+    { ...raw[2], value: d.habitsTotal > 0 ? `${d.habitsDone}/${d.habitsTotal}` : '—', progress: ratio(d.habitsDone, d.habitsTotal), reached: d.habitsTotal > 0 && d.habitsDone >= d.habitsTotal, done: d.habitsDone, total: d.habitsTotal },
   ];
 }
 
@@ -168,12 +115,13 @@ function RingsBody({ label, caption, captionHighlight, metrics: raw, footer, top
   // Açık ayrıntı yalnız BUGÜNE aittir: geçmişe kayınca kapanır.
   const [open, setOpen] = useState<DetailKind | null>(null);
   const go = (n: number) => { const v = Math.max(0, Math.min(maxBack, n)); if (v !== back) { haptic.select(); setBack(v); if (v > 0) setOpen(null); } };
-  const KINDS: DetailKind[] = ['tasks', 'focus', 'habits'];
   const shown = back > 0 && history ? pastMetrics(raw, history[history.length - 1 - back]) : raw;
-  const color = (m: Metric) => ({ ...m, color: theme[m.tone] });
+  // Tek renk: sürüyorsa marka mavisi, hedefe ulaştıysa başarı yeşili (+ tik).
+  const color = (m: Metric) => ({ ...m, color: m.reached ? theme.success : theme.primary });
   const metrics = shown.map(color) as [Resolved, Resolved, Resolved];
-  // Kutlama yalnız CANLI değerlerden: geçmişe kayarken dolu bir gün patlamasın.
-  const bursts = useReachBursts(raw.map(color));
+  // Günün cümlesi: hapta kalan (bugün) ya da yapılan (geçmiş) — bkz. daySentence.
+  const sentence = buildDaySentence(metrics.map((m, i) => ({ kind: KINDS[i], done: m.done, total: m.total })), language === 'en' ? 'en' : 'tr', back > 0);
+  const plainSentence = sentence.map(seg => seg.s).join(' ').replace(/ ,/g, ',');
 
   const startBack = useSharedValue(0);
   const lastBack = useSharedValue(0);
@@ -206,45 +154,23 @@ function RingsBody({ label, caption, captionHighlight, metrics: raw, footer, top
         {/* Dokunma bir ÖZELLİK değil, kolay yumurta — ekran okuyucu ağacına girmez (bkz. TodayCard). */}
         <Touchable accessible={false} onPress={onTap} activeOpacity={1} accessibilityLabel={label}>
           <GestureDetector gesture={pan}>
-          <View style={styles.row}>
-            <View
-              style={{ width: SIZE, height: SIZE }}
-              accessible
-              accessibilityRole="image"
-              accessibilityLabel={metrics.map(m => `${m.label} ${m.value}`).join(', ')}
-            >
-              <Svg width={SIZE} height={SIZE}>
-                {/* -90°: dolum saat 12'den başlar. */}
-                <G rotation="-90" origin={`${C},${C}`}>
-                  {metrics.map((m, i) => <Ring key={m.label} index={i} metric={m} reduceMotion={reduceMotion} />)}
-                </G>
-              </Svg>
-              {metrics.map((m, i) => (
-                <CompletionBurst key={`b-${m.label}`} trigger={bursts[i]} color={m.color} radius={radiusAt(i) + STROKE / 2} spread={12} particles={10} duration={800} />
-              ))}
-            </View>
-
-            <View style={styles.legend}>
-              {metrics.map((m, i) => {
-                const kind = KINDS[i];
-                const tappable = !!detail && back === 0;
-                const on = open === kind;
-                return (
-                <Touchable key={m.label} disabled={!tappable} onPress={() => setOpen(on ? null : kind)}
-                  accessibilityRole={tappable ? 'button' : undefined} accessibilityState={tappable ? { expanded: on } : undefined}
-                  accessibilityLabel={`${m.label} ${m.value}`}
-                  style={[styles.legendRow, on && { backgroundColor: m.color + '14' }]}>
-                  <View style={[styles.dot, { backgroundColor: m.color }]} />
-                  <View style={{ flex: 1 }}>
-                    <DisplayReadout label={m.label} value={m.value} />
-                  </View>
-                  {/* Hedefe ulaşıldı: renk DEĞİŞMEZ, tik belirir. Yer hep ayrılı — sütun kaymasın. */}
-                  <View style={styles.tick}>
-                    {m.reached && <Check size={ICON.xs} color={m.color} strokeWidth={3} />}
-                  </View>
+          <View style={styles.dayRow} accessible accessibilityLabel={plainSentence}>
+            <DayOrb units={petalsOf({ tasks: metrics[0], focus: metrics[1], habits: metrics[2] })} />
+            <View style={styles.sentence}>
+              {sentence.map((seg, si) => seg.t === 'text' ? (
+                // Noktalama (",") önceki parçaya yapışık: satır aralığı boşluğu geri alınır ("3 görev ," olmasın).
+                seg.s.split(' ').map((w, wi) => <Text key={`${si}-${wi}`} style={[styles.word, { color: theme.onSurface }, /^[,.;:]$/.test(w) && { marginLeft: -S.xs }]}>{w}</Text>)
+              ) : (
+                // Değeri değişen hap küçük bir yaylı nabızla yerine oturur (anahtar = metin): ne değiştiği görülür.
+                <MotiView key={`${seg.kind}-${seg.s}`} from={{ scale: reduceMotion ? 1 : 0.9 }} animate={{ scale: 1 }} transition={{ type: 'spring', damping: 14, stiffness: 220 }}>
+                <Touchable disabled={!detail || back > 0} onPress={() => setOpen(open === seg.kind ? null : seg.kind)}
+                  accessibilityRole="button" accessibilityState={{ expanded: open === seg.kind }} accessibilityLabel={seg.s}
+                  hitSlop={{ top: S.xs, bottom: S.xs }}
+                  style={[styles.token, { backgroundColor: (seg.done ? theme.success : theme.primary) + (open === seg.kind ? '2E' : '17') }]}>
+                  <Text style={[styles.word, { color: seg.done ? theme.success : theme.primary }]}>{seg.s}</Text>
                 </Touchable>
-                );
-              })}
+                </MotiView>
+              ))}
             </View>
           </View>
           </GestureDetector>
@@ -266,7 +192,7 @@ function RingsBody({ label, caption, captionHighlight, metrics: raw, footer, top
             <TodayDetail kind={open} tasks={detail.tasks} habits={detail.habits} focusMin={detail.focusMin} focusGoal={detail.focusGoal} onFocusTask={detail.onFocusTask} />
           )}
           {/* Alt yazı BUGÜNÜN cümlesi: geçmiş bir güne kaydırılmışken yanlış güne konuşmasın. */}
-          {!!caption && back === 0 && <Text style={[styles.caption, { color: captionHighlight ? theme.primary : theme.onSurfaceMuted }]}>{caption}</Text>}
+          {!!caption && back === 0 && captionHighlight && <Text style={[styles.caption, { color: captionHighlight ? theme.primary : theme.onSurfaceMuted }]}>{caption}</Text>}
         </Touchable>
         {showAdd && onAdd && addLabel ? (
           <Touchable
@@ -294,12 +220,11 @@ function RingsBody({ label, caption, captionHighlight, metrics: raw, footer, top
 TodayRings.displayName = 'TodayRings';
 
 const styles = StyleSheet.create({
+  dayRow: { flexDirection: 'row', alignItems: 'center', gap: S.md },
+  sentence: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: S.xs, rowGap: S.xs },
+  word: { fontSize: F.title3, fontWeight: W.semibold, letterSpacing: -0.2 },
+  token: { borderRadius: R.sm, paddingHorizontal: S.xs, paddingVertical: S.xxs },
   wrap: { paddingHorizontal: S.lg, marginBottom: S.lg },
-  row: { flexDirection: 'row', alignItems: 'center', gap: S.lg },
-  legend: { flex: 1, gap: S.sm }, // okumalar iki satırlık: aralık bir kademe dar
-  legendRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, borderRadius: R.sm, paddingHorizontal: S.xs, marginHorizontal: -S.xs, paddingVertical: S.xxs },
-  dot: { width: 8, height: 8, borderRadius: R.full },
-  tick: { width: ICON.xs, alignItems: 'center' },
   days: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: S.xs, marginTop: S.md },
   dayDot: { height: 6, borderRadius: R.full },
   todayPill: { paddingHorizontal: S.sm, paddingVertical: S.xxs, borderRadius: R.full },

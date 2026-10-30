@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ChevronLeft, ChevronRight, Clock, CheckCircle2, Flame, CalendarDays, Compass, CloudOff } from 'lucide-react-native';
+import { Compass, CloudOff } from 'lucide-react-native';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { Touchable } from '@/shared/components/Touchable';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -21,6 +21,8 @@ import type { AppTheme } from '@/shared/constants/Colors';
 import { useFocusHistoryStore } from '@/features/report/useFocusHistoryStore';
 import { WeekChart, HabitWeekList } from '@/features/report/components/WeeklyBoard';
 import { WeekSky } from '@/features/focus/components/WeekSky';
+import { WeekDisplay } from '@/features/report/components/WeekDisplay';
+import { upperFor } from '@/shared/utils/localeCase';
 import { weekRange, summarizeWeek, compareWeeks, weekStory, weekLabel, planProgress } from '@/features/report/weeklyReport';
 import { PLAN_MODE_TAGS } from '@/features/modes/utils/modeHelpers';
 import { haptic } from '@/shared/utils/haptics';
@@ -149,7 +151,7 @@ export default function ReportScreen() {
     const current = summarizeWeek({ sessions, tasks, habits, range, now });
     const previous = summarizeWeek({ sessions, tasks, habits, range: prevRange, now });
     const d = compareWeeks(current, previous);
-    return { summary: current, delta: d, story: weekStory(current, d, lang) };
+    return { summary: current, delta: d, story: weekStory(current, d, lang, offset < 0) };
     // `now` her render'da yeni: bağımlılık olarak gün anahtarı yeter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessions, tasks, habits, offset, lang, todayKey]);
@@ -185,16 +187,6 @@ export default function ReportScreen() {
     ? `${delta.focusMin > 0 ? '+' : '−'}${Math.abs(delta.focusMin)} ${lang === 'tr' ? 'dk' : 'min'}`
     : null;
 
-  const Stat = ({ icon, value, label, color }: { icon: React.ReactNode; value: string; label: string; color: string }) => (
-    <View style={[styles.stat, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderColor: isDark ? theme.outline : 'transparent' }]}>
-      <View style={{ width: 30, height: 30, borderRadius: R.sm, backgroundColor: color + '1F', alignItems: 'center', justifyContent: 'center', marginBottom: S.xxs }}>
-        {icon}
-      </View>
-      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ color: theme.onSurface, fontSize: F.title3, fontWeight: '700', letterSpacing: -0.5 }}>{value}</Text>
-      <Text numberOfLines={1} style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600' }}>{label}</Text>
-    </View>
-  );
-
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <ScreenHeader onBack={() => router.back()} title={c.title} subtitle={weekLabel(summary.range, lang)} />
@@ -202,40 +194,30 @@ export default function ReportScreen() {
         contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xxl, gap: S.md, width: '100%', maxWidth: contentW, alignSelf: 'center' }}
         showsVerticalScrollIndicator={false}
       >
-        {/* HAFTA GEZİNME — eski ekranda yalnız "bu hafta" vardı; pazartesi sabahı bomboştu. */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Touchable
-            accessibilityRole="button"
-            accessibilityLabel={c.prev}
-            disabled={offset <= -HISTORY_WEEKS}
-            onPress={() => setOffset(o => Math.max(-HISTORY_WEEKS, o - 1))}
-            style={[styles.navBtn, { backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, opacity: offset <= -HISTORY_WEEKS ? 0.35 : 1 }]}
-          >
-            <ChevronLeft size={ICON.sm} color={theme.onSurface} />
-          </Touchable>
-          <Text style={{ color: theme.onSurfaceVariant, fontSize: F.footnote, fontWeight: '700' }}>
-            {isCurrentWeek ? c.thisWeek : weekLabel(summary.range, lang)}
-          </Text>
-          <Touchable
-            accessibilityRole="button"
-            accessibilityLabel={c.next}
-            disabled={isCurrentWeek}
-            onPress={() => setOffset(o => Math.min(0, o + 1))}
-            style={[styles.navBtn, { backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, opacity: isCurrentWeek ? 0.35 : 1 }]}
-          >
-            <ChevronRight size={ICON.sm} color={theme.onSurface} />
-          </Touchable>
-        </View>
-
-        {/* HAFTANIN HİKÂYESİ — çıplak sayı yerine bir cümle; kıyas burada. */}
-        <View style={[styles.story, { backgroundColor: theme.primary + '12', borderColor: theme.primary + '2E' }]}>
-          <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', lineHeight: 23 }}>{story}</Text>
-          {deltaLabel && (
-            <Text style={{ color: delta.focusMin > 0 ? theme.success : theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '700', marginTop: S.xs }}>
-              {deltaLabel}
-            </Text>
-          )}
-        </View>
+        {/*
+          HAFTA EKRANI (2026-10-30, dijital panel dili): okları, hikâyeyi, dört sayıyı ve hedef/plan
+          çubuklarını TEK ekranda toplar; paneli yatay kaydırmak haftalar arasında gezdirir (bkz. WeekDisplay).
+          HAFTA GEZİNME — eski ekranda yalnız "bu hafta" vardı; pazartesi sabahı bomboştu.
+        */}
+        <WeekDisplay
+          label={upperFor(isCurrentWeek ? c.thisWeek : weekLabel(summary.range, lang), lang)}
+          canPrev={offset > -HISTORY_WEEKS} canNext={!isCurrentWeek}
+          onPrev={() => setOffset(o => Math.max(-HISTORY_WEEKS, o - 1))} onNext={() => setOffset(o => Math.min(0, o + 1))}
+          prevLabel={c.prev} nextLabel={c.next}
+          story={story}
+          delta={deltaLabel ? { text: deltaLabel, up: delta.focusMin > 0 } : null}
+          readouts={[
+            { label: c.focus, value: c.hour(hours, mins), tone: 'primary' },
+            { label: c.tasks, value: `${summary.totalTasks}`, tone: 'success' },
+            { label: c.habits, value: `${summary.habitPct}%`, tone: 'streak' },
+            { label: c.activeDays, value: `${summary.activeDays}/7`, tone: 'tertiary' },
+          ]}
+          bars={[
+            // Haftalık hedef = günlük hedef × 7. Yalnız İÇİNDE BULUNULAN hafta için anlamlı.
+            ...(isCurrentWeek && weeklyTarget > 0 ? [{ text: goalPct >= 1 ? c.goalDone : c.goal(summary.totalFocusMin, weeklyTarget), pct: goalPct, tone: 'primary' as const, highlight: goalPct >= 1 }] : []),
+            ...(plan.total > 0 ? [{ text: c.plan(plan.done, plan.total), pct: plan.done / plan.total, tone: 'tertiary' as const }] : []),
+          ]}
+        />
 
         {/* Eski sunucuda yalnız içinde bulunulan hafta dolu gelir (bkz. useFocusHistoryStore). */}
         {usingLegacyFallback && !isCurrentWeek && (
@@ -249,38 +231,6 @@ export default function ReportScreen() {
           <View style={{ flexDirection: 'row', gap: S.sm, alignItems: 'center', borderRadius: R.md, padding: S.md, backgroundColor: theme.surfaceContainerHigh }}>
             <CloudOff size={ICON.sm} color={theme.onSurfaceVariant} />
             <Text style={{ flex: 1, color: theme.onSurfaceVariant, fontSize: F.caption, lineHeight: 18 }}>{c.offline}</Text>
-          </View>
-        )}
-
-        <View style={{ flexDirection: 'row', gap: S.sm }}>
-          <Stat icon={<Clock size={ICON.sm} color={theme.primary} />} value={c.hour(hours, mins)} label={c.focus} color={theme.primary} />
-          <Stat icon={<CheckCircle2 size={ICON.sm} color={theme.success} />} value={`${summary.totalTasks}`} label={c.tasks} color={theme.success} />
-        </View>
-        <View style={{ flexDirection: 'row', gap: S.sm }}>
-          <Stat icon={<Flame size={ICON.sm} color={theme.streak} />} value={`${summary.habitPct}%`} label={c.habits} color={theme.streak} />
-          <Stat icon={<CalendarDays size={ICON.sm} color={theme.tertiary} />} value={`${summary.activeDays}/7`} label={c.activeDays} color={theme.tertiary} />
-        </View>
-
-        {/* Haftalık hedef = günlük hedef × 7. Yalnız İÇİNDE BULUNULAN hafta için anlamlı. */}
-        {isCurrentWeek && weeklyTarget > 0 && (
-          <View style={{ gap: S.xs }}>
-            <Text style={{ color: goalPct >= 1 ? theme.primary : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700' }}>
-              {goalPct >= 1 ? c.goalDone : c.goal(summary.totalFocusMin, weeklyTarget)}
-            </Text>
-            <View style={{ height: 6, borderRadius: R.xs, backgroundColor: theme.onSurface + '14', overflow: 'hidden' }}>
-              <View style={{ width: `${Math.round(goalPct * 100)}%`, height: '100%', borderRadius: R.xs, backgroundColor: theme.primary }} />
-            </View>
-          </View>
-        )}
-
-        {plan.total > 0 && (
-          <View style={{ gap: S.xs }}>
-            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700' }}>
-              {c.plan(plan.done, plan.total)}
-            </Text>
-            <View style={{ height: 6, borderRadius: R.xs, backgroundColor: theme.onSurface + '14', overflow: 'hidden' }}>
-              <View style={{ width: `${Math.round((plan.done / plan.total) * 100)}%`, height: '100%', borderRadius: R.xs, backgroundColor: theme.tertiary }} />
-            </View>
           </View>
         )}
 
@@ -380,11 +330,8 @@ export default function ReportScreen() {
 }
 
 const styles = StyleSheet.create({
-  stat: { flex: 1, borderRadius: R.lg, borderWidth: B.thin, padding: S.md, gap: S.xxs },
   tip: { borderRadius: R.md, borderLeftWidth: 3, padding: S.md },
   coach: { borderRadius: R.lg, borderWidth: B.thin, padding: S.lg },
-  story: { borderRadius: R.lg, borderWidth: B.thin, padding: S.lg },
-  navBtn: { width: 36, height: 36, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   close: { borderRadius: R.lg, borderWidth: B.thin, padding: S.lg, gap: S.xxs },
 });
 export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

@@ -25,6 +25,7 @@ const stripComments = (src: string) =>
  */
 describe('admin panel — hiçbir liste sessizce kırpılmaz', () => {
   const admin = stripComments(read('app/admin.tsx'));
+  const crashCard = stripComments(read('features/admin/components/CrashGroupsCard.tsx'));
 
   it('istemci tarafı kırpma yok', () => {
     // `.slice(0, N)` bir LİSTE üzerinde = "gerisini gösterme". Sayfalama varken
@@ -32,21 +33,22 @@ describe('admin panel — hiçbir liste sessizce kırpılmaz', () => {
     const offenders = [
       ['sysLogs', /sysLogs\.slice\(/],
       ['auditLogs', /auditLogs\.slice\(/],
-      ['crashes', /crashes\.slice\(/],
     ].filter(([, re]) => (re as RegExp).test(admin)).map(([n]) => n);
+    if (/groups\.slice\(/.test(crashCard)) offenders.push('crashGroups');
     expect(offenders).toEqual([]);
   });
 
-  it('üç liste de sayfalama denetimi çiziyor', () => {
-    // Aynı JSX'i üç kez kopyalamak üç ayrı davranış demekti (biri "Sonraki"yi boşta
-    // bırakır, biri aralığı yanlış sayar). Tek bileşen bunu imkânsız kılıyor.
-    expect((admin.match(/<Pager/g) ?? [])).toHaveLength(3);
+  it('loglar ve denetim günlüğü sayfalama denetimi çiziyor', () => {
+    // Aynı JSX'i kopyalamak ayrı davranış demekti. Tek bileşen (Pager) bunu imkânsız kılıyor.
+    // 2026-10-31: çökmeler hata başına gruplandı → kendi kartında "Daha fazla" (bkz. aşağıdaki blok).
+    expect((admin.match(/<Pager/g) ?? [])).toHaveLength(2);
   });
 
   it('sayfa boyutları tek yerde tanımlı', () => {
-    for (const c of ['LOG_PAGE_SIZE', 'CRASH_PAGE_SIZE', 'AUDIT_PAGE_SIZE']) {
+    for (const c of ['LOG_PAGE_SIZE', 'AUDIT_PAGE_SIZE']) {
       expect(admin).toContain(`const ${c} = `);
     }
+    expect(crashCard).toContain('const PAGE = ');
   });
 
   /**
@@ -55,7 +57,8 @@ describe('admin panel — hiçbir liste sessizce kırpılmaz', () => {
    */
   it('filtre değişince sayfa sıfırlanır', () => {
     expect(admin).toMatch(/setSysLogPage\(0\); \}, \[sysLogLevel, sysLogSource\]/);
-    expect(admin).toMatch(/setCrashPage\(0\); \}, \[crashUnresolvedOnly\]/);
+    // Çökme kartı: Açık/Tümü değişince BAŞTAN yükler (reset = true).
+    expect(crashCard).toMatch(/useEffect\(\(\) => \{ load\(true\); \}, \[onlyOpen\]\)/);
   });
 
   /**
@@ -65,7 +68,8 @@ describe('admin panel — hiçbir liste sessizce kırpılmaz', () => {
    */
   it('sayaçlar eldeki sayfadan değil toplamdan okunur', () => {
     expect(admin).not.toMatch(/crashes\.filter\(c => !c\.isResolved\)\.length/);
-    expect(admin).toContain('crashMeta.total');
+    expect(crashCard).toContain('c.summary(total, onlyOpen)'); // sayı sunucunun toplamından
+    expect(crashCard).not.toMatch(/groups\.filter\([^)]*\)\.length/);
     expect(admin).toContain('sysLogMeta.total');
     expect(admin).toContain('auditMeta.total');
   });

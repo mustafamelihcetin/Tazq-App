@@ -396,11 +396,20 @@ namespace Tazq_Backend.Migrations
                     b.Property<string>("AdminReply")
                         .HasColumnType("text");
 
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ClosedBy")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsRead")
                         .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastActivityAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Message")
                         .IsRequired()
@@ -423,6 +432,37 @@ namespace Tazq_Backend.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("SupportMessages");
+                });
+
+            modelBuilder.Entity("Tazq_App.Models.SupportReply", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AuthorUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("FromStaff")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("SupportMessageId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SupportMessageId");
+
+                    b.ToTable("SupportReplies");
                 });
 
             modelBuilder.Entity("Tazq_App.Models.TaskItem", b =>
@@ -500,6 +540,9 @@ namespace Tazq_Backend.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool?>("AnalyticsInclude")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("AvatarBorderColor")
                         .HasMaxLength(32)
@@ -666,6 +709,17 @@ namespace Tazq_Backend.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Tazq_App.Models.SupportReply", b =>
+                {
+                    b.HasOne("Tazq_App.Models.SupportMessage", "SupportMessage")
+                        .WithMany("Replies")
+                        .HasForeignKey("SupportMessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SupportMessage");
+                });
+
             modelBuilder.Entity("Tazq_App.Models.TaskItem", b =>
                 {
                     b.HasOne("Tazq_App.Models.User", "User")
@@ -686,6 +740,11 @@ namespace Tazq_Backend.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Tazq_App.Models.SupportMessage", b =>
+                {
+                    b.Navigation("Replies");
                 });
 
             modelBuilder.Entity("Tazq_App.Models.User", b =>

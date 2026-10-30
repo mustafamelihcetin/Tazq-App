@@ -7,7 +7,7 @@ import { track } from '@/shared/utils/analytics';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, FileText, MessageSquare, Send, Settings, Wallet } from 'lucide-react-native';
+import { Bell, Moon, LogOut, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, FileText, MessageSquare, Send, Settings, Wallet, Palette, HeartPulse, ShieldCheck } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { AuthService, FocusService } from '@/shared/services/api';
 import { SleepHealth } from '@/shared/services/sleepHealth';
@@ -31,7 +31,6 @@ import { useSporStore } from '@/features/modes/store/useSporStore';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { useActiveTasks } from '@/features/tasks';
 import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '@/shared/utils/achievementIcons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { BackButton } from '@/shared/components/BackButton';
@@ -39,13 +38,14 @@ import { DottedBackground } from '@/shared/components/DottedBackground';
 import { swallow } from '@/shared/utils/swallow';
 import { playSoundEffect } from '@/shared/utils/soundEffects';
 import { isNetworkError } from '@/shared/utils/errors';
+import { ProgressCard } from '@/features/user/components/ProgressCard';
 import { SectionHeader } from '@/shared/components/SectionHeader';
 import { SettingsCard, SettingItem, ToggleRow, RowDivider, settingsAccents } from '@/shared/components/SettingsRows';
 import { haptic } from '@/shared/utils/haptics';
 import { useSessionStore } from '@/shared/store/useSessionStore';
 import { UserAvatar } from '@/features/user/components/UserAvatar';
 import { upperFor } from '@/shared/utils/localeCase';
-import { AVATAR_RINGS } from '@/features/user/utils/avatarRings';
+import { hasRing } from '@/features/user/utils/avatarRings';
 import { productivityHint } from '@/shared/utils/productivityHour';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
@@ -72,10 +72,10 @@ export default function ProfileScreen() {
   const checkStreakFreezeReset = useFocusStore(s => s.checkStreakFreezeReset);
   const focusPoints = useFocusStore(s => s.focusPoints);
   const streakShields = useFocusStore(s => s.streakShields);
-  const { habits, toggleDate } = useHabitStore();
+  const { habits, toggleSkipDate } = useHabitStore();
   // Arşivlenmişler istatistiğe girmez: kullanıcı onları hayatından çıkardı.
   const tasks = useActiveTasks();
-  const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects, motto, setMotto, productivityHour, setProductivityHour, avatarBorderColor, setAvatarBorderColor, uiMode, setUiMode, gender, setGender, sleepHealthOptIn, setSleepHealthOptIn, sleepGoalHours, setSleepGoalHours } = usePrefsStore();
+  const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects, motto, setMotto, productivityHour, setProductivityHour, avatarBorderColor, uiMode, setUiMode, gender, setGender, sleepHealthOptIn, setSleepHealthOptIn, sleepGoalHours, setSleepGoalHours } = usePrefsStore();
   const [sleepSupported] = useState(() => SleepHealth.isSupported());
   const handleSleepToggle = async (v: boolean) => {
     haptic.select();
@@ -106,7 +106,6 @@ export default function ProfileScreen() {
   const [newMotto, setNewMotto] = useState(motto);
   const [newGender, setNewGender] = useState(gender);
   const [newProductivityHour, setNewProductivityHour] = useState(productivityHour);
-  const [selectedBorderColor, setSelectedBorderColor] = useState(avatarBorderColor);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
@@ -177,7 +176,6 @@ export default function ProfileScreen() {
     setNewMotto(motto);
     setNewGender(gender);
     setNewProductivityHour(productivityHour);
-    setSelectedBorderColor(avatarBorderColor);
     setProfileError(null);
     setEditModalVisible(true);
   };
@@ -197,7 +195,6 @@ export default function ProfileScreen() {
         avatar: selectedAvatar || undefined,
         name: newName.trim(),
         motto: newMotto.trim(),
-        avatarBorderColor: selectedBorderColor,
       });
       // Update local state and close only on success — prevents unmounted-component reopen on error
       setUser({ ...user, avatar: selectedAvatar || user?.avatar, name: newName.trim() });
@@ -206,7 +203,6 @@ export default function ProfileScreen() {
       setGender(newGender);
       useSporStore.getState().setGender(newGender);
       setProductivityHour(newProductivityHour);
-      setAvatarBorderColor(selectedBorderColor);
       await usePrefsStore.getState().syncToCloud();
       setEditModalVisible(false);
       showToast(t.toastProfileUpdated, 'success');
@@ -336,15 +332,20 @@ export default function ProfileScreen() {
     Alert.alert(
       language === 'tr' ? 'Streak Kalkanını Etkinleştir' : 'Activate Streak Shield',
       language === 'tr'
-        ? 'Bir kalkan tüketerek bugünkü tüm alışkanlıkları yapıldı olarak işaretlemek istiyor musunuz?'
-        : 'Do you want to consume one shield to mark all today\'s habits as completed?',
+        ? 'Bir kalkan tüketerek bugünü tüm alışkanlıklar için mola günü yapmak istiyor musunuz? Serin bozulmaz.'
+        : 'Use one shield to make today a break day for all habits? Your streak stays intact.',
       [
         { text: t.cancel, style: 'cancel' },
         { text: language === 'tr' ? 'Kullan' : 'Use', onPress: () => {
           useStreakFreeze();
+          /*
+            KALKAN = MOLA, "YAPILDI" DEĞİL (2026-10-30). Eskiden yapılmamış alışkanlıkları "yapıldı"
+            işaretliyordu: seri korunuyordu ama kayıt yalan söylüyordu (rapor, tutarlılık, analiz
+            hepsi yapılmayanı yapılmış sayıyordu). Mola zaten seriyi bozmuyor — aynı koruma, dürüst kayıt.
+          */
           const todayKey = fmtDateKey();
           habits.forEach(h => {
-            if (!h.completedDates.includes(todayKey)) toggleDate(h.id, todayKey);
+            if (!(h.completedDates ?? []).includes(todayKey) && !(h.skippedDates ?? []).includes(todayKey)) toggleSkipDate(h.id, todayKey);
           });
           haptic.success();
           if (soundEffects) {
@@ -383,7 +384,7 @@ export default function ProfileScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={[styles.header, { marginTop: S.md }]}>
-            <MotiView from={{ scale: 0.92 }} animate={{ scale: 1 }} style={[styles.avatarLarge, { backgroundColor: theme.surfaceField, borderWidth: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 2 : 4, borderColor: (!avatarBorderColor || avatarBorderColor === 'transparent') ? (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)') : avatarBorderColor, width: 88, height: 88, borderRadius: R.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
+            <MotiView from={{ scale: 0.92 }} animate={{ scale: 1 }} style={[styles.avatarLarge, { backgroundColor: theme.surfaceField, borderWidth: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 2 : 4, borderColor: hasRing(avatarBorderColor) ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'), width: 88, height: 88, borderRadius: R.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
                 {/*
                   Resim çerçevenin İÇ KENARINA oturur: dış çap − 2×kenarlık. Aradaki iç boşluk
                   kaldırıldı (2026-10-25, kullanıcı: "çerçeve ile resim arasında boşluk var") —
@@ -420,130 +421,27 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {statsLoading ? (
-            <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.lg }}>
-              {[0,1,2].map(i => (
-                <MotiView key={i} animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200, delay: i * 80 }} style={{ flex: 1, height: 52, borderRadius: R.md, backgroundColor: theme.surfaceContainerHigh }} />
-              ))}
-            </View>
-          ) : statsError && !isGuest ? (
-            // Misafirin sunucu istatistiği yok — "Yenile" ona hep görünüp hiçbir şey yapmıyordu.
-            <Touchable onPress={loadStats} accessibilityRole="button" style={{ marginTop: S.md, alignSelf: 'center', paddingHorizontal: S.md, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: theme.surfaceContainerHigh }}>
-              <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption }}>
-                {language === 'tr' ? '↺ Yenile' : '↺ Retry'}
-              </Text>
-            </Touchable>
-          ) : (
-            <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.lg }}>
-              {[
-                { icon: <Zap size={ICON.sm} color={theme.primary} />, value: stats.totalFocusHours, label: language === 'tr' ? 'saat odak' : 'focus hrs' },
-                { icon: <Target size={ICON.sm} color={theme.secondary} />, value: stats.completedTasksCount, label: language === 'tr' ? 'görev tamam' : 'tasks done' },
-                { icon: <Trophy size={ICON.sm} color={theme.streak} />, value: displayBestStreak, label: language === 'tr' ? 'en uzun seri' : 'best streak' },
-              ].map((s, i) => (
-                <View key={i} style={{ flex: 1, flexDirection: 'column', alignItems: 'flex-start', gap: S.xs, paddingVertical: S.smd, paddingHorizontal: S.smd, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderRadius: R.md, borderWidth: isDark ? B.thin : 0, borderColor: isDark ? theme.outline : 'transparent' }}>
-                  {s.icon}
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, lineHeight: 20, fontVariant: ['tabular-nums'] }}>{s.value}</Text>
-                    <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, lineHeight: 14 }} numberOfLines={1}>{s.label}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* ── Başarılar — teaser kart (tam vitrin ayrı ekranda: /achievements) ── */}
+          {/* İLERLEME — istatistik + başarılar + seri kalkanı TEK kartta (bkz. ProgressCard). */}
           {(() => {
-            const tr = language === 'tr';
             const allIds = ['streak_3','streak_7','streak_14','streak_30','streak_100','momentum_50','momentum_75','momentum_90','momentum_100','focus_first','focus_5h','focus_25h','first_task','daily_perfect'];
             const earned = allIds.filter(id => unlockedAchievements.includes(id));
-            const total = allIds.length;
-            // Önizleme: kazanılan varsa gurur için onları göster; yoksa ilk hedefleri (davet).
-            /*
-              EN SON KAZANILAN ÖNDE — eskiden `earned` listesi ID'lerin sabit tanım
-              sırasıyla geliyordu (ör. hep "İlk Seri" başta), az önce kazanılan yeni
-              madalya beşinci sıraya düşüp görünmeyebiliyordu. Gururlanacağın şey
-              o AN kazandığın, üç ay önce kazandığın değil.
-            */
-            const earnedByRecency = [...earned].sort(
-              (a, b) => (achievementsUnlockedAt[b] ?? 0) - (achievementsUnlockedAt[a] ?? 0)
-            );
-            const preview = (earnedByRecency.length ? earnedByRecency : allIds).slice(0, 5);
-            const goShowcase = () => {
-              router.push({ pathname: '/achievements', params: { streak: String(currentStreak), focusHours: String(Math.round(stats.totalFocusHours)) } });
-            };
+            // En son kazanılan önde: gururlanılacak şey o AN kazanılan.
+            const preview = [...earned].sort((a, b) => (achievementsUnlockedAt[b] ?? 0) - (achievementsUnlockedAt[a] ?? 0)).slice(0, 4);
             return (
-              <View style={{ marginTop: S.md }}>
-                <Touchable
-                  activeOpacity={0.85}
-                  onPress={goShowcase}
-                  accessibilityRole="button"
-                  accessibilityLabel={tr ? `Başarılar, ${earned.length} / ${total} açıldı` : `Achievements, ${earned.length} of ${total} earned`}
-                  style={{
-                    padding: S.md,
-                    borderRadius: R.lg,
-                    // Aşağıdaki Ayarlar kartıyla AYNI yüzey — eskiden gri zemin + çerçeveyle
-                    // aynı ekranda ikinci bir kart dili kuruyordu.
-                    backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest,
-                    borderColor: isDark ? theme.outline : 'transparent',
-                    borderWidth: isDark ? B.thin : 0,
-                    gap: S.md,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 1.5 }}>
-                      {tr ? 'BAŞARILAR' : 'ACHIEVEMENTS'}
-                    </Text>
-                    <View style={{ marginLeft: S.sm, backgroundColor: earned.length > 0 ? theme.tertiary + '22' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'), borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xxs }}>
-                      <Text style={{ fontSize: F.caption2, fontWeight: '700', color: earned.length > 0 ? theme.tertiary : theme.onSurfaceVariant }}>
-                        {earned.length}/{total}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }} />
-                    <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600', marginRight: S.xxs }}>{tr ? 'Tümünü Gör' : 'View All'}</Text>
-                    <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} />
-                  </View>
-
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                    {preview.map(id => {
-                      const isEarned = earned.includes(id);
-                      const color = ACHIEVEMENT_ICONS[id]?.color || theme.primary;
-                      return (
-                        <View
-                          key={id}
-                          style={{
-                            width: 42, height: 42, borderRadius: R.full, overflow: 'hidden',
-                            alignItems: 'center', justifyContent: 'center',
-                            backgroundColor: isEarned ? color : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
-                            borderWidth: isEarned ? 0 : B.thin, borderColor: theme.separator,
-                          }}
-                        >
-                          {/* Kazanılmış madalyada ince bir ışıltı — kupa hissi (bkz. app/achievements.tsx MedalShine). */}
-                          {isEarned && (
-                            <LinearGradient
-                              pointerEvents="none"
-                              colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']}
-                              start={{ x: 0.15, y: 0 }}
-                              end={{ x: 0.75, y: 0.9 }}
-                              style={StyleSheet.absoluteFill}
-                            />
-                          )}
-                          {renderAchievementIcon(id, 20, !isEarned)}
-                        </View>
-                      );
-                    })}
-                    {earned.length > preview.length && (
-                      <Text style={{ color: theme.onSurfaceMuted, fontSize: F.footnote, fontWeight: '700' }}>+{earned.length - preview.length}</Text>
-                    )}
-                  </View>
-
-                  {/* Yeni kullanıcı: 0 kazanımda soluk madalyalar "boş" hissettirir → sıcak bir davet. */}
-                  {earned.length === 0 && (
-                    <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '500', lineHeight: 17 }}>
-                      {tr ? 'İlk madalyanı kazan — bir seri başlat ya da odak seansı yap.' : 'Earn your first medal — start a streak or a focus session.'}
-                    </Text>
-                  )}
-                </Touchable>
-              </View>
+              <ProgressCard
+                lang={language === 'en' ? 'en' : 'tr'}
+                stats={{ focusHours: stats.totalFocusHours, tasks: stats.completedTasksCount, bestStreak: displayBestStreak }}
+                statsState={statsLoading ? 'loading' : statsError && !isGuest ? 'error' : 'ok'}
+                onRetry={loadStats}
+                medals={preview.map(id => ({ id, earned: true, color: ACHIEVEMENT_ICONS[id]?.color || theme.primary }))}
+                earnedCount={earned.length}
+                totalMedals={allIds.length}
+                onShowcase={() => router.push({ pathname: '/achievements', params: { streak: String(currentStreak), focusHours: String(Math.round(stats.totalFocusHours)) } })}
+                renderMedal={renderAchievementIcon}
+                shields={streakShields}
+                points={focusPoints}
+                onShield={handleStreakFreeze}
+              />
             );
           })()}
 
@@ -556,22 +454,22 @@ export default function ProfileScreen() {
                 icon={<Bell size={ICON.md} color="#FFFFFF" />}
                 bg={A.notify}
                 label={language === 'tr' ? 'Bildirimler' : 'Notifications'}
-                sub={language === 'tr' ? 'Hatırlatma, özet, takvim' : 'Reminders, briefs, calendar'}
+                sub={language === 'tr' ? 'Özetler, takvim, gizlilik' : 'Briefs, calendar, privacy'}
                 onPress={() => router.push({ pathname: '/settings', params: { section: 'notify' } })}
                 theme={theme}
               />
               <RowDivider theme={theme} />
               <SettingItem
-                icon={<Languages size={ICON.md} color="#FFFFFF" />}
+                icon={<Palette size={ICON.md} color="#FFFFFF" />}
                 bg={A.system}
                 label={language === 'tr' ? 'Görünüm & Dil' : 'Appearance & Language'}
-                sub={language === 'tr' ? 'Tema, dil, sade mod' : 'Theme, language, lite mode'}
+                sub={language === 'tr' ? 'Tema, renk, dil, ses' : 'Theme, color, language, sound'}
                 onPress={() => router.push({ pathname: '/settings', params: { section: 'system' } })}
                 theme={theme}
               />
               <RowDivider theme={theme} />
               <SettingItem
-                icon={<Moon size={ICON.md} color="#FFFFFF" />}
+                icon={<HeartPulse size={ICON.md} color="#FFFFFF" />}
                 bg={A.health}
                 label={language === 'tr' ? 'Uyku & Sağlık' : 'Sleep & Health'}
                 sub={`${healthSourceName(language)}, ${language === 'tr' ? 'uyku hedefi' : 'sleep goal'}`}
@@ -580,7 +478,7 @@ export default function ProfileScreen() {
               />
               <RowDivider theme={theme} />
               <SettingItem
-                icon={<Shield size={ICON.md} color="#FFFFFF" />}
+                icon={<ShieldCheck size={ICON.md} color="#FFFFFF" />}
                 bg={A.legal}
                 label={language === 'tr' ? 'Hesap, Yasal & Destek' : 'Account, Legal & Support'}
                 sub={language === 'tr' ? 'Gizlilik, koşullar, çıkış, destek' : 'Privacy, terms, logout, support'}
@@ -756,71 +654,7 @@ export default function ProfileScreen() {
                     </ScrollView>
                   </View>
 
-                  {/* Avatar Border Color */}
-                  <View style={{ width: '100%', marginBottom: S.md }}>
-                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>
-                      {upperFor(language === 'tr' ? 'Profil Çerçeve Rengi' : 'Profile Border Color', language)}
-                    </Text>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: S.sm,
-                        paddingHorizontal: S.lg,
-                      }}
-                      style={{ marginTop: S.xs, marginHorizontal: -S.lg }}
-                    >
-                      {AVATAR_RINGS.map((r) => ({ key: r.key, color: r.color, labelTr: r.tr, labelEn: r.en })).map((colorOpt) => {
-                        const isSelected = selectedBorderColor === colorOpt.color;
-                        const isNone = colorOpt.color === 'transparent';
-                        return (
-                          <Touchable
-                            key={colorOpt.key}
-                            accessibilityRole="radio"
-                            accessibilityState={{ selected: isSelected }}
-                            accessibilityLabel={language === 'tr' ? `Çerçeve rengi: ${colorOpt.key}` : `Border color: ${colorOpt.key}`}
-                            hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
-                            onPress={() => { haptic.select(); setSelectedBorderColor(colorOpt.color); }}
-                            activeOpacity={0.8}
-                            style={{
-                              width: 38,
-                              height: 38,
-                              borderRadius: R.full,
-                              borderWidth: isSelected ? 3 : 1.5,
-                              borderColor: isSelected ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'),
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
-                            }}
-                          >
-                            <View style={{
-                              width: 26,
-                              height: 26,
-                              borderRadius: R.full,
-                              borderWidth: isNone ? 1.5 : 0,
-                              borderStyle: isNone ? 'dashed' : 'solid',
-                              borderColor: isNone ? (isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)') : 'transparent',
-                              backgroundColor: isNone ? 'transparent' : colorOpt.color,
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}>
-                              {isSelected && (
-                                <View style={{
-                                  width: 8,
-                                  height: 8,
-                                  borderRadius: R.full,
-                                  backgroundColor: isNone ? (isDark ? '#FFFFFF' : '#000000') : '#FFFFFF',
-                                }} />
-                              )}
-                            </View>
-                          </Touchable>
-                        );
-                      })}
-                    </ScrollView>
-                  </View>
-
+                  {/* Çerçeve ve renk artık TEK yerde: Ayarlar → Görünüm (bkz. AccentPicker). */}
                   {/* Motto */}
                   <View style={{ width: '100%', marginBottom: S.lg }}>
                     <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>

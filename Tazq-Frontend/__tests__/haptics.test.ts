@@ -195,7 +195,25 @@ describe('yoğunluk', () => {
      *   eski nefes seçicisinin titreşimi (1) kaldırıldı.
      * → 330 (2026-10-30): ana sayfa ekranında "haftayı kaydır" — her gün değişiminde tek tik
      *   (sürükleme ve nokta dokunuşu aynı `go` yolundan; ekrana bakmadan gün saymayı sağlar).
+     * → 332 (2026-10-30): Haftalık Geri Bakış hafta ekranı — önceki/sonraki hafta tiki (ok ve
+     *   kaydırma aynı yoldan; ana sayfadaki gün kaydırmasıyla aynı dokunsal dil).
+     * → 338 (2026-10-30): alışkanlık planı (HabitPlanFields/HabitPlanSheet) — sıklık/dilim/otomatik
+     *   çipi, sayaç −/+, gün aç-kapa (ödemeler çipleriyle aynı seçim mantığı), plan kaydı onayı;
+     *   ana sayfada miktarlı alışkanlığın ARA adımı hafif tik (hedefe varış zaten success).
+     * → 341 (2026-10-30): Bugün ekranındaki gün sonu alışkanlık şeridi (DayCloseHabits) — ana sayfa
+     *   şeridiyle AYNI dokunsal dil: işaretle success, geri al/mola surface.
+     * → 342 (2026-10-30): Haftalık Merkez hafta paneli — gün seçimi tiki panelin içine taşındı, seçili
+     *   günün alışkanlık halkaları (mola = commit) eklendi; eski ✓ düğmesi ve 28 günlük ızgara kalktı.
+     * → 347 (2026-10-30): alışkanlık detay sayfası (app/aliskanlik.tsx) — takvimde işaretle (success /
+     *   geri al surface), mola (surface), ay geçişi tiki, dinlendir ve sil onayı (commit). Sayfayı AÇMAK
+     *   titreşmez (saf gezinme kuralı).
+     * → 348 (2026-10-31): detay sayfasında renk seçimi (formdaki renk çipiyle aynı seçim tiki).
+     * → 349 (2026-10-31): Ayarlar'da vurgu rengi seçimi (tema seçimiyle aynı seçim tiki).
+     * → 350 (2026-10-31): destek konuşması: yanıt gönderildi + konuşma bitirildi; çökme grubu çözüldü
+     *   (gerçek işlem onayları; konuşmayı AÇMAK titreşmez — saf gezinme).
+     * → 351 (2026-10-31): ödeme satırında uzun bas → Düzenle/Sil menüsü (sistem bağlam menüsü gibi
+     *   uzun basışın tanınması hissedilir; eskiden uzun bas doğrudan silme uyarısı açıyordu).
      */
-    expect(hap).toBeLessThanOrEqual(330);
+    expect(hap).toBeLessThanOrEqual(351);
   });
 });

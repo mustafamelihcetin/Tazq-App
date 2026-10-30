@@ -270,6 +270,12 @@ export async function cancelMorningBrief(): Promise<void> {
 // ─── Evening Summary (21:00 daily) ───────────────────────────────────────────
 // Replaces old shutdownNotification. Shows real completion context.
 
+/** Akşam özetinin alışkanlık cümleleri (sözlük — bkz. i18nRatchet). */
+const HABIT_BRIEF = {
+  tr: { title: 'Günü kapat', quick: 'Birkaç saniye sürer.', line: (n: number) => `${n} alışkanlık işaretlenmeyi bekliyor.` },
+  en: { title: 'Close the day', quick: 'Takes a few seconds.', line: (n: number) => `${n} habit${n > 1 ? 's' : ''} waiting to be checked.` },
+};
+
 export async function scheduleEveningBrief(
   completedToday: number,
   pendingTotal: number,
@@ -277,6 +283,12 @@ export async function scheduleEveningBrief(
   name?: string,
   /** Çalacağı an; sayılar bu günün sayıları olmalı (bkz. briefCounts). */
   fireAt?: Date,
+  /**
+   * O gün işaretlenmeyi bekleyen alışkanlık (2026-10-30, "gün sonu"). Alışkanlık için AYRI bir
+   * bildirim yok: aynı akşam özeti hem işleri hem alışkanlıkları söyler, dokununca Bugün
+   * ekranındaki gün kapanışı açılır — orada hepsi birkaç saniyede işaretlenir.
+   */
+  habitsPending = 0,
 ): Promise<void> {
   if (!Notifications || isExpoGo) return;
   try {
@@ -285,14 +297,20 @@ export async function scheduleEveningBrief(
 
     // ÖNCE İPTAL, sonra karar: yoksa işler silinse de eski "3 görev duruyor" akşam çalardı.
     await Notifications.cancelScheduledNotificationAsync('evening-brief').catch(() => {});
-    if (completedToday === 0 && pendingTotal === 0) return;
+    if (completedToday === 0 && pendingTotal === 0 && habitsPending === 0) return;
 
     const trigger = fireAt ?? nextOccurrence(21);
 
     let title: string;
     let body: string;
+    const hc = isTR ? HABIT_BRIEF.tr : HABIT_BRIEF.en;
+    const habitLine = habitsPending > 0 ? hc.line(habitsPending) : '';
 
-    if (completedToday > 0 && pendingTotal === 0) {
+    if (completedToday === 0 && pendingTotal === 0) {
+      // Yalnız alışkanlık: kısa, suçlamasız, ne kadar kolay olduğunu söyler.
+      title = hc.title;
+      body = `${habitLine} ${hc.quick}`;
+    } else if (completedToday > 0 && pendingTotal === 0) {
       // Zafer anı — kişisel ve gurur verici.
       title = isTR ? 'Kusursuz bir gün' : 'A flawless day';
       body = isTR
@@ -311,6 +329,8 @@ export async function scheduleEveningBrief(
         ? `${pendingTotal} görev duruyor. Bir tanesini bitirmek bile ivme yaratır.`
         : `${pendingTotal} task${pendingTotal > 1 ? 's' : ''} left. Finishing even one builds momentum.`;
     }
+
+    if (habitLine && !(completedToday === 0 && pendingTotal === 0)) body = `${body} ${habitLine}`;
 
     await Notifications.scheduleNotificationAsync({
       identifier: 'evening-brief',

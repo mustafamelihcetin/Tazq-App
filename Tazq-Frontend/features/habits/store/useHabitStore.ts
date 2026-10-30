@@ -3,8 +3,10 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { inferSleepFromNames } from '@/features/habits/utils/sleepHabit';
 import { daysBetween } from '@/features/habits/utils/habitLimit';
+import { bump, isDueToday, isPlannedDay, targetOf, isQuantity, scheduleOf, type PlanFields, type HabitAutoSource } from '@/features/habits/utils/habitSchedule';
 
-export interface Habit {
+/** Plan alanları (sıklık, miktar, dilim, otomatik kaynak) — bkz. habitSchedule. Hepsi isteğe bağlı. */
+export interface Habit extends PlanFields {
   id: string;
   name: string;
   emoji: string;
@@ -36,7 +38,15 @@ export interface Habit {
 interface HabitState {
   habits: Habit[];
   weeklyGoal: string;
-  addHabit: (name: string, emoji: string, color: string, id?: string, planMode?: string, nameTr?: string, nameEn?: string) => void;
+  addHabit: (name: string, emoji: string, color: string, id?: string, planMode?: string, nameTr?: string, nameEn?: string, plan?: PlanFields) => void;
+  /** Sıklık/miktar/dilim/otomatik kaynağı değiştirir (geçmiş işaretlere dokunmaz). */
+  updatePlan: (id: string, plan: PlanFields) => void;
+  /** Elle eklenen alışkanlığın rengini değiştirir (palet açık tonu; bkz. habitColor). */
+  setHabitColor: (id: string, color: string) => void;
+  /** Ana dokunuş: miktarlıda +1 (hedefteyken sıfırlar), değilse yapıldı/geri al. */
+  tapHabit: (id: string, date: string) => void;
+  /** Odak/nefes bitince bağlı alışkanlıkları işaretler; işaretlenenlerin adlarını döner. */
+  markAuto: (source: HabitAutoSource, date: string) => string[];
   removeHabit: (id: string) => void;
   toggleDate: (habitId: string, date: string) => void;
   toggleSkipDate: (habitId: string, date: string) => void;
@@ -55,7 +65,25 @@ export function fmtDateKey(d: Date = new Date()): string {
   return `${adjusted.getFullYear()}-${String(adjusted.getMonth() + 1).padStart(2, '0')}-${String(adjusted.getDate()).padStart(2, '0')}`;
 }
 
-function computeStreak(completedDates: string[] | undefined, skippedDates: string[] | undefined): number {
+/*
+  SERİ PLANA DUYARLI (2026-10-30): "Pzt-Çar-Cum" alışkanlığında Salı bir kaçırma değildir —
+  planlanmayan günler mola gibi atlanır. "Haftada N"de günlük seri anlamsız: ardışık hedefi
+  tutan HAFTA sayısı döner. Tek boşluk affı ("iki kez kaçırma") aynen korunur.
+*/
+function computeStreak(completedDates: string[] | undefined, skippedDates: string[] | undefined, plan?: PlanFields): number {
+  const schedule = scheduleOf(plan ?? {});
+  if (schedule.kind === 'weekly') return weeklyStreak(completedDates ?? [], schedule.times);
+  if (schedule.kind === 'days') {
+    // Planlanmayan günleri mola say: aşağıdaki günlük algoritma onları zinciri bozmadan geçer.
+    const done = new Set(completedDates ?? []);
+    const extra: string[] = [];
+    const d0 = new Date();
+    for (let i = 0; i < 400; i++) {
+      const k = fmtDateKey(new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() - i, d0.getHours()));
+      if (!done.has(k) && !isPlannedDay({ schedule }, k)) extra.push(k);
+    }
+    skippedDates = [...(skippedDates ?? []), ...extra];
+  }
   if (!completedDates?.length) return 0;
   const completedSet = new Set(completedDates);
   const skippedSet = new Set(skippedDates ?? []);
@@ -99,6 +127,18 @@ function computeStreak(completedDates: string[] | undefined, skippedDates: strin
   return streak;
 }
 
+function weeklyStreak(completedDates: string[], times: number): number {
+  const done = new Set(completedDates);
+  const monday = (d: Date) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+  const key = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const count = (start: Date) => { let n = 0; for (let i = 0; i < 7; i++) { const x = new Date(start); x.setDate(x.getDate() + i); if (done.has(key(x))) n++; } return n; };
+  let w = monday(new Date());
+  let streak = count(w) >= times ? 1 : 0; // bu hafta tuttuysa say; tutmadıysa hafta bitmedi, ceza yok
+  w.setDate(w.getDate() - 7);
+  for (let i = 0; i < 520 && count(w) >= times; i++) { streak++; w.setDate(w.getDate() - 7); }
+  return streak;
+}
+
 export const useHabitStore = create<HabitState>()(
   persist(
     (set, get) => ({
@@ -117,7 +157,7 @@ export const useHabitStore = create<HabitState>()(
             return { ...h, pausedAt: null, skippedDates: skipped };
           }),
         }),
-      addHabit: (name, emoji, color, id, planMode, nameTr, nameEn) =>
+      addHabit: (name, emoji, color, id, planMode, nameTr, nameEn, plan) =>
         set((s) => {
           // Çift-isim koruması (büyük/küçük harf duyarsız) — aynı alışkanlık iki kez eklenmez.
           const key = name.trim().toLocaleLowerCase('tr');
@@ -145,10 +185,42 @@ export const useHabitStore = create<HabitState>()(
                 ...(nameTr ? { nameTr } : {}),
                 ...(nameEn ? { nameEn } : {}),
                 ...(isSleep ? { healthMetric: 'sleep' as const } : {}),
+                ...(plan ?? {}),
               },
             ],
           };
         }),
+      updatePlan: (id, plan) =>
+        set((s) => ({ habits: s.habits.map((h) => (h.id === id ? { ...h, ...plan } : h)) })),
+      setHabitColor: (id, color) =>
+        set((s) => ({ habits: s.habits.map((h) => (h.id === id ? { ...h, color } : h)) })),
+      tapHabit: (id, date) => {
+        const h = get().habits.find(x => x.id === id);
+        if (!h) return;
+        if (!isQuantity(h)) { get().toggleDate(id, date); return; }
+        const r = bump(h, date);
+        set((s) => ({
+          habits: s.habits.map((x) => {
+            if (x.id !== id) return x;
+            const dates = (x.completedDates ?? []).filter(d => d !== date);
+            return { ...x, counts: r.counts, completedDates: r.done ? [...dates, date] : dates, skippedDates: (x.skippedDates ?? []).filter(d => d !== date) };
+          }),
+        }));
+      },
+      markAuto: (source, date) => {
+        const hits = get().habits.filter(h => h.autoFrom === source && isDueToday(h, date) && !(h.completedDates ?? []).includes(date));
+        if (hits.length === 0) return [];
+        const ids = new Set(hits.map(h => h.id));
+        set((s) => ({
+          habits: s.habits.map((h) => (!ids.has(h.id) ? h : {
+            ...h,
+            completedDates: [...(h.completedDates ?? []), date],
+            skippedDates: (h.skippedDates ?? []).filter(d => d !== date),
+            ...(isQuantity(h) ? { counts: { ...(h.counts ?? {}), [date]: targetOf(h) } } : {}),
+          })),
+        }));
+        return hits.map(h => h.name);
+      },
       removeHabit: (id) =>
         set((s) => ({ habits: s.habits.filter((h) => h.id !== id) })),
       toggleDate: (habitId, date) =>
@@ -184,7 +256,7 @@ export const useHabitStore = create<HabitState>()(
           }),
         })),
       setWeeklyGoal: (weeklyGoal) => set({ weeklyGoal }),
-      getStreak: (habit) => computeStreak(habit.completedDates, habit.skippedDates),
+      getStreak: (habit) => computeStreak(habit.completedDates, habit.skippedDates, habit),
     }),
     {
       name: 'tazq-habits',

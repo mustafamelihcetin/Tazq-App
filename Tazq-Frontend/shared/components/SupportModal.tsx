@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, Modal, ScrollView, TextInput, ActivityIndicator, Platform, KeyboardAvoidingView, StyleSheet, TouchableWithoutFeedback, Keyboard } from 'react-native';
-import { Send } from 'lucide-react-native';
+import { Send, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SupportService, MySupportMessage } from '@/shared/services/api';
 import { CustomAlert as Alert, AlertHost } from '@/shared/components/CustomAlert';
@@ -11,6 +11,19 @@ import type { AppTheme } from '@/shared/constants/Colors';
 import { httpStatusOf, isNetworkError, httpRawDataOf } from '@/shared/utils/errors';
 import { swallow } from '@/shared/utils/swallow';
 import { haptic } from '@/shared/utils/haptics';
+import { SupportThread } from '@/shared/components/SupportThread';
+
+/** Konuşma metinleri (2026-10-31). */
+const SM_COPY = {
+  tr: {
+    ended: 'Bitti', answered: 'Yanıtlandı', waiting: 'Bekliyor', notSent: 'Gönderilemedi', sendFail: 'Mesaj gönderilemedi.',
+    endTitle: 'Konuşmayı bitir', endBody: 'Bu konuşmaya artık yazılamaz. Yeni bir konu için yeni mesaj gönderebilirsin.', cancel: 'Vazgeç', end: 'Bitir', back: 'Mesajların',
+  },
+  en: {
+    ended: 'Ended', answered: 'Answered', waiting: 'Waiting', notSent: 'Not sent', sendFail: 'Could not send message.',
+    endTitle: 'End conversation', endBody: 'No more replies can be added. You can always start a new message.', cancel: 'Cancel', end: 'End', back: 'Your messages',
+  },
+};
 
 interface SupportModalProps {
   visible: boolean;
@@ -34,6 +47,12 @@ export const SupportModal: React.FC<SupportModalProps> = ({
   const [sendingSupport, setSendingSupport] = useState(false);
   const [myMessages, setMyMessages] = useState<MySupportMessage[]>([]);
   const [loadingMine, setLoadingMine] = useState(false);
+  // Açık konuşma (2026-10-31): kullanıcı yanıta yanıt yazabilir, konuşmayı bitirebilir.
+  const [openId, setOpenId] = useState<number | null>(null);
+  const [replyDraft, setReplyDraft] = useState('');
+  const [replying, setReplying] = useState(false);
+  const open = myMessages.find(m => m.id === openId) ?? null;
+  const sc = SM_COPY[language === 'tr' ? 'tr' : 'en'];
 
   const loadMyMessages = useCallback(async () => {
     setLoadingMine(true);
@@ -52,6 +71,8 @@ export const SupportModal: React.FC<SupportModalProps> = ({
     if (visible) {
       loadMyMessages();
       setSupportText('');
+      setOpenId(null);
+      setReplyDraft('');
     }
   }, [visible, loadMyMessages]);
 
@@ -105,6 +126,46 @@ export const SupportModal: React.FC<SupportModalProps> = ({
     }
   };
 
+  const threadOf = (m: MySupportMessage) => m.thread ?? [
+    { fromStaff: false, body: m.message, at: m.createdAt },
+    ...(m.adminReply ? [{ fromStaff: true, body: m.adminReply, at: m.repliedAt ?? m.createdAt }] : []),
+  ];
+  const statusOf = (m: MySupportMessage) => {
+    if (m.closedAt) return { text: sc.ended, color: theme.onSurfaceMuted };
+    const last = threadOf(m).slice(-1)[0];
+    return last?.fromStaff ? { text: sc.answered, color: theme.success } : { text: sc.waiting, color: theme.warning };
+  };
+
+  const sendReply = async () => {
+    if (!open || !replyDraft.trim()) return;
+    setReplying(true);
+    try {
+      const updated = await SupportService.userReply(open.id, replyDraft.trim());
+      haptic.success();
+      setMyMessages(prev => prev.map(m => m.id === open.id ? { ...m, ...updated } : m));
+      setReplyDraft('');
+    } catch (err: unknown) {
+      haptic.error();
+      swallow('supportModal.userReply', err);
+      const body = httpRawDataOf(err) as { message?: string } | undefined;
+      Alert.alert(sc.notSent, body?.message || sc.sendFail);
+      loadMyMessages();
+    } finally {
+      setReplying(false);
+    }
+  };
+
+  const endConversation = () => {
+    if (!open) return;
+    Alert.alert(sc.endTitle, sc.endBody, [
+      { text: sc.cancel, style: 'cancel' },
+      { text: sc.end, style: 'destructive', onPress: async () => {
+        try { await SupportService.userClose(open.id); haptic.success(); loadMyMessages(); }
+        catch (e) { swallow('supportModal.userClose', e); }
+      } },
+    ]);
+  };
+
   return (
     <Modal
       visible={visible}
@@ -150,6 +211,19 @@ export const SupportModal: React.FC<SupportModalProps> = ({
             {t.support?.title || (language === 'tr' ? 'Destek & İletişim' : 'Support & Contact')}
           </Text>
           <View style={{ paddingHorizontal: S.lg, gap: S.md }}>
+            {open ? (
+              <View style={{ gap: S.sm }}>
+                <Touchable onPress={() => { setOpenId(null); setReplyDraft(''); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: S.xxs, alignSelf: 'flex-start' }}>
+                  <ChevronLeft size={ICON.sm} color={theme.primary} />
+                  <Text style={{ color: theme.primary, fontSize: F.footnote, fontWeight: '600' }}>{sc.back}</Text>
+                </Touchable>
+                <ScrollView style={{ maxHeight: 440 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                  <SupportThread entries={threadOf(open)} viewer="user" lang={language === 'tr' ? 'tr' : 'en'} closedBy={open.closedBy ?? null}
+                    canReply={open.canReply ?? !open.closedAt} draft={replyDraft} onDraft={setReplyDraft} onSend={sendReply} sending={replying}
+                    onClose={endConversation} maxLength={500} />
+                </ScrollView>
+              </View>
+            ) : (<>
             <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, textAlign: 'center' }}>
               {t.support?.sub || (language === 'tr' ? 'Soru, öneri ve destek taleplerini doğrudan bize ilet.' : 'Send us your questions, feedback, or support requests.')}
             </Text>
@@ -217,58 +291,27 @@ export const SupportModal: React.FC<SupportModalProps> = ({
                 </Text>
                 <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false}>
                   <View style={{ gap: S.sm }}>
-                    {myMessages.map((mm) => (
-                      <View
-                        key={mm.id}
-                        style={{
-                          backgroundColor: isDark
-                            ? theme.surfaceContainerHigh
-                            : theme.surfaceContainerLow,
-                          borderRadius: R.md,
-                          padding: S.sm,
-                          gap: S.sm,
-                        }}
-                      >
-                        <Text style={{ color: theme.onSurface, fontSize: F.caption, lineHeight: 18 }}>
-                          {mm.message}
-                        </Text>
-                        <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>
-                          {new Date(mm.createdAt).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', {
-                            day: 'numeric',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </Text>
-                        {mm.adminReply ? (
-                          <View
-                            style={{
-                              backgroundColor: '#10B98112',
-                              borderLeftWidth: 3,
-                              borderLeftColor: '#10B981',
-                              borderRadius: R.sm,
-                              padding: S.sm,
-                              gap: S.xxs,
-                            }}
-                          >
-                            <Text style={{ color: '#10B981', fontSize: F.caption, fontWeight: '700', letterSpacing: 0.5 }}>
-                              {language === 'tr' ? '✓ DESTEK YANITI' : '✓ SUPPORT REPLY'}
-                            </Text>
-                            <Text style={{ color: theme.onSurface, fontSize: F.caption, lineHeight: 18 }}>
-                              {mm.adminReply}
-                            </Text>
+                    {myMessages.map((mm) => {
+                      const st = statusOf(mm);
+                      const last = threadOf(mm).slice(-1)[0];
+                      return (
+                        <Touchable key={mm.id} onPress={() => setOpenId(mm.id)} accessibilityRole="button"
+                          accessibilityLabel={`${mm.message}. ${st.text}`}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderRadius: R.md, padding: S.smd }}>
+                          <View style={{ flex: 1, gap: S.xxs }}>
+                            <Text numberOfLines={1} style={{ color: theme.onSurface, fontSize: F.footnote, fontWeight: '600' }}>{mm.message}</Text>
+                            <Text numberOfLines={1} style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{last?.body}</Text>
                           </View>
-                        ) : (
-                          <Text style={{ color: theme.onSurfaceMuted, fontSize: 10, fontStyle: 'italic' }}>
-                            {language === 'tr' ? 'Yanıt bekleniyor…' : 'Awaiting reply…'}
-                          </Text>
-                        )}
-                      </View>
-                    ))}
+                          <Text style={{ color: st.color, fontSize: F.caption, fontWeight: '700' }}>{st.text}</Text>
+                          <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} />
+                        </Touchable>
+                      );
+                    })}
                   </View>
                 </ScrollView>
               </View>
             )}
+            </>)}
           </View>
         </View>
       </KeyboardAvoidingView>

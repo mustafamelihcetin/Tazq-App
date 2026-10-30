@@ -6,6 +6,7 @@ import { HabitBubble, HABIT_SLOT } from '@/features/habits/components/HabitBubbl
 import { SectionHeader } from '@/shared/components/SectionHeader';
 import { Touchable } from '@/shared/components/Touchable';
 import { F, S, R, W, ICON, B, MIN_TOUCH } from '@/shared/constants/tokens';
+import { DISPLAY_FONT } from '@/shared/components/DisplayPanel';
 import type { AppTheme } from '@/shared/constants/Colors';
 
 /**
@@ -47,6 +48,9 @@ export interface MyDayHabitsProps {
 
 export const MyDayHabits = React.memo<MyDayHabitsProps>(
   ({ habits, onToggle, onSkip, onAddHabit, theme, isDark, tr }) => {
+    // Sayaç: mola günleri paydadan düşer (mola bir kaçırma değildir).
+    const counted = habits.filter(h => !h.isSkipped).length;
+    const done = habits.filter(h => h.isCompleted && !h.isSkipped).length;
     // Ekle yuvası TEK tanım: boş durumda ve dolu şeritte aynı öğe.
     // Kesikli çerçeve "burası henüz boş, doldurabilirsin" der; dolu baloncuklarla
     // aynı boyutta — eşit yuva, eşit ritim.
@@ -77,17 +81,18 @@ export const MyDayHabits = React.memo<MyDayHabitsProps>(
     );
     return (
     <>
-      <SectionHeader
-        title={tr ? 'Bugünkü alışkanlıklarım' : 'My daily habits'}
-        hint={
-          tr
-            ? 'Alışkanlığı tamamlamak için bas, mola için basılı tut'
-            : 'Tap habit to complete, hold for a break'
-        }
-        theme={theme}
-        tr={tr}
-        inset={S.md}
-      />
+      {/*
+        BAŞLIK — üstteki dijital panelle aynı dil (2026-10-30): harf aralıklı küçük etiket + sağda
+        eş aralıklı sayaç. "Bas / basılı tut" açıklama satırı kalktı (halkaların erişilebilirlik
+        ipucunda); her gün okunan bir talimat, ilk günden sonra yalnız yer kaplıyordu.
+      */}
+      <View style={styles.header}>
+        <Text style={[styles.headerLabel, { color: theme.onSurfaceMuted }]}>{tr ? 'ALIŞKANLIKLAR' : 'HABITS'}</Text>
+        {counted > 0 && (
+          <Text accessibilityLabel={tr ? `${done} / ${counted} tamamlandı` : `${done} of ${counted} done`}
+            style={[styles.headerCount, { color: done >= counted ? theme.success : theme.onSurface }]}>{`${done}/${counted}`}</Text>
+        )}
+      </View>
 
       {/*
         BOŞ DURUM KAYMAZ (2026-10-25, cihazda görüldü): rehber balonu yatay kayan şeridin
@@ -135,6 +140,9 @@ export const MyDayHabits = React.memo<MyDayHabitsProps>(
 MyDayHabits.displayName = 'MyDayHabits';
 
 const styles = StyleSheet.create({
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md, paddingTop: S.md },
+  headerLabel: { fontSize: F.caption, fontWeight: W.semibold, letterSpacing: 1.2 },
+  headerCount: { fontFamily: DISPLAY_FONT.digits, fontSize: F.footnote, fontVariant: ['tabular-nums'] },
   emptyRow: { flexDirection: 'row' },
   row: {
     paddingHorizontal: S.md,

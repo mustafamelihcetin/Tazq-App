@@ -47,6 +47,8 @@ import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W,
 import { useToastStore } from '@/shared/store/useToastStore';
 import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, TurkishModeBanner, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { useHabitStore, fmtDateKey, useSleepHealthSync, useActiveHabitList } from '@/features/habits';
+import { isDueToday, orderForNow, weekProgress, countOn, targetOf, missState } from '@/features/habits/utils/habitSchedule';
+import { celebrateMilestone } from '@/features/habits/utils/autoMark';
 import { todayKey, daysBetween, wasActiveOn, decideStreak, wasCompletedOn, legacyDayString, weekdayIndex } from '@/features/dashboard/utils/streakDay';
 import { buildWeekStrip } from '@/features/dashboard/utils/weekStrip';
 import { useActivityHealthSync } from '@/features/modes/hooks/useActivityHealthSync';
@@ -91,6 +93,7 @@ import { savedLocallyMessage } from '@/shared/utils/saveFeedback';
 import { celebrate } from '@/features/user/utils/celebrate';
 import { scopeDay } from '@/features/dashboard/utils/dayScope';
 import { TodayRings } from '@/features/dashboard/components/TodayRings';
+import { habitColor } from '@/features/habits/utils/habitColor';
 import { isFocusWorthy } from '@/features/focus/focusWorthy';
 
 
@@ -324,7 +327,7 @@ export default function HomeScreen() {
   // Hareket görevleri (yürüyüş/koşu/antrenman) — uyku senkronuyla aynı sözleşme:
   // kullanıcı açıkça bağlamadıkça hiçbir şey okunmaz, işaretlenen her şey geri alınabilir.
   useActivityHealthSync();
-  const toggleHabitDate = useHabitStore(s => s.toggleDate);
+  const tapHabit = useHabitStore(s => s.tapHabit); // miktarlıda +1, değilse yapıldı/geri al (bkz. habitSchedule)
   const toggleHabitSkipDate = useHabitStore(s => s.toggleSkipDate);
   const getHabitStreak = useHabitStore(s => s.getStreak);
   const habitTodayKey = fmtDateKey();
@@ -1219,18 +1222,24 @@ export default function HomeScreen() {
       ];
     }
 
-    return habits.map(h => {
+    // Yalnız BUGÜN planlı olanlar; şu anki zaman dilimi önde (bkz. habitSchedule).
+    return orderForNow(habits.filter(h => isDueToday(h, habitTodayKey)), habitTodayKey).map(h => {
       const done = (h.completedDates ?? []).includes(habitTodayKey);
+      const week = weekProgress(h, habitTodayKey);
       const skipped = (h.skippedDates ?? []).includes(habitTodayKey);
       const streakVal = getHabitStreak(h);
       return {
         id: h.id,
         title: h.name,
-        color: h.color,
+        color: habitColor(h, isDark), // renk = nereden geldiği: mod rengi ya da kullanıcının seçimi
         emoji: h.emoji,
         isCompleted: done,
         isSkipped: skipped,
         streak: streakVal,
+        count: countOn(h, habitTodayKey),
+        missed: missState(h, habitTodayKey) === 'missed', // "iki kez kaçırma": bugün yaparsan zincir sürer
+        target: targetOf(h),
+        weekBadge: week && week.goal < 7 ? `${week.done}/${week.goal}` : null,
         original: h
       };
     });
@@ -1623,7 +1632,7 @@ export default function HomeScreen() {
                       borderWidth: B.thin,
                       // Varsayılan halka `rgba(255,255,255,0.1)` idi — AÇIK TEMADA beyaz
                       // üstünde beyaz, yani görünmüyordu. Tema jetonu iki temada da çalışır.
-                      borderColor: (!avatarBorderColor || avatarBorderColor === 'transparent') ? theme.outlineVariant : avatarBorderColor
+                      borderColor: (!avatarBorderColor || avatarBorderColor === 'transparent') ? theme.outlineVariant : theme.primary // çerçeve = vurgu (avatarRings.ts)
                   }
               ]}
           >
@@ -1848,9 +1857,9 @@ export default function HomeScreen() {
                 const focusShown = demoActive ? Math.round(dailyGoalMinutes * 0.6) : todayFocusMinutes;
                 const habitsDone = habitPool.filter(h => h.isCompleted).length;
                 return [
-                  { label: c.tasks, value: dailyGoal > 0 ? `${todayCompleted}/${dailyGoal}` : '—', progress: dailyGoal > 0 ? todayCompleted / dailyGoal : 0, reached: dailyGoal > 0 && todayCompleted >= dailyGoal, tone: 'primary' as const },
-                  { label: c.focus, value: `${focusShown}/${dailyGoalMinutes} ${c.min}`, progress: dailyGoalMinutes > 0 ? focusShown / dailyGoalMinutes : 0, reached: dailyGoalMinutes > 0 && focusShown >= dailyGoalMinutes, tone: 'streak' as const },
-                  { label: c.habits, value: habitPool.length > 0 ? `${habitsDone}/${habitPool.length}` : '—', progress: habitPool.length > 0 ? habitsDone / habitPool.length : 0, reached: habitPool.length > 0 && habitsDone >= habitPool.length, tone: 'tertiary' as const },
+                  { label: c.tasks, value: dailyGoal > 0 ? `${todayCompleted}/${dailyGoal}` : '—', progress: dailyGoal > 0 ? todayCompleted / dailyGoal : 0, reached: dailyGoal > 0 && todayCompleted >= dailyGoal, done: todayCompleted, total: dailyGoal },
+                  { label: c.focus, value: `${focusShown}/${dailyGoalMinutes} ${c.min}`, progress: dailyGoalMinutes > 0 ? focusShown / dailyGoalMinutes : 0, reached: dailyGoalMinutes > 0 && focusShown >= dailyGoalMinutes, done: focusShown, total: dailyGoalMinutes },
+                  { label: c.habits, value: habitPool.length > 0 ? `${habitsDone}/${habitPool.length}` : '—', progress: habitPool.length > 0 ? habitsDone / habitPool.length : 0, reached: habitPool.length > 0 && habitsDone >= habitPool.length, done: habitsDone, total: habitPool.length },
                 ];
               })()}
               footer={!isLite ? (
@@ -1928,6 +1937,11 @@ export default function HomeScreen() {
                       }}
                       onToggle={(item) => {
                           if (isDemoId(item.id)) return;
+                          // Miktarlıda ara adım: yalnız hafif dokunuş; gün ancak hedefte "yapıldı".
+                          const willComplete = (item.target ?? 1) > 1 ? (item.count ?? 0) + 1 === item.target : !item.isCompleted;
+                          if ((item.target ?? 1) > 1 && !willComplete && !item.isCompleted && (item.count ?? 0) < item.target) {
+                            haptic.select(); tapHabit(item.id as string, habitTodayKey); return;
+                          }
                           if (!item.isCompleted) {
                             /*
                               ATLANAN RİTÜEL "BEKLEYEN" DEĞİLDİR. Koşul yalnız
@@ -1938,7 +1952,7 @@ export default function HomeScreen() {
                               bozulmuyor (bkz. useHabitStore → computeStreak).
                             */
                             const pendingHabits = habits.filter(h =>
-                              h.id !== item.id &&
+                              h.id !== item.id && isDueToday(h, habitTodayKey) &&
                               !h.completedDates?.includes(habitTodayKey) &&
                               !h.skippedDates?.includes(habitTodayKey));
                             const allHabitsDone = pendingHabits.length === 0;
@@ -1955,7 +1969,8 @@ export default function HomeScreen() {
                           }
                           // Tamamlama BAŞARI, geri alma yalnızca yüzey hareketi — ikisi farklı anlam.
                           item.isCompleted ? haptic.surface() : haptic.success();
-                          toggleHabitDate(item.id as string, habitTodayKey);
+                          tapHabit(item.id as string, habitTodayKey);
+                          if (willComplete) celebrateMilestone(item.id as string, habitTodayKey); // 7/21/66. tekrar
 }}
                     />
                   </TourTarget>

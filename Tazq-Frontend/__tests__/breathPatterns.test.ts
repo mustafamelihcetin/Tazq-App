@@ -48,3 +48,22 @@ describe('nefes ritimleri', () => {
     expect(phaseAt(p, 21.9, 2).done).toBe(false);
   });
 });
+
+/** Moda göre bilimsel süre (2026-10-31): her teknik kendi önerisiyle; kaynaklar breathCopy.items[id].dose. */
+describe('nefes süre önerileri', () => {
+  it('önerilen süre her modun kendi seçenekleri arasında', () => {
+    for (const p of BREATH_PATTERNS) expect(p.options.some(o => Math.abs(o - p.minutes) < 0.01)).toBe(true);
+  });
+  it('4-7-8 nefes sayısıyla: önerilen 4, en çok 8 (Weil)', () => {
+    const p = patternOf('sleep');
+    expect(p.byBreaths).toBe(true);
+    expect(cyclesFor(p, p.minutes)).toBe(4);
+    expect(Math.max(...p.options.map(m => cyclesFor(p, m)))).toBe(8);
+  });
+  it('rezonans en az 5 dk, önerilen 10 (Lehrer); döngüsel iç çekiş ve kutu 5 dk (Balban 2023)', () => {
+    expect(Math.min(...patternOf('resonance').options)).toBeGreaterThanOrEqual(5);
+    expect(patternOf('resonance').minutes).toBe(10);
+    expect(patternOf('sigh').minutes).toBe(5);
+    expect(patternOf('box').minutes).toBe(5);
+  });
+});

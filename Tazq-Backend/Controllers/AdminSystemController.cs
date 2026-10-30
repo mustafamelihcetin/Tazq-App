@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Authorization;
+using Tazq_App.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Tazq_App.Services;
@@ -11,7 +12,7 @@ namespace Tazq_App.Controllers
     // Veri erişimi ve altyapı işleri ISystemService'te; burası ince HTTP katmanı.
     [Route("api/admin/system")]
     [ApiController]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = StaffPolicy.SuperAdmin)]
     public class AdminSystemController : ControllerBase
     {
         private readonly ISystemService _system;
@@ -71,6 +72,23 @@ namespace Tazq_App.Controllers
                 logSources = _logStore.CountBySource(),
             });
         }
+
+        // Arka plan işleri: son çalışma, son hata, gecikme (bkz. JobHealth).
+        [HttpGet("jobs")]
+        public IActionResult Jobs([FromServices] JobHealth health) => Ok(health.All().Select(j => new
+        {
+            key = j.Key,
+            state = j.State.ToString().ToLowerInvariant(),
+            intervalMinutes = j.IntervalMinutes,
+            lastRunAt = j.LastRunAt,
+            lastOkAt = j.LastOkAt,
+            lastErrorAt = j.LastErrorAt,
+            lastError = j.LastError,
+            runs = j.Runs,
+            failures = j.Failures,
+            pending = j.Pending,
+            since = j.Since,
+        }));
 
         [HttpGet("stats")]
         public async Task<IActionResult> Stats()

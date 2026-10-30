@@ -39,6 +39,40 @@ import { DisplayDivider } from '@/shared/components/DisplayPanel';
 
 type Copy = ReturnType<typeof useLanguageStore.getState>['t']['modeToday'];
 
+/** Planın bugünkü durumu tek cümlede (kart ve satır aynı metni söyler). */
+function statusOf(mode: ModeSummaryEntry, t: Copy): string {
+  const done = mode.todayDone;
+  const total = mode.todayTotal;
+  if (total > 0) return done >= total ? t.allDone : `${done}/${total} ${t.todayPlan}`;
+  if (mode.openTotal > 0) return `${mode.openTotal} ${t.openTasks}`;
+  return mode.taskTotal > 0 ? t.allDone : t.noTasks;
+}
+
+/*
+  İNCE SATIR (2026-10-30, kullanıcı: "daha minimalist, yukarı çekme şansımız var mı"): dijital
+  panelin içinde plan ~170 pt tutuyordu (ikon kutusu + iki satır başlık + ayrı çubuk). Panelin
+  içinde tek satır yeter: simge · ad · bugünkü durum · gün; dokununca Modlar.
+*/
+function ModeLine({ mode, t, onOpen }: { mode: ModeSummaryEntry; t: Copy; onOpen: () => void }) {
+  const { theme } = useAppTheme();
+  const status = statusOf(mode, t);
+  return (
+    <Touchable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`${mode.label} — ${status}`} accessibilityHint={t.open}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, minHeight: 32 }}>
+      {renderModeEmojiIcon(mode.emoji, ICON.sm, mode.color)}
+      <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: F.body, fontWeight: '700', color: theme.onSurface }}>{mode.label}</Text>
+      <Text numberOfLines={1} style={{ flex: 1, fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant }}>
+        {`· ${status}`}
+      </Text>
+      {/* Gün sayısı kesilmez; dar ekranda önce durum metni kısalır. */}
+      {mode.days != null && mode.days >= 0 && (
+        <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceMuted }}>{`${mode.days} ${t.daysShort}`}</Text>
+      )}
+      <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} />
+    </Touchable>
+  );
+}
+
 function ModePage({ mode, t, onOpen }: { mode: ModeSummaryEntry; t: Copy; onOpen: () => void }) {
   const { theme } = useAppTheme();
   const done = mode.todayDone;
@@ -142,9 +176,16 @@ export function ModeTodayCard({ onOpen, bare }: { onOpen: () => void; bare?: boo
     />
   );
   if (bare) {
+    const lines = (
+      <ModeDeck
+        pages={entries.map(e => <ModeLine key={e.key} mode={e} t={t} onOpen={onOpen} />)}
+        dotColors={entries.map(e => e.color)}
+        a11yLabel={`${activeCount} ${t.eyebrow}`}
+      />
+    );
     return (
       <>
-        <TourTarget id="activePlan" spotRadius={R.md}>{deck}</TourTarget>
+        <TourTarget id="activePlan" spotRadius={R.md}>{lines}</TourTarget>
         <DisplayDivider />
       </>
     );

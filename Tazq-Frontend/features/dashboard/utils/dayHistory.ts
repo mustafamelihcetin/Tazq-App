@@ -10,6 +10,7 @@
  * planı yeniden kurulamaz; ölçülemeyen hedef uydurulmaz (bkz. içgörü dürüstlüğü).
  */
 import { toDateKey, calendarDayOf } from '@/shared/utils/dateKey';
+import { scheduleOf, isPlannedDay } from '@/features/habits/utils/habitSchedule';
 import { sessionDayKey, taskDayKey, type FocusSessionRow, type ReportTask, type ReportHabit } from '@/features/report/weeklyReport';
 
 export interface DayStat {
@@ -48,8 +49,11 @@ export function lastDays(
   for (const h of habits ?? []) {
     const created = h.createdAt ? toDateKey(new Date(h.createdAt)) : null;
     const done = new Set(h.completedDates ?? []);
+    const weekly = scheduleOf(h).kind === 'weekly';
     out.forEach(d => {
       if (created && d.key < created) return;
+      // Plana duyarlı: planlanmayan gün paydada yok; "haftada N"de yalnız yapılan gün sayılır.
+      if (!isPlannedDay(h, d.key) || (weekly && !done.has(d.key))) return;
       d.habitsTotal++;
       if (done.has(d.key)) d.habitsDone++;
     });

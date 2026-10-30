@@ -34,7 +34,44 @@ namespace Tazq_App.Services
             });
         }
 
-        public async Task<UserListResult> GetUsersAsync(int page, int pageSize, string? search, string? sort, bool asc)
+        /// <summary>Kullanıcı tablosu filtreleri (madde 9). Bilinmeyen anahtar = filtre yok.</summary>
+        public static readonly string[] UserFilters = { "active", "unverified", "banned", "staff", "deleted" };
+
+        public static IQueryable<User> ApplyUserFilter(IQueryable<User> q, string? filter, DateTime now) => filter switch
+        {
+            // Son 7 günde görülen, silinmemiş hesaplar.
+            "active" => q.Where(u => u.DeletedAt == null && u.LastActiveAt != null && u.LastActiveAt >= now.AddDays(-7)),
+            "unverified" => q.Where(u => u.DeletedAt == null && !u.IsEmailVerified),
+            // Kalıcı ban VEYA süresi dolmamış süreli ban (süresi geçmiş süreli ban "banlı" değildir).
+            "banned" => q.Where(u => u.IsBanned || (u.BannedUntil != null && u.BannedUntil > now)),
+            "staff" => q.Where(u => u.DeletedAt == null && u.Role != "User"),
+            "deleted" => q.Where(u => u.DeletedAt != null),
+            _ => q,
+        };
+
+        /*
+          ANALİZ KİTLESİ (2026-10-31, kullanıcı: "analizde adminler hariç olmalı ki analiz şaşmasın; test
+          hesaplarımız da dahil olmamalı — veya seçenek olmalı dahil edip etmeme gibi").
+          Varsayılan: normal kullanıcı (Role == User) dahil, ekip rolleri hariç. Süper admin her hesap
+          için açıkça dahil/hariç diyebilir (User.AnalyticsInclude). İstatistik, ürün içgörüleri ve
+          Analiz Merkezi'nin TÜM sayıları bu tek tanımdan geçer — biri unutulursa sayılar birbirini tutmaz.
+        */
+        public static IQueryable<User> Audience(IQueryable<User> users) =>
+            users.Where(u => u.AnalyticsInclude == true || (u.AnalyticsInclude == null && u.Role == "User"));
+
+        public static bool InAudience(bool? include, string role) => include ?? role == "User";
+
+        public async Task<AdminActionResult> SetAnalyticsIncludeAsync(int id, bool? include, AdminIdentity admin)
+        {
+            var user = await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == id);
+            if (user == null) return AdminActionResult.NotFound;
+            user.AnalyticsInclude = include;
+            AddAudit(admin, "analytics", "user", id, user.Name, include == null ? "varsayılan" : include.Value ? "dahil" : "hariç");
+            await _context.SaveChangesAsync();
+            return AdminActionResult.Success;
+        }
+
+        public async Task<UserListResult> GetUsersAsync(int page, int pageSize, string? search, string? sort, bool asc, string? filter = null)
         {
             if (page < 1) page = 1;
             if (pageSize < 1 || pageSize > 100) pageSize = 30;
@@ -49,6 +86,16 @@ namespace Tazq_App.Services
                 var s = search.Trim().ToLowerInvariant();
                 q = q.Where(u => u.Name.ToLower().Contains(s) || u.Email.ToLower().Contains(s));
             }
+
+            // Çip sayıları aramaya uyanlar üzerinden, filtreden ÖNCE (her çip kendi sayısını gösterir).
+            var now = DateTime.UtcNow;
+            Dictionary<string, int>? counts = null;
+            if (page == 1)
+            {
+                counts = new Dictionary<string, int>();
+                foreach (var f in UserFilters) counts[f] = await ApplyUserFilter(q, f, now).CountAsync();
+            }
+            q = ApplyUserFilter(q, filter, now);
 
             var total = await q.CountAsync();
 
@@ -68,8 +115,8 @@ namespace Tazq_App.Services
                     ? q.OrderBy(u => _context.Tasks.Count(t => t.UserId == u.Id))
                     : q.OrderByDescending(u => _context.Tasks.Count(t => t.UserId == u.Id)),
                 "focus" => asc
-                    ? q.OrderBy(u => _context.FocusSessions.Where(f => f.UserId == u.Id && f.Completed).Sum(f => (int?)f.DurationMinutes) ?? 0)
-                    : q.OrderByDescending(u => _context.FocusSessions.Where(f => f.UserId == u.Id && f.Completed).Sum(f => (int?)f.DurationMinutes) ?? 0),
+                    ? q.OrderBy(u => _context.FocusSessions.Where(f => f.UserId == u.Id).Sum(f => (int?)f.DurationMinutes) ?? 0)
+                    : q.OrderByDescending(u => _context.FocusSessions.Where(f => f.UserId == u.Id).Sum(f => (int?)f.DurationMinutes) ?? 0),
                 // recent — gerçek son görülme (LastActiveAt), yalnız odak oturumu değil
                 _ => asc
                     ? q.OrderBy(u => u.LastActiveAt)
@@ -93,12 +140,27 @@ namespace Tazq_App.Services
                     u.LastLoginIp,
                     _context.Tasks.Count(t => t.UserId == u.Id),
                     _context.Tasks.Count(t => t.UserId == u.Id && t.IsCompleted),
-                    _context.FocusSessions.Where(f => f.UserId == u.Id && f.Completed).Sum(f => (int?)f.DurationMinutes) ?? 0,
-                    u.LastActiveAt))
+                    _context.FocusSessions.Where(f => f.UserId == u.Id).Sum(f => (int?)f.DurationMinutes) ?? 0,
+                    u.LastActiveAt,
+                    u.AnalyticsInclude,
+                    u.AnalyticsInclude == true || (u.AnalyticsInclude == null && u.Role == "User")))
                 .ToListAsync();
 
-            return new UserListResult(users, total);
+            return new UserListResult(users, total, counts);
         }
+
+        /// <summary>
+        /// Sürüm dağılımı sorgusu. Kayıt (record) kurucusunun ÜRETTİĞİ alana göre sıralamak
+        /// (`Select(new VersionShare(..)).OrderByDescending(v => v.Users)`) Npgsql'de SQL'e
+        /// çevrilemiyordu → /product-insights canlıda 500; panel hatayı yutup kartı boş bırakıyordu
+        /// (InMemory testleri istemcide çalıştırdığı için görmedi). Önce say + sırala, sonra kur.
+        /// </summary>
+        public static IQueryable<VersionShare> VersionShareQuery(IQueryable<User> users) => users
+            .Where(u => u.LastKnownAppVersion != null)
+            .GroupBy(u => u.LastKnownAppVersion)
+            .Select(g => new { Version = g.Key!, Users = g.Count() })
+            .OrderByDescending(x => x.Users)
+            .Select(x => new VersionShare(x.Version, x.Users));
 
         public async Task<AudienceStats> GetAudienceAsync()
         {
@@ -126,21 +188,26 @@ namespace Tazq_App.Services
             var todayStart = now.Date;
             var weekStart = now.Date.AddDays(-7);
 
-            var totalUsers = await _context.Users.CountAsync();
-            var totalTasks = await _context.Tasks.CountAsync();
-            var completedTasks = await _context.Tasks.CountAsync(t => t.IsCompleted);
-            var totalFocusMinutes = await _context.FocusSessions.SumAsync(f => (int?)f.DurationMinutes) ?? 0;
-            var activeToday = await _context.FocusSessions
+            // Yalnız analiz kitlesi (bkz. Audience): ekip ve test hesapları sayıları şaşırtmasın.
+            var people = Audience(_context.Users);
+            var ids = people.Select(u => u.Id);
+            var tasksQ = _context.Tasks.Where(t => ids.Contains(t.UserId));
+            var focusQ = _context.FocusSessions.Where(f => ids.Contains(f.UserId));
+            var totalUsers = await people.CountAsync();
+            var totalTasks = await tasksQ.CountAsync();
+            var completedTasks = await tasksQ.CountAsync(t => t.IsCompleted);
+            var totalFocusMinutes = await focusQ.SumAsync(f => (int?)f.DurationMinutes) ?? 0;
+            var activeToday = await focusQ
                 .Where(f => f.StartedAt >= todayStart)
                 .Select(f => f.UserId).Distinct().CountAsync();
-            var activeThisWeek = await _context.FocusSessions
+            var activeThisWeek = await focusQ
                 .Where(f => f.StartedAt >= weekStart)
                 .Select(f => f.UserId).Distinct().CountAsync();
-            var sessionsToday = await _context.FocusSessions.CountAsync(f => f.StartedAt >= todayStart);
+            var sessionsToday = await focusQ.CountAsync(f => f.StartedAt >= todayStart);
 
             // Günlük odak trendi — son 7 gün
-            var sessions = await _context.FocusSessions
-                .Where(f => f.StartedAt >= weekStart && f.Completed)
+            var sessions = await focusQ
+                .Where(f => f.StartedAt >= weekStart) // yarım kalan seansın süresi de odak (haftalık geri bakışla aynı)
                 .ToListAsync();
 
             var dailyTrend = Enumerable.Range(0, 7).Select(i =>
@@ -148,11 +215,24 @@ namespace Tazq_App.Services
                 var day = now.Date.AddDays(-6 + i);
                 return new DailyTrendPoint(
                     day.ToString("ddd"),
-                    sessions.Where(s => s.StartedAt.Date == day).Sum(s => s.DurationMinutes));
+                    sessions.Where(s => s.StartedAt.Date == day).Sum(s => s.DurationMinutes),
+                    day.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
             }).ToList();
 
+            // Haftalık kıyas: son 7 gün vs önceki 7 gün.
+            var prevStart = weekStart.AddDays(-7);
+            var seenToday = await people.CountAsync(u => u.LastActiveAt >= todayStart);
+            var seen7d = await people.CountAsync(u => u.LastActiveAt >= weekStart);
+            var newUsers7d = await people.CountAsync(u => u.CreatedAt >= weekStart);
+            var newUsersPrev7d = await people.CountAsync(u => u.CreatedAt >= prevStart && u.CreatedAt < weekStart);
+            var focus7d = sessions.Sum(s => s.DurationMinutes);
+            var focusPrev7d = await focusQ
+                .Where(f => f.StartedAt >= prevStart && f.StartedAt < weekStart)
+                .SumAsync(f => (int?)f.DurationMinutes) ?? 0;
+
             return new AdminStats(totalUsers, totalTasks, completedTasks, totalFocusMinutes,
-                activeToday, activeThisWeek, sessionsToday, dailyTrend);
+                activeToday, activeThisWeek, sessionsToday, dailyTrend,
+                seenToday, seen7d, newUsers7d, newUsersPrev7d, focus7d, focusPrev7d);
         }
 
         // Dönemsel mod ailesi → `seasonal` içindeki AÇIK BAYRAK alanı. Ramazan'ın adı
@@ -168,6 +248,22 @@ namespace Tazq_App.Services
         // aile bazında toplamak için sondaki rakam atılır.
         private static string FamilyOf(string slotKey) => slotKey.TrimEnd('2', '3');
 
+        /// <summary>Tercih JSON'unda açık bir dönemsel mod ya da kapanmış hedef var mı (analiz: mod benimseme).</summary>
+        public static bool UsesAnyMode(string preferencesJson)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(preferencesJson);
+                var root = doc.RootElement;
+                if (root.ValueKind != JsonValueKind.Object) return false;
+                if (root.TryGetProperty("seasonal", out var seasonal) && seasonal.ValueKind == JsonValueKind.Object
+                    && ModeFamilies.Any(m => seasonal.TryGetProperty(m.SeasonalFlag, out var v) && v.ValueKind == JsonValueKind.True))
+                    return true;
+                return root.TryGetProperty("goalHistory", out var h) && h.ValueKind == JsonValueKind.Array && h.GetArrayLength() > 0;
+            }
+            catch (JsonException) { return false; }
+        }
+
         /// <summary>
         /// Ürün içgörüleri — dönemsel mod benimsenmesi, elde tutma (retention), sürüm dağılımı.
         ///
@@ -177,10 +273,11 @@ namespace Tazq_App.Services
         /// </summary>
         public async Task<ProductInsights> GetProductInsightsAsync()
         {
-            var totalUsers = await _context.Users.CountAsync();
+            var people = Audience(_context.Users); // ekip/test hariç (bkz. Audience)
+            var totalUsers = await people.CountAsync();
 
             // ── Mod benimsenmesi ────────────────────────────────────────────────
-            var prefsBlobs = await _context.Users
+            var prefsBlobs = await people
                 .Where(u => u.Preferences != null)
                 .Select(u => u.Preferences!)
                 .ToListAsync();
@@ -248,7 +345,7 @@ namespace Tazq_App.Services
 
             // ── Elde tutma (retention) — son 8 kayıt haftası ────────────────────
             var now = DateTime.UtcNow;
-            var cohortRows = await _context.Users
+            var cohortRows = await people
                 .Select(u => new { u.CreatedAt, u.LastActiveAt })
                 .ToListAsync();
 
@@ -265,16 +362,12 @@ namespace Tazq_App.Services
                 if (cohort.Count == 0) continue;
 
                 var stillActive = cohort.Count(u => u.LastActiveAt.HasValue && u.LastActiveAt.Value >= u.CreatedAt.AddDays(7));
-                retention.Add(new RetentionCohort(weekStart.ToString("dd MMM"), cohort.Count, stillActive));
+                retention.Add(new RetentionCohort(weekStart.ToString("dd MMM"), cohort.Count, stillActive,
+                    weekStart.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)));
             }
 
             // ── Sürüm dağılımı ───────────────────────────────────────────────────
-            var versions = await _context.Users
-                .Where(u => u.LastKnownAppVersion != null)
-                .GroupBy(u => u.LastKnownAppVersion)
-                .Select(g => new VersionShare(g.Key!, g.Count()))
-                .OrderByDescending(v => v.Users)
-                .ToListAsync();
+            var versions = await VersionShareQuery(people).ToListAsync();
             var usersWithKnownVersion = versions.Sum(v => v.Users);
 
             return new ProductInsights(modes, prefsBlobs.Count, retention, versions, usersWithKnownVersion, totalUsers);
@@ -307,6 +400,8 @@ namespace Tazq_App.Services
         public async Task<AdminActionResult> SetRoleAsync(int id, string role, AdminIdentity admin)
         {
             if (id == admin.AdminId) return AdminActionResult.SelfActionForbidden;
+            // Serbest metin rol yazılamaz: yalnız tanımlı roller (bkz. StaffRoles).
+            if (!Tazq_App.Authorization.StaffRoles.IsValid(role)) return AdminActionResult.InvalidInput;
 
             var user = await _context.Users.FindAsync(id);
             if (user == null) return AdminActionResult.NotFound;

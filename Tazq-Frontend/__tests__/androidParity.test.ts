@@ -217,10 +217,15 @@ describe('canlandırılan SVG özelliği React\'e de son değeriyle verilir', ()
   // Halkalar animatedProps KULLANMAZ — değer JS'te ilerler (useTween); statik değer
   // vermek de cihazda yetmedi. Vurgulama deliği animatedProps'ta kalır (yeniden çizimde
   // doğru göründüğü cihazda ölçüldü) ve son değeri statik de taşır.
-  it.each(['features/dashboard/components/TodayRings.tsx', 'shared/components/SubtaskProgressRing.tsx'])('%s animatedProps kullanmaz, useTween kullanır', (file) => {
+  it.each(['shared/components/SubtaskProgressRing.tsx'])('%s animatedProps kullanmaz, useTween kullanır', (file) => {
     const src = stripComments(read(file));
     expect(src).not.toContain('animatedProps');
     expect(src).toContain('useTween(');
+  });
+  // 2026-10-30: Bugün halkaları kalktı (yaşayan cümle + gün çiçeği); canlandırılan SVG yok.
+  // Kural yine geçerli: geri gelirse animatedProps ile değil.
+  it('Bugün alanı animatedProps kullanmaz', () => {
+    expect(stripComments(read('features/dashboard/components/TodayRings.tsx'))).not.toContain('animatedProps');
   });
   it('vurgulama deliği son değeri statik de taşır', () => {
     const src = stripComments(read('features/onboarding/components/SpotlightTour.tsx'));

@@ -32,5 +32,7 @@ namespace Tazq_Backend.Tests.TestHelpers
 
         public ValueTask<Func<IServiceProvider, CancellationToken, Task>> DequeueAsync(CancellationToken ct)
             => throw new NotSupportedException("Inline queue executes on enqueue; nothing to dequeue.");
+
+        public int Pending => 0;
     }
 }

@@ -106,7 +106,7 @@ export const TOUR_STEPS: Record<FirstRunPage, TourStepDef[]> = {
     {
       target: 'weekStrip',
       title: { tr: 'Haftanın günleri', en: 'Your week' },
-      body: { tr: 'Bir güne dokun; alışkanlıklar o güne göre işaretlenir.', en: 'Tap a day; habits are marked for that day.' },
+      body: { tr: 'Bir güne dokun; işleri ve alışkanlık işaretleri o güne döner.', en: 'Tap a day; its tasks and habit checks switch to that day.' },
     },
     {
       target: 'dailySection',
@@ -116,7 +116,7 @@ export const TOUR_STEPS: Record<FirstRunPage, TourStepDef[]> = {
     {
       target: 'weeklyReview',
       title: { tr: 'Bu hafta', en: 'This week' },
-      body: { tr: 'Tamamlanan iş, odak süresi ve alışkanlık oranın; gelecek haftanın planını buradan aç.', en: 'Tasks done, focus time and habit rate; open next week’s plan from here.' },
+      body: { tr: 'Gelecek haftanın planını ve hedefini buradan aç.', en: 'Open next week’s plan and goal from here.' },
     },
   ],
 };

@@ -176,8 +176,9 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
     <CardBox embedded={embedded}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
 
-      {/* Skoru okutan küre: açılınca üç nefes alır, sonra skor seviyesinde durur (bkz. MomentumOrb). */}
-      <MomentumOrb score={targetScore} color={accentColor} />
+      {/* Skoru okutan küre: açılınca üç nefes alır, sonra skor seviyesinde durur (bkz. MomentumOrb).
+          Panel içinde küçük: ana öğe gün çiçeği, momentum alt bilgi ("daha minimalist", 2026-10-30). */}
+      <MomentumOrb score={targetScore} color={accentColor} size={embedded ? 28 : 40} />
 
       {/* Score + info */}
       <View>
@@ -206,13 +207,13 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
             yazılıydı, yani 48'e göreydi ve punto değişince sessizce bozulurlardı.
           */
           style={{
-            fontSize: METRIC.sm,
+            fontSize: embedded ? F.title : METRIC.sm,
             fontWeight: '700',
             // Dijital panelin içindeyken panelin sabit genişlikli rakamı (bkz. DisplayPanel).
             ...(embedded ? { fontFamily: DISPLAY_FONT.digits, fontWeight: undefined } : null),
-            letterSpacing: trackingFor(METRIC.sm),
+            letterSpacing: trackingFor(embedded ? F.title : METRIC.sm),
             color: accentColor,
-            lineHeight: METRIC.sm * LH.tight,
+            lineHeight: (embedded ? F.title : METRIC.sm) * LH.tight,
           }}
         />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: -2 }}>

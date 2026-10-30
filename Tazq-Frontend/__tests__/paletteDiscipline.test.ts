@@ -39,12 +39,10 @@ const CEILING: Record<string, number> = {
   // 53 → 43 → 28 → 19: kart/modal palete, ikon renkleri anlamsal haritaya, sonra ayarlar
   // ayrı sayfaya taşındı (silme/parola/destek modalları settings.tsx'e gitti). Kalan 19:
   // başarım rozetleri ve kullanıcının seçtiği çerçeve renkleri (kategorik, kimlik taşır).
-  'app/profile.tsx': 1,  // 19 → 1 (2026-10-25): halka paleti avatarRings.ts'e taşındı
   // settings.tsx profile'den byte-byte çıkarıldı; bu 9 renk silme/parola modallarının
   // dekoratif tonları (profilde de aynen vardı). Split tamamlanınca (blok profilden
   // sökülünce) profil tavanı düşecek. Modal renkleri ayrı bir temizlik işi.
   // 8 → 7: "Bildirimler Açık" yeşili theme.success'e bağlandı (kapalı hâli zaten tema-token'dı)
-  'app/settings.tsx': 7,
   // 42 → 57 → 27: nötr palet (kart/zemin/metin/kenar) tamamen `Colors`'a bağlandı ve
   // mock motoru kendi dosyasına ayrıldı. Sayfada kalan 27 renk slaytların ARKA PLAN
   // gradyanları: bunlar arayüz değil, her slaytın kimliğini taşıyan kompozisyon renkleri
@@ -73,7 +71,6 @@ const CEILING: Record<string, number> = {
   // etiketler lucide glife çevrildi. İlk-izlenim ekranı artık app'in paletiyle aynı.
   // 20 → 19 / 22 → 21: sayfa zeminleri cam yüzeye geçti.
   'features/modes/components/TurkishModeBanner.tsx': 19,
-  'features/user/utils/avatarRings.ts': 11,
   'features/focus/utils/focusScenes.ts': 73,  // odak sahneleri — her sahnenin kendi ışık/taban/vurgu paleti (odak ekranı temadan bağımsız koyu)  // avatar halkası paleti — kullanıcının seçtiği kimlik renkleri (2026-10-25: ProfileSetupModal 21 + Profil kopyası buraya toplandı)
   // 21 → 4: mod vurgusu palete, semantik renkler (#EF4444/#F59E0B/#10B981) tema
   // token'larına (theme.error/warning/success) bağlandı. Kalan 4: yüzey/nötr tonlar.

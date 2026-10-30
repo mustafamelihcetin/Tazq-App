@@ -596,6 +596,8 @@ export const PaymentService = {
 
 export interface AdminUser {
   id: number;
+  /** Analize dahil mi: null = otomatik (rol kuralı), true/false = elle (bkz. AnalyticsToggle). */
+  analyticsInclude?: boolean | null;
   name: string;
   email: string;
   role: string;
@@ -619,12 +621,22 @@ export interface AdminStats {
   activeToday: number;
   activeThisWeek: number;
   sessionsToday: number;
-  dailyTrend: { day: string; minutes: number }[];
+  /** date: yyyy-MM-dd (yeni sunucu) — istemci kendi dilinde gün adı üretir; day: eski kısa ad. */
+  dailyTrend: { day: string; minutes: number; date?: string }[];
+  /** Son 7 gün / önceki 7 gün (yeni sunucu; eskisinde yok). Seen*: gerçek son görülme. */
+  seenToday?: number;
+  seen7d?: number;
+  newUsers7d?: number;
+  newUsersPrev7d?: number;
+  focusMinutes7d?: number;
+  focusMinutesPrev7d?: number;
 }
 
 export interface AdminUsersPage {
   users: AdminUser[];
   total: number;
+  /** Yalnız ilk sayfada: filtre başına sayı (bkz. UserFilterChips). */
+  counts?: Record<string, number> | null;
   page: number;
   pageSize: number;
 }
@@ -661,6 +673,7 @@ export interface AdminModeAdoption {
 
 export interface AdminRetentionCohort {
   weekLabel: string;
+  weekStart?: string;
   newUsers: number;
   stillActiveAfter7d: number;
 }
@@ -679,8 +692,20 @@ export interface AdminProductInsights {
   totalUsers: number;
 }
 
+export interface SupportTemplate { id: string; title: string; body: string }
+
+export interface AnalyticsReport {
+  generatedAt: string;
+  segments: { total: number; activeToday: number; activeWeek: number; activeMonth: number; dormant: number; oneDayOnly: number; new: number; stickinessPct: number };
+  funnel: { key: string; users: number; base: number }[];
+  adoption: { key: string; users: number }[];
+  focus: { sessions30d: number; completed30d: number; avgMinutes: number; medianMinutes: number; lengthBuckets: number[]; hourMinutes: number[]; weekdayMinutes: number[]; daily: { date: string; minutes: number }[]; heat?: number[] };
+  stability: { crashes7d: number; affectedUsers7d: number; crashFreePct: number | null; topVersions: { version: string; count: number }[] };
+  platforms: { platform: string; installs: number }[];
+}
+
 export const AdminService = {
-  getUsers: async (opts?: { page?: number; pageSize?: number; search?: string; sort?: string; asc?: boolean }): Promise<AdminUsersPage> => {
+  getUsers: async (opts?: { page?: number; pageSize?: number; search?: string; sort?: string; asc?: boolean; filter?: string }): Promise<AdminUsersPage> => {
     const r = await api.get('/api/admin/users', { params: opts });
     return r.data;
   },
@@ -692,9 +717,15 @@ export const AdminService = {
     const r = await api.get('/api/admin/product-insights');
     return r.data;
   },
+  /** Analiz Merkezi — yalnız toplamlar (bkz. Tazq-Backend AnalyticsService). */
+  getAnalytics: async (): Promise<AnalyticsReport> => {
+    const r = await api.get('/api/admin/analytics');
+    return r.data;
+  },
   deleteUser: async (id: number): Promise<void> => {
     await api.delete(`/api/admin/users/${id}`);
   },
+  setAnalytics: async (id: number, include: boolean | null): Promise<void> => { await api.patch(`/api/admin/users/${id}/analytics`, { include }); },
   setRole: async (id: number, role: string): Promise<void> => {
     await api.patch(`/api/admin/users/${id}/role`, { role });
   },
@@ -746,15 +777,26 @@ export interface SupportMessageItem {
   isRead: boolean;
   adminReply?: string | null;
   repliedAt?: string | null;
+  thread?: SupportThreadEntry[]; lastActivityAt?: string; closedAt?: string | null; closedBy?: 'user' | 'staff' | null;
 }
 
-// Kullanıcının kendi destek mesajı + admin yanıtı (salt-okunur görünüm).
+/** Destek konuşmasının bir satırı (ilk mesaj dahil) — sunucu: SupportService.ThreadOf. */
+export interface SupportThreadEntry { fromStaff: boolean; body: string; at: string }
+
+// Kullanıcının kendi destek konuşması (2026-10-31: yanıt yazabilir, kapatabilir).
 export interface MySupportMessage {
   id: number;
   message: string;
   createdAt: string;
   adminReply?: string | null;
   repliedAt?: string | null;
+  thread?: SupportThreadEntry[]; lastActivityAt?: string; closedAt?: string | null; closedBy?: 'user' | 'staff' | null; canReply?: boolean;
+}
+
+/** Çökme grubu — aynı hata mesajı tek satır (sunucu: CrashLog). */
+export interface CrashGroup {
+  errorMessage: string; count: number; unresolved: number; firstAt: string; lastAt: string;
+  latest: { id: number; stackTrace: string; deviceName: string; platform: string; appVersion: string; userEmail?: string | null; createdAt: string } | null;
 }
 
 export const SupportService = {
@@ -767,9 +809,25 @@ export const SupportService = {
     const r = await api.get('/api/support/mine');
     return r.data;
   },
-  // Admin: kullanıcının mesajına yanıt yaz.
+  // Admin: konuşmaya yanıt ekle.
   replyMessage: async (id: number, reply: string): Promise<void> => {
     await api.patch(`/api/support/admin/${id}/reply`, { reply });
+  },
+  /** Kullanıcı kendi konuşmasına yazar; 409 = kapalı ya da ekip yanıtı bekleniyor (gövdede message). */
+  userReply: async (id: number, message: string): Promise<MySupportMessage> => (await api.post(`/api/support/${id}/reply`, { message })).data,
+  userClose: async (id: number): Promise<void> => { await api.post(`/api/support/${id}/close`); },
+  staffClose: async (id: number): Promise<void> => { await api.patch(`/api/support/admin/${id}/close`); },
+  getCrashGroups: async (opts: { limit?: number; offset?: number; unresolvedOnly?: boolean }): Promise<{ groups: CrashGroup[]; total: number; hasMore: boolean; retentionDays: { resolved: number; max: number } }> =>
+    (await api.get('/api/support/admin/crash-groups', { params: opts })).data,
+  resolveCrashGroup: async (errorMessage: string): Promise<void> => { await api.patch('/api/support/admin/crash-groups/resolve', { errorMessage }); },
+  /** Hazır yanıt şablonları — ekip okur, moderatör/süper admin düzenler. */
+  getTemplates: async (): Promise<SupportTemplate[]> => {
+    const r = await api.get('/api/support/admin/templates');
+    return r.data.templates ?? [];
+  },
+  saveTemplates: async (templates: SupportTemplate[]): Promise<SupportTemplate[]> => {
+    const r = await api.put('/api/support/admin/templates', templates);
+    return r.data.templates ?? [];
   },
   getAllMessages: async (): Promise<{ messages: SupportMessageItem[]; unreadCount: number }> => {
     const r = await api.get('/api/support/admin/all');
@@ -808,6 +866,13 @@ export const SupportService = {
 };
 
 // ── Admin Sistem Konsolu ─────────────────────────────────────────────────────
+/** Arka plan işi (sunucu: JobHealth) — sayaçlar süreç başlangıcından beri. */
+export interface JobHealthEntry {
+  key: string; state: 'ok' | 'failing' | 'late' | 'waiting'; intervalMinutes: number;
+  lastRunAt: string | null; lastOkAt: string | null; lastErrorAt: string | null; lastError: string | null;
+  runs: number; failures: number; pending: number | null; since: string;
+}
+
 export interface SystemHealth {
   status: string; dbOk: boolean; redisOk: boolean | null;
   environment: string; serverTimeUtc: string; uptimeSeconds: number;
@@ -912,6 +977,7 @@ export const AdminSystemService = {
   health: async (): Promise<SystemHealth> => (await api.get('/api/admin/system/health')).data,
   audience: async (): Promise<AudienceStats> => (await api.get('/api/admin/audience')).data,
   stats: async (): Promise<SystemStats> => (await api.get('/api/admin/system/stats')).data,
+  jobs: async (): Promise<JobHealthEntry[]> => (await api.get('/api/admin/system/jobs')).data,
   /**
    * Sayfalanmış sunucu logları.
    *

@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View } from 'react-native';
 import { Canvas, Circle, Group, BlurMask, mix } from '@shopify/react-native-skia';
 import { Easing, cancelAnimation, useDerivedValue, useSharedValue, withRepeat, withSequence, withTiming, type SharedValue } from 'react-native-reanimated';
 import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
@@ -55,6 +56,12 @@ export function MomentumOrb({ score, color, size = 40 }: { score: number; color:
     return () => cancelAnimation(level);
   }, [rest, reduce, low]);
 
+  /*
+    İLK KARE BOYANMIYORDU (cihazda: skor 0 iken küre yok, skor yerleşince çıkıyor). Tuval ilk
+    yerleşim tamamlanmadan çiziliyor; yerleşimden sonra BİR ek çizim yeterli. Ölçüm sarmalayıcı
+    View'da: yeni mimaride `<Canvas onLayout>` desteklenmiyor (Skia hata verir).
+  */
+  const [laidOut, setLaidOut] = useState(false);
   const c = useMemo(() => ({ x: size / 2, y: size / 2 }), [size]);
   const blur = size * (low ? 0.04 : 0.07);
   const r = (size / 2 - blur * 1.6) / 2;
@@ -62,7 +69,8 @@ export function MomentumOrb({ score, color, size = 40 }: { score: number; color:
   const glow = useDerivedValue(() => 0.2 + 0.3 * level.value);
 
   return (
-    <Canvas style={{ width: size, height: size }} pointerEvents="none" accessible={false}>
+    <View onLayout={() => { if (!laidOut) setLaidOut(true); }} style={{ width: size, height: size }} pointerEvents="none" accessible={false}>
+    <Canvas key={laidOut ? 'ready' : 'init'} style={{ width: size, height: size }}>
       {/* Hedef halkası: kürenin tam açıldığında ulaşacağı sınır — düşük skor da bir ÖLÇÜ olarak okunur, tek nokta gibi değil. */}
       <Circle c={c} r={r * 1.9} color={color} style="stroke" strokeWidth={1.2} opacity={0.45} />
       <Circle c={c} r={coreR} color={color} opacity={glow}>
@@ -77,5 +85,6 @@ export function MomentumOrb({ score, color, size = 40 }: { score: number; color:
         ))}
       </Group>
     </Canvas>
+    </View>
   );
 }

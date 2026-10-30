@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Tazq_App.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Tazq_App.Services;
@@ -7,16 +8,20 @@ namespace Tazq_App.Controllers
 {
     [Route("api/admin")]
     [ApiController]
-    [Authorize(Roles = "Admin")]
+    // Sınıf: yalnız oturum. HER eylem kendi ekip politikasını açıkça taşır (StaffAuthorizationTests
+    // politikasız eylemi yakalar) — sınıf düzeyi kesişim, Analist'in istatistiğe erişimini kesiyordu.
+    [Authorize]
     public class AdminController : ControllerBase
     {
         private readonly IAdminService _admin;
+        private readonly IAnalyticsService _analytics;
 
         // Veri erişimi ve denetim kaydı IAdminService'te. Controller yalnızca
         // HTTP'yi bilir: kimlik çıkarımı, model bağlama, durum kodları.
-        public AdminController(IAdminService admin)
+        public AdminController(IAdminService admin, IAnalyticsService analytics)
         {
             _admin = admin;
+            _analytics = analytics;
         }
 
         // Denetim kaydı için admin kimliği HTTP context'ten çıkarılır ve servise geçilir;
@@ -26,24 +31,34 @@ namespace Tazq_App.Controllers
             User.FindFirst(ClaimTypes.Name)?.Value);
 
         [HttpGet("users")]
-        public async Task<IActionResult> GetUsers(int page = 1, int pageSize = 30, string? search = null, string? sort = "recent", bool asc = false)
+        [Authorize(Policy = StaffPolicy.Moderation)]
+        public async Task<IActionResult> GetUsers(int page = 1, int pageSize = 30, string? search = null, string? sort = "recent", bool asc = false, string? filter = null)
         {
-            var result = await _admin.GetUsersAsync(page, pageSize, search, sort, asc);
-            return Ok(new { users = result.Users, total = result.Total, page, pageSize });
+            var result = await _admin.GetUsersAsync(page, pageSize, search, sort, asc, filter);
+            return Ok(new { users = result.Users, total = result.Total, page, pageSize, counts = result.Counts });
         }
 
+        // Analiz Merkezi: segment, huni, benimseme, odak davranışı, kararlılık — kişi yok, yalnız toplam.
+        [HttpGet("analytics")]
+        [Authorize(Policy = StaffPolicy.Insights)]
+        public async Task<IActionResult> GetAnalytics() => Ok(await _analytics.GetReportAsync());
+
         [HttpGet("stats")]
+        [Authorize(Policy = StaffPolicy.Insights)]
         public async Task<IActionResult> GetStats() => Ok(await _admin.GetStatsAsync());
 
         // Kayıtlı kullanıcılar, anonim kurulumlar ve mağaza kanalları — "Kitle" kartı.
         [HttpGet("audience")]
+        [Authorize(Policy = StaffPolicy.Insights)]
         public async Task<IActionResult> GetAudience() => Ok(await _admin.GetAudienceAsync());
 
         // Dönemsel mod benimsenmesi + elde tutma + sürüm dağılımı — ürüne özgü içgörüler.
         [HttpGet("product-insights")]
+        [Authorize(Policy = StaffPolicy.Insights)]
         public async Task<IActionResult> GetProductInsights() => Ok(await _admin.GetProductInsightsAsync());
 
         [HttpDelete("users/{id}")]
+        [Authorize(Policy = StaffPolicy.SuperAdmin)]
         public async Task<IActionResult> DeleteUser(int id)
             => await _admin.DeleteUserAsync(id, CurrentAdmin()) switch
             {
@@ -53,15 +68,26 @@ namespace Tazq_App.Controllers
             };
 
         [HttpPatch("users/{id}/role")]
+        [Authorize(Policy = StaffPolicy.SuperAdmin)]
         public async Task<IActionResult> SetRole(int id, [FromBody] SetRoleRequest req)
             => await _admin.SetRoleAsync(id, req.Role, CurrentAdmin()) switch
             {
                 AdminActionResult.SelfActionForbidden => BadRequest("Kendi rolünü değiştiremezsin."),
+                AdminActionResult.InvalidInput => BadRequest("Geçersiz rol."),
                 AdminActionResult.NotFound => NotFound(),
                 _ => Ok(),
             };
 
+        // Analize dahil mi: { include: true | false | null } — null varsayılan kurala döner (bkz. AdminService.Audience).
+        [HttpPatch("users/{id}/analytics")]
+        [Authorize(Policy = StaffPolicy.SuperAdmin)]
+        public async Task<IActionResult> SetAnalytics(int id, [FromBody] SetAnalyticsRequest req)
+            => await _admin.SetAnalyticsIncludeAsync(id, req.Include, CurrentAdmin()) == AdminActionResult.NotFound ? NotFound() : Ok();
+
+        public class SetAnalyticsRequest { public bool? Include { get; set; } }
+
         [HttpPatch("users/{id}/ban")]
+        [Authorize(Policy = StaffPolicy.Moderation)]
         public async Task<IActionResult> SetBan(int id, [FromBody] SetBanRequest req)
         {
             var (result, user) = await _admin.SetBanAsync(id, req.Banned, req.DurationDays, req.Reason, CurrentAdmin());
@@ -74,6 +100,7 @@ namespace Tazq_App.Controllers
         }
 
         [HttpGet("users/{id}/ban-history")]
+        [Authorize(Policy = StaffPolicy.Moderation)]
         public async Task<IActionResult> GetBanHistory(int id)
         {
             var history = (await _admin.GetBanHistoryAsync(id))
@@ -83,6 +110,7 @@ namespace Tazq_App.Controllers
 
         // Tek kullanıcının detayları — görev/oturum/cihaz geçmişi
         [HttpGet("users/{id}/detail")]
+        [Authorize(Policy = StaffPolicy.SuperAdmin)]
         public async Task<IActionResult> GetUserDetail(int id)
         {
             var user = await _admin.GetUserWithDetailAsync(id);
@@ -110,6 +138,7 @@ namespace Tazq_App.Controllers
 
         // KVKK/GDPR — kullanıcının tüm verisini JSON olarak dışa aktarır
         [HttpGet("users/{id}/export")]
+        [Authorize(Policy = StaffPolicy.SuperAdmin)]
         public async Task<IActionResult> ExportUser(int id)
         {
             var export = await _admin.ExportUserAsync(id, CurrentAdmin());
@@ -144,6 +173,7 @@ namespace Tazq_App.Controllers
 
         // Global denetim günlüğü
         [HttpGet("audit")]
+        [Authorize(Policy = StaffPolicy.SuperAdmin)]
         public async Task<IActionResult> GetAuditLog([FromQuery] int limit = 40, [FromQuery] int offset = 0, [FromQuery] int? take = null)
         {
             // `take` eski istemciler icin: yeni alan gelmezse onu limit say.

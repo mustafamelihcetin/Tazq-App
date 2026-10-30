@@ -2,12 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, type StyleProp, type ViewStyle, type TextStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
-import { DisplayColors } from '@/shared/constants/Colors';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
-import { S, R, F, W } from '@/shared/constants/tokens';
+import { S, R, F, W, B } from '@/shared/constants/tokens';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { upperFor } from '@/shared/utils/localeCase';
 import { AnimatedNumber } from '@/shared/components/AnimatedNumber';
+import { useMinuteClock } from '@/shared/hooks/useMinuteClock';
 
 /*
   DİJİTAL PANEL — uygulamanın özet/sayı yüzeylerinin ortak dili (2026-10-30).
@@ -21,37 +21,39 @@ import { AnimatedNumber } from '@/shared/components/AnimatedNumber';
      bu verir: panel bir kart değil, "açık duran" bir ekran.
    · OKUMALAR: araç göstergesi gibi — küçük büyük-harf etiket, altında sabit genişlikli rakam
      (JetBrains Mono): sayılar değişirken satır oynamaz.
+  ZEMİN KARTLARLA AYNI (kullanıcı: "diğer kutularla uyumlu değil arkaplanı"): panel ayrı bir
+  degrade/palet kullanınca sayfada yamalı duruyordu. Zemin, köşe ve çerçeve BentoCard'ınki;
+  yazı/ayraç temanın ölçülmüş tonları. "Ekran"ı rengi değil YAPISI söyler: durum şeridi,
+  mono okumalar, üst kenardan çok hafif içe gölge.
   Referans: react-native-skia örnekleri (FrostedCard/LiquidGlass). Tarama çizgili CRT (Severance)
   BİLEREK alınmadı: oyuncak durur, göz yorar. Statik: animasyon/Skia yok (saat hariç, dakikada 1).
 */
 
 export const DISPLAY_FONT = { digits: 'Mono-SemiBold', digitsLight: 'Mono-Medium' } as const;
 
-/** Aktif temanın panel paleti. */
+/** Panelin yazı/ayraç tonları — temanın ölçülmüş renkleri (ayrı palet yok). */
 export function useDisplayColors() {
-  const { isDark } = useAppTheme();
-  return isDark ? DisplayColors.dark : DisplayColors.light;
+  const { theme } = useAppTheme();
+  return { ink: theme.onSurface, muted: theme.onSurfaceVariant, label: theme.onSurfaceMuted, divider: theme.separator };
 }
 
 interface PanelProps {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   padding?: number;
-  /** Arka ışığın tonu (çok hafif) — genelde temanın birincil rengi. */
-  glow?: string;
 }
 
-export function DisplayPanel({ children, style, padding = S.lg, glow }: PanelProps) {
+export function DisplayPanel({ children, style, padding = S.lg }: PanelProps) {
   const { theme, isDark } = useAppTheme();
-  const c = isDark ? DisplayColors.dark : DisplayColors.light;
-  const tint = glow ?? theme.primary;
   return (
-    <View style={[styles.panel, { borderColor: c.bezel }, style]}>
-      <LinearGradient colors={c.bg as unknown as [string, string]} style={StyleSheet.absoluteFill} />
-      <LinearGradient colors={[tint + (isDark ? '1A' : '0D'), tint + '00']} start={{ x: 0, y: 0 }} end={{ x: 0.7, y: 0.6 }} style={StyleSheet.absoluteFill} />
-      {/* Gömülü ekran: üstten içe düşen gölge + alt kenarda ışık çizgisi. */}
-      <LinearGradient colors={[c.inset, 'rgba(0,0,0,0)']} style={styles.inset} />
-      <View style={[styles.lip, { backgroundColor: c.lip }]} />
+    <View style={[styles.panel, {
+      // BentoCard'ın zemini/çerçevesi — sayfadaki diğer kartlarla tek aile.
+      backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest,
+      borderColor: isDark ? theme.outline : 'transparent',
+      borderWidth: isDark ? B.thin : 0,
+    }, style]}>
+      {/* Gömülü ekran: üst kenardan çok hafif içe gölge (rengi değil derinliği söyler). */}
+      <LinearGradient colors={[isDark ? 'rgba(0,0,0,0.28)' : 'rgba(15,23,42,0.045)', 'rgba(0,0,0,0)']} style={styles.inset} />
       <View style={{ padding }}>{children}</View>
     </View>
   );
@@ -59,19 +61,6 @@ export function DisplayPanel({ children, style, padding = S.lg, glow }: PanelPro
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
-/** Saati dakika başında tazeler (saniyelik çizim yok). */
-function useMinuteClock(): Date {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    let iv: ReturnType<typeof setInterval> | null = null;
-    const first = setTimeout(() => {
-      setNow(new Date());
-      iv = setInterval(() => setNow(new Date()), 60_000);
-    }, (60 - new Date().getSeconds()) * 1000);
-    return () => { clearTimeout(first); if (iv) clearInterval(iv); };
-  }, []);
-  return now;
-}
 
 /*
   AÇILIŞ SELAMI — ayrı bir "Günaydın, Melih" bloğu ekranın tepesinde ~110 pt tutuyor ve hiçbir
@@ -130,31 +119,42 @@ export function DisplayDivider({ spacing = S.md }: { spacing?: number }) {
   return <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: c.divider, marginVertical: spacing }} />;
 }
 
+/**
+ * Dijital DEĞER — sabit genişlikli rakam; baştaki sayı SAYARAK değişir (bir şey tamamlanınca
+ * ne değiştiği görülür), kalanı düz metin. Etiketsiz; okumalar ve KPI satırları kullanır.
+ */
+export function DisplayValue({ value, color, style }: { value: string; color?: string; style?: StyleProp<TextStyle> }) {
+  const c = useDisplayColors();
+  // Binlik/ondalık ayraçlı tutarda ("1.250 ₺") sayma YOK: yalnız baştaki "1" sayılırdı.
+  const lead = /^(\d+)(?![.,]\d)(.*)$/.exec(value);
+  const st = [styles.readValue, { color: color ?? c.ink }, style];
+  return (
+    <Text style={st} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+      {lead ? <AnimatedNumber value={Number(lead[1])} duration={450} style={st} /> : value}
+      {lead ? lead[2] : null}
+    </Text>
+  );
+}
+
 /** Gösterge okuması: küçük büyük-harf etiket + sabit genişlikli değer. */
 export function DisplayReadout({ label, value, accent, style }: { label: string; value: string; accent?: string; style?: StyleProp<TextStyle> }) {
   const c = useDisplayColors();
   const language = useLanguageStore(st => st.language);
-  const lead = /^(\d+)(.*)$/.exec(value);
   return (
     <View>
       <Text style={[styles.readLabel, { color: c.label }]} numberOfLines={1}>{upperFor(label, language)}</Text>
-      <Text style={[styles.readValue, { color: accent ?? c.ink }, style]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-        {/* Baştaki sayı SAYARAK değişir (bir şey tamamlanınca ne değiştiği görülür); kalanı düz metin. */}
-        {lead ? <AnimatedNumber value={Number(lead[1])} duration={450} style={[styles.readValue, { color: accent ?? c.ink }, style]} /> : value}
-        {lead ? lead[2] : null}
-      </Text>
+      <DisplayValue value={value} color={accent} style={[{ marginTop: S.xxs }, style]} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  panel: { borderRadius: R.lg, overflow: 'hidden', borderWidth: 1 },
+  panel: { borderRadius: R.md, overflow: 'hidden' },
   inset: { position: 'absolute', top: 0, left: 0, right: 0, height: 10 },
-  lip: { position: 'absolute', bottom: 0, left: S.md, right: S.md, height: 1 },
   status: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: S.sm, marginBottom: S.md },
   intro: { flexShrink: 1, fontSize: F.callout, fontWeight: W.semibold },
   statusText: { flexShrink: 1, fontSize: F.caption, fontWeight: W.semibold, letterSpacing: 1.2 },
   clock: { fontFamily: DISPLAY_FONT.digits, fontSize: F.footnote, letterSpacing: 0.5, fontVariant: ['tabular-nums'] },
   readLabel: { fontSize: F.caption2, fontWeight: W.semibold, letterSpacing: 1.1 },
-  readValue: { fontFamily: DISPLAY_FONT.digits, fontSize: F.title3, letterSpacing: -0.3, fontVariant: ['tabular-nums'], marginTop: S.xxs },
+  readValue: { fontFamily: DISPLAY_FONT.digits, fontSize: F.title3, letterSpacing: -0.3, fontVariant: ['tabular-nums'] },
 });

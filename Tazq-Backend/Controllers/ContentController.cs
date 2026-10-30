@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Tazq_App.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Tazq_App.Services;
 
@@ -25,6 +26,9 @@ namespace Tazq_App.Controllers
         [HttpGet("{key}")]
         public async Task<IActionResult> Get(string key)
         {
+            // İç belgeler (ör. destek şablonları) yalnız kendi ekip uçlarından okunur.
+            if (key.StartsWith("internal-", StringComparison.OrdinalIgnoreCase))
+                return NotFound(new { message = "Content not found." });
             var doc = await _content.GetAsync(key);
             if (doc == null)
                 return NotFound(new { message = "Content not found." });
@@ -40,7 +44,7 @@ namespace Tazq_App.Controllers
 
         // Admin: içerik oluştur/güncelle. Sürüm verilmezse otomatik artırılır.
         [HttpPut("{key}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Policy = StaffPolicy.SuperAdmin)]
         public async Task<IActionResult> Upsert(string key, [FromBody] UpsertContentDto dto)
         {
             if (string.IsNullOrWhiteSpace(key) || key.Length > 64)

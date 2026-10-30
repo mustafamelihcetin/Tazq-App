@@ -5,6 +5,10 @@ import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '@/features/modes';
 import { haptic } from '@/shared/utils/haptics';
 import type { AppTheme } from '@/shared/constants/Colors';
+import { HabitPlanFields } from '@/features/habits/components/HabitPlanFields';
+import { planSummary } from '@/features/habits/utils/planCopy';
+import type { PlanFields } from '@/features/habits/utils/habitSchedule';
+import { habitColor, HABIT_PALETTE, type PaletteColor } from '@/features/habits/utils/habitColor';
 import { S, R, F, ICON, MIN_TOUCH } from '@/shared/constants/tokens';
 
 /*
@@ -21,8 +25,8 @@ import { S, R, F, ICON, MIN_TOUCH } from '@/shared/constants/tokens';
 */
 
 const COPY = {
-  tr: { title: 'Yeni Alışkanlık', add: 'Ekle', close: 'Kapat', placeholder: 'Alışkanlık adı', daily: 'Her gün takip edilir', icon: 'SİMGE', color: 'RENK', iconA11y: (i: number) => `Simge ${i + 1}`, colorA11y: (i: number) => `Renk ${i + 1}` },
-  en: { title: 'New Habit', add: 'Add', close: 'Close', placeholder: 'Habit name', daily: 'Tracked every day', icon: 'ICON', color: 'COLOR', iconA11y: (i: number) => `Icon ${i + 1}`, colorA11y: (i: number) => `Color ${i + 1}` },
+  tr: { lang: 'tr' as const, title: 'Yeni Alışkanlık', add: 'Ekle', close: 'Kapat', placeholder: 'Alışkanlık adı', daily: 'Her gün takip edilir', icon: 'SİMGE', color: 'RENK', iconA11y: (i: number) => `Simge ${i + 1}`, colorA11y: (i: number) => `Renk ${i + 1}` },
+  en: { lang: 'en' as const, title: 'New Habit', add: 'Add', close: 'Close', placeholder: 'Habit name', daily: 'Tracked every day', icon: 'ICON', color: 'COLOR', iconA11y: (i: number) => `Icon ${i + 1}`, colorA11y: (i: number) => `Color ${i + 1}` },
 };
 
 /** Izgara hücresi en az bu kadar geniş (dokunma hedefi + ikon nefesi). */
@@ -47,22 +51,29 @@ export interface NewHabitFormProps {
   onNameChange: (v: string) => void;
   emoji: string;
   onEmojiChange: (v: string) => void;
+  /** Seçili palet renginin AÇIK tonu (kayıtlı değer); ekranda temaya göre çözülür. */
   color: string;
   onColorChange: (v: string) => void;
   emojis: string[];
-  colors: string[];
+  /** Ölçülmüş alışkanlık paleti (bkz. habitColor.ts). */
+  colors: PaletteColor[];
   onAdd: () => void;
   onClose: () => void;
   theme: AppTheme;
   isDark: boolean;
   tr: boolean;
   inputRef?: React.RefObject<TextInput | null>;
+  /** Sıklık/miktar/dilim/otomatik (bkz. HabitPlanFields). Verilmezse bölüm görünmez. */
+  plan?: PlanFields;
+  onPlanChange?: (p: PlanFields) => void;
 }
 
 export function NewHabitForm({
-  name, onNameChange, emoji, onEmojiChange, color, onColorChange, emojis, colors, onAdd, onClose, theme, isDark, tr, inputRef,
+  name, onNameChange, emoji, onEmojiChange, color: stored, onColorChange, emojis, colors, onAdd, onClose, theme, isDark, tr, inputRef, plan, onPlanChange,
 }: NewHabitFormProps) {
   const c = tr ? COPY.tr : COPY.en;
+  // Kayıtlı değer AÇIK ton; ekrandaki ton temaya göre (koyu temada aynı rengin koyu tonu).
+  const color = habitColor({ color: stored }, isDark);
   const [w, setW] = useState(0);
   const grid = gridFit(w, emojis.length);
   const canAdd = name.trim().length > 0;
@@ -116,9 +127,14 @@ export function NewHabitForm({
               accessibilityLabel={c.placeholder}
               underlineColorAndroid="transparent"
             />
-            <Text style={[styles.caption, { color: theme.onSurfaceMuted }]}>{c.daily}</Text>
+            <Text style={[styles.caption, { color: theme.onSurfaceMuted }]}>{plan ? planSummary(plan, c.lang) : c.daily}</Text>
           </View>
         </View>
+
+        {/* PLAN — sıklık, miktar, zaman, otomatik. Dokunmayan için bugünkü davranış: her gün. */}
+        {plan && onPlanChange && (
+          <HabitPlanFields plan={plan} onChange={onPlanChange} theme={theme} isDark={isDark} lang={c.lang} accent={color} />
+        )}
 
         <View onLayout={(e) => setW(e.nativeEvent.layout.width)}>
           <Text style={[styles.label, { color: theme.onSurfaceMuted }]}>{c.icon}</Text>
@@ -159,18 +175,21 @@ export function NewHabitForm({
             </View>
           )}
 
+          {/* RENK — ölçülmüş paletten (mod renkleriyle aynı aile; bkz. habitColor.ts). Örnek, bu
+              temadaki tonuyla çizilir; kayıt açık ton olarak tutulur. */}
           <Text style={[styles.label, styles.labelSpaced, { color: theme.onSurfaceMuted }]}>{c.color}</Text>
           <View accessibilityRole="radiogroup" style={styles.colors}>
-            {colors.map((col, i) => {
-              const selected = col === color;
+            {colors.map((p, i) => {
+              const col = isDark ? p.dark : p.light;
+              const selected = p.light === stored || p.dark === stored;
               return (
                 <Touchable
-                  key={col}
+                  key={p.id}
                   accessibilityRole="radio"
                   accessibilityState={{ selected, checked: selected }}
                   accessibilityLabel={c.colorA11y(i)}
                   hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
-                  onPress={() => { if (!selected) { haptic.select(); onColorChange(col); } }}
+                  onPress={() => { if (!selected) { haptic.select(); onColorChange(p.light); } }}
                   // Seçim: eşmerkezli halka (renk + zemin aralığı) — büyütme komşuları itiyordu.
                   style={[styles.dotRing, { borderColor: selected ? col : 'transparent' }]}
                 >

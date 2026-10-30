@@ -5,7 +5,7 @@ import { Touchable } from '@/shared/components/Touchable';
 import { Separator } from '@/shared/components/Separator';
 import { SegmentedControl } from '@/shared/components/SegmentedControl';
 import { S, R, F, B, W, ICON, LH } from '@/shared/constants/tokens';
-import { CategoryColors, type AppTheme } from '@/shared/constants/Colors';
+import { SettingsChip, type AppTheme } from '@/shared/constants/Colors';
 
 /**
  * Ayar ikonlarının ANLAMSAL renk haritası — domain'e göre, rastgele değil.
@@ -34,15 +34,14 @@ export function settingsAccents(theme: AppTheme): Record<string, string> {
     // bildirim & zamanlama — dikkat/vakit. Amber (#B45309) DOLU kutu olarak kahve/muddy
     // duruyordu (yazı için seçilmiş koyu ton, dolgu olarak çirkin). Canlı turuncuya
     // çekildi: dolu zeminde temiz, beyaz glif 3.56:1.
-    notify: CategoryColors.orange,
-    system: CategoryColors.indigo,  // görünüm & dil — serin, sistemsel
-    health: CategoryColors.teal,    // uyku & sağlık — sakinlik/dinlenme
-    core: theme.primary,            // çekirdek davranış — uygulamanın sesi
-    payments: CategoryColors.green, // ödemeler — para ile anlamsal ilişki, zaten AA geçiyor
-    streak: theme.streak,           // seri koruma — koruduğu kavramın rengi
-    // yasal & gizlilik — nötr gri (onSurfaceMuted iki temada da #71717A, beyazla 4.83:1).
-    // Renkli bir "özellik" değil; sessiz ama yine dolu kutu (Apple'ın gri kutuları gibi).
-    legal: theme.onSurfaceMuted,
+    // 2026-10-31: kategori başına sabit renk (bkz. Colors.ts → SettingsChip). Vurguya BAĞLI DEĞİL.
+    notify: SettingsChip.notify,
+    system: SettingsChip.appearance,
+    core: SettingsChip.appearance, // Görünüm & Dil sayfasındaki davranış satırları (ses, titreşim, sade mod)
+    health: SettingsChip.health,
+    payments: SettingsChip.payments,
+    streak: SettingsChip.rewards,
+    legal: SettingsChip.account,
   };
 }
 
@@ -102,7 +101,7 @@ export function RowDivider({ theme }: { theme: AppTheme }) {
 }
 
 // ── İkon çipi (satırların solundaki renkli kare) ─────────────────────────
-function IconChip({ bg, theme, children }: { bg?: string; theme: AppTheme; children: React.ReactNode }) {
+export function IconChip({ bg, theme, children }: { bg?: string; theme: AppTheme; children: React.ReactNode }) {
   return (
     <View style={[styles.chip, { backgroundColor: bg ?? theme.surfaceContainerHigh }]}>
       {children}
@@ -156,7 +155,8 @@ export function SettingItem({ icon, label, sub, right, value, onPress, theme, bg
         {right}
         {/* Chevron ÜÇÜNCÜL renkte, opacity YOK — eskiden onSurfaceVariant + opacity 0.3
             idi (ölçülü rengi kısmak). Affordans olarak muted seviyesi daha okunur. */}
-        <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} />
+        {/* Ok YALNIZ dokunulabilir satırda (iOS): bilgi satırında ok, olmayan bir sayfa vaat ediyordu. */}
+        {!!onPress && <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} />}
       </View>
     </Touchable>
   );

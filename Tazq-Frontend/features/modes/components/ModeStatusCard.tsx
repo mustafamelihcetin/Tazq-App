@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { MotiView } from 'moti';
+import { DisplayPanel, DisplayValue } from '@/shared/components/DisplayPanel';
 import { Sparkles } from 'lucide-react-native';
 import { ProgressRail } from '@/shared/components/ProgressRail';
 import { S, F, R, B, ICON } from '@/shared/constants/tokens';
@@ -97,12 +98,7 @@ export const ModeStatusCard: React.FC<ModeStatusCardProps> = ({
 
   if (activeCount === 0) {
     return (
-      <MotiView
-        from={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ type: 'timing', duration: 250 }}
-        style={[styles.card, { backgroundColor: theme.surfaceCard, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)', padding: S.md }]}
-      >
+      <DisplayPanel padding={S.md}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
           <Sparkles size={ICON.md} color={theme.primary} />
           <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{c.inviteTitle}</Text>
@@ -113,22 +109,16 @@ export const ModeStatusCard: React.FC<ModeStatusCardProps> = ({
           keşif listesini tekrar ediyordu ve mavi metinleri tıklanabilir görünüp
           dokunulamıyordu ("renk = anlam" kuralı — mavi yalnız etkileşim söyler).
         */}
-      </MotiView>
+      </DisplayPanel>
     );
   }
 
   return (
-    <MotiView
-      from={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ type: 'timing', duration: 250 }}
-      style={[styles.card, {
-        // Yüzey diğer kartlarla AYNI; mod rengi yalnız anlam taşıyan yerde (sayı, ikon).
-        // Kartın tamamı en yakın hedefin rengine boyanıyordu — sayfanın en baskın lekesi.
-        backgroundColor: theme.surfaceCard,
-        borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)',
-        padding: S.md,
-      }]}
+    // DİJİTAL PANEL (2026-10-30, uygulama geneli dil): kart çerçevesi diğer kartlarla aynı aile;
+    // gün sayısı ve bugünün planı sabit genişlikli rakam, gün değişince SAYARAK akar.
+    // Yüzey diğer kartlarla AYNI; mod rengi yalnız anlam taşıyan yerde (sayı, ikon).
+    <DisplayPanel padding={S.md}>
+    <View
       /*
         Bileşik kart: ekran okuyucu bunu 6-8 kopuk parça olarak okuyordu (selamlama,
         "3 mod", emoji, sayı, "gün kaldı", noktalar, "2/5"…). Tek bir anlamlı cümle.
@@ -180,14 +170,7 @@ export const ModeStatusCard: React.FC<ModeStatusCardProps> = ({
                   transition={{ type: 'timing', duration: 320 }}
                   style={{ alignItems: 'center', minWidth: 56 }}
                 >
-                  <Text
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.6}
-                    style={{ color: g.color, fontWeight: '700', fontSize: F.hero, lineHeight: F.hero + 2, letterSpacing: -1 }}
-                  >
-                    {g.days}
-                  </Text>
+                  <DisplayValue value={String(g.days)} color={g.color} style={{ fontSize: F.hero, lineHeight: F.hero + 2, letterSpacing: -1 }} />
                   <Text style={{ color: g.textColor, fontWeight: '700', fontSize: F.caption, letterSpacing: 1, opacity: 0.75 }}>
                     {c.unit(g.days)}
                   </Text>
@@ -218,9 +201,7 @@ export const ModeStatusCard: React.FC<ModeStatusCardProps> = ({
       <View style={{ marginTop: S.md, gap: S.xs }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{c.todayLabel}</Text>
-          <Text style={{ color: todayTotal > 0 && todayDone >= todayTotal ? theme.success : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700' }}>
-            {c.todayValue(todayDone, todayTotal)}
-          </Text>
+          <DisplayValue value={c.todayValue(todayDone, todayTotal)} color={todayTotal > 0 && todayDone >= todayTotal ? theme.success : theme.onSurfaceVariant} style={{ fontSize: F.footnote }} />
         </View>
         {todayTotal > 0 && (
           <ProgressRail
@@ -235,14 +216,7 @@ export const ModeStatusCard: React.FC<ModeStatusCardProps> = ({
       {motivation ? (
         <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '500', marginTop: S.md, lineHeight: 17 }}>{motivation}</Text>
       ) : null}
-    </MotiView>
+    </View>
+    </DisplayPanel>
   );
 };
-
-const styles = StyleSheet.create({
-  card: {
-    borderWidth: B.thin,
-    borderRadius: R.lg,
-    overflow: 'hidden',
-  },
-});

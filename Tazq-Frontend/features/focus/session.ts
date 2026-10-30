@@ -5,6 +5,7 @@ import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { isNetworkError } from '@/shared/utils/errors';
 import { swallow } from '@/shared/utils/swallow';
+import { autoMarkHabits, focusQualifies } from '@/features/habits/utils/autoMark';
 import { scheduleFocusAlert, cancelFocusAlert, FOCUS_END_ID, FOCUS_STRICT_ID } from '@/shared/utils/notifications';
 
 /**
@@ -72,6 +73,8 @@ export function commitFocusSession(minutes: number, completed: boolean, alreadyC
   st.addFocusMinutes(minutes);
   // Tamamlanan seans sabit ödül; erken bırakılan süreyle orantılı (üst sınır aynı).
   st.addFocusPoints(completed ? 10 : Math.min(10, minutes * 2));
+  // Odağa bağlı alışkanlıklar kendiliğinden dolar (bkz. autoMark).
+  if (focusQualifies(minutes, completed)) autoMarkHabits('focus');
   return 'saved';
 }
 

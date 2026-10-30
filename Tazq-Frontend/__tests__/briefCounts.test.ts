@@ -86,7 +86,7 @@ describe('bildirim modülü', () => {
 
   it('akşam özeti önce iptal eder — söylenecek şey kalmadıysa eski bildirim çalmaz', () => {
     const fn = src.slice(src.indexOf('export async function scheduleEveningBrief'), src.indexOf('export async function scheduleShutdownNotification'));
-    expect(fn.indexOf("cancelScheduledNotificationAsync('evening-brief')")).toBeLessThan(fn.indexOf('if (completedToday === 0 && pendingTotal === 0) return;'));
+    expect(fn.indexOf("cancelScheduledNotificationAsync('evening-brief')")).toBeLessThan(fn.indexOf('if (completedToday === 0 && pendingTotal === 0 && habitsPending === 0) return;'));
   });
 
   it('haftalık özette her hafta TEK bildirim — tekrarlı yedek yok', () => {
@@ -110,6 +110,8 @@ describe('bildirim modülü', () => {
   it('özetler sayılar değişince yeniden kurulur', () => {
     // goalSig eklendi: hedef seçilince/tarihi girilince özet aynı oturumda
     // hedef-farkında olsun (bkz. scheduleMorningBrief'in activeGoal parametresi).
-    expect(layout).toMatch(/productivityHour, notifSig, goalSig\]\);/);
+    // habitsPendingToday (2026-10-30): bekleyen alışkanlık sayısı değişince akşam özeti tazelenir —
+    // "2 alışkanlık bekliyor" diyen bildirim hepsi işaretlendikten sonra çalmasın.
+    expect(layout).toMatch(/productivityHour, notifSig, goalSig, habitsPendingToday\]\);/);
   });
 });

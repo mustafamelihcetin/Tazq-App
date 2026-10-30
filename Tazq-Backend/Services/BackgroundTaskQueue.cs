@@ -13,6 +13,8 @@ namespace Tazq_App.Services
     {
         void Enqueue(Func<IServiceProvider, CancellationToken, Task> work);
         ValueTask<Func<IServiceProvider, CancellationToken, Task>> DequeueAsync(CancellationToken ct);
+        /// <summary>Kuyrukta bekleyen iş sayısı (admin iş sağlığı).</summary>
+        int Pending { get; }
     }
 
     public class BackgroundTaskQueue : IBackgroundTaskQueue
@@ -42,6 +44,8 @@ namespace Tazq_App.Services
 
         public ValueTask<Func<IServiceProvider, CancellationToken, Task>> DequeueAsync(CancellationToken ct)
             => _queue.Reader.ReadAsync(ct);
+
+        public int Pending => _queue.Reader.Count;
     }
 
     // Kuyruğu tüketen tek arka plan işçisi. Her iş kendi DI scope'unda çalışır;
@@ -51,12 +55,16 @@ namespace Tazq_App.Services
         private readonly IBackgroundTaskQueue _queue;
         private readonly IServiceProvider _services;
         private readonly ILogger<QueuedHostedService> _logger;
+        private readonly JobHealth _health;
 
-        public QueuedHostedService(IBackgroundTaskQueue queue, IServiceProvider services, ILogger<QueuedHostedService> logger)
+        public QueuedHostedService(IBackgroundTaskQueue queue, IServiceProvider services, ILogger<QueuedHostedService> logger, JobHealth health)
         {
             _queue = queue;
             _services = services;
             _logger = logger;
+            _health = health;
+            _health.Register(JobHealth.MailQueue, TimeSpan.Zero);
+            _health.TrackPending(() => queue.Pending);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -77,11 +85,13 @@ namespace Tazq_App.Services
                 {
                     using var scope = _services.CreateScope();
                     await work(scope.ServiceProvider, stoppingToken);
+                    _health.Ok(JobHealth.MailQueue);
                 }
                 catch (Exception ex)
                 {
                     // Yutulmaz: yan iş başarısız olsa bile iz bırakır ve işçi ayakta kalır.
                     _logger.LogError(ex, "Background work item failed.");
+                    _health.Fail(JobHealth.MailQueue, ex);
                 }
             }
         }

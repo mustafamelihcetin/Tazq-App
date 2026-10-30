@@ -15,16 +15,19 @@ namespace Tazq_App.Services
 	{
 		private readonly IServiceProvider _serviceProvider;
 		private readonly ILogger<AdminSignupDigestService> _logger;
+		private readonly JobHealth _health;
 
 		// En son özet gönderilen gün (UTC). Yoklama döngüsünde aynı günü iki kez göndermeyi engeller;
 		// süreç yeniden başlarsa sıfırlanır, o gün için ikinci bir özet gidebilir. Tek yan etkisi
 		// mükerrer bir bilgilendirme maili olduğu için kalıcı durum tutmaya değmez.
 		private DateOnly? _lastSentDay;
 
-		public AdminSignupDigestService(IServiceProvider serviceProvider, ILogger<AdminSignupDigestService> logger)
+		public AdminSignupDigestService(IServiceProvider serviceProvider, ILogger<AdminSignupDigestService> logger, JobHealth health)
 		{
 			_serviceProvider = serviceProvider;
 			_logger = logger;
+			_health = health;
+			_health.Register(JobHealth.SignupDigest, TimeSpan.FromMinutes(20));
 		}
 
 		// Özetin gönderileceği UTC saat. Varsayılan 06:00 UTC (TR ile 09:00).
@@ -47,12 +50,14 @@ namespace Tazq_App.Services
 			{
 				try
 				{
-					await TrySendDigestAsync(stoppingToken);
+					// Tur = yoklama (çoğu tur gönderim saati değildir, yine de "çalışıyor" demektir).
+					if (await TrySendDigestAsync(stoppingToken)) _health.Ok(JobHealth.SignupDigest);
 				}
 				catch (Exception ex)
 				{
 					// Özet gönderimi uygulamanın çalışmasını etkilememeli; bir sonraki turda tekrar denenir.
 					_logger.LogError(ex, "Admin kayıt özeti gönderilemedi");
+					_health.Fail(JobHealth.SignupDigest, ex);
 				}
 
 				try
@@ -63,19 +68,20 @@ namespace Tazq_App.Services
 			}
 		}
 
-		private async Task TrySendDigestAsync(CancellationToken ct)
+		/// <returns>false = en az bir alıcıya gidemedi (hata JobHealth'e yazıldı).</returns>
+		private async Task<bool> TrySendDigestAsync(CancellationToken ct)
 		{
 			var now = DateTime.UtcNow;
 			var today = DateOnly.FromDateTime(now);
 
-			if (now.Hour < DigestHourUtc) return;   // gün için saat henüz gelmedi
-			if (_lastSentDay == today) return;      // bugünkü özet zaten gitti
+			if (now.Hour < DigestHourUtc) return true;   // gün için saat henüz gelmedi
+			if (_lastSentDay == today) return true;      // bugünkü özet zaten gitti
 
 			var recipients = Recipients;
 			if (recipients.Length == 0)
 			{
 				_lastSentDay = today; // alıcı yok → bugün için boşuna sorgu atma
-				return;
+				return true;
 			}
 
 			using var scope = _serviceProvider.CreateScope();
@@ -84,6 +90,7 @@ namespace Tazq_App.Services
 
 			var entries = await CollectSignupsAsync(db, today.AddDays(-1), ct);
 
+			var allOk = true;
 			foreach (var recipient in recipients)
 			{
 				try
@@ -94,11 +101,14 @@ namespace Tazq_App.Services
 				{
 					// Bir alıcıya gidememesi diğerlerini engellemesin.
 					_logger.LogError(ex, "Admin kayıt özeti {Email} adresine gönderilemedi", recipient);
+					_health.Fail(JobHealth.SignupDigest, ex);
+					allOk = false;
 				}
 			}
 
 			_lastSentDay = today;
 			_logger.LogInformation("Admin kayıt özeti gönderildi: {Count} yeni üye, {Recipients} alıcı", entries.Count, recipients.Length);
+			return allOk;
 		}
 
 		/// <summary>Verilen UTC gününde (00:00 dahil – ertesi 00:00 hariç) kaydolan üyeleri döner.</summary>

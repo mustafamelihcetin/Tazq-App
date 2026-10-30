@@ -17,7 +17,7 @@ if (Test-Path $STATE_FILE) {
 $newState = @{}
 $filesToUpload = @()
 
-$dirs = @("Controllers", "Services", "Models", "Data", "Migrations", "wwwroot", "Middlewares", "Validators", "Properties")
+$dirs = @("Controllers", "Services", "Models", "Data", "Migrations", "wwwroot", "Middlewares", "Validators", "Properties", "Authorization")
 $rootFiles = @("Tazq-Backend.csproj", "Program.cs", "appsettings.json", "DockerFile")
 
 

@@ -9,6 +9,7 @@ import { DottedBackground } from '@/shared/components/DottedBackground';
 import { PeekMenu, type PeekItem } from '@/shared/components/PeekMenu';
 import { Touchable } from '@/shared/components/Touchable';
 import { BentoCard } from '@/shared/components/BentoCard';
+import { DisplayValue } from '@/shared/components/DisplayPanel';
 import { S, R, F, B, ICON, MAX_W, HAIRLINE, topBarSpace, touchSlop } from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -21,6 +22,7 @@ import { haptic } from '@/shared/utils/haptics';
 import { langOf } from '@/shared/utils/lang';
 import { scopeDay, scopeOtherDay, isOverdueBefore } from '@/features/dashboard/utils/dayScope';
 import { useFocusHistoryStore } from '@/features/report/useFocusHistoryStore';
+import { DayCloseHabits } from '@/features/habits/components/DayCloseHabits';
 import { isFocusWorthy } from '@/features/focus/focusWorthy';
 
 /**
@@ -328,21 +330,20 @@ export default function GunScreen() {
         {/* ── Günün tek satırlık özeti ────────────────────────────────────── */}
         <BentoCard index={0} style={{ padding: S.md, flexDirection: 'row', alignItems: 'center', gap: S.md }}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.summaryValue, { color: theme.onSurface }]}>
-              {doneCount}/{today.length}
-            </Text>
+            {/* Panel dilinde dijital rakam: bir iş tamamlanınca sayı SAYARAK değişir (bkz. DisplayValue). */}
+            <DisplayValue value={`${doneCount}/${today.length}`} color={theme.onSurface} style={styles.summaryValue} />
             <Text style={[styles.summaryLabel, { color: theme.onSurfaceVariant }]}>{isToday ? d.summaryTasks : mode === 'past' ? d.summaryDoneOn : d.summaryPlanned}</Text>
           </View>
           {mode !== 'future' && <View style={{ width: HAIRLINE, alignSelf: 'stretch', backgroundColor: theme.outlineVariant }} />}
           {mode !== 'future' && <View style={{ flex: 1 }}>
-            <Text style={[styles.summaryValue, { color: theme.onSurface }]}>
-              {isToday ? dailyFocusMinutes : otherDayFocus}
+            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+              <DisplayValue value={String(isToday ? dailyFocusMinutes : otherDayFocus)} color={theme.onSurface} style={styles.summaryValue} />
               {isToday && dailyGoalMinutes > 0 && (
                 <Text style={[styles.summaryLabel, { color: theme.onSurfaceMuted }]}>
                   {` / ${dailyGoalMinutes} ${d.goal}`}
                 </Text>
               )}
-            </Text>
+            </View>
             <Text style={[styles.summaryLabel, { color: theme.onSurfaceVariant }]}>{d.summaryFocus}</Text>
           </View>}
         </BentoCard>
@@ -454,6 +455,9 @@ export default function GunScreen() {
             );
           })}
         </View>}
+
+        {/* ── Gün sonu: alışkanlıklar (akşam özeti buraya düşer; bkz. DayCloseHabits) ── */}
+        {isToday && <DayCloseHabits theme={theme} isDark={isDark} lang={lang} />}
 
         {/* ── Günü kapat (yalnız bugün; başka günde boşsa kısa açıklama) ────── */}
         {!isToday ? (today.length === 0 && (

@@ -13,15 +13,28 @@ namespace Tazq_App.Services
         int Id, string Name, string Email, string Role, bool IsBanned,
         DateTime? BannedUntil, string? BanReason, DateTime? DeletedAt,
         string? ProfilePicture, string? LastLoginIp,
-        int TaskCount, int CompletedTasks, int FocusMinutes, DateTime? LastActivityAt);
+        int TaskCount, int CompletedTasks, int FocusMinutes, DateTime? LastActivityAt,
+        bool? AnalyticsInclude = null, bool InAnalytics = true);
 
-    public record UserListResult(List<UserListItem> Users, int Total);
+    /// <param name="Counts">Yalnız ilk sayfada: aramaya uyanların filtre başına sayısı (çiplerdeki sayılar).</param>
+    public record UserListResult(List<UserListItem> Users, int Total, Dictionary<string, int>? Counts = null);
 
-    public record DailyTrendPoint(string Day, int Minutes);
+    // Day: eski istemciler için kısa gün adı (sunucu kültürü — İngilizce); Date: yyyy-MM-dd,
+    // yeni istemci kendi dilinde biçimlendirir.
+    public record DailyTrendPoint(string Day, int Minutes, string Date);
 
+    /// <summary>
+    /// Genel bakış. "Bu hafta / geçen hafta" = son 7 gün / ondan önceki 7 gün (UTC).
+    /// SeenToday/Seen7d: GERÇEK son görülme (LastActiveAt) — ActiveToday/ActiveThisWeek yalnız
+    /// odak seansı açanları sayar (eski alanlar, uyum için duruyor). Görevlerde zaman damgası
+    /// olmadığından görev için haftalık kıyas YOK (ölçülmeyeni gösterme).
+    /// </summary>
     public record AdminStats(
         int TotalUsers, int TotalTasks, int CompletedTasks, int TotalFocusMinutes,
-        int ActiveToday, int ActiveThisWeek, int SessionsToday, List<DailyTrendPoint> DailyTrend);
+        int ActiveToday, int ActiveThisWeek, int SessionsToday, List<DailyTrendPoint> DailyTrend,
+        int SeenToday = 0, int Seen7d = 0,
+        int NewUsers7d = 0, int NewUsersPrev7d = 0,
+        int FocusMinutes7d = 0, int FocusMinutesPrev7d = 0);
 
     public record RegisteredAudience(int Total, int EmailVerified, int Deleted);
 
@@ -35,7 +48,7 @@ namespace Tazq_App.Services
         RegisteredAudience Registered, InstallAudience Installs,
         StoreChannelStatus AppStore, StoreChannelStatus PlayStore);
 
-    public enum AdminActionResult { Success, NotFound, SelfActionForbidden }
+    public enum AdminActionResult { Success, NotFound, SelfActionForbidden, InvalidInput }
 
     /// <summary>
     /// Bir dönemsel modun (sınav, tez, spor…) benimsenme özeti.
@@ -50,7 +63,8 @@ namespace Tazq_App.Services
     /// Kohort, kaydolduktan en az 7 gün geçmiş kullanıcılarla sınırlı (aksi halde "henüz
     /// 7 günü dolmamış" biri yanlışlıkla "kaybedilmiş" sayılır).
     /// </summary>
-    public record RetentionCohort(string WeekLabel, int NewUsers, int StillActiveAfter7d);
+    // WeekStart: yyyy-MM-dd — istemci kendi dilinde biçimler (WeekLabel sunucu kültüründe, İngilizce).
+    public record RetentionCohort(string WeekLabel, int NewUsers, int StillActiveAfter7d, string? WeekStart = null);
 
     public record VersionShare(string Version, int Users);
 
@@ -61,12 +75,14 @@ namespace Tazq_App.Services
 
     public interface IAdminService
     {
-        Task<UserListResult> GetUsersAsync(int page, int pageSize, string? search, string? sort, bool asc);
+        Task<UserListResult> GetUsersAsync(int page, int pageSize, string? search, string? sort, bool asc, string? filter = null);
         Task<AdminStats> GetStatsAsync();
         Task<AudienceStats> GetAudienceAsync();
         Task<ProductInsights> GetProductInsightsAsync();
         Task<AdminActionResult> DeleteUserAsync(int id, AdminIdentity admin);
         Task<AdminActionResult> SetRoleAsync(int id, string role, AdminIdentity admin);
+        /// <summary>Analize dahil mi: null = varsayılan kural, true/false = açık karar.</summary>
+        Task<AdminActionResult> SetAnalyticsIncludeAsync(int id, bool? include, AdminIdentity admin);
         Task<(AdminActionResult Result, User? User)> SetBanAsync(int id, bool banned, int? durationDays, string? reason, AdminIdentity admin);
         Task<List<BanHistory>> GetBanHistoryAsync(int id);
         Task<User?> GetUserWithDetailAsync(int id);

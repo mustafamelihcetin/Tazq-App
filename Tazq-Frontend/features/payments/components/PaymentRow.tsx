@@ -45,9 +45,12 @@ interface Props {
   dateLabel: string;
   onToggle: () => void;
   onDelete: () => void;
+  /** Uzun bas = Düzenle / Sil menüsü (kaydırma yine doğrudan siler). */
+  onMenu: () => void;
+  onEdit: () => void;
 }
 
-export const PaymentRow = React.memo(({ view, position, theme, t, amountLabel, dateLabel, onToggle, onDelete }: Props) => {
+export const PaymentRow = React.memo(({ view, position, theme, t, amountLabel, dateLabel, onToggle, onDelete, onMenu, onEdit }: Props) => {
   const { p, status } = view;
   const paid = status === 'paid';
   const isTop = position === 'first' || position === 'only';
@@ -61,13 +64,13 @@ export const PaymentRow = React.memo(({ view, position, theme, t, amountLabel, d
       <Touchable
         activeOpacity={0.7}
         onPress={onToggle}
-        onLongPress={onDelete}
+        onLongPress={onMenu}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: paid }}
         accessibilityLabel={`${p.title}, ${amountLabel}, ${due.text}`}
         accessibilityHint={paid ? t.undoPaid : t.markPaid}
-        accessibilityActions={[{ name: 'delete', label: t.delete }]}
-        onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'delete') onDelete(); }}
+        accessibilityActions={[{ name: 'edit', label: t.edit }, { name: 'delete', label: t.delete }]}
+        onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'delete') onDelete(); else if (e.nativeEvent.actionName === 'edit') onEdit(); }}
         style={{
           flexDirection: 'row', alignItems: 'center', paddingLeft: S.md,
           backgroundColor: theme.surfaceCard,

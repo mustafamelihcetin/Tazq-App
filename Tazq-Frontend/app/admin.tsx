@@ -4,10 +4,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MotiView } from 'moti';
 import { useRouter } from 'expo-router';
 import {
-  ChevronLeft, Users, CheckSquare, Clock, Trash2, Shield, ShieldOff,
-  Search, TrendingUp, Zap, Activity, ChevronDown, ChevronUp, Ban, MessageSquare, Check, Mail, Send, CornerDownRight,
-  Server, RefreshCw, Power, Database, AlertTriangle, FileText, ExternalLink, BarChart3, AlertCircle,
-  Download, ScrollText, Smartphone, History, Megaphone,
+  ChevronLeft, Users, CheckSquare, Trash2, Shield, 
+  Search, Zap, ChevronDown, ChevronUp, Ban, MessageSquare, Check, Server, RefreshCw, Power, Database, AlertTriangle, FileText, ExternalLink, BarChart3, Download, ScrollText, Smartphone, History, Megaphone,
   Sparkles, CheckCircle2,
 } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -15,7 +13,7 @@ import { Pager } from '@/shared/components/Pager';
 import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useAuthStore } from '@/features/user';
-import { AdminService, AdminUser, AdminStats, AdminProductInsights, AdminModeAdoption, BanHistoryItem, AdminUserDetail, AdminAuditItem, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary, LogSource, AiStatus, AiTestResult, AudienceStats, StoreChannelStatus } from '@/shared/services/api';
+import { AdminService, AdminUser, AdminStats, AdminProductInsights, BanHistoryItem, AdminUserDetail, AdminAuditItem, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary, LogSource, AiStatus, AiTestResult } from '@/shared/services/api';
 import { sendAdminSupportNotification } from '@/shared/utils/notifications';
 import { ICON, S, R, F, B, MAX_W, HAIRLINE } from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
@@ -24,6 +22,15 @@ import { GlassSurface } from '@/shared/components/GlassSurface';
 import { CustomAlert as Alert, AlertHost } from '@/shared/components/CustomAlert';
 import { swallow } from '@/shared/utils/swallow';
 import { haptic } from '@/shared/utils/haptics';
+import { canStaff, roleLabel, isAnalystOnly } from '@/shared/utils/staffRoles';
+import { AnalyticsToggle } from '@/features/admin/components/AnalyticsToggle';
+import { CrashGroupsCard } from '@/features/admin/components/CrashGroupsCard';
+import { SupportThread } from '@/shared/components/SupportThread';
+import { RolePicker } from '@/features/admin/components/RolePicker';
+import { AnalyticsCenter } from '@/features/admin/components/AnalyticsCenter';
+import { JobHealthCard } from '@/features/admin/components/JobHealthCard';
+import { UserFilterChips, type UserFilter } from '@/features/admin/components/UserFilterChips';
+import { useSupportTemplates, TemplateChips, TemplatesHeader, TemplateEditor, fillTemplate, templateFallback } from '@/features/admin/components/SupportTemplates';
 
 type SortKey = 'name' | 'tasks' | 'focus' | 'recent';
 
@@ -53,63 +60,7 @@ const logLevelStyle = (lvl: string) => {
  * sığıyor hem 10 sayfada tamamını gezdiriyor.
  */
 const LOG_PAGE_SIZE = 50;
-/** Kilitlenme kartlari uzun (yigin izi dahil) — sayfa basina daha az. */
-const CRASH_PAGE_SIZE = 20;
 const AUDIT_PAGE_SIZE = 40;
-
-/**
- * Dönemsel mod ailesi → emoji/renk/ad — backend'in `ModeAdoption.Mode` alanıyla
- * birebir eşleşir (bkz. AdminService.cs `ModeFamilies`). Satır içi `tr ? :` yerine
- * sözlük (bkz. i18nRatchet testi).
- */
-const MODE_META: Record<string, { emoji: string; color: string; labelTr: string; labelEn: string }> = {
-  exam: { emoji: '🎯', color: '#0B6BCB', labelTr: 'Sınav', labelEn: 'Exam' },
-  tez: { emoji: '📚', color: '#8B5CF6', labelTr: 'Tez', labelEn: 'Thesis' },
-  mulakat: { emoji: '💼', color: '#10B981', labelTr: 'Mülakat', labelEn: 'Interview' },
-  spor: { emoji: '💪', color: '#F59E0B', labelTr: 'Spor', labelEn: 'Fitness' },
-  ramazan: { emoji: '🌙', color: '#6366F1', labelTr: 'Ramazan', labelEn: 'Ramadan' },
-  tasarruf: { emoji: '💰', color: '#06B6D4', labelTr: 'Tasarruf', labelEn: 'Savings' },
-  birakma: { emoji: '🚫', color: '#F43F5E', labelTr: 'Bırakma', labelEn: 'Quitting' },
-  default: { emoji: '❔', color: '#6B7280', labelTr: 'Diğer', labelEn: 'Other' },
-};
-
-/** Ürün İçgörüleri bölümünün metinleri — sözlük (bkz. i18nRatchet, MODE_META üstü). */
-const INSIGHTS_COPY = {
-  modesTitle: { tr: 'DÖNEMSEL MOD BENİMSENMESİ', en: 'SEASONAL MODE ADOPTION' },
-  noData: { tr: 'Henüz veri yok.', en: 'No data yet.' },
-  retentionTitle: { tr: 'HAFTALIK ELDE TUTMA (7 GÜN SONRA)', en: 'WEEKLY RETENTION (AFTER 7 DAYS)' },
-  versionsTitle: { tr: 'SÜRÜM DAĞILIMI', en: 'VERSION DISTRIBUTION' },
-};
-
-const AUDIENCE_COPY = {
-  tr: {
-    title: 'Kitle', registered: 'Kayıtlı', verified: 'E-posta onaylı', guestDevices: 'Kayıtsız cihaz', last30: 'Son 30 gün',
-    storeStatus: { not_configured: 'Bağlı değil', pending_api: 'Hazır, veri bekleniyor' },
-  },
-  en: {
-    title: 'Audience', registered: 'Registered', verified: 'Email verified', guestDevices: 'Guest devices', last30: 'Last 30 days',
-    storeStatus: { not_configured: 'Not connected', pending_api: 'Ready, awaiting data' },
-  },
-} as const;
-
-const MODE_SUMMARY_WORDS = {
-  active: { tr: 'aktif', en: 'active' },
-  closed: { tr: 'kapanmış', en: 'closed' },
-  avgPrefix: { tr: 'ort.', en: 'avg' },
-  daySuffix: { tr: ' gün', en: 'd' },
-};
-
-// Parametre bilerek `tr` değil `isTurkish` — i18nRatchet yalnız `tr ? '...'` adını
-// tanıyor; bu fonksiyon iç değişken adını değiştirerek desenin dışında kalıyor,
-// yine de dallanma tamamen VERİ tabanlı (MODE_SUMMARY_WORDS), satır içi metin yok.
-function modeSummaryLine(isTurkish: boolean, m: AdminModeAdoption): string {
-  const w = MODE_SUMMARY_WORDS;
-  const pick = <T,>(pair: { tr: T; en: T }) => isTurkish ? pair.tr : pair.en;
-  const active = `${m.activeUsers} ${pick(w.active)}`;
-  const closed = `${m.closedGoals} ${pick(w.closed)}`;
-  const avg = m.avgDurationDays == null ? '' : ` · ${pick(w.avgPrefix)} ${m.avgDurationDays}${pick(w.daySuffix)}`;
-  return `${active} · ${closed}${avg}`;
-}
 
 export default function AdminScreen() {
   const { theme, colorScheme } = useAppTheme();
@@ -127,10 +78,18 @@ export default function AdminScreen() {
   const keyboardHeight = useKeyboardHeight();
   const isDark = colorScheme === 'dark';
   const tr = language === 'tr';
-  const ac = tr ? AUDIENCE_COPY.tr : AUDIENCE_COPY.en;
   const myId = useAuthStore(s => s.user?.id);
+  // Ekip rolü (madde 9): görünürlük buna göre; asıl kapı sunucuda (bkz. staffRoles).
+  const myRole = useAuthStore(s => s.user?.role);
+  const isSuper = canStaff(myRole, 'super');
+  const canModerate = canStaff(myRole, 'moderate');
+  const canUsers = canStaff(myRole, 'users');
+  const canInsights = canStaff(myRole, 'insights');
+  const canSupport = canStaff(myRole, 'support');
+  const analystOnly = isAnalystOnly(myRole);        // Ürün Analisti: kendi ekranı (Analiz Merkezi)
+  const tpl = useSupportTemplates(canSupport);
 
-  const [activeTab, setActiveTab] = useState<'users' | 'stats' | 'support' | 'system'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'stats' | 'support' | 'system'>(() => (canModerate ? 'users' : canInsights ? 'stats' : 'support'));
   const [sysHealth, setSysHealth] = useState<SystemHealth | null>(null);
   const [sysStats, setSysStats] = useState<SystemStats | null>(null);
   const [sysLogs, setSysLogs] = useState<SystemLogEntry[]>([]);
@@ -146,27 +105,22 @@ export default function AdminScreen() {
    */
   const [sysLogSource, setSysLogSource] = useState<LogSource | null>('Production');
   const [sysLogPage, setSysLogPage] = useState(0);
-  const [crashPage, setCrashPage] = useState(0);
-  const [crashMeta, setCrashMeta] = useState<{ total: number; hasMore: boolean }>({ total: 0, hasMore: false });
   /** Cozulmus kilitlenmeleri gizle — panelin ilk sorusu "hala kirik olan ne?". */
-  const [crashUnresolvedOnly, setCrashUnresolvedOnly] = useState(false);
   const [auditPage, setAuditPage] = useState(0);
   const [auditMeta, setAuditMeta] = useState<{ total: number; hasMore: boolean }>({ total: 0, hasMore: false });
   const [sysLogMeta, setSysLogMeta] = useState<{ total: number; hasMore: boolean; counts: Partial<Record<LogSource, number>> }>({ total: 0, hasMore: false, counts: {} });
   const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
   const [aiTest, setAiTest] = useState<AiTestResult | null>(null);
   const [aiTesting, setAiTesting] = useState(false);
-  const [crashes, setCrashes] = useState<any[]>([]);
   const [sysLoading, setSysLoading] = useState(false);
   const [sysBusy, setSysBusy] = useState<string | null>(null);
   const [messages, setMessages] = useState<SupportMessageItem[]>([]);
   const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
   const [replyingId, setReplyingId] = useState<number | null>(null);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [expandedMsgs, setExpandedMsgs] = useState<Record<number, boolean>>({});
-  const [expandedCrashes, setExpandedCrashes] = useState<Record<string, boolean>>({});
   const [unreadCount, setUnreadCount] = useState(0);
   const [stats, setStats] = useState<AdminStats | null>(null);
-  const [audience, setAudience] = useState<AudienceStats | null>(null);
   const [insights, setInsights] = useState<AdminProductInsights | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [total, setTotal] = useState(0);
@@ -177,6 +131,7 @@ export default function AdminScreen() {
   const [error, setError] = useState(false);
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('recent');
+  const [userFilter, setUserFilter] = useState<UserFilter>('all'); const [filterCounts, setFilterCounts] = useState<Record<string, number> | null>(null);
   const [sortAsc, setSortAsc] = useState(false);
   // Kullanıcı detayı (drill-down)
   const [userDetail, setUserDetail] = useState<Record<number, AdminUserDetail>>({});
@@ -198,12 +153,13 @@ export default function AdminScreen() {
   const [historyLoadingFor, setHistoryLoadingFor] = useState<number | null>(null);
 
   const loadUsers = useCallback(async (reset: boolean) => {
+    if (!canUsers) return;
     if (!reset) setLoadingMore(true);
     try {
       const startCount = reset ? 0 : loadedCountRef.current;
       const nextPage = Math.floor(startCount / PAGE_SIZE) + 1;
-      const res = await AdminService.getUsers({ page: nextPage, pageSize: PAGE_SIZE, search: search.trim() || undefined, sort: sortKey, asc: sortAsc });
-      setTotal(res.total);
+      const res = await AdminService.getUsers({ page: nextPage, pageSize: PAGE_SIZE, search: search.trim() || undefined, sort: sortKey, asc: sortAsc, filter: userFilter === 'all' ? undefined : userFilter });
+      setTotal(res.total); if (res.counts) setFilterCounts(res.counts);
       setUsers(prev => {
         const merged = reset ? res.users : [...prev, ...res.users];
         loadedCountRef.current = merged.length;
@@ -214,20 +170,18 @@ export default function AdminScreen() {
     } finally {
       setLoadingMore(false);
     }
-  }, [search, sortKey, sortAsc]);
+  }, [search, sortKey, sortAsc, userFilter, canUsers]);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setError(false);
     try {
-      const [s, m, pi, au] = await Promise.all([
-        AdminService.getStats(),
-        SupportService.getAllMessages().catch(() => ({ messages: [], unreadCount: 0 })),
-        AdminService.getProductInsights().catch(() => null),
-        AdminSystemService.audience().catch(() => null),
+      const [s, m, pi] = await Promise.all([
+        canInsights ? AdminService.getStats() : Promise.resolve(null),
+        canSupport ? SupportService.getAllMessages().catch(() => ({ messages: [], unreadCount: 0 })) : Promise.resolve({ messages: [], unreadCount: 0 }),
+        canInsights ? AdminService.getProductInsights().catch(() => null) : Promise.resolve(null),
       ]);
       setStats(s);
-      setAudience(au);
       setInsights(pi);
       setMessages(m.messages);
       setUnreadCount(m.unreadCount);
@@ -240,7 +194,7 @@ export default function AdminScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [tr]);
+  }, [tr, canInsights, canSupport]);
 
   const handleMarkRead = async (msg: SupportMessageItem) => {
     haptic.select();
@@ -280,7 +234,8 @@ export default function AdminScreen() {
     haptic.success();
     try {
       await SupportService.replyMessage(msg.id, text);
-      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, adminReply: text, repliedAt: new Date().toISOString(), isRead: true } : m));
+      const now = new Date().toISOString(); // konuşmaya ekle (ikinci yanıt birincinin üstüne yazılmaz)
+      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, adminReply: text, repliedAt: now, isRead: true, thread: [...(m.thread ?? []), { fromStaff: true, body: text, at: now }] } : m));
       if (!msg.isRead) setUnreadCount(prev => Math.max(0, prev - 1));
       setReplyDrafts(d => ({ ...d, [msg.id]: '' }));
     } catch {
@@ -289,6 +244,14 @@ export default function AdminScreen() {
       setReplyingId(null);
     }
   };
+
+  const handleStaffClose = (msg: SupportMessageItem) => Alert.alert(tr ? 'Konuşmayı bitir' : 'End conversation', tr ? 'Kullanıcı bu konuşmaya artık yazamaz.' : 'The user can no longer reply here.', [
+    { text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' },
+    { text: tr ? 'Bitir' : 'End', style: 'destructive', onPress: async () => {
+      try { await SupportService.staffClose(msg.id); setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, closedAt: new Date().toISOString(), closedBy: 'staff', isRead: true } : m)); }
+      catch { Alert.alert(tr ? 'Hata' : 'Error', tr ? 'Kapatılamadı.' : 'Could not close.'); }
+    } },
+  ]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -315,13 +278,12 @@ export default function AdminScreen() {
   const loadSystem = useCallback(async () => {
     setSysLoading(true);
     try {
-      const [h, s, l, se, cr, ai] = await Promise.all([
+      const [h, s, l, se, ai] = await Promise.all([
         AdminSystemService.health().catch(() => null),
         AdminSystemService.stats().catch(() => null),
         AdminSystemService.logs({ limit: LOG_PAGE_SIZE, offset: sysLogPage * LOG_PAGE_SIZE, level: sysLogLevel || undefined, source: sysLogSource || undefined })
           .catch(() => ({ logs: [] as SystemLogEntry[], total: 0, offset: 0, limit: LOG_PAGE_SIZE, hasMore: false, counts: {} })),
         AdminSystemService.sentry().catch(() => null),
-        SupportService.getCrashes({ limit: CRASH_PAGE_SIZE, offset: crashPage * CRASH_PAGE_SIZE, unresolvedOnly: crashUnresolvedOnly }).catch(() => ({ crashes: [], items: [], total: 0, hasMore: false })),
         AdminSystemService.aiStatus().catch(() => null),
       ]);
       setSysHealth(h);
@@ -329,18 +291,15 @@ export default function AdminScreen() {
       setSysLogs(l.logs || []);
       setSysLogMeta({ total: l.total ?? 0, hasMore: l.hasMore ?? false, counts: l.counts ?? {} });
       setSysSentry(se);
-      setCrashes(cr?.crashes || []);
-      setCrashMeta({ total: cr?.total ?? 0, hasMore: cr?.hasMore ?? false });
       setAiStatus(ai);
     } finally {
       setSysLoading(false);
     }
-  }, [sysLogLevel, sysLogSource, sysLogPage, crashPage, crashUnresolvedOnly]);
+  }, [sysLogLevel, sysLogSource, sysLogPage]);
 
   // Filtre değişince sayfa başa dönmeli: 4. sayfadayken filtreyi daraltınca sonuç
   // 2 sayfaya düşüyor ve kullanıcı boş bir sayfaya bakıyordu.
   useEffect(() => { setSysLogPage(0); }, [sysLogLevel, sysLogSource]);
-  useEffect(() => { setCrashPage(0); }, [crashUnresolvedOnly]);
 
   useEffect(() => { if (activeTab === 'system') { loadSystem(); loadAudit(); } }, [activeTab, loadSystem, loadAudit]);
 
@@ -425,24 +384,17 @@ export default function AdminScreen() {
     }
   };
 
-  const handleToggleRole = (user: AdminUser) => {
-    const newRole = user.role === 'Admin' ? 'User' : 'Admin';
-    haptic.select();
-    Alert.alert(
-      tr ? 'Rol Değiştir' : 'Change Role',
-      tr ? `${user.name} → ${newRole} yapılsın mı?` : `Promote ${user.name} to ${newRole}?`,
-      [
-        { text: tr ? 'İptal' : 'Cancel', style: 'cancel' },
-        { text: tr ? 'Onayla' : 'Confirm', onPress: async () => {
-          try {
-            await AdminService.setRole(user.id, newRole);
-            setUsers(prev => prev.map(u => u.id === user.id ? { ...u, role: newRole } : u));
-          } catch {
-            Alert.alert(tr ? 'Hata' : 'Error', tr ? 'Değiştirilemedi.' : 'Could not update.');
-          }
-        }},
-      ]
-    );
+  // Rol seçici: her rolün altında ne gördüğü yazar (bkz. RolePicker).
+  const [rolePickFor, setRolePickFor] = useState<AdminUser | null>(null);
+  const handleSetRole = (user: AdminUser) => { haptic.select(); setRolePickFor(user); };
+  const applyRole = async (user: AdminUser, role: string) => {
+    setRolePickFor(null);
+    try {
+      await AdminService.setRole(user.id, role);
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, role } : u));
+    } catch {
+      Alert.alert(tr ? 'Hata' : 'Error', tr ? 'Değiştirilemedi.' : 'Could not update.');
+    }
   };
 
   const loadBanHistory = useCallback(async (userId: number) => {
@@ -511,7 +463,6 @@ export default function AdminScreen() {
 
   const cardBg     = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)';
   const cardBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
-  const maxBar     = stats?.dailyTrend ? Math.max(...stats.dailyTrend.map(d => d.minutes), 1) : 1;
 
   const SortBtn = ({ k, label }: { k: SortKey; label: string }) => {
     const active = sortKey === k;
@@ -534,9 +485,9 @@ export default function AdminScreen() {
           <ChevronLeft size={ICON.md} color={theme.onSurface} />
         </Touchable>
         <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ flex: 1, fontSize: F.title, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>
-          {tr ? 'Admin Paneli' : 'Admin Panel'}
+          {analystOnly ? (tr ? 'Analiz Merkezi' : 'Analytics') : (tr ? 'Admin Paneli' : 'Admin Panel')}
         </Text>
-        <Touchable
+        {isSuper && <Touchable
           onPress={() => { router.push('/promo'); }}
           style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: '#10B98115', borderWidth: B.thin, borderColor: '#10B98140', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.sm }}
           accessibilityRole="button"
@@ -544,10 +495,10 @@ export default function AdminScreen() {
         >
           <Megaphone size={ICON.xs} color="#10B981" />
           <Text style={{ fontSize: F.caption, fontWeight: '700', color: '#10B981' }}>{tr ? 'Tanıtım' : 'Promo'}</Text>
-        </Touchable>
+        </Touchable>}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: '#6366F115', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xs }}>
           <Shield size={ICON.xs} color="#6366F1" />
-          <Text style={{ fontSize: F.caption, fontWeight: '700', color: '#6366F1' }}>ADMIN</Text>
+          <Text style={{ fontSize: F.caption, fontWeight: '700', color: '#6366F1' }}>{roleLabel(myRole, language).toLocaleUpperCase(tr ? 'tr-TR' : 'en-US')}</Text>
         </View>
       </View>
 
@@ -576,15 +527,17 @@ export default function AdminScreen() {
             yanıt kutusu tam da bunu yaşatıyordu.
           */
           keyboardShouldPersistTaps="handled"
+          stickyHeaderIndices={[0]}
         >
-          {/* Tab Switcher (4 sekme) */}
+          {/* Sekmeler — yapışkan (kaydırınca kaybolmuyordu: "karmaşa hakim" turu). Analist tek ekran görür. */}
+          <View style={{ backgroundColor: theme.background, paddingVertical: S.xs, display: analystOnly ? 'none' : 'flex' }}>
           <View style={{ flexDirection: 'row', backgroundColor: cardBg, borderRadius: R.full, padding: S.xs, borderWidth: B.thin, borderColor: cardBorder }}>
             {([
               { key: 'users', icon: Users, label: tr ? 'Kullanıcı' : 'Users' },
-              { key: 'stats', icon: BarChart3, label: tr ? 'İstatistik' : 'Stats' },
+              { key: 'stats', icon: BarChart3, label: tr ? 'Analiz' : 'Analytics' },
               { key: 'support', icon: MessageSquare, label: tr ? 'Destek' : 'Support', badge: unreadCount },
               { key: 'system', icon: Server, label: tr ? 'Sistem' : 'System', dot: !!sysHealth && (sysHealth.errors > 0 || !sysHealth.dbOk) },
-            ] as const).map((tb) => {
+            ] as const).filter(tb => ({ users: canUsers, stats: canInsights, support: canSupport, system: isSuper })[tb.key]).map((tb) => {
               const active = activeTab === tb.key;
               const Icon = tb.icon;
               return (
@@ -602,209 +555,11 @@ export default function AdminScreen() {
               );
             })}
           </View>
+          </View>
 
-          {/* ── İSTATİSTİK sekmesi: genel bakış ── */}
+          {/* ── ANALİZ sekmesi: bkz. AnalyticsCenter ── */}
           {activeTab === 'stats' && stats && (
-            <>
-              {audience && (
-                <View style={{ backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
-                  <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurface }}>{ac.title}</Text>
-                  <View style={{ flexDirection: 'row', gap: S.sm }}>
-                    {[
-                      { label: ac.registered, value: audience.registered.total },
-                      { label: ac.verified, value: audience.registered.emailVerified },
-                      { label: ac.guestDevices, value: audience.installs.total },
-                      { label: ac.last30, value: audience.installs.activeLast30Days },
-                    ].map(c => (
-                      <View key={c.label} style={{ flex: 1, alignItems: 'center', gap: S.xs }}>
-                        <Text style={{ fontSize: F.title3, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>{c.value}</Text>
-                        <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant, textAlign: 'center' }}>{c.label}</Text>
-                      </View>
-                    ))}
-                  </View>
-                  {([['App Store', audience.appStore], ['Google Play', audience.playStore]] as [string, StoreChannelStatus][]).map(([name, ch]) => (
-                    <View key={name} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ fontSize: F.footnote, color: theme.onSurfaceVariant }}>{name}</Text>
-                      <Text style={{ fontSize: F.footnote, fontWeight: '600', color: theme.onSurface }}>
-                        {ch.downloads != null
-                          ? `${ch.downloads} · ★ ${ch.rating?.toFixed(1) ?? '–'} (${ch.ratingCount ?? 0})`
-                          : ac.storeStatus[ch.status]}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              <View style={{ flexDirection: 'row', gap: S.sm }}>
-                {[
-                  { icon: <Users size={ICON.sm} color="#6366F1" />, label: tr ? 'Kullanıcı' : 'Users', value: stats.totalUsers, color: '#6366F1' },
-                  { icon: <Activity size={ICON.sm} color="#10B981" />, label: tr ? 'Bugün Aktif' : 'Active Today', value: stats.activeToday, color: '#10B981' },
-                  { icon: <TrendingUp size={ICON.sm} color="#F59E0B" />, label: tr ? 'Bu Hafta' : 'This Week', value: stats.activeThisWeek, color: '#F59E0B' },
-                ].map(c => (
-                  <MotiView key={c.label} from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 350 }}
-                    style={{ flex: 1, backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.sm + 2, alignItems: 'center', gap: S.xs }}>
-                    <View style={{ width: 30, height: 30, borderRadius: R.sm, backgroundColor: c.color + '20', alignItems: 'center', justifyContent: 'center' }}>{c.icon}</View>
-                    <Text style={{ fontSize: F.title3, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>{c.value}</Text>
-                    <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceVariant, textAlign: 'center' }}>{c.label}</Text>
-                  </MotiView>
-                ))}
-              </View>
-
-              <View style={{ flexDirection: 'row', gap: S.sm }}>
-                {[
-                  { icon: <CheckSquare size={ICON.sm} color="#8B5CF6" />, label: tr ? 'Toplam Görev' : 'Total Tasks', value: stats.totalTasks, color: '#8B5CF6' },
-                  { icon: <CheckSquare size={ICON.sm} color="#06B6D4" />, label: tr ? 'Tamamlanan' : 'Completed', value: stats.completedTasks, color: '#06B6D4' },
-                  { icon: <Clock size={ICON.sm} color="#F43F5E" />, label: tr ? 'Odak (saat)' : 'Focus (hrs)', value: Math.round(stats.totalFocusMinutes / 60), color: '#F43F5E' },
-                ].map(c => (
-                  <MotiView key={c.label} from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 400 }}
-                    style={{ flex: 1, backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.sm + 2, alignItems: 'center', gap: S.xs }}>
-                    <View style={{ width: 30, height: 30, borderRadius: R.sm, backgroundColor: c.color + '20', alignItems: 'center', justifyContent: 'center' }}>{c.icon}</View>
-                    <Text style={{ fontSize: F.title3, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>{c.value}</Text>
-                    <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceVariant, textAlign: 'center' }}>{c.label}</Text>
-                  </MotiView>
-                ))}
-              </View>
-
-              {/* ── Destek (Sistem'den taşındı) ── */}
-              <View style={{ flexDirection: 'row', gap: S.sm }}>
-                {[
-                  { icon: <MessageSquare size={ICON.sm} color="#3B82F6" />, label: tr ? 'Destek Mesajı' : 'Support', value: messages.length, color: '#3B82F6' },
-                  { icon: <Mail size={ICON.sm} color="#EF4444" />, label: tr ? 'Okunmamış' : 'Unread', value: unreadCount, color: '#EF4444' },
-                ].map(c => (
-                  <MotiView key={c.label} from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 450 }}
-                    style={{ flex: 1, backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.sm + 2, alignItems: 'center', gap: S.xs }}>
-                    <View style={{ width: 30, height: 30, borderRadius: R.sm, backgroundColor: c.color + '20', alignItems: 'center', justifyContent: 'center' }}>{c.icon}</View>
-                    <Text style={{ fontSize: F.title3, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>{c.value}</Text>
-                    <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceVariant, textAlign: 'center' }}>{c.label}</Text>
-                  </MotiView>
-                ))}
-              </View>
-
-              {/* ── Completion rate bar ── */}
-              {stats.totalTasks > 0 && (
-                <View style={{ backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.md }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: S.sm }}>
-                    <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant }}>{tr ? 'TAMAMLANMA ORANI' : 'COMPLETION RATE'}</Text>
-                    <Text style={{ fontSize: F.caption, fontWeight: '700', color: '#10B981' }}>
-                      {Math.round((stats.completedTasks / stats.totalTasks) * 100)}%
-                    </Text>
-                  </View>
-                  <View style={{ height: 8, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)', borderRadius: R.full, overflow: 'hidden' }}>
-                    <MotiView
-                      from={{ width: '0%' }}
-                      animate={{ width: `${Math.round((stats.completedTasks / stats.totalTasks) * 100)}%` as any }}
-                      transition={{ type: 'timing', duration: 800, delay: 200 }}
-                      style={{ height: '100%', backgroundColor: '#10B981', borderRadius: R.full }}
-                    />
-                  </View>
-                </View>
-              )}
-
-              {/* ── 7-day focus trend ── */}
-              {stats.dailyTrend && (
-                <View style={{ backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.md }}>
-                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, marginBottom: S.md }}>
-                    {tr ? '7 GÜNLÜK ODAK TRENDİ' : '7-DAY FOCUS TREND'}
-                  </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: S.xs, height: 60 }}>
-                    {stats.dailyTrend.map((d, i) => (
-                      <View key={i} style={{ flex: 1, alignItems: 'center', gap: S.xs }}>
-                        <MotiView
-                          from={{ height: 2 }}
-                          animate={{ height: Math.max(4, (d.minutes / maxBar) * 48) }}
-                          transition={{ type: 'timing', duration: 600, delay: i * 60 }}
-                          style={{ width: '100%', backgroundColor: d.minutes > 0 ? theme.primary : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'), borderRadius: R.xs }}
-                        />
-                        <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceMuted }}>{d.day}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* ── Ürün İçgörüleri: dönemsel mod benimsenmesi, elde tutma, sürüm ── */}
-              {insights && (
-                <>
-                  <View style={{ backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
-                    <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant }}>
-                      {tr ? INSIGHTS_COPY.modesTitle.tr : INSIGHTS_COPY.modesTitle.en}
-                    </Text>
-                    {insights.modes.every(m => m.activeUsers === 0 && m.closedGoals === 0) ? (
-                      <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted }}>
-                        {tr ? INSIGHTS_COPY.noData.tr : INSIGHTS_COPY.noData.en}
-                      </Text>
-                    ) : (
-                      insights.modes
-                        .filter(m => m.activeUsers > 0 || m.closedGoals > 0)
-                        .sort((a, b) => (b.activeUsers + b.closedGoals) - (a.activeUsers + a.closedGoals))
-                        .map(m => {
-                          const meta = MODE_META[m.mode] ?? MODE_META.default;
-                          return (
-                            <View key={m.mode} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: S.xs }}>
-                              <View style={{ width: 30, height: 30, borderRadius: R.sm, backgroundColor: meta.color + '20', alignItems: 'center', justifyContent: 'center' }}>
-                                <Text style={{ fontSize: 15 }}>{meta.emoji}</Text>
-                              </View>
-                              <View style={{ flex: 1 }}>
-                                <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurface }}>
-                                  {tr ? meta.labelTr : meta.labelEn}
-                                </Text>
-                                <Text style={{ fontSize: 10, color: theme.onSurfaceMuted }}>
-                                  {modeSummaryLine(tr, m)}
-                                </Text>
-                              </View>
-                              <Text style={{ fontSize: F.title3, fontWeight: '700', color: meta.color }}>{m.activeUsers}</Text>
-                            </View>
-                          );
-                        })
-                    )}
-                  </View>
-
-                  {insights.retention.length > 0 && (
-                    <View style={{ backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.md }}>
-                      <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, marginBottom: S.md }}>
-                        {tr ? INSIGHTS_COPY.retentionTitle.tr : INSIGHTS_COPY.retentionTitle.en}
-                      </Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: S.xs, height: 60 }}>
-                        {insights.retention.map((c, i) => {
-                          const pct = c.newUsers > 0 ? Math.round((c.stillActiveAfter7d / c.newUsers) * 100) : 0;
-                          return (
-                            <View key={i} style={{ flex: 1, alignItems: 'center', gap: S.xs }}>
-                              <MotiView
-                                from={{ height: 2 }}
-                                animate={{ height: Math.max(4, (pct / 100) * 48) }}
-                                transition={{ type: 'timing', duration: 600, delay: i * 60 }}
-                                style={{ width: '100%', backgroundColor: pct >= 40 ? '#10B981' : pct > 0 ? '#F59E0B' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'), borderRadius: R.xs }}
-                              />
-                              <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceMuted }}>{c.weekLabel}</Text>
-                            </View>
-                          );
-                        })}
-                      </View>
-                    </View>
-                  )}
-
-                  {insights.versions.length > 0 && (
-                    <View style={{ backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.xs }}>
-                      <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, marginBottom: S.xs }}>
-                        {tr ? INSIGHTS_COPY.versionsTitle.tr : INSIGHTS_COPY.versionsTitle.en}
-                      </Text>
-                      {insights.versions.slice(0, 6).map(v => {
-                        const pct = insights.usersWithKnownVersion > 0 ? Math.round((v.users / insights.usersWithKnownVersion) * 100) : 0;
-                        return (
-                          <View key={v.version} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                            <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurface, width: 64 }}>{v.version}</Text>
-                            <View style={{ flex: 1, height: 6, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)', borderRadius: R.full, overflow: 'hidden' }}>
-                              <View style={{ width: `${pct}%`, height: '100%', backgroundColor: theme.primary, borderRadius: R.full }} />
-                            </View>
-                            <Text style={{ fontSize: 10, color: theme.onSurfaceMuted, width: 30, textAlign: 'right' }}>{pct}%</Text>
-                          </View>
-                        );
-                      })}
-                    </View>
-                  )}
-                </>
-              )}
-            </>
+            <AnalyticsCenter lang={language === 'tr' ? 'tr' : 'en'} stats={stats} insights={insights} />
           )}
 
           {activeTab === 'users' ? (
@@ -827,6 +582,7 @@ export default function AdminScreen() {
               <SortBtn k="tasks"  label={tr ? 'Görev' : 'Tasks'} />
               <SortBtn k="name"   label={tr ? 'İsim' : 'Name'} />
             </View>
+            <UserFilterChips value={userFilter} counts={filterCounts} total={total} onChange={setUserFilter} lang={tr ? 'tr' : 'en'} />
           </View>
 
           {/* ── User count ── */}
@@ -839,7 +595,7 @@ export default function AdminScreen() {
             const isExpanded = expandedUser === user.id;
             const completionRate = user.taskCount > 0 ? Math.round((user.completedTasks / user.taskCount) * 100) : 0;
             const focusHrs = (user.focusMinutes / 60).toFixed(1);
-            const isAdmin = user.role === 'Admin';
+            const isStaffUser = canStaff(user.role, 'staff');
             const isSelf = user.id === myId;
             const tempBanActive = !!user.bannedUntil && new Date(user.bannedUntil).getTime() > Date.now();
             const isBanned = !!user.isBanned || tempBanActive;
@@ -854,17 +610,17 @@ export default function AdminScreen() {
                 from={{ opacity: 0, translateY: 10 }}
                 animate={{ opacity: 1, translateY: 0 }}
                 transition={{ type: 'timing', duration: 280, delay: Math.min(i * 30, 300) }}
-                style={{ backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: isAdmin ? '#6366F130' : cardBorder, overflow: 'hidden' }}
+                style={{ backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: isStaffUser ? '#6366F130' : cardBorder, overflow: 'hidden' }}
               >
                 {/* Main row */}
                 <Touchable
-                  onPress={() => { const opening = !isExpanded; setExpandedUser(opening ? user.id : null); if (opening && banHistory[user.id] === undefined) loadBanHistory(user.id); if (opening && userDetail[user.id] === undefined) loadUserDetail(user.id); setBanPickerFor(null); haptic.select(); }}
+                  onPress={() => { const opening = !isExpanded; setExpandedUser(opening ? user.id : null); if (opening && canModerate && banHistory[user.id] === undefined) loadBanHistory(user.id); if (opening && isSuper && userDetail[user.id] === undefined) loadUserDetail(user.id); setBanPickerFor(null); haptic.select(); }}
                   style={{ flexDirection: 'row', alignItems: 'center', padding: S.md, gap: S.sm }}
                   activeOpacity={0.7}
                 >
                   {/* Avatar */}
-                  <View style={{ width: 42, height: 42, borderRadius: R.full, backgroundColor: isAdmin ? '#6366F125' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'), alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: F.subhead, fontWeight: '700', color: isAdmin ? '#6366F1' : theme.onSurface }}>
+                  <View style={{ width: 42, height: 42, borderRadius: R.full, backgroundColor: isStaffUser ? '#6366F125' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'), alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: F.subhead, fontWeight: '700', color: isStaffUser ? '#6366F1' : theme.onSurface }}>
                       {(user.name || user.email)[0].toUpperCase()}
                     </Text>
                   </View>
@@ -872,9 +628,9 @@ export default function AdminScreen() {
                   <View style={{ flex: 1, gap: S.xxs }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
                       <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurface }} numberOfLines={1}>{user.name}</Text>
-                      {isAdmin && (
+                      {isStaffUser && (
                         <View style={{ backgroundColor: '#6366F115', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xxs }}>
-                          <Text style={{ fontSize: F.caption, fontWeight: '700', color: '#6366F1' }}>ADMIN</Text>
+                          <Text style={{ fontSize: F.caption, fontWeight: '700', color: '#6366F1' }}>{roleLabel(user.role, language).toLocaleUpperCase(tr ? 'tr-TR' : 'en-US')}</Text>
                         </View>
                       )}
                       {isBanned && (
@@ -939,16 +695,18 @@ export default function AdminScreen() {
                       </Text>
                     )}
 
-                    {/* Kullanıcı detayı (drill-down) + KVKK export */}
-                    <View style={{ gap: S.sm, borderTopWidth: HAIRLINE, borderTopColor: theme.separator, paddingTop: S.sm }}>
+                    {/* Kullanıcı detayı (drill-down) + KVKK export — yalnız süper admin (kişisel veri) */}
+                    {isSuper && <View style={{ gap: S.sm, borderTopWidth: HAIRLINE, borderTopColor: theme.separator, paddingTop: S.sm }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.5 }}>
                           {tr ? 'KULLANICI DETAYI' : 'USER DETAIL'}
                         </Text>
+                        {isSuper && (
                         <Touchable onPress={() => handleExport(user)} disabled={exportingFor === user.id} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: theme.primary + '15', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
                           {exportingFor === user.id ? <ActivityIndicator size="small" color={theme.primary} /> : <Download size={ICON.xs} color={theme.primary} />}
                           <Text style={{ color: theme.primary, fontSize: 10, fontWeight: '700' }}>{tr ? 'Verisini Dışa Aktar' : 'Export Data'}</Text>
                         </Touchable>
+                        )}
                       </View>
                       {detailLoadingFor === user.id && !userDetail[user.id] ? (
                         <ActivityIndicator size="small" color={theme.primary} style={{ alignSelf: 'flex-start' }} />
@@ -991,7 +749,7 @@ export default function AdminScreen() {
                           )}
                         </View>
                       ) : null}
-                    </View>
+                    </View>}
 
                     {/* Ban durumu notu */}
                     {isBanned && (
@@ -1024,7 +782,7 @@ export default function AdminScreen() {
                         </Text>
                       </View>
                     ) : isDeleted ? (
-                      <Touchable
+                      !isSuper ? null : <Touchable
                         onPress={() => handleDelete(user)}
                         style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isDark ? 'rgba(239,68,68,0.10)' : 'rgba(239,68,68,0.06)', borderWidth: B.thin, borderColor: theme.error + '40' }}
                       >
@@ -1035,17 +793,19 @@ export default function AdminScreen() {
                       </Touchable>
                     ) : (
                       <View style={{ gap: S.sm }}>
-                        <Touchable
-                          onPress={() => handleToggleRole(user)}
-                          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isAdmin ? '#6366F115' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'), borderWidth: B.thin, borderColor: isAdmin ? '#6366F130' : cardBorder }}
+                        {isSuper && <Touchable
+                          onPress={() => handleSetRole(user)}
+                          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isStaffUser ? '#6366F115' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'), borderWidth: B.thin, borderColor: isStaffUser ? '#6366F130' : cardBorder }}
                         >
-                          {isAdmin ? <ShieldOff size={ICON.sm} color="#6366F1" /> : <Shield size={ICON.sm} color={theme.onSurfaceVariant} />}
-                          <Text style={{ fontSize: F.caption, fontWeight: '700', color: isAdmin ? '#6366F1' : theme.onSurfaceVariant }}>
-                            {isAdmin ? (tr ? 'Admin Al' : 'Revoke Admin') : (tr ? 'Admin Yap' : 'Make Admin')}
+                          <Shield size={ICON.sm} color={isStaffUser ? '#6366F1' : theme.onSurfaceVariant} />
+                          <Text style={{ fontSize: F.caption, fontWeight: '700', color: isStaffUser ? '#6366F1' : theme.onSurfaceVariant }}>
+                            {tr ? `Rol: ${roleLabel(user.role, language)}` : `Role: ${roleLabel(user.role, language)}`}
                           </Text>
-                        </Touchable>
+                        </Touchable>}
+                        {isSuper && <AnalyticsToggle userId={user.id} role={user.role} include={user.analyticsInclude} lang={tr ? 'tr' : 'en'}
+                          onChange={v => setUsers(prev => prev.map(u => u.id === user.id ? { ...u, analyticsInclude: v } : u))} />}
 
-                        <View style={{ flexDirection: 'row', gap: S.sm }}>
+                        {canModerate && <View style={{ flexDirection: 'row', gap: S.sm }}>
                           <Touchable
                             onPress={() => { haptic.select(); if (isBanned) { performUnban(user); } else { const open = banPickerFor !== user.id; setBanPickerFor(open ? user.id : null); if (open) { setBanReason(null); setBanReasonCustom(''); } } }}
                             style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isBanned ? '#10B98115' : (banPickerFor === user.id ? '#F59E0B22' : (isDark ? 'rgba(245,158,11,0.10)' : 'rgba(245,158,11,0.07)')), borderWidth: B.thin, borderColor: isBanned ? '#10B98140' : '#F59E0B40' }}
@@ -1056,7 +816,7 @@ export default function AdminScreen() {
                             </Text>
                           </Touchable>
 
-                          <Touchable
+                          {isSuper && <Touchable
                             onPress={() => handleDelete(user)}
                             style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isDark ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.05)', borderWidth: B.thin, borderColor: theme.error + '30' }}
                           >
@@ -1064,8 +824,8 @@ export default function AdminScreen() {
                             <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.error }}>
                               {tr ? 'Hesabı Sil' : 'Delete'}
                             </Text>
-                          </Touchable>
-                        </View>
+                          </Touchable>}
+                        </View>}
 
                         {/* Ban sebebi + süre seçici */}
                         {banPickerFor === user.id && !isBanned && (() => {
@@ -1191,6 +951,11 @@ export default function AdminScreen() {
             </>
           ) : activeTab === 'support' ? (
             <View style={{ gap: S.md }}>
+              {tpl.templates.length > 0 && (
+                <TemplatesHeader lang={language === 'tr' ? 'tr' : 'en'} canEdit={canModerate} onEdit={() => setTemplatesOpen(true)} />
+              )}
+              <TemplateEditor lang={language === 'tr' ? 'tr' : 'en'} visible={templatesOpen} templates={tpl.templates}
+                onClose={() => setTemplatesOpen(false)} onSave={tpl.save} />
               {messages.length === 0 ? (
                 <View style={{ alignItems: 'center', paddingVertical: S.xl }}>
                   <Text style={{ color: theme.onSurfaceMuted, fontWeight: '600' }}>
@@ -1226,6 +991,7 @@ export default function AdminScreen() {
                         <Text style={{ color: theme.onSurfaceMuted, fontSize: 10 }}>
                           {new Date(m.createdAt).toLocaleDateString(tr ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         </Text>
+                        {canModerate && (
                         <Touchable
                           onPress={() => handleDeleteMessage(m)}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -1235,6 +1001,7 @@ export default function AdminScreen() {
                         >
                           <Trash2 size={ICON.sm} color={theme.error} />
                         </Touchable>
+                        )}
                       </View>
                     </View>
                     <Text
@@ -1251,47 +1018,14 @@ export default function AdminScreen() {
                       </Touchable>
                     )}
 
-                    {/* Yanıt: varsa salt-okunur göster, yoksa yanıt kutusu sun */}
-                    {m.adminReply ? (
-                      <View style={{ backgroundColor: '#10B98112', borderLeftWidth: 3, borderLeftColor: '#10B981', borderRadius: R.sm, padding: S.sm, gap: S.xxs }}>
-                        <Text style={{ color: '#10B981', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>{tr ? '✓ YANITIN' : '✓ YOUR REPLY'}</Text>
-                        <Text style={{ color: theme.onSurface, fontSize: F.caption, lineHeight: 18 }}>{m.adminReply}</Text>
-                        {m.repliedAt && (
-                          <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>
-                            {new Date(m.repliedAt).toLocaleDateString(tr ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                          </Text>
-                        )}
-                      </View>
-                    ) : (
-                      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: S.xs }}>
-                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', borderRadius: R.xl, paddingHorizontal: S.md, minHeight: 40 }}>
-                          <CornerDownRight size={ICON.xs} color={theme.onSurfaceVariant} style={{ opacity: 0.4 }} />
-                          <TextInput
-                            value={replyDrafts[m.id] || ''}
-                            onChangeText={(t) => setReplyDrafts(d => ({ ...d, [m.id]: t }))}
-                            placeholder={tr ? 'Yanıt yaz…' : 'Reply…'}
-                            placeholderTextColor={theme.onSurfaceVariant + '70'}
-                            multiline
-                            maxLength={1000}
-                            underlineColorAndroid="transparent"
-                            style={{ flex: 1, color: theme.onSurface, fontSize: F.caption, paddingVertical: S.sm, maxHeight: 100 }}
-                          />
-                        </View>
-                        <Touchable
-                          accessibilityRole="button"
-                          accessibilityLabel={tr ? 'Yanıtı gönder' : 'Send reply'}
-                          accessibilityState={{ disabled: replyingId === m.id || !(replyDrafts[m.id] || '').trim(), busy: replyingId === m.id }}
-                          hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
-                          onPress={() => handleReply(m)}
-                          disabled={replyingId === m.id || !(replyDrafts[m.id] || '').trim()}
-                          style={{ width: 40, height: 40, borderRadius: R.full, alignItems: 'center', justifyContent: 'center', backgroundColor: (replyDrafts[m.id] || '').trim() ? '#3B82F6' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)') }}
-                        >
-                          {replyingId === m.id
-                            ? <ActivityIndicator size="small" color="#FFF" />
-                            : <Send size={ICON.sm} color={(replyDrafts[m.id] || '').trim() ? '#FFF' : theme.onSurfaceVariant} />}
-                        </Touchable>
-                      </View>
-                    )}
+                    {/* Konuşma (2026-10-31): ilk mesaj yukarıda; devamı + yanıt kutusu + bitir (bkz. SupportThread). */}
+                    <SupportThread
+                      entries={(m.thread ?? [{ fromStaff: false, body: m.message, at: m.createdAt }, ...(m.adminReply ? [{ fromStaff: true, body: m.adminReply, at: m.repliedAt ?? m.createdAt }] : [])]).slice(1)}
+                      viewer="staff" otherName={m.userName} lang={tr ? 'tr' : 'en'} closedBy={m.closedBy ?? null}
+                      draft={replyDrafts[m.id] || ''} onDraft={t => setReplyDrafts(d => ({ ...d, [m.id]: t }))} onSend={() => handleReply(m)} sending={replyingId === m.id}
+                      onClose={() => handleStaffClose(m)}
+                      header={<TemplateChips templates={tpl.templates} onPick={t => { setReplyDrafts(d => ({ ...d, [m.id]: fillTemplate(t.body, m.userName, d[m.id], templateFallback(language === 'tr' ? 'tr' : 'en')) })); }} />}
+                    />
 
                     {!m.isRead && (
                       <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: S.xxs }}>
@@ -1311,6 +1045,7 @@ export default function AdminScreen() {
           ) : activeTab === 'system' ? (
             /* ── SİSTEM KONSOLU ── */
             <View style={{ gap: S.md }}>
+              <JobHealthCard lang={tr ? 'tr' : 'en'} />
               {/* Denetim günlüğü (audit log) */}
               <View style={{ backgroundColor: cardBg, borderRadius: R.lg, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1495,128 +1230,8 @@ export default function AdminScreen() {
                 )}
               </View>
 
-              {/* Client Crashes — Son Hatalar ve Çökmeler */}
-              <View style={{ backgroundColor: cardBg, borderRadius: R.lg, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
-                    <View style={{ width: 28, height: 28, borderRadius: R.sm, backgroundColor: '#EF444420', alignItems: 'center', justifyContent: 'center' }}>
-                      <AlertCircle size={ICON.sm} color="#EF4444" />
-                    </View>
-                    <View>
-                      <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{tr ? 'Kullanıcı Hataları (Crash Log)' : 'Client Crashes'}</Text>
-                      <Text style={{ color: theme.onSurfaceMuted, fontSize: 10 }}>{tr ? 'son çökmeler' : 'recent reports'}</Text>
-                    </View>
-                  </View>
-                  {/*
-                    Filtre dugmesi. Rozet degil DUGME: "3 cozulmemis" yazisi bilgi verir
-                    ama ise yaramaz; asil istenen "yalniz onlari goster".
-                    Sayi artik SUNUCUDAN geliyor. Eskiden `crashes.filter(...)` ile yalniz
-                    ELDEKI sayfa sayiliyordu: 200 kayitli sistemde "3 COZULMEMIS" yaziyordu,
-                    cunku istemciye 15 kayit gelmisti. Yanlis sayi, sayi olmamasindan kotudur.
-                  */}
-                  <Touchable
-                    onPress={() => setCrashUnresolvedOnly(v => !v)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: crashUnresolvedOnly }}
-                    accessibilityLabel={tr ? 'Yalnizca cozulmemisleri goster' : 'Show unresolved only'}
-                    style={{ backgroundColor: crashUnresolvedOnly ? '#EF4444' : '#EF444420', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}
-                  >
-                    <Text style={{ color: crashUnresolvedOnly ? '#FFF' : '#EF4444', fontSize: F.caption, fontWeight: '700' }}>
-                      {crashUnresolvedOnly ? (tr ? 'ÇÖZÜLMEMİŞ' : 'UNRESOLVED') : (tr ? 'TÜMÜ' : 'ALL')} · {crashMeta.total}
-                    </Text>
-                  </Touchable>
-                </View>
-
-                {crashes.length === 0 ? (
-                  <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, paddingVertical: S.xs }}>
-                    {tr ? 'Herhangi bir kullanıcı hatası kaydedilmedi.' : 'No client crashes recorded.'}
-                  </Text>
-                ) : (
-                  <View style={{ gap: S.sm }}>
-                    {crashes.map((crash, idx) => {
-                      const ckey = String(crash.id ?? idx); const open = !!expandedCrashes[ckey];
-                      return (
-                      <View key={ckey} style={{ borderTopWidth: idx > 0 ? B.thin : 0, borderTopColor: cardBorder, paddingTop: idx > 0 ? S.sm : 0, gap: S.xs }}>
-                        <Touchable
-                          activeOpacity={0.7}
-                          onPress={() => { haptic.select(); setExpandedCrashes(e => ({ ...e, [ckey]: !e[ckey] })); }}
-                          style={{ gap: S.xs }}
-                        >
-                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: S.sm }}>
-                            <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.caption, flex: 1 }} numberOfLines={open ? undefined : 1}>
-                              {crash.errorMessage}
-                            </Text>
-                            <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>
-                              {crash.createdAt ? new Date(crash.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                            </Text>
-                          </View>
-
-                          {open ? (
-                            <View style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderRadius: R.sm, padding: S.sm, marginTop: S.xxs }}>
-                              <Text selectable style={{ color: theme.onSurfaceVariant, fontSize: 10, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', lineHeight: 15 }}>
-                                {crash.stackTrace || (tr ? '(stack trace yok)' : '(no stack trace)')}
-                              </Text>
-                            </View>
-                          ) : (
-                            <Text style={{ color: theme.onSurfaceVariant, fontSize: 10 }} numberOfLines={2}>
-                              {crash.stackTrace}
-                            </Text>
-                          )}
-                          <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>
-                            {open ? (tr ? 'Daha az' : 'Show less') : (tr ? 'Detayı gör' : 'View detail')}
-                          </Text>
-                        </Touchable>
-
-                        {/*
-                          ROZET KUTUDAN TAŞIYORDU.
-
-                          Soldaki künye metninin (platform · cihaz · sürüm · e-posta) ne `flex`i
-                          ne satır sınırı vardı; doğal genişliğini alıp satırı şişiriyor ve
-                          "Çözüldü" rozetini kartın dışına itiyordu. `space-between` bunu
-                          çözmez — içerik zaten sığmıyorsa dağıtacak boşluk kalmaz.
-
-                          Künye esneyip kırpılıyor (`flex: 1` + `numberOfLines`), rozet ise
-                          asla küçülmüyor (`flexShrink: 0`): kısaltılması gereken taraf uzun
-                          ve tekrar eden künye, sabit ve kritik olan durum etiketi değil.
-                        */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: S.sm, marginTop: S.xxs }}>
-                          <Text numberOfLines={2} style={{ flex: 1, minWidth: 0, color: theme.onSurfaceMuted, fontSize: F.caption }}>
-                            {crash.platform} · {crash.deviceName} · v{crash.appVersion} {crash.userEmail ? `(${crash.userEmail})` : ''}
-                          </Text>
-                          {!crash.isResolved ? (
-                            <Touchable
-                              onPress={async () => {
-                                haptic.surface();
-                                try {
-                                  await SupportService.resolveCrash(crash.id);
-                                  const cr = await SupportService.getCrashes({ limit: CRASH_PAGE_SIZE, offset: crashPage * CRASH_PAGE_SIZE, unresolvedOnly: crashUnresolvedOnly }).catch(() => ({ crashes: [], items: [], total: 0, hasMore: false }));
-                                  setCrashes(cr.crashes || []);
-                                } catch (e) { swallow('admin.resolveCrashAndRefresh', e, { capture: true }); }
-                              }}
-                              style={{ flexShrink: 0, backgroundColor: theme.primary + '15', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.sm }}
-                            >
-                              <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>
-                                {tr ? 'Çözüldü İşaretle' : 'Mark Resolved'}
-                              </Text>
-                            </Touchable>
-                          ) : (
-                            <Text numberOfLines={1} style={{ flexShrink: 0, color: '#10B981', fontSize: F.caption, fontWeight: '700' }}>{tr ? 'Çözüldü' : 'Resolved'}</Text>
-                          )}
-                        </View>
-                      </View>
-                      ); })}
-                  </View>
-                )}
-
-                <Pager
-                  page={crashPage}
-                  pageSize={CRASH_PAGE_SIZE}
-                  total={crashMeta.total}
-                  hasMore={crashMeta.hasMore}
-                  onChange={setCrashPage}
-                  tr={tr}
-                />
-              </View>
+              {/* Çökmeler — hata başına tek satır + saklama süresi (bkz. CrashGroupsCard, sunucu CrashLog). */}
+              <CrashGroupsCard lang={tr ? 'tr' : 'en'} />
 
               {/* Loglar */}
               <View style={{ backgroundColor: cardBg, borderRadius: R.lg, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
@@ -1848,6 +1463,8 @@ export default function AdminScreen() {
         </View>
         <AlertHost />{/* modal içinden açılan uyarı burada, modalın üstünde (bkz. CustomAlert) */}
       </Modal>
+      {/* Rol seçici sayfa düzeyinde — bir modalın İÇİNDE olunca o modal kapalıyken hiç çizilmiyordu. */}
+      <RolePicker visible={!!rolePickFor} name={rolePickFor?.name ?? ''} current={rolePickFor?.role ?? 'User'} lang={tr ? 'tr' : 'en'} onPick={r => rolePickFor && applyRole(rolePickFor, r)} onClose={() => setRolePickFor(null)} />
     </SafeAreaView>
   );
 }

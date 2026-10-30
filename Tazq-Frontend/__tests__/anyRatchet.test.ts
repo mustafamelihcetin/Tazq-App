@@ -17,7 +17,7 @@ const ROOT = path.resolve(__dirname, '..');
 const SKIP_DIRS = ['node_modules', '__tests__', '__mocks__', '.expo', 'android', 'ios', 'dist'];
 const ANY = /\bas any\b|:\s*any\b|<any>|any\[\]/g;
 
-const CEILING = 252; // 259 → 252 (2026-10-29): CustomAlert tiplendi (any kalktı) · 260 → 259 (2026-10-25): ayarlar tema satırı ChoiceRow'a geçti · 261 → 260 (2026-10-25): Hoş Geldin ekranı yeniden yazıldı (t: any kalktı) · 262 → 261 (2026-10-25): Ayarlar hesap bölümü ortak satırlara geçti · 265 → 262 (2026-10-25): içgörü modalı tiplendi · 266 → 265 (2026-10-25): Yeni Hedef formu yeniden yazıldı · 278 → 272 (2026-10-24): TaskListItem yeniden yazımı + TaskFormModal etiket başlığı · 272 → 266 (2026-10-25): tur yeniden kuruldu, eski önizleme dosyaları silindi
+const CEILING = 249; // 250 → 249 (2026-10-31): admin çökme listesi ayrı bileşene (CrashGroupsCard, tipli) taşındı · 251 → 250 (2026-10-30): _layout akşam özetinde alışkanlık serisi tiplendi (h: any kalktı) · 252 → 251 (2026-10-30): admin istatistiği ayrı bileşene (AnalyticsCenter) taşındı (as any genişlik kalktı) · 259 → 252 (2026-10-29): CustomAlert tiplendi (any kalktı) · 260 → 259 (2026-10-25): ayarlar tema satırı ChoiceRow'a geçti · 261 → 260 (2026-10-25): Hoş Geldin ekranı yeniden yazıldı (t: any kalktı) · 262 → 261 (2026-10-25): Ayarlar hesap bölümü ortak satırlara geçti · 265 → 262 (2026-10-25): içgörü modalı tiplendi · 266 → 265 (2026-10-25): Yeni Hedef formu yeniden yazıldı · 278 → 272 (2026-10-24): TaskListItem yeniden yazımı + TaskFormModal etiket başlığı · 272 → 266 (2026-10-25): tur yeniden kuruldu, eski önizleme dosyaları silindi
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {

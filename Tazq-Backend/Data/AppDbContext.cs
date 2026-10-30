@@ -15,6 +15,7 @@ namespace Tazq_App.Data
 		public DbSet<RefreshToken> RefreshTokens { get; set; }
 		public DbSet<ContentDocument> ContentDocuments { get; set; }
 		public DbSet<SupportMessage> SupportMessages { get; set; }
+		public DbSet<SupportReply> SupportReplies { get; set; }
 		public DbSet<ClientCrash> ClientCrashes { get; set; }
 		public DbSet<BanHistory> BanHistories { get; set; }
 		public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
@@ -26,6 +27,13 @@ namespace Tazq_App.Data
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
 			base.OnModelCreating(modelBuilder);
+
+			// Destek konuşması: mesaj silinince yanıtları da gider.
+			modelBuilder.Entity<SupportMessage>()
+				.HasMany(m => m.Replies)
+				.WithOne(r => r.SupportMessage)
+				.HasForeignKey(r => r.SupportMessageId)
+				.OnDelete(DeleteBehavior.Cascade);
 
 			// Soft-delete: silinmiş (DeletedAt != null) kullanıcılar tüm normal sorgulardan otomatik hariç.
 			// Login/register reaktivasyon akışları IgnoreQueryFilters() ile bu filtreyi bilerek atlar.
