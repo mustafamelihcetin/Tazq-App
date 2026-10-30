@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle, Line } from 'react-native-svg';
+import { Canvas, Circle, Path, Group, BlurMask, Skia } from '@shopify/react-native-skia';
+import { Easing, useDerivedValue, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
+import { useLowPowerGraphics } from '@/shared/hooks/useLowPowerGraphics';
 import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { sceneOf, lightsFor, LIGHT_NAMES } from '@/features/focus/utils/focusScenes';
@@ -14,9 +16,51 @@ import { S, R, F } from '@/shared/constants/tokens';
   çizgilerle bir takımyıldıza bağlanır. Aynı gün her açılışta aynı şekli çizer (rastgele
   zıplamaz). Zemin ve ışık rengi seçili sahneden.
 
-  PERFORMANS: tek SVG, sürekli animasyon YOK. Açılışta günler sırayla belirir (yerel sürücü,
-  günde bir Animated.View). Gün başına en çok 12 ışık çizilir.
+  PERFORMANS: tek Skia tuvali, sürekli animasyon YOK. Gün başına en çok 12 ışık çizilir.
+
+  DOĞUŞ (2026-10-30, kullanıcı seçti): açılışta günler soldan sağa sırayla doğar; her günün
+  yıldızları ışıltıyla (bulanık hale) belirir ve takımyıldız çizgisi yıldızdan yıldıza
+  ÇİZİLEREK ilerler. Tek saat (`t`) hepsini sürer; bittiğinde gökyüzü durağan kalır.
+  Hareket azaltılmışsa ilk karede tam çizilir; düşük güçte hale bulanıklığı yok.
 */
+const DAY_DELAY = 0.11;   // günler arası gecikme (t biriminde)
+const DAY_SPAN = 0.34;    // bir günün doğuş süresi (t biriminde)
+const REVEAL_MS = 2200;
+
+/** Günün yerel ilerleyişi 0..1. */
+function dayProgress(t: number, d: number) {
+  'worklet';
+  return Math.max(0, Math.min(1, (t - d * DAY_DELAY) / DAY_SPAN));
+}
+
+type Pt = { x: number; y: number; r: number };
+
+const Star = ({ p, d, i, n, t, core, halo, low }: { p: Pt; d: number; i: number; n: number; t: SharedValue<number>; core: string; halo: string; low: boolean }) => {
+  // Yıldız, çizgi kendisine ulaştığında doğar.
+  const at = n <= 1 ? 0 : i / (n - 1);
+  const k = useDerivedValue(() => Math.max(0, Math.min(1, (dayProgress(t.value, d) - at * 0.8) / 0.2)));
+  const r = useDerivedValue(() => p.r * (0.4 + 0.6 * k.value + 0.35 * Math.sin(Math.PI * k.value)));
+  const hr = useDerivedValue(() => p.r * 2.8 * k.value);
+  return (
+    <Group opacity={k}>
+      <Circle cx={p.x} cy={p.y} r={hr} color={halo} opacity={0.22}>
+        {!low && <BlurMask blur={3} style="normal" />}
+      </Circle>
+      <Circle cx={p.x} cy={p.y} r={r} color={core} />
+    </Group>
+  );
+};
+
+const Constellation = ({ pts, d, t, line }: { pts: Pt[]; d: number; t: SharedValue<number>; line: string }) => {
+  const path = useMemo(() => {
+    const pa = Skia.Path.Make();
+    pts.forEach((p, i) => (i === 0 ? pa.moveTo(p.x, p.y) : pa.lineTo(p.x, p.y)));
+    return pa;
+  }, [pts]);
+  const end = useDerivedValue(() => Math.min(1, dayProgress(t.value, d) / 0.8));
+  if (pts.length < 2) return null;
+  return <Path path={path} style="stroke" strokeWidth={0.8} color={line} opacity={0.32} start={0} end={end} />;
+};
 
 const MAX_PER_DAY = 12;
 const COPY = {
@@ -52,11 +96,14 @@ export function WeekSky({ focusPerDay, dayKeys, language }: { focusPerDay: numbe
     });
   }, [w, focusPerDay, dayKeys]);
 
-  const reveal = useRef(Array.from({ length: 7 }, () => new Animated.Value(reduce ? 1 : 0))).current;
+  const low = useLowPowerGraphics();
+  const tEnd = 6 * DAY_DELAY + DAY_SPAN;
+  const t = useSharedValue(reduce ? tEnd : 0);
   useEffect(() => {
-    if (reduce || w === 0) return;
-    reveal.forEach((v) => v.setValue(0));
-    Animated.stagger(110, reveal.map((v) => Animated.timing(v, { toValue: 1, duration: 520, easing: Easing.out(Easing.cubic), useNativeDriver: true }))).start();
+    if (w === 0) return;
+    if (reduce) { t.value = tEnd; return; }
+    t.value = 0;
+    t.value = withTiming(tEnd, { duration: REVEAL_MS, easing: Easing.out(Easing.quad) });
   }, [w, focusPerDay.join(','), reduce]);
 
   return (
@@ -70,21 +117,16 @@ export function WeekSky({ focusPerDay, dayKeys, language }: { focusPerDay: numbe
         {total === 0 ? (
           <Text style={styles.empty}>{c.empty}</Text>
         ) : (
-          days.map((pts, d) => (
-            <Animated.View key={d} style={[StyleSheet.absoluteFill, { opacity: reveal[d], transform: [{ translateY: reveal[d].interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) }] }]}>
-              <Svg width={w} height={H}>
-                {pts.slice(1).map((p, i) => (
-                  <Line key={`l${i}`} x1={pts[i].x} y1={pts[i].y} x2={p.x} y2={p.y} stroke={scene.stars[1]} strokeOpacity={0.28} strokeWidth={0.8} />
-                ))}
+          <Canvas style={{ width: w, height: H }}>
+            {days.map((pts, d) => (
+              <Group key={d}>
+                <Constellation pts={pts} d={d} t={t} line={scene.stars[1]} />
                 {pts.map((p, i) => (
-                  <React.Fragment key={`p${i}`}>
-                    <Circle cx={p.x} cy={p.y} r={p.r * 2.6} fill={scene.stars[1]} fillOpacity={0.14} />
-                    <Circle cx={p.x} cy={p.y} r={p.r} fill={scene.stars[0]} />
-                  </React.Fragment>
+                  <Star key={i} p={p} d={d} i={i} n={pts.length} t={t} core={scene.stars[0]} halo={scene.stars[1]} low={low} />
                 ))}
-              </Svg>
-            </Animated.View>
-          ))
+              </Group>
+            ))}
+          </Canvas>
         )}
       </View>
       <View style={styles.days}>

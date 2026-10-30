@@ -10,6 +10,7 @@ import { renderModeEmojiIcon } from '@/features/modes/utils/modeIcons';
 import { useActiveModeSummary, type ModeSummaryEntry } from '@/features/modes/hooks/useActiveModeSummary';
 import { ModeDeck } from '@/features/modes/components/ModeDeck';
 import { TourTarget } from '@/shared/components/TourContext';
+import { DisplayDivider } from '@/shared/components/DisplayPanel';
 
 /**
  * AKTİF DÖNEMİN BUGÜNÜ — ana ekranın en üstü, mod varken.
@@ -81,23 +82,26 @@ function ModePage({ mode, t, onOpen }: { mode: ModeSummaryEntry; t: Copy; onOpen
         </View>
 
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: F.caption, fontWeight: '700', color: mode.textColor, letterSpacing: 0.4 }} numberOfLines={1}>
-            {t.eyebrow}
-          </Text>
+          {/* Geri sayım üst satırda: başlık satırını paylaştığında hedefin adı "DenemePr…"ye
+              kırpılıyordu (2026-10-30, cihazda). Ad artık kartın tüm genişliğini kullanır. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+            <Text style={{ flexShrink: 1, fontSize: F.caption, fontWeight: '700', color: mode.textColor, letterSpacing: 0.4 }} numberOfLines={1}>
+              {t.eyebrow}
+            </Text>
+            {/* Geri sayım: hedefi soyut bir tarih olmaktan çıkaran tek sayı. */}
+            {mode.days != null && mode.days >= 0 && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xxs, backgroundColor: mode.color + '18', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xxs }}>
+                <CalendarClock size={ICON.xs} color={mode.textColor} />
+                <Text style={{ fontSize: F.caption, fontWeight: '700', color: mode.textColor }}>
+                  {mode.days} {t.daysLeft}
+                </Text>
+              </View>
+            )}
+          </View>
           <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.3 }} numberOfLines={1}>
             {mode.label}
           </Text>
         </View>
-
-        {/* Geri sayım: hedefi soyut bir tarih olmaktan çıkaran tek sayı. */}
-        {mode.days != null && mode.days >= 0 && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xxs, backgroundColor: mode.color + '18', borderRadius: R.full, paddingHorizontal: S.smd, paddingVertical: S.xs }}>
-            <CalendarClock size={ICON.xs} color={mode.textColor} />
-            <Text style={{ fontSize: F.caption, fontWeight: '700', color: mode.textColor }}>
-              {mode.days} {t.daysLeft}
-            </Text>
-          </View>
-        )}
 
         <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} />
       </View>
@@ -121,21 +125,36 @@ function ModePage({ mode, t, onOpen }: { mode: ModeSummaryEntry; t: Copy; onOpen
   );
 }
 
-export function ModeTodayCard({ onOpen }: { onOpen: () => void }) {
+/**
+ * `bare`: dijital panelin (TodayRings `topSlot`) İÇİNDE satır olarak — kendi kartı yok,
+ * altına kendi ayracını çizer (mod yoksa ne satır ne ayraç kalır).
+ */
+export function ModeTodayCard({ onOpen, bare }: { onOpen: () => void; bare?: boolean }) {
   const t = useLanguageStore(s => s.t).modeToday;
   const { entries, activeCount } = useActiveModeSummary();
 
   if (activeCount === 0) return null;
+  const deck = (
+    <ModeDeck
+      pages={entries.map(e => <ModePage key={e.key} mode={e} t={t} onOpen={onOpen} />)}
+      dotColors={entries.map(e => e.color)}
+      a11yLabel={`${activeCount} ${t.eyebrow}`}
+    />
+  );
+  if (bare) {
+    return (
+      <>
+        <TourTarget id="activePlan" spotRadius={R.md}>{deck}</TourTarget>
+        <DisplayDivider />
+      </>
+    );
+  }
 
   return (
     // Kenar boşluğu tur hedefinin DIŞINDA: delik kartın kenarına birebir oturur.
     <TourTarget id="activePlan" spotRadius={R.md} style={{ marginHorizontal: S.lg, marginBottom: S.lg }}>
     <BentoCard index={0} style={{ padding: S.md, gap: S.smd }}>
-      <ModeDeck
-        pages={entries.map(e => <ModePage key={e.key} mode={e} t={t} onOpen={onOpen} />)}
-        dotColors={entries.map(e => e.color)}
-        a11yLabel={`${activeCount} ${t.eyebrow}`}
-      />
+      {deck}
     </BentoCard>
     </TourTarget>
   );

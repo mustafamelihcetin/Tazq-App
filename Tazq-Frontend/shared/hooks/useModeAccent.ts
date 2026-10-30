@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useAppTheme } from './useAppTheme';
-import { modeAccent, modeAccentText, modeAccentOn } from '@/shared/constants/Colors';
+import { modeAccent, modeAccentText, modeAccentOn, modeTile } from '@/shared/constants/Colors';
 
 /**
  * Modun vurgu renklerini aktif temaya göre çözer.
@@ -26,5 +26,7 @@ export function useModeAccent(type: string) {
     accentText: modeAccentText(type, isDark),
     // Dolgu verilir: koyuda indigo/violet beyaz, turuncu/mavi/yeşil koyu yazı ister (bkz. modeAccentOn).
     onAccent: modeAccentOn(isDark, modeAccent(type, isDark)),
+    // Dolu simge kutusu (AppIcon, beyaz glif): koyuda sakin kutu tonu (bkz. modeTile).
+    tile: modeTile(type, isDark),
   }), [type, isDark]);
 }

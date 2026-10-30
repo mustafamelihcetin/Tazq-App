@@ -1,4 +1,5 @@
 import type { BreathId, PhaseKind } from '@/features/breath/patterns';
+import type { BreathSound } from '@/features/breath/breathCues';
 
 /*
   Nefes seansı metinleri. Bilimsel satırlar ABARTMAZ: her biri tek cümle ve kaynağını
@@ -14,6 +15,8 @@ export const BREATH_COPY = {
     minutes: (m: number) => `${m} dk`,
     duration: 'Süre',
     sound: 'Ses rehberi',
+    soundLabel: 'Ses',
+    themes: { wave: 'Nefes', kalimba: 'Kalimba', warm: 'Sıcak' } as Record<BreathSound, string>,
     soundOn: 'Açık', soundOff: 'Kapalı',
     start: (m: number) => `Başla · ${m} dk`,
     ready: 'Hazırlan',
@@ -41,6 +44,8 @@ export const BREATH_COPY = {
     minutes: (m: number) => `${m} min`,
     duration: 'Duration',
     sound: 'Sound guide',
+    soundLabel: 'Sound',
+    themes: { wave: 'Breath', kalimba: 'Kalimba', warm: 'Warm' } as Record<BreathSound, string>,
     soundOn: 'On', soundOff: 'Off',
     start: (m: number) => `Start · ${m} min`,
     ready: 'Get ready',

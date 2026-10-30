@@ -2050,6 +2050,7 @@ export default function FocusScreen() {
         t={t}
         onClose={() => setSummaryVisible(false)}
         onStartBreak={() => startBreakSession(activePreset.shortBreak)}
+        onBreathe={() => { setSummaryVisible(false); router.push('/nefes?p=sigh&m=1'); }}
         onExtend={() => {
           // "Biraz daha" — aynı konuyla kısa bir seans; süre seçmeye geri dönmek gerekmesin.
           setSummaryVisible(false);

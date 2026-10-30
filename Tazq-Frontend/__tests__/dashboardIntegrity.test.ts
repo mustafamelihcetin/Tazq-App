@@ -523,7 +523,8 @@ describe('düğmeler üstünde yazanı yapıyor', () => {
   it('yer tutucu adla selamlanmıyor', () => {
     // Ad "TAZQ Kullanıcısı" iken ekran "Günaydın, TAZQ" diyordu — uygulama kendi
     // adıyla selam veriyordu. Bilgi zaten vardı (isNamePlaceholder), kullanılmıyordu.
-    expect(INDEX).toMatch(/name=\{\(!isNamePlaceholder && user\?\.name\?\.split\(' '\)\[0\]\)/);
+    // 2026-10-30: selam dijital panelin durum şeridinde (`greeting`), kural aynı.
+    expect(INDEX).toMatch(/const n = \(!isNamePlaceholder && user\?\.name\?\.split\(' '\)\[0\]\)/);
   });
 });
 
@@ -592,7 +593,7 @@ describe('hızlı odak seansı GÖREVLE başlıyor', () => {
 describe('selamlama yer tutucu ad UYDURMAZ', () => {
   it('ad bilinmiyorsa yalnız selam — "İyi akşamlar, sen" yok', () => {
     expect(INDEX).not.toMatch(/'sen' : 'you'/);
-    const hero = stripComments(read('features/dashboard/components/DashboardHero.tsx'));
-    expect(hero).toContain('{name ? `${greeting}, ${name}` : greeting}');
+    // Selam artık dijital panelin durum şeridinde (TodayRings `greeting`).
+    expect(INDEX).toContain('return n ? `${getGreeting()}, ${n}` : getGreeting();');
   });
 });

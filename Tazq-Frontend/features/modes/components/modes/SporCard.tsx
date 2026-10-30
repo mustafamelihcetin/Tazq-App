@@ -117,7 +117,7 @@ function SporDatePicker({ value, onPick, onClose }: { value: Date; onPick: (iso:
 
 /** İkincil spor hedefi (spor2 / spor3). */
 function SporSlot({ slot, goalKey, dateKey, otherGoals, addLabel, onOpenPreview }: { slot: Slot; goalKey: 'spor2Goal' | 'spor3Goal'; dateKey: 'spor2Date' | 'spor3Date'; otherGoals: string[]; addLabel: string; onOpenPreview: (s: Slot) => void }) {
-  const { accent: SPOR, accentText: SPOR_TX, onAccent: SPOR_ON } = useModeAccent('spor');
+  const { accent: SPOR, accentText: SPOR_TX, onAccent: SPOR_ON, tile: SPOR_TILE } = useModeAccent('spor');
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
@@ -150,7 +150,7 @@ function SporSlot({ slot, goalKey, dateKey, otherGoals, addLabel, onOpenPreview 
       <Separator theme={theme} />
       {complete && !expanded ? (
         <Touchable onPress={() => { haptic.select(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: (past ? theme.error : SPOR) + '10', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.8}>
-          <AppIcon Icon={Dumbbell} color={SPOR} size={24} radius={R.sm} iconSize={ICON.sm} />
+          <AppIcon Icon={Dumbbell} color={SPOR_TILE} size={24} radius={R.sm} iconSize={ICON.sm} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.caption }}>{stripEmojiPrefix(goal)}</Text>
             <Text style={{ color: past ? theme.error : SPOR, fontSize: F.caption, fontWeight: '500' }}>{past ? (tr ? 'Tarih geçti' : 'Date passed') : (tr ? `${daysLeft} gün kaldı` : `${daysLeft} days left`)}</Text>
@@ -203,7 +203,7 @@ function SporSlot({ slot, goalKey, dateKey, otherGoals, addLabel, onOpenPreview 
 }
 
 export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => void }) {
-  const { accent: SPOR, accentText: SPOR_TX, onAccent: SPOR_ON } = useModeAccent('spor');
+  const { accent: SPOR, accentText: SPOR_TX, onAccent: SPOR_ON, tile: SPOR_TILE } = useModeAccent('spor');
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
@@ -425,7 +425,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
     <View style={{ borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', backgroundColor: theme.surfaceCard, borderColor: seasonal.sporMode && sporIsComplete ? (past ? theme.error + '40' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)')) : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }}>
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: seasonal.sporMode ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
-          <AppIcon Icon={Dumbbell} color={SPOR} />
+          <AppIcon Icon={Dumbbell} color={SPOR_TILE} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.body }}>{tr ? 'Spor / Fiziksel Hedef' : 'Sport / Physical Goal'}</Text>
             {seasonal.sporMode && sporIsComplete && past ? (
@@ -571,7 +571,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                     </View>
                   ) : (
                     <Touchable disabled={!unlocked} onPress={() => { if (!unlocked) return; haptic.select(); setShowWeightEntry(true); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm + 2, borderTopWidth: HAIRLINE, borderTopColor: theme.separator, backgroundColor: unlocked ? SPOR + '08' : 'transparent' }} activeOpacity={0.7}>
-                      <AppIcon Icon={Scale} color={unlocked ? SPOR : theme.onSurfaceVariant} size={24} radius={R.sm} iconSize={ICON.sm} />
+                      <AppIcon Icon={Scale} color={unlocked ? SPOR_TILE : theme.onSurfaceVariant} size={24} radius={R.sm} iconSize={ICON.sm} />
                       <Text style={{ fontSize: F.caption, fontWeight: '600', color: unlocked ? SPOR : theme.onSurfaceVariant }}>{unlocked ? (tr ? 'Bu haftaki tartımı gir' : 'Log this week\'s weight') : (tr ? `Kaydedildi${lastKg ? ` · ${lastKg} kg` : ''} · ${nextLeft} gün sonra tekrar` : `Logged${lastKg ? ` · ${lastKg} kg` : ''} · again in ${nextLeft}d`)}</Text>
                     </Touchable>
                   )}

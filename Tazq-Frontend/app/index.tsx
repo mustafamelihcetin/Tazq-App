@@ -12,7 +12,6 @@ import { BentoCard } from '@/shared/components/BentoCard';
 import { DynamicIsland } from '@/features/focus';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
-import { DashboardHero } from '@/features/dashboard/components/DashboardHero';
 import { TriageModal } from '@/features/dashboard/components/TriageModal';
 import { TazqZenCard } from '@/features/dashboard/components/TazqZenCard';
 import { CommandPortal } from '@/features/dashboard/components/CommandPortal';
@@ -82,6 +81,7 @@ import { useDoubleTapHighlight } from '@/features/user/hooks/useDoubleTapHighlig
 import { useWeeklyStats } from '@/features/user/hooks/useWeeklyStats';
 import { useFocusHistoryStore } from '@/features/report/useFocusHistoryStore';
 import { weekRange, summarizeWeek } from '@/features/report/weeklyReport';
+import { lastDays } from '@/features/dashboard/utils/dayHistory';
 import { ReviewPromptModal } from '@/features/user/components/ReviewPromptModal';
 import { httpStatusOf, isNetworkError } from '@/shared/utils/errors';
 import { Separator } from '@/shared/components/Separator';
@@ -106,7 +106,6 @@ const RINGS_COPY = {
 
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
-  const isSmallScreen = width < 380 || height < 700;
   // Küçük ekranlarda kart içi boşlukları bir kademe sık → dikey kaydırma azalır.
   /*
     TEK İÇ DOLGU (2026-10-25): ana sayfanın kartları 8 / 16 / 24 karışık dolguyla çiziliyordu;
@@ -389,15 +388,6 @@ export default function HomeScreen() {
   /** Logoya her dokunuşta artar — nabız/halka animasyonunu tetikler. */
   const [logoTick, setLogoTick] = useState(0);
 
-  /**
-   * Selamlamanın ölçülen yüksekliği — başlığın ne zaman belireceğini BUNDAN türetiyoruz.
-   *
-   * Sabit bir eşik (ör. "64pt kaydırınca göster") yazılabilirdi ama yanlış olurdu:
-   * selamlama dar ekranda 22pt, geniş ekranda 28pt puntoda çiziliyor ve uzun bir isim
-   * onu iki satıra taşırıyor. Sabit sayı bu üç durumdan yalnız birinde doğru olurdu.
-   * Ölçerek, başlık HER durumda "selamlama çubuğun altına girdiği an" beliriyor.
-   */
-  const [heroHeight, setHeroHeight] = useState(0);
 
   /**
    * Kaydırma konumu — başlığın belirmesini süren tek kaynak.
@@ -411,12 +401,11 @@ export default function HomeScreen() {
   useChromeMinimizeOnScroll(scrollY);
 
   /**
-   * Başlığın devralacağı kaydırma mesafesi — selamlama bloğunun ALT BOŞLUĞU HARİÇ
-   * yüksekliği. Tam o kadar kaydırıldığında büyük selamlama çubuğun altına girmiş,
-   * yani gerçekten "gitmiş" olur; kompakt başlık da tam o an yerine oturur.
-   * Nasıl canlandırılacağına ScreenHeader karar veriyor — burası yalnız ÖLÇÜ verir.
+   * Başlığın devralacağı kaydırma mesafesi. Eskiden ayrı selamlama bloğunun ölçülen
+   * yüksekliğiydi; selam artık dijital panelin durum şeridinde (2026-10-30), yani üst çubuk
+   * kısa bir kaydırmada ("ekran çubuğun altına girmeye başladı") başlığı devralır.
    */
-  const titleCollapseAt = useMemo(() => Math.max(heroHeight - S.lg, 1), [heroHeight]);
+  const titleCollapseAt = S.lg;
   const [commandPortalVisible, setCommandPortalVisible] = useState(false);
   const [portalSearch, setPortalSearch] = useState('');
   const localStreak = useFocusStore(s => s.localStreak);
@@ -892,6 +881,8 @@ export default function HomeScreen() {
     durum düşünülmemişti: dizi DOLU AMA KISA gelirse bugünün yerel dakikası hiçbir
     hücreye yazılamıyor, sessizce kayboluyordu.
   */
+  // Ana sayfa ekranında "haftayı kaydır" — son 7 gün, haftalık raporla aynı sayım (bkz. dayHistory).
+  const dayHistory = React.useMemo(() => lastDays({ sessions: focusSessions, tasks, habits }), [focusSessions, tasks, habits]);
   const weeklyFocus = React.useMemo(() => {
     const summary = summarizeWeek({ sessions: focusSessions, tasks, habits, range: weekRange(new Date()) });
     return summary.focusPerDay.map((minutes, i) => ({
@@ -1756,16 +1747,6 @@ export default function HomeScreen() {
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={onPullRefresh} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surfaceContainer} progressViewOffset={insets.top + S.sm + 44 + S.sm} />}
         >
-            {/* onLayout: başlığın belirme eşiği bu ölçümden türüyor (bkz. titleProgress). */}
-            <View onLayout={(e) => setHeroHeight(e.nativeEvent.layout.height)}>
-              <DashboardHero
-                greeting={getGreeting()}
-                name={(!isNamePlaceholder && user?.name?.split(' ')[0]) || guestProfile?.name?.split(' ')[0] || ''}
-                subGreeting={getSubGreeting()}
-                isSmallScreen={isSmallScreen}
-                theme={theme}
-              />
-            </View>
 
             {!isLite && (<>
               <TazqZenCard
@@ -1814,12 +1795,6 @@ export default function HomeScreen() {
               İvme skoru eskiden selamlamanın hemen altındaydı: kullanıcı ekranı açtığında
               ilk gördüğü şey, yapacağı iş değil aldığı nottu.
             */}
-            {/* Turun "aktif plan" hedefi kartın içinde (bkz. ModeTodayCard); aktif mod yoksa kart null → adım atlanır. */}
-            <ModeTodayCard onOpen={() => router.push('/modlar')} />
-            {/* Ödemeler — GÖREV/plan akışından AYRI bir yüzey, bkz. PaymentsSummaryCard
-                başlığı. Mod kartının hemen altında: ikincil ama her zaman görünür. */}
-            <PaymentsSummaryCard />
-            </WideCol>
 
             {/*
               MOD YOKKEN SKOR YERİNDE KALIYOR.
@@ -1831,9 +1806,9 @@ export default function HomeScreen() {
 
               Aktif dönem varsa ekranın konusu PLAN oluyor; skor o zaman eylemlerin altına
               iniyor. Kart tek yerde tanımlı, yalnız KONUMU duruma göre değişiyor.
+              (2026-10-30: plan + halkalar + skor tek DİJİTAL PANELDE; plan panelin üst yuvası.)
             */}
 
-            <WideCol>
             {/*
               BUGÜN — ÜÇ HALKA + MOMENTUM (bkz. TodayRings). Eskiden Momentum kartı ve BUGÜN
               kartı iki ayrı yüzeydi; alışkanlık ilerlemesi hiçbir özette yoktu. Vitrinin
@@ -1841,6 +1816,16 @@ export default function HomeScreen() {
             */}
             <TodayRings
               tourId="today"
+              // Selam ekranın durum şeridinde (ayrı blok yok). Ad bilinmiyorsa yalnız selam — "…, sen" UYDURULMAZ.
+              greeting={(() => { const n = (!isNamePlaceholder && user?.name?.split(' ')[0]) || guestProfile?.name?.split(' ')[0] || ''; return n ? `${getGreeting()}, ${n}` : getGreeting(); })()}
+              history={dayHistory}
+              // Okumaya dokununca açılan ayrıntı (bkz. TodayDetail): sıradaki işler, bugünkü alışkanlıklar, panelden odak.
+              detail={{ tasks: myDayTasks.filter(i => !i.isCompleted && typeof i.id === 'number').slice(0, 3).map(i => ({ id: i.id, title: getLocalizedTaskTitle(i.original || i, tr) })),
+                habits: (myDayHabits as Array<{ id: string; title?: string; name?: string; isCompleted?: boolean; isSkipped?: boolean; streak?: number }>).map(h => ({ id: h.id, title: h.title ?? h.name ?? '', done: !!h.isCompleted, skipped: !!h.isSkipped, streak: h.streak || 0 })),
+                focusMin: todayFocusMinutes, focusGoal: dailyGoalMinutes,
+                onFocusTask: (t) => { if (t) setCurrentTask(t.title, Number(t.id)); router.push('/focus'); } }}
+              // Plan, dijital panelin EN ÜSTÜ (aktif mod yoksa null → turun "aktif plan" adımı atlanır).
+              topSlot={<ModeTodayCard bare onOpen={() => router.push('/modlar')} />}
               label={t.todayLabel}
               caption={(() => {
                 const c = RINGS_COPY[language === 'en' ? 'en' : 'tr'];
@@ -1852,8 +1837,8 @@ export default function HomeScreen() {
                 */
                 if (dailyGoal === 0) return undatedTasksIncomplete.length > 0 ? c.undatedOnly(undatedTasksIncomplete.length) : c.empty;
                 if (todayCompleted >= dailyGoal) return c.allDone;
-                // Olağan gün: cümle YOK — selamlama zaten "N görevin var" diyor; tekrar etmesin.
-                return '';
+                // Olağan gün: eski selamlama bloğunun alt satırı ("N görevin var…") panelin alt yazısı.
+                return getSubGreeting();
               })()}
               captionHighlight={!isLite && todayHighlight}
               metrics={(() => {
@@ -1863,9 +1848,9 @@ export default function HomeScreen() {
                 const focusShown = demoActive ? Math.round(dailyGoalMinutes * 0.6) : todayFocusMinutes;
                 const habitsDone = habitPool.filter(h => h.isCompleted).length;
                 return [
-                  { label: c.tasks, value: dailyGoal > 0 ? `${todayCompleted}/${dailyGoal}` : '—', progress: dailyGoal > 0 ? todayCompleted / dailyGoal : 0, reached: dailyGoal > 0 && todayCompleted >= dailyGoal, color: theme.primary },
-                  { label: c.focus, value: `${focusShown}/${dailyGoalMinutes} ${c.min}`, progress: dailyGoalMinutes > 0 ? focusShown / dailyGoalMinutes : 0, reached: dailyGoalMinutes > 0 && focusShown >= dailyGoalMinutes, color: theme.streak },
-                  { label: c.habits, value: habitPool.length > 0 ? `${habitsDone}/${habitPool.length}` : '—', progress: habitPool.length > 0 ? habitsDone / habitPool.length : 0, reached: habitPool.length > 0 && habitsDone >= habitPool.length, color: theme.tertiary },
+                  { label: c.tasks, value: dailyGoal > 0 ? `${todayCompleted}/${dailyGoal}` : '—', progress: dailyGoal > 0 ? todayCompleted / dailyGoal : 0, reached: dailyGoal > 0 && todayCompleted >= dailyGoal, tone: 'primary' as const },
+                  { label: c.focus, value: `${focusShown}/${dailyGoalMinutes} ${c.min}`, progress: dailyGoalMinutes > 0 ? focusShown / dailyGoalMinutes : 0, reached: dailyGoalMinutes > 0 && focusShown >= dailyGoalMinutes, tone: 'streak' as const },
+                  { label: c.habits, value: habitPool.length > 0 ? `${habitsDone}/${habitPool.length}` : '—', progress: habitPool.length > 0 ? habitsDone / habitPool.length : 0, reached: habitPool.length > 0 && habitsDone >= habitPool.length, tone: 'tertiary' as const },
                 ];
               })()}
               footer={!isLite ? (
@@ -1885,6 +1870,8 @@ export default function HomeScreen() {
               theme={theme}
               padding={bentoPad}
             />
+            {/* Ödemeler — GÖREV/plan akışından AYRI yüzey (bkz. PaymentsSummaryCard); panelin altında, ikincil. */}
+            <PaymentsSummaryCard />
             </WideCol>
 
             {/* Unified My Day Bento Card — geniş ekranda SAĞ sütunun tepesi. */}

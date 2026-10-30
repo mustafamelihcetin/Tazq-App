@@ -463,26 +463,33 @@ export const PaymentProviderColors = {
  * Doğrulama: __tests__/colorContrast.test.ts — her mod, kendi temasının zemininde >= 3:1.
  */
 /*
-  KOYU TEMA = RADIX 9. ADIM (@radix-ui/colors 3.0, scratchpad'den ölçüldü).
-  Radix'in kuralı: DOLGU tonu (9) iki temada AYNIDIR; koyuda değişen yalnız metin (11).
-  Eskiden koyu temada dolgular Tailwind 300 pastellerine dönüyordu (#FDBA74, #93C5FD):
-  soluk, birbirine yakın ("koyu temada mod renkleri çok kötü"). Pasteller büyük
-  sayıda/çubukta "yıkanmış" görünür; Radix 9 koyu zeminde 3.7–6.7:1 ile canlı kalır.
-  Açık tema DEĞİŞMEDİ: Radix 9 açık zeminde 2.7–3.0:1 (dolu buton için tasarlanmış);
-  bizde aksan ince çubuk/büyük sayıda da kullanıldığı için mevcut 500/600 tonları kalıyor.
-  Mülakat jade yerine GRASS: jade, tasarrufun teal'ından OKLab 0.023 uzaktı (eşik 0.03).
+  Önceki sürüm (Radix 9 dolgu + Tailwind 500/600 açık tonlar) 2026-10-30'da aşağıdaki
+  yumuşak palete geçti; eski tonlar git geçmişinde. Mülakat jade/teal yakınlığı dersi
+  (OKLab ≥0.03) yeni palette de bekçi testiyle korunuyor (modeAccentDistinct.test.ts).
+*/
+/*
+  YUMUŞAK MOD PALETİ (2026-10-30, madde 15 — kullanıcı: "tasarruf ve bırakma daha soft ama
+  sınav, spor ve diğerleri göz yorabiliyor, iki tema için de"). Ölçüldü (OKLCH): yumuşak
+  görünenler DÜŞÜK DOYGUNLUKTAYDI (tasarruf C 0.10, mülakat 0.13); göz yoranlar 0.19–0.22
+  (spor, sınav, tez, ramazan, bırakma). Sorun ton değil DOYGUNLUK. Çözüm: her modun TONU
+  korunur, açıklık ve doygunluk TEK BANDA çekilir — açık L 0.585 / C 0.125, koyu L 0.665 /
+  C 0.115. Böylece hiçbir mod diğerlerinden "bağırmaz".
+  Kısıtlar (hepsi ölçüldü): dolgu ≥3.9:1 · küçük metin ≥5.6:1 · modlar arası OKLab ≥0.047
+  (eşik 0.03). Tonlar biraz açıldı (mülakat daha yeşil, tasarruf daha camgöbeği, mavi/mor
+  ayrıldı): normal görüşte en yakın çift ΔE 4.9 → 9.1. Renk körlüğünde mavi/mor yakın kalır —
+  mod rengi hiçbir yerde tek başına değil, hep simge + adla birlikte (ikincil kodlama).
 */
 export const ModeAccents = {
-  ramazan:  { light: '#6366F1', dark: '#3E63DD' }, // Indigo — Radix indigo-9
-  yks:      { light: '#3B82F6', dark: '#0090FF' }, // Blue — Radix blue-9
-  exam:     { light: '#3B82F6', dark: '#0090FF' }, // Blue — yks ile aynı aile (ikisi de sınav)
-  kpss:     { light: '#3B82F6', dark: '#0090FF' }, // Blue
-  tez:      { light: '#8B5CF6', dark: '#6E56CF' }, // Violet — Radix violet-9
-  mulakat:  { light: '#059669', dark: '#46A758' }, // Yeşil — Radix grass-9 (açıkta 600: 500 = 2.31:1 ✗)
-  spor:     { light: '#EA580C', dark: '#F76B15' }, // Orange — Radix orange-9 (açıkta 600: 500 = 2.55:1 ✗)
-  tasarruf: { light: '#0D9488', dark: '#12A594' }, // Teal — Radix teal-9
-  birakma:  { light: '#EF4444', dark: '#E5484D' }, // Red — Radix red-9
-  default:  { light: '#EC4899', dark: '#E93D82' }, // Pink — Radix crimson-9
+  ramazan:  { light: '#6873C5', dark: '#818DDA' }, // Indigo
+  yks:      { light: '#3E7FC3', dark: '#5D97D8' }, // Mavi
+  exam:     { light: '#3E7FC3', dark: '#5D97D8' }, // Mavi — yks ile aynı aile (ikisi de sınav)
+  kpss:     { light: '#3E7FC3', dark: '#5D97D8' }, // Mavi
+  tez:      { light: '#8A68B9', dark: '#A182CE' }, // Mor
+  mulakat:  { light: '#468F4A', dark: '#64A666' }, // Yeşil
+  spor:     { light: '#BE693A', dark: '#CC7D52' }, // Turuncu (L +0.025: düşük açıklıkta kahveye kayıyordu)
+  tasarruf: { light: '#068E89', dark: '#1CA9A3' }, // Teal
+  birakma:  { light: '#BA5A59', dark: '#D17673' }, // Tuğla kırmızı
+  default:  { light: '#B25983', dark: '#C9759B' }, // Gül
 } as const;
 
 /**
@@ -498,23 +505,46 @@ export const ModeAccents = {
  * korunur (aynı hue), okunabilirlik kazanılır. Koyu temada zaten açık tonlar
  * 10:1+ verdiği için aynen kullanılır.
  *
- * Ölçüm (beyaz zemin): exam 5.17 · tez 5.70 · mulakat 5.48 · spor 5.18 ·
- * ramazan 6.29 · tasarruf 5.47 · birakma 4.83 · default 4.60 — hepsi AA ✓.
+ * Ölçüm (2026-10-30, beyaz zemin): en düşük mulakat/tasarruf ~5.6:1 — hepsi AA ✓.
  * Doğrulama: __tests__/colorContrast.test.ts
  */
+// Aynı tonlar, metin açıklığında: açık L 0.50 (≥5.6:1), koyu L 0.81 (≥10:1).
 export const ModeAccentsText = {
-  // Koyu: Radix 11. adım (düşük kontrastlı metin, koyu zeminde 8:1+). Açık: değişmedi.
-  ramazan:  { light: '#4F46E5', dark: '#9EB1FF' },
-  yks:      { light: '#2563EB', dark: '#70B8FF' },
-  exam:     { light: '#2563EB', dark: '#70B8FF' },
-  kpss:     { light: '#2563EB', dark: '#70B8FF' },
-  tez:      { light: '#7C3AED', dark: '#BAA7FF' },
-  mulakat:  { light: '#047857', dark: '#71D083' },
-  spor:     { light: '#C2410C', dark: '#FFA057' },
-  tasarruf: { light: '#0F766E', dark: '#0BD8B6' },
-  birakma:  { light: '#DC2626', dark: '#FF9592' },
-  default:  { light: '#DB2777', dark: '#FF92AD' },
+  ramazan:  { light: '#525BA6', dark: '#B0BCFF' }, // Indigo
+  yks:      { light: '#2765A5', dark: '#94C5FD' }, // Mavi
+  exam:     { light: '#2765A5', dark: '#94C5FD' }, // Mavi — yks ile aynı aile (ikisi de sınav)
+  kpss:     { light: '#2765A5', dark: '#94C5FD' }, // Mavi
+  tez:      { light: '#70509B', dark: '#CCB3F5' }, // Mor
+  mulakat:  { light: '#2F7434', dark: '#9AD29B' }, // Yeşil
+  spor:     { light: '#984A1A', dark: '#F4AF8B' }, // Turuncu
+  tasarruf: { light: '#06726E', dark: '#70D5CE' }, // Teal
+  birakma:  { light: '#9C4343', dark: '#F8A9A5' }, // Tuğla kırmızı
+  default:  { light: '#95426A', dark: '#F1A8C7' }, // Gül
 } as const;
+
+/**
+ * KOYU TEMADA DOLU SİMGE KUTUSU (AppIcon: dolu zemin + beyaz glif). Koyu dolgu tonu (L 0.665)
+ * beyaz glifle yalnız ~2.5:1 verir; eskiden ekran açık tonu koyu temada da kullanıyordu ve
+ * parlak kutular koyu kartta "parlıyordu". Bu ton L 0.52: beyaz glif ≥5.2:1, kartta sakin.
+ */
+export const ModeTileDark = {
+  ramazan:  '#5A63A2',
+  yks:      '#3B6CA1',
+  exam:     '#3B6CA1',
+  kpss:     '#3B6CA1',
+  tez:      '#745A99',
+  mulakat:  '#417843',
+  spor:     '#975532',
+  tasarruf: '#147874',
+  birakma:  '#9A504E',
+  default:  '#944F6F',
+} as const;
+
+/** Mod simge kutusunun (AppIcon) dolgusu — açıkta dolgu tonu, koyuda sakin kutu tonu. */
+export function modeTile(type: string | undefined, isDark: boolean): string {
+  if (!isDark) return modeAccent(type, false);
+  return (ModeTileDark as Record<string, string>)[type ?? ''] ?? ModeTileDark.default;
+}
 
 export type ModeAccentKey = keyof typeof ModeAccents;
 
@@ -594,4 +624,34 @@ export const BreathPalette = {
   box:       { petals: ['#7C8CF0', '#5B6FD8'], bg: ['#10142C', '#080B1A'], accent: '#A5B4FC' }, // Odaklan — çivit
   sleep:     { petals: ['#A78BDA', '#7C6BC4'], bg: ['#160F2A', '#0A0718'], accent: '#C4B5FD' }, // Uyu — lavanta
   resonance: { petals: ['#8CC79E', '#5FA383'], bg: ['#0E1D17', '#07110D'], accent: '#A7D7B5' }, // Denge — adaçayı
+} as const;
+
+/*
+  DİJİTAL PANEL (2026-10-30, kullanıcı: "dijital ekran gibi, rahatsız etmeden premium, derli
+  toplu"; ilk sürüm iki temada da koyuydu → "aydınlık temada karanlık oldu?" — panel artık
+  TEMAYA UYAR). Gömülü cihaz ekranı: üst kenarda içe gölge (derinlik), alt kenarda ince ışık.
+  Ölçüm — açık (#FDFDFE→#EEF1F5): ink ≥16:1 · muted ≥7:1 · label ≥4.79:1;
+  koyu (#171B22→#0D1015): ink ≥15:1 · muted ≥7.4:1 · label ≥4.75:1.
+*/
+export const DisplayColors = {
+  light: {
+    bg: ['#FDFDFE', '#EEF1F5'] as const,
+    bezel: 'rgba(15,23,42,0.09)',
+    inset: 'rgba(15,23,42,0.07)',        // üst kenardan içe düşen gölge
+    lip: 'rgba(255,255,255,0.95)',       // alt kenardaki ışık çizgisi
+    divider: 'rgba(15,23,42,0.08)',
+    ink: '#111418',
+    muted: '#475161',
+    label: '#5F6B7A',
+  },
+  dark: {
+    bg: ['#171B22', '#0D1015'] as const,
+    bezel: 'rgba(255,255,255,0.09)',
+    inset: 'rgba(0,0,0,0.45)',
+    lip: 'rgba(255,255,255,0.08)',
+    divider: 'rgba(255,255,255,0.07)',
+    ink: '#F2F4F7',
+    muted: '#A3ABB8',
+    label: '#7E8794',
+  },
 } as const;

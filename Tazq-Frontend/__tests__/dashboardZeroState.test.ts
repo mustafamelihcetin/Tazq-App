@@ -50,12 +50,16 @@ describe('dashboard sırası', () => {
     expect(src).toContain('embedded');
   });
 
-  it('selamlama → (plan kartı) → bugün özeti', () => {
-    const hero = src.indexOf('<DashboardHero');
-    const modeCard = src.indexOf('<ModeTodayCard');
-    const rings = src.indexOf('<TodayRings');
-    expect(hero).toBeLessThan(modeCard);
-    expect(modeCard).toBeLessThan(rings);
+  it('selamlama → (plan) → bugün özeti', () => {
+    // 2026-10-30: plan artık ayrı kart değil, dijital panelin ÜST YUVASI (TodayRings topSlot).
+    // Selam da ayrı blok değil, panelin durum şeridinde (yer yiyen statik blok kaldırıldı).
+    expect(src).not.toContain('<DashboardHero');
+    expect(src).toMatch(/greeting=\{/);
+    expect(src).toMatch(/topSlot=\{<ModeTodayCard bare /);
+    const body = read('features/dashboard/components/TodayRings.tsx');
+    // Ekranın sırası: durum şeridi → plan → halkalar.
+    expect(body.indexOf('<DisplayStatus')).toBeLessThan(body.indexOf('{topSlot}'));
+    expect(body.indexOf('{topSlot}')).toBeLessThan(body.indexOf('<Svg'));
   });
 
   it('plan kartı mod yoksa HİÇ çizilmez — boş bir kutu bırakmaz', () => {

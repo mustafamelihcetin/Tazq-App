@@ -189,7 +189,13 @@ describe('yoğunluk', () => {
      *   başka her listede success titreşiyor; burada sessiz kalması tutarsızlıktı.
      * → 322 (2026-10-29): odak modlarındaki "Otomatik Zen" anahtarı — seçim anahtarları titreşir.
      * → 324 (2026-10-29): alışkanlığı dinlendir / geri getir — gerçek eylem onayı (madde 6).
+     * → 329 (2026-10-30, madde 14): nefes seansı (app/nefes.tsx) — faz titreşimi gözler
+     *   kapalıyken TEK yol gösterici (breathCues), bitiş alarmı odak bitişiyle aynı, başlatma
+     *   commit; amaç/süre/ses seçimleri ödemeler çipleriyle aynı mantık. Odak ekranındaki
+     *   eski nefes seçicisinin titreşimi (1) kaldırıldı.
+     * → 330 (2026-10-30): ana sayfa ekranında "haftayı kaydır" — her gün değişiminde tek tik
+     *   (sürükleme ve nokta dokunuşu aynı `go` yolundan; ekrana bakmadan gün saymayı sağlar).
      */
-    expect(hap).toBeLessThanOrEqual(324);
+    expect(hap).toBeLessThanOrEqual(330);
   });
 });

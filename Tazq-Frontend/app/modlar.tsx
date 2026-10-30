@@ -135,7 +135,7 @@ import { PlanRefreshContext } from '@/features/modes/hooks/usePlanLifecycle';
 import { ModeStatusCard } from '@/features/modes/components/ModeStatusCard';
 import { Touchable } from '@/shared/components/Touchable';
 import { ChromeShell } from '@/shared/components/ChromeShell';
-import { modeAccent as resolveModeAccent, modeAccentText as resolveModeAccentText, ModeAccents } from '@/shared/constants/Colors';
+import { modeAccent as resolveModeAccent, modeAccentText as resolveModeAccentText, ModeAccents, modeTile } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
 import { dateKeyFromNow, parseDateKey } from '@/shared/utils/dateKey';
 import { upperFor } from '@/shared/utils/localeCase';
@@ -1194,7 +1194,7 @@ export default function ModlarScreen() {
                         <View style={{ paddingTop: S.smd }}>
                           {/* İkon kutusu iki temada da DOYGUN ton: koyu temanın pastel vurgusu (ör. #FDBA74)
                               beyaz glifi ~1.6:1'e düşürüyordu. Apple'ın Ayarlar ikonları da koyuda doygun kalır. */}
-                          <AppIcon Icon={item.Icon} color={ModeAccents[item.key as keyof typeof ModeAccents]?.light ?? item.color} size={34} radius={R.sm} iconSize={ICON.sm} />
+                          <AppIcon Icon={item.Icon} color={item.key in ModeAccents ? modeTile(item.key, isDark) : item.color} size={34} radius={R.sm} iconSize={ICON.sm} />
                         </View>
                         {/* Ayırıcı ikonun sağından başlar (bkz. MyDayTaskRow). */}
                         <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: S.md, paddingVertical: S.smd, paddingRight: S.md, borderBottomWidth: idx < discoveryItems.length - 1 ? HAIRLINE : 0, borderBottomColor: theme.separator }}>

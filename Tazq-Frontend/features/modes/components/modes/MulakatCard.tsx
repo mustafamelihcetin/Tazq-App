@@ -152,7 +152,7 @@ function SecondarySlot({ slot, nameKey, dateKey, placeholder, onOpenPreview }: {
 }
 
 export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => void }) {
-  const { accent: ACCENT, accentText: ACCENT_TX, onAccent: ACCENT_ON } = useModeAccent('mulakat');
+  const { accent: ACCENT, accentText: ACCENT_TX, onAccent: ACCENT_ON, tile: ACCENT_TILE } = useModeAccent('mulakat');
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
@@ -250,7 +250,7 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
     <View style={{ borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', backgroundColor: theme.surfaceCard, borderColor: seasonal.mulakatMode && isComplete ? (past ? theme.error + '40' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)')) : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }}>
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: seasonal.mulakatMode ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
-          <AppIcon Icon={Briefcase} color={seasonal.mulakatMode && isComplete ? (past ? theme.error : ACCENT) : ACCENT} />
+          <AppIcon Icon={Briefcase} color={seasonal.mulakatMode && isComplete ? (past ? theme.error : ACCENT_TILE) : ACCENT_TILE} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.body }}>{tr ? 'İş Mülakatı' : 'Job Interview'}</Text>
             {seasonal.mulakatMode && isComplete && past ? (

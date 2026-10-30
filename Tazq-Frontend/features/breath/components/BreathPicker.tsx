@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { MotiView } from 'moti';
-import { Volume2, VolumeX } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { BreathPalette } from '@/shared/constants/Colors';
 import { S, R, F, W, B, ICON, MIN_TOUCH } from '@/shared/constants/tokens';
@@ -9,18 +8,33 @@ import { useLowPowerGraphics } from '@/shared/hooks/useLowPowerGraphics';
 import { BREATH_PATTERNS, type BreathId } from '@/features/breath/patterns';
 import { BREATH_COPY } from '@/features/breath/breathCopy';
 import { BreathPreview } from '@/features/breath/components/BreathOrb';
+import { BREATH_SOUNDS, type BreathSound } from '@/features/breath/breathCues';
 
 const INK = '#FFFFFF';
 const DURATIONS = [1, 3, 5] as const;
+
+const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <View style={{ gap: S.xs, marginTop: S.xs }}>
+    <Text style={{ fontSize: F.caption, fontWeight: W.semibold, color: 'rgba(255,255,255,0.55)' }}>{label}</Text>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.sm }}>{children}</View>
+  </View>
+);
+
+const Chip = ({ on, accent, label, onPress }: { on: boolean; accent: string; label: string; onPress: () => void }) => (
+  <Touchable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }}
+    style={{ minHeight: MIN_TOUCH, paddingHorizontal: S.md, borderRadius: R.full, justifyContent: 'center', borderWidth: B.thin, borderColor: on ? accent : 'rgba(255,255,255,0.14)', backgroundColor: on ? 'rgba(255,255,255,0.08)' : 'transparent' }}>
+    <Text style={{ fontSize: F.body, fontWeight: on ? W.semibold : W.regular, color: on ? accent : INK }}>{label}</Text>
+  </Touchable>
+);
 
 /**
  * Seans seçici: dört amaç, her kartta ritmi CANLI oynatan küçük küre (kullanıcı:
  * "seçeneklerde de animasyonlu göster"). Düşük güçlü cihazda yalnız seçili kart oynar.
  * Seçili kart nedenini ve kaynağını açar — iddia değil çalışma.
  */
-export function BreathPicker({ lang, id, minutes, sound, onPick, onMinutes, onSound, onStart }: {
-  lang: 'tr' | 'en'; id: BreathId; minutes: number; sound: boolean;
-  onPick: (id: BreathId) => void; onMinutes: (m: number) => void; onSound: () => void; onStart: () => void;
+export function BreathPicker({ lang, id, minutes, sound, theme, onPick, onMinutes, onTheme, onMute, onStart }: {
+  lang: 'tr' | 'en'; id: BreathId; minutes: number; sound: boolean; theme: BreathSound;
+  onPick: (id: BreathId) => void; onMinutes: (m: number) => void; onTheme: (t: BreathSound) => void; onMute: () => void; onStart: () => void;
 }) {
   const c = BREATH_COPY[lang];
   const low = useLowPowerGraphics();
@@ -64,23 +78,18 @@ export function BreathPicker({ lang, id, minutes, sound, onPick, onMinutes, onSo
           })}
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginTop: S.xs }}>
-          <Text style={{ fontSize: F.caption, fontWeight: W.semibold, color: 'rgba(255,255,255,0.55)', marginRight: S.xs }}>{c.duration}</Text>
-          {DURATIONS.map(m => {
-            const on = m === minutes;
-            return (
-              <Touchable key={m} onPress={() => onMinutes(m)} accessibilityRole="button" accessibilityState={{ selected: on }}
-                style={{ minHeight: MIN_TOUCH, paddingHorizontal: S.md, borderRadius: R.full, justifyContent: 'center', borderWidth: B.thin, borderColor: on ? accent : 'rgba(255,255,255,0.14)', backgroundColor: on ? 'rgba(255,255,255,0.08)' : 'transparent' }}>
-                <Text style={{ fontSize: F.body, fontWeight: on ? W.semibold : W.regular, color: on ? accent : INK }}>{c.minutes(m)}</Text>
-              </Touchable>
-            );
-          })}
-          <View style={{ flex: 1 }} />
-          <Touchable onPress={onSound} accessibilityRole="switch" accessibilityState={{ checked: sound }} accessibilityLabel={c.sound}
-            style={{ width: MIN_TOUCH, height: MIN_TOUCH, borderRadius: R.full, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' }}>
-            {sound ? <Volume2 size={ICON.md} color={INK} /> : <VolumeX size={ICON.md} color="rgba(255,255,255,0.5)" />}
-          </Touchable>
-        </View>
+        <Row label={c.duration}>
+          {DURATIONS.map(m => (
+            <Chip key={m} on={m === minutes} accent={accent} label={c.minutes(m)} onPress={() => onMinutes(m)} />
+          ))}
+        </Row>
+        {/* Ses teması: dokununca kısa önizleme çalar (herkes aynı sesi sevmez). */}
+        <Row label={c.soundLabel}>
+          {BREATH_SOUNDS.map(t => (
+            <Chip key={t} on={sound && t === theme} accent={accent} label={c.themes[t]} onPress={() => onTheme(t)} />
+          ))}
+          <Chip on={!sound} accent={accent} label={c.soundOff} onPress={onMute} />
+        </Row>
       </ScrollView>
 
       <View style={{ paddingHorizontal: S.md, paddingBottom: S.md }}>

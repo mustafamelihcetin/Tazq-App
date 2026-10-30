@@ -12,6 +12,8 @@ import { swallow } from '@/shared/utils/swallow';
 import { Separator } from '@/shared/components/Separator';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { AnimatedNumber } from '@/shared/components/AnimatedNumber';
+import { MomentumOrb } from '@/features/user/components/MomentumOrb';
+import { DISPLAY_FONT } from '@/shared/components/DisplayPanel';
 import { useSettledValue } from '@/shared/hooks/useSettledValue';
 import { haptic } from '@/shared/utils/haptics';
 import { isBestDayOfWeek } from '@/shared/utils/momentum';
@@ -174,6 +176,9 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
     <CardBox embedded={embedded}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
 
+      {/* Skoru okutan küre: açılınca üç nefes alır, sonra skor seviyesinde durur (bkz. MomentumOrb). */}
+      <MomentumOrb score={targetScore} color={accentColor} />
+
       {/* Score + info */}
       <View>
       <MotiView
@@ -203,6 +208,8 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
           style={{
             fontSize: METRIC.sm,
             fontWeight: '700',
+            // Dijital panelin içindeyken panelin sabit genişlikli rakamı (bkz. DisplayPanel).
+            ...(embedded ? { fontFamily: DISPLAY_FONT.digits, fontWeight: undefined } : null),
             letterSpacing: trackingFor(METRIC.sm),
             color: accentColor,
             lineHeight: METRIC.sm * LH.tight,

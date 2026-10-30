@@ -250,7 +250,7 @@ describe('arka planlar ağacın dışında', () => {
 const ROLE_CEILING: Record<string, number> = {
   'app/admin.tsx': 25,
   'app/cockpit.tsx': 5, // 6 → 5 (2026-10-29): seçili gün listesi Takvim'e taşındı · 9 → 8 (2026-10-25): Bu Hafta kartının planla satırı rollü · 11 → 9: gün kutuları ve Görev Ekle rollü · 13 → 11 (2026-10-24): Bugün satırı + tamamlanan alışkanlık satırına rol
-  'app/focus.tsx': 6, // 7 → 6 (2026-10-24): Özel süre seçeneğine rol · // 17 → 7: modlar/pomodoro sayfaları kendi dosyalarına taşındı (rolleriyle), süre seçenekleri ve sayaç adlandırıldı
+  'app/focus.tsx': 4, // 6 → 4 (2026-10-30): eski nefes seçicisi kaldırıldı (nefes ayrı seans) · 7 → 6 (2026-10-24): Özel süre seçeneğine rol · // 17 → 7: modlar/pomodoro sayfaları kendi dosyalarına taşındı (rolleriyle), süre seçenekleri ve sayaç adlandırıldı
   'app/profile.tsx': 3, // 4 → 3 (2026-10-24): Yenile düğmesine rol
   'app/promo.tsx': 2,
   'app/odemeler.tsx': 7, // 8 → 7 (2026-10-24): satırlar PaymentRow'a taşındı (rollü), ekle düğmesi rollü başlık çubuğunda // (2026-10-18): yeni ekran — ekle davetiyesi, ödendi/geri al, sil, vazgeç/ekle // +1 (2026-10-19): para birimi çipi // +1 (2026-10-19): gün gridi çipi (1-31, tek JSX çağrı noktası) // +1 (2026-10-19): sağlayıcı önerisi satırı

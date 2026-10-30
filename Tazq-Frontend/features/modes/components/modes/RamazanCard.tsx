@@ -54,7 +54,7 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   const { language } = useLanguageStore();
   const tr = language === 'tr';
   // Merkezi palet — elle yazılmış tema ternary'si yerine (bkz. Colors.ModeAccents).
-  const { accent, accentText } = useModeAccent('ramazan');
+  const { accent, accentText, tile } = useModeAccent('ramazan');
 
   const seasonal = usePrefsStore(s => s.seasonal);
   const setSeasonalPref = usePrefsStore(s => s.setSeasonalPref);
@@ -119,7 +119,7 @@ clearPlanIds('ramazan');
     <View style={{ borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', backgroundColor: theme.surfaceCard, borderColor: seasonal.ramazan ? (isDark ? 'rgba(99,102,241,0.30)' : 'rgba(99,102,241,0.20)') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }}>
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: seasonal.ramazan ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
-          <AppIcon Icon={Moon} color={accent} />
+          <AppIcon Icon={Moon} color={tile} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.body }}>{tr ? 'Ramazan Modu' : 'Ramadan Mode'}</Text>
             <Text style={{ fontSize: F.caption, fontWeight: '500', marginTop: S.xxs, color: ramadanStatus.isActive ? accent : seasonal.ramazan && ramadanStatus.period ? accent : theme.onSurfaceVariant, opacity: ramadanStatus.isActive ? 0.9 : seasonal.ramazan && ramadanStatus.period ? 0.75 : 0.55 }}>

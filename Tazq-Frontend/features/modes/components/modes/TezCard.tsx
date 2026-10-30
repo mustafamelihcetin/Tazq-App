@@ -36,7 +36,7 @@ import { TEZ_AREAS } from '@/shared/utils/weakAreas';
 const BASE_CALENDAR_WIDTH = 340;
 
 export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
-  const { accent: TEZ, accentText: TEZ_TX, onAccent: TEZ_ON } = useModeAccent('tez');
+  const { accent: TEZ, accentText: TEZ_TX, onAccent: TEZ_ON, tile: TEZ_TILE } = useModeAccent('tez');
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
@@ -127,7 +127,7 @@ clearPlanIds('tez');
     <View style={[styles_modeCard, { backgroundColor: theme.surfaceCard, borderColor: seasonal.tezMode && isComplete ? (past ? theme.error + '40' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)')) : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }]}>
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: seasonal.tezMode ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
-          <AppIcon Icon={GraduationCap} color={seasonal.tezMode && isComplete ? (past ? theme.error : accent) : TEZ} />
+          <AppIcon Icon={GraduationCap} color={seasonal.tezMode && isComplete ? (past ? theme.error : TEZ_TILE) : TEZ_TILE} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.body }}>{tr ? 'Tez / Proje' : 'Thesis / Project'}</Text>
             {seasonal.tezMode && isComplete && past ? (
@@ -200,7 +200,7 @@ clearPlanIds('tez');
                       borderWidth: B.thin, borderRadius: R.md, padding: S.md, marginTop: S.sm
                     }}
                   >
-                    <AppIcon Icon={Sparkles} color={accent} size={24} radius={R.sm} iconSize={ICON.sm} />
+                    <AppIcon Icon={Sparkles} color={TEZ_TILE} size={24} radius={R.sm} iconSize={ICON.sm} />
                     <View style={{ flex: 1 }}>
                       <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body }}>
                         {tr ? 'Tez Çalışma Planını Oluştur' : 'Create Thesis Study Plan'}

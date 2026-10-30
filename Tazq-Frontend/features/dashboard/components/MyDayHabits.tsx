@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { Plus } from 'lucide-react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { HabitBubble, HABIT_SLOT } from '@/features/habits/components/HabitBubble';
 import { SectionHeader } from '@/shared/components/SectionHeader';
 import { Touchable } from '@/shared/components/Touchable';
@@ -58,7 +59,14 @@ export const MyDayHabits = React.memo<MyDayHabitsProps>(
         accessibilityRole="button"
         accessibilityLabel={tr ? 'Alışkanlık ekle' : 'Add habit'}
       >
-        <View style={[styles.addBubble, { borderColor: theme.outline, backgroundColor: theme.surfaceContainerLow }]}>
+        {/*
+          Kesikli çember SVG ile: Android, yuvarlak köşeli `borderStyle: 'dashed'`ı tırtıklı çiziyor
+          ve koyu temada koyu dolgu "siyah delik" gibi duruyordu (2026-10-30, cihazda). Dolgu yok.
+        */}
+        <View style={styles.addBubble}>
+          <Svg width={BUBBLE} height={BUBBLE} style={StyleSheet.absoluteFill}>
+            <Circle cx={BUBBLE / 2} cy={BUBBLE / 2} r={BUBBLE / 2 - 1} fill="none" stroke={theme.outline} strokeWidth={B.medium} strokeDasharray="4 4" />
+          </Svg>
           {/* İkon rengi SEVİYEDEN geliyor. Eskiden `opacity: 0.6` uygulanıyordu —
               ölçülmüş rengi kullanım yerinde kısmak, metinde olduğu gibi ikonda da
               ölçüyü çöpe atar. */}
@@ -145,10 +153,7 @@ const styles = StyleSheet.create({
   addBubble: {
     width: BUBBLE,
     height: BUBBLE,
-    borderRadius: R.full,
-    borderWidth: B.medium,
-    // Kesikli: dolu baloncuklardan ayrılsın. Düz çerçeve "boş alışkanlık" gibi okunurdu.
-    borderStyle: 'dashed',
+    // Kesikli (SVG, yukarıda): dolu baloncuklardan ayrılsın. Düz çerçeve "boş alışkanlık" gibi okunurdu.
     alignItems: 'center',
     justifyContent: 'center',
   },

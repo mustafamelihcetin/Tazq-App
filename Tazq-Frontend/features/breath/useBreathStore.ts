@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { BreathId } from '@/features/breath/patterns';
+import type { BreathSound } from '@/features/breath/breathCues';
 
 /**
  * Nefes seansı tercihleri ve geçmişi — cihazda. Seanslar ODAK DAKİKASINA SAYILMAZ
@@ -12,9 +13,12 @@ export interface BreathSession { at: string; id: BreathId; sec: number }
 
 interface BreathState {
   sound: boolean;
+  /** Ses teması — açıkken hangisi çalar (bkz. breathCues). */
+  soundTheme: BreathSound;
   lastId: BreathId | null;
   sessions: BreathSession[];
   setSound: (on: boolean) => void;
+  setSoundTheme: (t: BreathSound) => void;
   setLast: (id: BreathId) => void;
   record: (s: BreathSession) => void;
 }
@@ -25,9 +29,11 @@ export const useBreathStore = create<BreathState>()(
   persist(
     (set, get) => ({
       sound: true,
+      soundTheme: 'wave',
       lastId: null,
       sessions: [],
       setSound: (sound) => set({ sound }),
+      setSoundTheme: (soundTheme) => set({ soundTheme, sound: true }),
       setLast: (lastId) => set({ lastId }),
       record: (s) => set({ sessions: [s, ...get().sessions].slice(0, KEEP) }),
     }),

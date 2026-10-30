@@ -10,7 +10,7 @@ import { S, R, F, W, ICON, MIN_TOUCH } from '@/shared/constants/tokens';
 import { swallow } from '@/shared/utils/swallow';
 import { patternOf, phaseAt, cyclesFor, totalSec, type BreathId, type PhaseState } from '@/features/breath/patterns';
 import { BREATH_COPY } from '@/features/breath/breathCopy';
-import { cuePhase, preloadBreathCues, releaseBreathCues } from '@/features/breath/breathCues';
+import { cuePhase, hushBreathCues, preloadBreathCues, releaseBreathCues, type BreathSound } from '@/features/breath/breathCues';
 import { BreathOrb } from '@/features/breath/components/BreathOrb';
 
 const INK = '#FFFFFF';
@@ -24,8 +24,8 @@ const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).
  * titreşim/ses hep `phaseAt(t)`tan okunur — ayrı zamanlayıcılar birbirinden kaymaz.
  * Arka plana geçince duraklar (nefes rehberi görülmeden/duyulmadan sürmesin).
  */
-export function BreathRun({ lang, id, minutes, sound, onSound, onEnd }: {
-  lang: 'tr' | 'en'; id: BreathId; minutes: number; sound: boolean; onSound: () => void;
+export function BreathRun({ lang, id, minutes, sound, theme, onSound, onEnd }: {
+  lang: 'tr' | 'en'; id: BreathId; minutes: number; sound: boolean; theme: BreathSound; onSound: () => void;
   /** elapsed: rehberli geçen saniye (hazırlık hariç); full: süre doldu mu */
   onEnd: (elapsed: number, full: boolean) => void;
 }) {
@@ -51,7 +51,8 @@ export function BreathRun({ lang, id, minutes, sound, onSound, onEnd }: {
       if (done) runOnJS(finish)();
     });
   };
-  const pause = () => { cancelAnimation(t); setPaused(true); };
+  // Duraklatınca ses susar; devamda ses yarım fazı baştan çalmaz, sıradaki fazla gelir.
+  const pause = () => { cancelAnimation(t); hushBreathCues(); setPaused(true); };
   const resume = () => { setPaused(false); run(); };
 
   // Yarım saniyelik çözünürlük: rezonans fazları 5.5 sn'de döner.
@@ -60,7 +61,7 @@ export function BreathRun({ lang, id, minutes, sound, onSound, onEnd }: {
     if (v < 0) return;
     const st = phaseAt(p, v, cycles);
     const key = `${st.cycle}:${st.index}`;
-    if (key !== lastKey.current && !st.done) { lastKey.current = key; cuePhase(st.kind, soundRef.current); }
+    if (key !== lastKey.current && !st.done) { lastKey.current = key; cuePhase(st.kind, p.phases[st.index].sec, soundRef.current ? theme : null); }
   };
   useAnimatedReaction(() => Math.floor(t.value * 2), (k, prev) => { if (k !== prev) runOnJS(sync)(t.value); });
 
@@ -72,7 +73,7 @@ export function BreathRun({ lang, id, minutes, sound, onSound, onEnd }: {
   }, []);
 
   useEffect(() => {
-    preloadBreathCues();
+    preloadBreathCues(p, theme);
     activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch((e: unknown) => swallow('breath.keepAwake', e));
     run();
     const sub = AppState.addEventListener('change', (s) => { if (s !== 'active') pause(); });

@@ -233,7 +233,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // Mantık kancada ve bileşende; burada yalnız bağlantı.
   // 2311 → 2315: hızlı eklemede "… yarın için eklendi" (ana sayfa yalnız bugünü gösterir).
   // 2315 → 2318: hızlı eklemede görev oluşturma anahtarı (ikiz görev önlemi).
-  'app/index.tsx': 2372, // +3 (2026-10-30, madde 11): Günün Yıldızı — mantık+başlık HighlightHeader'a taşındı, burada yalnız kanca çağrısı ve tek satır JSX // +10: tarih chip'i payload'ı, boş plan 'Görev ekle' bağlantısı, değerlendirme isteğinin modal kapısı · +3 tur kapısı · +1 hızlı odak store yolu · +25 haftalık sayılar ortak motordan (yerel gün; sunucunun UTC kırılımı üç ekranda farklı sayı veriyordu) · +4 tarihsiz görev için ayrı toast mesajı // +4 (2026-10-18): PaymentsSummaryCard mod kartının altına eklendi
+  'app/index.tsx': 2374, // +2 (2026-10-30): dijital panelde 'haftayı kaydır' için son 7 gün (lastDays, tek useMemo) · +3 (2026-10-30, madde 11): Günün Yıldızı — mantık+başlık HighlightHeader'a taşındı, burada yalnız kanca çağrısı ve tek satır JSX // +10: tarih chip'i payload'ı, boş plan 'Görev ekle' bağlantısı, değerlendirme isteğinin modal kapısı · +3 tur kapısı · +1 hızlı odak store yolu · +25 haftalık sayılar ortak motordan (yerel gün; sunucunun UTC kırılımı üç ekranda farklı sayı veriyordu) · +4 tarihsiz görev için ayrı toast mesajı // +4 (2026-10-18): PaymentsSummaryCard mod kartının altına eklendi
   // İlk kez 800'ü geçti: widget/Watch köprüsünün tek başlatma noktası (bildirim
   // dinleyicisiyle aynı desen — [isLoggedIn] bağımlı, tek yerde kurulur).
   // 810 → 816: widget köprüsü artık gorev/mod store'larını da dinliyor (bkz.

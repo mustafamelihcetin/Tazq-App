@@ -39,8 +39,9 @@ describe('kimlik doğrulama sonrası eve dönüş', () => {
 
 describe('selamlama bir animasyona bağlı değil', () => {
   // Görünmezken kurulan ana sayfada opaklık-0 girişi hiç çalışmıyor, selamlama boş kalıyordu.
-  it('DashboardHero opaklık 0\'dan başlamaz', () => {
-    expect(read('features/dashboard/components/DashboardHero.tsx')).not.toMatch(/from=\{\{\s*opacity:\s*0/);
+  // 2026-10-30: selam ayrı bloktan dijital panelin durum şeridine taşındı; kural orada.
+  it('durum şeridinin selam geçişi opaklık 0\'dan başlamaz', () => {
+    expect(read('shared/components/DisplayPanel.tsx')).not.toMatch(/from=\{\{\s*opacity:\s*0/);
   });
 });
 

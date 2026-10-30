@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
 import { Coffee, Flame, CheckCircle2 } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
+import { CompletionBurst } from '@/shared/components/CompletionBurst';
 // Saf metin yardımcısı utils'e taşındı (uyku sınıflandırıcısı da kullanıyor);
 // buradan yeniden dışa veriliyor ki mevcut içe aktarmalar kırılmasın.
 import { compactHabitLabel } from '@/features/habits/utils/habitLabel';
@@ -59,7 +60,10 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
   useEffect(() => { setOptimistic(null); }, [item.isCompleted]);
   const isCompleted = optimistic ?? item.isCompleted;
   const isSkipped = item.isSkipped;
+  // Tamamlama anında tek seferlik kıvılcım (geri almada değil).
+  const [burst, setBurst] = useState(0);
   const handlePress = () => {
+    if (!item.isCompleted) setBurst(b => b + 1);
     setOptimistic(!item.isCompleted);
     requestAnimationFrame(() => onPress());
   };
@@ -69,8 +73,13 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
   // 2. Completed state uses a soft mode-colored background tint (flat).
   // 3. The icon and the badges are painted in the solid mode's color.
 
+  /*
+    SERİ CANLILIĞI (2026-10-30): seri uzadıkça dolgu bir kademe doygunlaşır (3 → 7 → 14 gün).
+    Çerçeve kuralı korunur (hep nötr); canlılık yalnız dolgudan gelir, sürekli animasyon yok.
+  */
+  const streakTint = streakVal >= 14 ? (isDark ? '40' : '2E') : streakVal >= 7 ? (isDark ? '33' : '22') : (isDark ? '24' : '15');
   const bgColor = isCompleted
-    ? item.color + (isDark ? '24' : '15') // soft flat tint matching the mode's color
+    ? item.color + streakTint // soft flat tint matching the mode's color
     : isSkipped
     // Kehribar TEK kaynaktan: ikon ve zemin aynı jetondan türüyor. Elle yazıldığında
     // koyu temada ikon (#FBBF24) ile zemin (#D97706) farklı iki kehribar oluyordu.
@@ -117,6 +126,7 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
         alignItems: 'center',
         justifyContent: 'center',
       }}>
+        <CompletionBurst trigger={burst} color={item.color} radius={size / 2} />
         {/* Atlandı ikonu, zemin ve ikon rengiyle AYNI jetondan (bkz. yukarıdaki not). */}
         {isSkipped ? (
           <Coffee size={ICON.md} color={theme.warning} />

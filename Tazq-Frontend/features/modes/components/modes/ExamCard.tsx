@@ -368,7 +368,7 @@ function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview
 }
 
 export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload) => void }) {
-  const { accent: ACCENT, accentText: ACCENT_TX, onAccent: ACCENT_ON } = useModeAccent('exam');
+  const { accent: ACCENT, accentText: ACCENT_TX, onAccent: ACCENT_ON, tile: ACCENT_TILE } = useModeAccent('exam');
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
@@ -554,7 +554,7 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
     <View style={{ borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', backgroundColor: theme.surfaceCard, borderColor: seasonal.examMode && isComplete ? (past ? theme.error + '40' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)')) : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }}>
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: seasonal.examMode ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
-          <AppIcon Icon={BookOpen} color={seasonal.examMode && isComplete ? (past ? theme.error : ACCENT) : ACCENT} />
+          <AppIcon Icon={BookOpen} color={seasonal.examMode && isComplete ? (past ? theme.error : ACCENT_TILE) : ACCENT_TILE} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.body }}>{tr ? 'Sınav Takibi' : 'Exam Mode'}</Text>
             {seasonal.examMode && isComplete && past ? (

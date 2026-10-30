@@ -1,3 +1,4 @@
+import '@/shared/utils/logFilters'; // İLK: kütüphane uyarıları yüklenirken basılıyor (bkz. dosya)
 import 'react-native-gesture-handler';
 import { Buffer } from 'buffer';
 global.Buffer = global.Buffer || Buffer;
@@ -30,7 +31,7 @@ import '../global.css';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useColorScheme, View, LogBox, AppState, Text, TextInput, Animated, StyleSheet } from 'react-native';
+import { useColorScheme, View, AppState, Text, TextInput, Animated, StyleSheet } from 'react-native';
 import { uiDepth } from '@/shared/constants/uiDepth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -127,11 +128,6 @@ const safeNavigationBar = (style: 'light' | 'dark') => {
   }
 };
 
-// Susturulacak kütüphane uyarıları
-LogBox.ignoreLogs([
-  'SafeAreaView has been deprecated',
-  'Sending `onAnimatedValueUpdate` with no listeners registered',
-]);
 
 import {
   useFonts,
@@ -142,6 +138,7 @@ import {
   PlusJakartaSans_800ExtraBold,
   PlusJakartaSans_800ExtraBold_Italic
 } from '@expo-google-fonts/plus-jakarta-sans';
+import { JetBrainsMono_500Medium, JetBrainsMono_600SemiBold } from '@expo-google-fonts/jetbrains-mono';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { usePrefsStore } from '@/features/modes';
 import { useThemeStore } from '@/shared/store/useThemeStore';
@@ -160,6 +157,8 @@ export default function RootLayout() {
     'Jakarta-Bold': PlusJakartaSans_700Bold,
     'Jakarta-ExtraBold': PlusJakartaSans_800ExtraBold,
     'Jakarta-BoldItalic': PlusJakartaSans_800ExtraBold_Italic,
+    // Dijital panel rakamları (bkz. shared/components/DisplayPanel).
+    'Mono-Medium': JetBrainsMono_500Medium, 'Mono-SemiBold': JetBrainsMono_600SemiBold,
   });
 
   const { theme, colorScheme, isDark } = useAppTheme();

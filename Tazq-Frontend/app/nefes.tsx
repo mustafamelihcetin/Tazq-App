@@ -12,12 +12,14 @@ import { BreathPalette } from '@/shared/constants/Colors';
 import { S, R, F, W, ICON, MIN_TOUCH } from '@/shared/constants/tokens';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { haptic } from '@/shared/utils/haptics';
+import { goHome } from '@/shared/utils/authNavigation';
 import { patternOf, cycleSec, type BreathId } from '@/features/breath/patterns';
 import { BREATH_COPY } from '@/features/breath/breathCopy';
 import { useBreathStore } from '@/features/breath/useBreathStore';
 import { BreathPicker } from '@/features/breath/components/BreathPicker';
 import { BreathRun } from '@/features/breath/components/BreathRun';
 import { BreathOrb } from '@/features/breath/components/BreathOrb';
+import { previewBreathSound, hushBreathCues, releaseBreathCues, ensureBreathAudioMode, type BreathSound } from '@/features/breath/breathCues';
 import { preloadCompletionChime, playCompletionChime } from '@/features/focus/completionChime';
 
 /*
@@ -39,7 +41,7 @@ export default function BreathScreen() {
   const lang = language === 'en' ? 'en' : 'tr';
   const c = BREATH_COPY[lang];
   const params = useLocalSearchParams<{ p?: string; m?: string }>();
-  const { sound, setSound, lastId, setLast, record } = useBreathStore();
+  const { sound, setSound, soundTheme, setSoundTheme, lastId, setLast, record } = useBreathStore();
 
   const [id, setId] = useState<BreathId>(patternOf(params.p ?? lastId).id);
   const [minutes, setMinutes] = useState<number>(Number(params.m) || patternOf(params.p ?? lastId).minutes);
@@ -47,7 +49,7 @@ export default function BreathScreen() {
   const pal = BreathPalette[id];
   const restLevel = useSharedValue(0.35);
 
-  const close = () => (router.canGoBack() ? router.back() : router.replace('/'));
+  const close = () => (router.canGoBack() ? router.back() : goHome(router));
   const start = () => { haptic.commit(); setLast(id); preloadCompletionChime(); setStage({ kind: 'run', key: Date.now() }); };
   const end = (sec: number, full: boolean) => {
     if (sec >= MIN_RECORD_SEC) record({ at: new Date().toISOString(), id, sec: Math.round(sec) });
@@ -66,6 +68,10 @@ export default function BreathScreen() {
   const pickMinutes = (m: number) => { haptic.select(); setMinutes(m); };
   const pick = (next: BreathId) => { if (next === id) return; haptic.select(); setId(next); setMinutes(patternOf(next).minutes); };
   const toggleSound = () => { haptic.select(); setSound(!sound); };
+  const pickTheme = (t: BreathSound) => { setSoundTheme(t); previewBreathSound(t); };
+  const mute = () => { setSound(false); hushBreathCues(); };
+  // Seçicideki önizleme oynatıcıları ekrandan çıkınca bırakılır.
+  useEffect(() => { ensureBreathAudioMode(); return releaseBreathCues; }, []);
 
   return (
     <View style={{ flex: 1, backgroundColor: pal.bg[1] }}>
@@ -79,11 +85,11 @@ export default function BreathScreen() {
                 <X size={ICON.lg} color={INK} />
               </Touchable>
             </View>
-            <BreathPicker lang={lang} id={id} minutes={minutes} sound={sound} onPick={pick} onMinutes={pickMinutes} onSound={toggleSound} onStart={start} />
+            <BreathPicker lang={lang} id={id} minutes={minutes} sound={sound} theme={soundTheme} onPick={pick} onMinutes={pickMinutes} onTheme={pickTheme} onMute={mute} onStart={start} />
           </>
         )}
         {stage.kind === 'run' && (
-          <BreathRun key={stage.key} lang={lang} id={id} minutes={minutes} sound={sound} onSound={toggleSound} onEnd={end} />
+          <BreathRun key={stage.key} lang={lang} id={id} minutes={minutes} sound={sound} theme={soundTheme} onSound={toggleSound} onEnd={end} />
         )}
         {stage.kind === 'done' && (
           <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ type: 'timing', duration: 500 }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.lg, gap: S.md }}>

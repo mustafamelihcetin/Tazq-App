@@ -440,14 +440,14 @@ describe('ana sayfa başlığı — tek sistem', () => {
     expect(header).not.toMatch(/bar: \{[^}]*borderBottomWidth/s);
   });
 
-  it('başlık kaydırmaya bağlı — sabit bir eşik değil, ölçülen yükseklik', () => {
+  it('başlık kaydırmaya bağlı', () => {
     expect(src).toContain('scrollY={scrollY}');
     expect(src).toContain('collapseAt={titleCollapseAt}');
-    // Eşik selamlamanın ÖLÇÜLEN yüksekliğinden türemeli: punto dar ekranda 22,
-    // geniş ekranda 28 ve uzun isim onu iki satıra taşırıyor. Sabit sayı bu üç
-    // durumdan yalnız birinde doğru olurdu.
-    expect(src).toContain('setHeroHeight(e.nativeEvent.layout.height)');
-    expect(src).toMatch(/heroHeight - S\.lg/);
+    // 2026-10-30: ayrı selamlama bloğu kalktı (selam dijital panelin durum şeridinde).
+    // Eskiden eşik o bloğun ÖLÇÜLEN yüksekliğiydi çünkü punto/isim uzunluğuyla değişiyordu;
+    // artık sayfanın tepesinde metin bloğu yok — panel ilk öğe, eşik içerik üst boşluğu.
+    expect(src).not.toContain('setHeroHeight');
+    expect(src).toContain('const titleCollapseAt = S.lg;');
   });
 
   it('kaydırma UI thread\'inde — her karede React render etmez', () => {

@@ -40,7 +40,8 @@ export async function createPaymentAction(input: Omit<Payment, 'id' | 'lastPaidC
   try {
     const created = await PaymentService.createPayment(toPayload(input));
     usePaymentsStore.getState().removePayment(tempId);
-    usePaymentsStore.getState().addPayment(created);
+    // Birimi bilmeyen sunucu (eski sürüm) yanıtı birimsiz döner; seçilen birim kaybolmasın.
+    usePaymentsStore.getState().addPayment(created?.currency ? created : { ...created, currency: input.currency ?? null });
     return 'ok';
   } catch (err: unknown) {
     if (isNetworkError(err)) {
@@ -180,6 +181,28 @@ export async function refreshPayments(): Promise<void> {
   if (!useNetworkStore.getState().isOnline) return;
   try {
     const fresh = await PaymentService.getPayments();
-    if (Array.isArray(fresh)) usePaymentsStore.getState().setPayments(fresh);
+    if (!Array.isArray(fresh)) return;
+    const { merged, heal } = keepLocalCurrency(fresh, usePaymentsStore.getState().payments);
+    usePaymentsStore.getState().setPayments(merged);
+    for (const p of heal) PaymentService.updatePayment(p.id, toPayload(p)).catch((e: unknown) => swallow('paymentActions.healCurrency', e));
   } catch (e) { swallow('paymentActions.refreshPayments', e); }
+}
+
+/**
+ * BİRİM ONARIMI (2026-10-30, kullanıcı: "dolar seçtim, TL oldu"). Birim alanı sunucuya
+ * yeni eklendi; eski sunucu onu yok sayıp birimsiz döndürüyordu ve yenileme yerel "USD"yi
+ * siliyordu. Sunucu birim bilmiyorsa yerel birim korunur ve sunucuya GERİ yazılır — böylece
+ * sunucu güncellendiğinde o ödeme kalıcı olarak ana birime düşmez.
+ */
+export function keepLocalCurrency(fresh: Payment[], local: Payment[]): { merged: Payment[]; heal: Payment[] } {
+  const mine = new Map(local.map(p => [p.id, p]));
+  const heal: Payment[] = [];
+  const merged = fresh.map(p => {
+    const cur = mine.get(p.id)?.currency;
+    if (p.currency || !cur) return p;
+    const fixed = { ...p, currency: cur };
+    heal.push(fixed);
+    return fixed;
+  });
+  return { merged, heal };
 }

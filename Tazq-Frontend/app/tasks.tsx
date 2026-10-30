@@ -1632,7 +1632,10 @@ export default function ActionCenter() {
           yeniden kurmak gerekir. `columnWrapperStyle` de yalnız çok sütunluyken
           verilebilir — tek sütunda geçilirse RN hata atar.
         */}
-        <Animated.FlatList itemLayoutAnimation={LinearTransition.springify().damping(18).stiffness(90)}
+        {/* Yer değiştirme yayı KRİTİK SÖNÜMÜN hemen üstünde: eski 18/90'da kritik 2·√90≈19, yani
+            alt-sönümlüydü ve tamamlanan görev yerine otururken sekiyordu ("zıplama bir tık fazla",
+            2026-10-30). 28/170 (kritik ≈26) → yay hissi kalır, taşma yok. */}
+        <Animated.FlatList itemLayoutAnimation={LinearTransition.springify().damping(28).stiffness(170)}
             key={`cols-${listCols}`}
             numColumns={listCols}
             columnWrapperStyle={listCols > 1 ? { gap: S.sm } : undefined}

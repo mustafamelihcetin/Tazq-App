@@ -8,6 +8,7 @@ import { AppIcon } from '@/shared/components/AppIcon';
 import { S, F, R, B, ICON } from '@/shared/constants/tokens';
 import { useLowPowerGraphics } from '@/shared/hooks/useLowPowerGraphics';
 import { Nebula } from '@/features/focus/components/FocusBackdrop';
+import { BreathPreview } from '@/features/breath/components/BreathOrb';
 import { FOCUS_SCENES, sceneLights, type FocusSceneId } from '@/features/focus/utils/focusScenes';
 import { useFocusSheetTheme } from '@/features/focus/hooks/useFocusSheetTheme';
 
@@ -39,7 +40,7 @@ const COPY = {
     scene: 'SAHNE',
     modes: 'MODLAR',
     breath: 'Nefes',
-    breathDesc: 'Ritmik nefes rehberi',
+    breathDesc: 'Sakinleş, odaklan, uyu — ayrı seans',
     strict: 'Katı Odak',
     pomodoroDesc: 'Çalış / mola döngüleri',
     autoZen: 'Otomatik Zen',
@@ -60,7 +61,7 @@ const COPY = {
     scene: 'SCENE',
     modes: 'MODES',
     breath: 'Breathing',
-    breathDesc: 'Guided breathing rhythm',
+    breathDesc: 'Calm, focus, sleep — its own session',
     strict: 'Strict Focus',
     pomodoroDesc: 'Work / break cycles',
     autoZen: 'Auto Zen',
@@ -91,7 +92,6 @@ export interface FocusModesSheetProps {
   language: Lang;
   /** Ekranın metin sözlüğünden gelen, moda özel açıklamalar. */
   labels: { keepAwake: string; keepAwakeDesc: string; strictDesc: string };
-  breathOn: boolean;
   pomodoroOn: boolean;
   strictOn: boolean;
   keepAwakeOn: boolean;
@@ -108,7 +108,7 @@ export interface FocusModesSheetProps {
 
 export const FocusModesSheet: React.FC<FocusModesSheetProps> = ({
   visible, onClose, language, labels,
-  breathOn, pomodoroOn, strictOn, keepAwakeOn, autoZenOn,
+  pomodoroOn, strictOn, keepAwakeOn, autoZenOn,
   onBreath, onPomodoro, onStrict, onKeepAwake, onAutoZen, scene, onScene,
 }) => {
   const { theme, isDark } = useFocusSheetTheme();
@@ -118,7 +118,8 @@ export const FocusModesSheet: React.FC<FocusModesSheetProps> = ({
   const GAP = S.sm;
   const cardW = rowW > 0 ? Math.floor((rowW - GAP * (FOCUS_SCENES.length - 1)) / FOCUS_SCENES.length) : 0;
   const rows = [
-    { key: 'breath', Ic: Wind, on: breathOn, title: c.breath, desc: c.breathDesc, chevron: true, onPress: onBreath },
+    // Nefes artık ayar değil, ayrı seans (app/nefes.tsx): satır oraya götürür; simgesi ritmi canlı oynar.
+    { key: 'breath', Ic: Wind, on: false, title: c.breath, desc: c.breathDesc, chevron: true, onPress: onBreath, art: visible ? <BreathPreview id="sigh" size={40} still={lowPower} /> : undefined },
     { key: 'pomo', Ic: Timer, on: pomodoroOn, title: 'Pomodoro', desc: c.pomodoroDesc, chevron: false, onPress: onPomodoro },
     // "Çıkışı kilitler" YANLIŞTI: hiçbir şey kilitlenmiyordu. Kural artık açık yazıyor.
     { key: 'strict', Ic: Shield, on: strictOn, title: c.strict, desc: labels.strictDesc, chevron: false, onPress: onStrict },
@@ -180,7 +181,7 @@ export const FocusModesSheet: React.FC<FocusModesSheetProps> = ({
               style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingVertical: S.smd, paddingHorizontal: S.sm, borderRadius: R.lg, marginBottom: S.xs, backgroundColor: row.on ? theme.primary + (isDark ? '14' : '0D') : 'transparent' }}
             >
               <View style={{ width: 40, height: 40, borderRadius: R.md, alignItems: 'center', justifyContent: 'center', backgroundColor: row.on ? theme.primary : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') }}>
-                <row.Ic size={ICON.md} color={row.on ? '#FFFFFF' : theme.onSurfaceVariant} strokeWidth={2.2} />
+                {'art' in row && row.art ? row.art : <row.Ic size={ICON.md} color={row.on ? '#FFFFFF' : theme.onSurfaceVariant} strokeWidth={2.2} />}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurface }}>{row.title}</Text>

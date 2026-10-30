@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Modal } from 'react-native';
 import { MotiView } from 'moti';
-import { CheckCircle2, Sparkles, Check, Clock } from 'lucide-react-native';
+import { CheckCircle2, Sparkles, Check, Clock, Wind } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { Separator } from '@/shared/components/Separator';
@@ -49,6 +49,7 @@ const COPY = {
     rating: 'BU SEANS NASIL GEÇTİ?',
     thanks: 'Geri bildiriminiz kaydedildi, teşekkürler!',
     breakBtn: (m: number) => `${m} dk Mola Başlat`,
+    breathe: '1 dk nefes al',
     min: 'dk',
   },
   en: {
@@ -63,6 +64,7 @@ const COPY = {
     rating: 'HOW WAS THIS SESSION?',
     thanks: 'Feedback recorded, thank you!',
     breakBtn: (m: number) => `Start ${m}-min Break`,
+    breathe: 'Breathe for 1 min',
     min: 'min',
   },
 };
@@ -90,11 +92,13 @@ export interface SessionSummaryProps {
   onNewSession: () => void;
   onHome: () => void;
   onCompleteTask: () => void;
+  /** İki iş bloğu arası kısa nefes molası — ayrı nefes seansına götürür (madde 14). */
+  onBreathe?: () => void;
 }
 
 export const SessionSummary: React.FC<SessionSummaryProps> = ({
   visible, minutes, completed, taskTitle, dailyMinutes, dailyGoal, breakMinutes,
-  showBreak, language, t, onClose, onStartBreak, onExtend, onNewSession, onHome, onCompleteTask,
+  showBreak, language, t, onClose, onStartBreak, onExtend, onNewSession, onHome, onCompleteTask, onBreathe,
 }) => {
   // Zemin (GlassSurface) uygulama temasından gelir; renkler de oradan alınmalı.
   // Sahneyi izler: Kor'da biten seansın kapanışı da kor renginde (bkz. sceneSheetTheme).
@@ -319,6 +323,13 @@ export const SessionSummary: React.FC<SessionSummaryProps> = ({
               <Text numberOfLines={1} style={{ fontSize: F.footnote, fontWeight: '700', color: theme.primary }}>{c.extend}</Text>
             </Touchable>
           </View>
+          {completed && onBreathe && (
+            <Touchable accessibilityRole="button" accessibilityLabel={c.breathe} onPress={onBreathe}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingVertical: S.xs, paddingHorizontal: S.sm }}>
+              <Wind size={ICON.xs} color={theme.onSurfaceVariant} />
+              <Text style={{ fontSize: F.footnote, fontWeight: '600', color: theme.onSurfaceVariant }}>{c.breathe}</Text>
+            </Touchable>
+          )}
 
           <Touchable
             accessibilityRole="button"

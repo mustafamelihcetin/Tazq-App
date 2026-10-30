@@ -138,7 +138,7 @@ interface PrefsState {
   hideNotificationContent: boolean;
   setHideNotificationContent: (value: boolean) => void;
   // Derin odak tercihleri — cihazda kalıcı (her seansda sıfırlanmasın diye). Cihaza özel.
-  focusBreathMode: 'classic' | 'box' | 'calm' | 'off';
+  focusBreathMode: 'classic' | 'box' | 'calm' | 'off'; // KULLANILMIYOR (madde 14): nefes ayrı seans (app/nefes.tsx); eski kayıtlar için duruyor
   setFocusBreathMode: (v: 'classic' | 'box' | 'calm' | 'off') => void;
   focusAmbientSound: string;
   setFocusAmbientSound: (v: string) => void;
