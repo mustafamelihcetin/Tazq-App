@@ -72,12 +72,30 @@ describe('açılış — sistem splash\'i ile aynı zemin', () => {
     expect(SPLASH).not.toContain('icon.png');
   });
 
-  it('marka anı: işaret belirir, nabız atar, çizgi açılır', () => {
+  it('marka anı: sürüm başına üç sözcük + kendini çizen işaretler + 3B ipek kuşaklar + TAZQ imzası', () => {
+    /*
+      2026-10-31, beş deneme sonrası: küçük logo / halka / dev TAZQ reddedildi ("anlamsız, boş").
+      Açılış uygulamanın vaadini söyler; kuşaklar YAZISIZ süs (kullanıcı), 3B ışıklı ipek.
+    */
+    expect(SPLASH).toContain('<SilkRibbon');
+    expect(SPLASH).toContain('<SplashGlyph');
     expect(SPLASH).toContain('<TazqLogo');
-    expect(SPLASH).toContain('styles.line');
-    // Nabız bir tur kaldırılmıştı; onsuz açılış "duran bir yazı" oluyor.
-    expect(SPLASH).toContain('markScale');
-    expect(SPLASH).toContain('toValue: 1.035');
+    expect(SPLASH).toContain('withSpring(1, RIBBON_SPRING)');
+    // Renk sürümün küratörlü seti — kişinin vurgusu DEĞİL.
+    expect(SPLASH).toContain('SplashEditionColors.');
+    expect(SPLASH).not.toContain('theme.primary');
+  });
+
+  it('her açılış aynı değil: sürüm (sözcük + işaret + renk + düzen) açılış başına seçilir', () => {
+    const editions = SPLASH.match(/\{ id: '[a-z]+', label:/g) ?? [];
+    expect(editions.length).toBeGreaterThanOrEqual(4);
+    expect(SPLASH).toContain('EDITIONS[Math.floor(Math.random() * EDITIONS.length)]');
+    expect(SPLASH).toContain('edition.mirror');
+  });
+
+  it('hareketi azalt: kuşaklar ve sözcükler yerinde başlar; hazır olmadan kapanmaz', () => {
+    expect(SPLASH).toContain('useSharedValue(reduceMotion ? 1 : 0)');
+    expect(SPLASH).toContain('if (!ready || outroStarted.current) return;');
   });
 
   it('zemin dokusu ana ekranla AYNI — açılış uygulamanın tuvalinin ilk hâli', () => {
@@ -112,21 +130,21 @@ describe('açılış bir KÖPRÜ: sistemde başlar, uygulamada biter', () => {
     expect(SPLASH).toContain('const needsBridge = bg !== systemBg;');
   });
 
-  it('geçiş AYRI katmanda — yerel sürücüyle çakışmasın', () => {
+  it('geçiş AYRI katmanda — kabın kendi opaklığıyla çakışmasın', () => {
     /*
-      Renk yerel sürücüde canlandırılamaz. Kabın kendisine verilseydi aynı View
-      üstünde biri JS biri yerel iki animasyon olur ve RN bunu reddeder.
+      Uygulamanın rengi, sistem renginin ÜSTÜNDE açılan ayrı bir katman; kabın opaklığı (çıkış)
+      ayrı değer. 2026-10-31'den beri ikisi de Reanimated (UI iş parçacığı).
     */
-    expect(SPLASH).toContain('bridgeOpacity');
-    expect(SPLASH).toMatch(/opacity: bridgeOpacity[\s\S]{0,40}\/>/);
-    expect(SPLASH).toContain('useNativeDriver: false');
+    expect(SPLASH).toContain('bridgeStyle');
+    expect(SPLASH).toMatch(/\{ backgroundColor: bg \}, bridgeStyle\]/);
   });
 
-  it('geçiş tema DİSKTEN okunduktan sonra başlar', () => {
-    // Erken başlasa yanlış renge geçip geri dönerdi.
+  it('geçiş tema (ve dil) DİSKTEN okunduktan sonra başlar', () => {
+    // Erken başlasa yanlış renge/dile geçip geri dönerdi.
     expect(SPLASH).toContain('useThemeHydrated');
     expect(SPLASH).toContain('useThemeStore.persist.hasHydrated()');
-    expect(SPLASH).toContain('if (!themeReady) return;');
+    expect(SPLASH).toContain('useLanguageStore.persist.hasHydrated()');
+    expect(SPLASH).toContain('const shown = themeReady && langReady && prefsReady && canStart;');
   });
 
   it('mürekkep VARILAN renge göre — açık zemine beyaz yazı düşmesin', () => {
@@ -148,19 +166,33 @@ describe('açılış — süre ve erişilebilirlik', () => {
     return Number(m![1]);
   };
 
-  it('toplam açılış bütçesi 1.5 sn altında', () => {
-    // Sektör eşiği 1–1.5 sn; 2 sn üstü "bekliyorum" hissi verir. Önceki hâl 1.85 sn idi.
-    const total =
-      num('INTRO_HOLD') + num('INTRO_MARK') +
-      num('INTRO_PULSE_UP') + num('INTRO_PULSE_DOWN') +
-      num('INTRO_LINE') + num('OUTRO_FADE');
-    expect(total).toBeLessThan(1500);
+  it('toplam açılış bütçesi 2 sn altında', () => {
+    /*
+      Ayar geçmişi (kullanıcı, cihazda): 1.0 sn "çok hızlı, oturmadı" → 1.5 "bi tık hızlı" → 1.9.
+      Üç sözcük OKUNACAK ve kuşaklar OTURACAK; 2 sn üstü yine "bekliyorum" hissi verir.
+    */
+    expect(num('INTRO_TOTAL') + num('OUTRO')).toBeLessThan(2000);
   });
 
   it('"Hareketi Azalt" açıkken hiçbir şey hareket etmez', () => {
     expect(SPLASH).toContain('useReduceMotion');
-    expect(SPLASH).toMatch(/useRef\(new Animated\.Value\(reduceMotion \? 1 : 0\)\)/);
-    expect(SPLASH).toMatch(/if \(reduceMotion\) \{[\s\S]{0,200}setIntroDone\(true\);/);
+    expect(SPLASH).toContain('useSharedValue(reduceMotion ? 1 : 0)');
+    expect(SPLASH).toMatch(/if \(reduceMotion \|\| !enabled\) \{[\s\S]{0,200}setIntroDone\(true\);/);
+  });
+
+  it('admin yönetimi: kart yalnız süper admine çizilir; sabit sürüm ve kapalı açılış uygulanır', () => {
+    const settings = read('app/settings.tsx');
+    expect(settings).toContain("{canStaff(user?.role, 'super') && <SplashAdminCard");
+    expect(SPLASH).toContain('EDITIONS.find(e => e.id === forced)');
+    expect(SPLASH).toContain('{shown && enabled && (');
+    expect(LAYOUT).toContain('key={previewNonce}');
+  });
+
+  it('zayıf Android: kuşak daha az parçayla ve bulanık gölgesiz çizilir', () => {
+    expect(SPLASH).toContain('useLowPowerGraphics()');
+    const ribbon = read('shared/components/SilkRibbon.tsx');
+    expect(ribbon).toContain('const segs = lowPower ? SEGMENTS_LOW : SEGMENTS;');
+    expect(ribbon).toContain('{!lowPower && (');
   });
 
   it('tercih İKİ platformda da okunuyor — Android\'de de var', () => {
@@ -172,12 +204,45 @@ describe('açılış — süre ve erişilebilirlik', () => {
   });
 
   it('uygulama hazır olana kadar kaybolmaz — boş ekran yok', () => {
-    expect(SPLASH).toContain('if (!introDone || !ready) return;');
+    expect(SPLASH).toContain('if (!ready || outroStarted.current) return;');
   });
 
   it('titreşim TEK dokunuş ve kullanıcı tercihine saygılı', () => {
     // Çift vuruş ("kalp atışı") açılışta marka anından çok bildirim gibi okunuyordu.
     expect((SPLASH.match(/haptic\./g) ?? [])).toHaveLength(1);
     expect(read('shared/utils/haptics.ts')).toContain('if (enabled())');
+  });
+});
+
+describe('açılış — ağaçla birlikte akıcılık', () => {
+  /*
+    2026-10-31: açılış uygulama ağacının ÜSTÜNDE katman (altta gerçek ana sayfa → beyaz ekran yok).
+    Ölçülen iki kusur ve kuralları:
+      · Ağaç kurulurken animasyon başlarsa ana iş parçacığı tıkanıyor: iOS'ta kuşaklar donup son
+        karesine atladı → giriş, ağaç kurulup iki kare geçince başlar (canStart).
+      · Çıkış JS zamanlayıcısına bağlıyken Android'de açılış ~12 sn kaldı → çıkış UI'da planlanır.
+  */
+  it('giriş ağaç kurulunca başlar, çıkış UI iş parçacığında planlanır', () => {
+    expect(LAYOUT).toContain('canStart={treeMounted}');
+    expect(LAYOUT).toContain('<MountedSignal onMounted={() => setTreeMounted(true)} />');
+    expect(SPLASH).toContain('if (ready) startOutro(INTRO_TOTAL);');
+    expect(SPLASH).toContain('tailA.value = withDelay(delay,');
+  });
+
+  it('açılış katmanı dokunuşu engellemez; uygulama ağacının üstünde, aynı yerde kalır', () => {
+    expect(LAYOUT).toContain('<View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 9999 }]}>');
+    expect(LAYOUT).toContain('{splashLayer}');
+  });
+});
+
+describe('açılış — dokunsal koreografi', () => {
+  it('hareketle senkron dört vuruş; Android tek desen (JS zamanlayıcısına bağlı değil)', () => {
+    // Kullanıcı: "titreşim de buna uygun, hisli olmalı". Yumuşak · tık · tık · sert.
+    expect(SPLASH).toContain('haptic.splash([');
+    expect(SPLASH).toContain("kind: 'soft'");
+    expect(SPLASH).toContain("kind: 'firm'");
+    const api = read('shared/utils/haptics.ts');
+    expect(api).toContain('Vibration.vibrate(pattern);');
+    expect(api).toContain('if (!enabled() || beats.length === 0) return noop;');
   });
 });

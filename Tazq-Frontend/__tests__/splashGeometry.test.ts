@@ -90,6 +90,7 @@ function inkBox(rel: string) {
     height,
     inkW: right - left + 1,
     inkH: bottom - top + 1,
+    inkTopPad: top,
     inkBottomPad: height - 1 - bottom,
   };
 }
@@ -113,8 +114,8 @@ describe('açılış ekranı kelime işaretine bağlı', () => {
     const m = inkBox(LOGOS[0]);
     expect(SPLASH).toContain(`const LOGO_ASPECT = ${m.width} / ${m.height};`);
     expect(SPLASH).toContain(`const LOGO_INK_W = ${m.inkW} / ${m.width};`);
-    expect(SPLASH).toContain(`const LOGO_INK_H = ${m.inkH} / ${m.height};`);
     expect(SPLASH).toContain(`const LOGO_INK_BOTTOM = ${m.inkBottomPad} / ${m.height};`);
+    expect(SPLASH).toContain(`const LOGO_INK_TOP = ${m.inkTopPad} / ${m.height};`);
   });
 
   it('görselin ALT PAYI hâlâ göz ardı edilemeyecek kadar büyük', () => {
@@ -128,17 +129,13 @@ describe('açılış ekranı kelime işaretine bağlı', () => {
     expect(m.inkBottomPad / m.height).toBeGreaterThan(0.1);
   });
 
-  it('aralık resmin GÖRÜNMEZ payı çıkarılarak veriliyor', () => {
+  it('imza konumu resmin GÖRÜNMEZ payları hesaba katılarak veriliyor', () => {
     /*
-      Bu çıkarma olmadan aralık her zaman resmin alt payı kadar fazla çıkar — kusurun
-      ta kendisi buydu. `Math.max(0, ...)` da şart: küçük ekranda çıkarma negatife
-      dönerse düzen yukarı kayar.
+      Hizalanan şey resim kutusu değil MÜREKKEP: alttan uzaklık alt şeffaf pay düşülerek,
+      dikey denge üst/alt pay farkının yarısı kadar kaydırılarak verilir.
     */
-    expect(SPLASH).toMatch(
-      /markGap = Math\.max\(0, Math\.round\(inkHeight \* LOGO_GAP_RATIO - boxHeight \* LOGO_INK_BOTTOM\)\)/,
-    );
-    expect(SPLASH).toContain('marginTop: markGap');
-    // Sabit bir jetona (S.md gibi) geri dönülürse resmin payı yine hesaba katılmaz.
+    expect(SPLASH).toContain('const signBottom = Math.round(height * 0.045 - boxHeight * LOGO_INK_BOTTOM);');
+    expect(SPLASH).toContain('const signLift = Math.round((boxHeight * (LOGO_INK_TOP - LOGO_INK_BOTTOM)) / 2);');
     expect(SPLASH).not.toMatch(/marginTop: S\./);
   });
 
@@ -150,11 +147,12 @@ describe('açılış ekranı kelime işaretine bağlı', () => {
     */
     expect(SPLASH).toContain('useWindowDimensions()');
     expect(SPLASH).not.toContain("Dimensions.get('window')");
-    expect(SPLASH).toContain('const markWidth = Math.min(width * 0.24, 110);');
+    expect(SPLASH).toContain('const markWidth = Math.min(width * 0.22, 110);');
+    expect(SPLASH).toContain('const fontSize = Math.round(Math.min(64, Math.max(34, width * 0.115)));');
     for (const derived of [
       'const boxWidth = markWidth / LOGO_INK_W;',
       'const boxHeight = boxWidth / LOGO_ASPECT;',
-      'const lineWidth = Math.round(markWidth);',
+      'const ribbonW = Math.round(Math.min(72, Math.max(36, width * 0.12)));',
     ]) {
       expect(SPLASH).toContain(derived);
     }
@@ -168,11 +166,11 @@ describe('açılış ekranı kelime işaretine bağlı', () => {
       hayalî genişliğe göre hesaplanıyordu.
     */
     const A = 282 / 153, INK_W = 245 / 282;
-    const markWidth = 393 * 0.24;
+    const markWidth = 393 * 0.22;
     const boxWidth = markWidth / INK_W;
     const boxHeight = boxWidth / A;
     expect(boxWidth / boxHeight).toBeCloseTo(A, 6);
-    // Çizgi tam kelimenin genişliği: iki kenar aynı hizada biter.
+    // Görünen kelime genişliği tam markWidth: kutu mürekkepten geri hesaplanıyor.
     expect(Math.round(markWidth)).toBe(Math.round(boxWidth * INK_W));
   });
 });

@@ -196,7 +196,8 @@ describe('tek bir "bugün" tanımı', () => {
     */
     expect(INDEX).toContain('const [tasksFetched, setTasksFetched] = useState(false);');
     expect(INDEX).toContain('setTasksFetched(true);');
-    expect(INDEX).toMatch(/if \(!tasksFetched \|\| shieldCheckedRef\.current\) return;/);
+    // 2026-10-31: açılış bitene kadar da beklenir (uyarı açılış katmanının üstünde belirirdi).
+    expect(INDEX).toMatch(/if \(!tasksFetched \|\| !splashDone \|\| shieldCheckedRef\.current\) return;/);
   });
 
   it('seri bayrağı GÜNE bağlı — oturum boyunca donmuyor', () => {

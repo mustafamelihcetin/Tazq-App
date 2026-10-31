@@ -1,132 +1,97 @@
-import React, { useEffect, useRef } from 'react';
-import { StyleSheet, Animated, Easing, useColorScheme, useWindowDimensions } from 'react-native';
-import { TazqLogo } from './TazqLogo';
+import React, { useEffect, useMemo } from 'react';
+import { StyleSheet, Text, useColorScheme, useWindowDimensions } from 'react-native';
+import { Canvas } from '@shopify/react-native-skia';
+import Animated, {
+  Easing, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, type SharedValue,
+} from 'react-native-reanimated';
 import { DottedBackground } from './DottedBackground';
+import { SilkRibbon, type RibbonPath } from './SilkRibbon';
+import { TazqLogo } from './TazqLogo';
+import { SplashGlyph, type GlyphKind } from './SplashGlyph';
 import { haptic } from '@/shared/utils/haptics';
 import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
+import { useLowPowerGraphics } from '@/shared/hooks/useLowPowerGraphics';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useThemeStore } from '@/shared/store/useThemeStore';
-import { Colors } from '@/shared/constants/Colors';
+import { useLanguageStore } from '@/shared/store/useLanguageStore';
+import { useSplashPrefs } from '@/shared/store/useSplashPrefs';
+import { Colors, SplashEditionColors } from '@/shared/constants/Colors';
 
 /**
- * AÇILIŞ EKRANI.
+ * AÇILIŞ EKRANI — "PLANLA. ODAKLAN. TAMAMLA." + KUŞAKLAR (2026-10-31).
  *
- * ── ZEMİN: UYGULAMANIN KENDİ ZEMİNİ ───────────────────────────────────────────
- * Açılışta göz hareketi değil RENK SIÇRAMASINI yakalar. Eskiden üç ayrı zemin vardı:
- * Android penceresi siyah, sistem splash'i lacivert, bu ekran ise açık/koyu tema
- * rengi. Yani her açılışta tam ekran bir sıçrama oluyordu.
+ * Geri dönen denemeler: küçük kelime + çizgi (cılız); vurgu renginde halka (anlamsız, vurguyla
+ * ilgisi olmamalı); dev TAZQ + ışık (bomboş); alt alta üç sözcük ~1.7 sn ("çok uzun, millet
+ * kaçar"); yazılı kuşaklar (kullanıcı: "kuşakları SÜS olarak, önceki hâline ek olarak
+ * düşünmüştüm").
  *
- * Bir tur bunun tersi denendi — açılışın TAMAMI marka lacivertine boyandı. O da geri
- * alındı: lacivert uygulamanın hiçbir yerinde yok (palet soğuk nötrler + mavi vurgu),
- * tam ekran kaplayınca boğuyor ve içeri girerken başka bir dünyaya geçiliyormuş gibi
- * duruyordu.
+ * Şimdi ~1 sn:
+ *   · Uygulamanın vaadi, üç sözcük, neredeyse birlikte gelir; her birinin işareti kendini çizer:
+ *       ≡ Planla.   (görev listesi)   ◔ Odaklan.   (odak halkası)   ✓ Tamamla.   (tamamlandı tiki)
+ *   · Üstte saate göre küçük bir selam — her açılış aynı değil.
+ *   · Arkada YAZISIZ iki kuşak (marka mavisi + mürekkep) zıt yönlerden YAY FİZİĞİYLE gelip
+ *     ekranı çapraz çerçeveler; çıkışta geldikleri yönde fırlayıp gider — içeri girilir.
+ * Renkler MARKA (temel jetonlar), kişinin vurgusu değil. Yazı SİSTEM yazı tipi.
  *
- * Şimdi açılış, uygulamanın İLK EKRANINA benziyor: aynı zemin rengi, ortada aynı ikon.
- * Marka rengi kaybolmuyor — tam ekran bir alan yerine ikonun içinde duruyor.
- *
- * ── AÇILIŞ BİR KÖPRÜ: SİSTEMDE BAŞLAR, UYGULAMADA BİTER ──────────────────────
- * Bir tur yalnızca `useColorScheme()` izlendi — yani sistem splash'inin tam karşılığı.
- * Gerekçesi sağlamdı (devir teslim anında sıçrama olmasın) ama SONUCU yanlıştı ve
- * kullanıcı tablette yakaladı: uygulamayı AÇIK temada kullanan biri, sistemi koyuysa
- * koyu bir açılış görüp aydınlık bir uygulamaya giriyordu. Sıçrama yok olmamıştı,
- * yalnızca sona taşınmıştı — hem de daha kötü bir yere, içeri girilen ana.
- *
- * Şimdi iki ucu da tutuyoruz. Zemin SİSTEM renginde başlıyor (sistem splash'inden
- * devralma yine görünmez), sonra ekran daha bomboşken UYGULAMANIN rengine geçiyor.
- * İşaret, çizgi ve doku çizilmeye başladığında renk çoktan oturmuş oluyor; yani
- * görünen hiçbir şey renk değiştirmiyor, yalnız boş zemin devrediyor.
- *
- * Tema tercihi diskten okunuyor: geçiş, okuma BİTTİKTEN sonra başlıyor (bkz.
- * themeReady). Erken başlasaydı yanlış renge geçip geri dönebilirdi.
- *
- * ── SİSTEM SPLASH'İ YALNIZCA RENK ─────────────────────────────────────────────
- * Bir tur, devir teslim görünmesin diye sistem splash'ine UYGULAMA İKONU konuldu ve
- * bu ekran da aynı ikonu aynı yerde çizdi. Geri alındı: kullanıcı zaten o ikona basarak
- * geldi, açılışta ikinci kez göstermek fazlalık.
- *
- * Şimdi sistem splash'i sadece zemin rengi (iOS'ta tamamen boş, Android'de işletim
- * sistemi kendi başlatıcı ikonunu gösteriyor — o davranış bizim elimizde değil).
- * Marka anı burada kuruluyor: kelime işareti belirir, altında ÜÇ NOKTA görünür,
- * noktalar birbirine doğru kayıp tek bir çizgide birleşir. Zemin aynı olduğu için
- * devir teslim yine görünmüyor.
- *
- * ── NEDEN DÜZ BİR ÇİZGİ DEĞİL ─────────────────────────────────────────────────
- * Önce yalnız bir çizgi vardı ve merkezden dışa açılıyordu. Teknik olarak kusursuzdu
- * ama hiçbir şey SÖYLEMİYORDU: aynı çizgiyi herhangi bir uygulamanın açılışına
- * koyabilirdiniz. Bir açılış ekranı kullanıcının uygulamayı her gün gördüğü tek
- * ortak andır; orada harcanan bir saniyenin bir karşılığı olmalı.
- *
- * Üç nokta tek çizgiye dönüşüyor — uygulamanın tek cümlelik vaadi bu: dağınık işler
- * tek bir plana dönüşür. Metin KULLANILMIYOR, bilerek: açılış sırasında yazı tipleri
- * hâlâ yükleniyor (bkz. `ready`), yazı bir an yanlış yüzle görünürdü; ayrıca geometri
- * iki dilde de aynı şeyi anlatıyor, çeviri gerektirmiyor.
- *
- * ── SÜRE ──────────────────────────────────────────────────────────────────────
- * Sektör eşiği 1–1.5 sn; 2 sn üstü "bekliyorum" hissi verir. Toplam 1.85 sn idi,
- * çizgi yerine noktaların birleşmesi konunca ~1.31 sn oldu. Eşiğin içinde kalıyor:
- * eklenen 280ms'in karşılığı, açılışın bir şey ANLATMASI (bkz. aşağıdaki not).
- *
- * ── HAREKETİ AZALT ────────────────────────────────────────────────────────────
- * Tercih açıkken hiçbir şey hareket etmez: işaret olduğu yerde belirir, ekran kısaca
- * sönerek kapanır. Uygulamanın geri kalanı bu tercihi zaten dinliyordu; açılış atlanmıştı.
+ * ── KORUNAN KURALLAR ─────────────────────────────────────────────────────────
+ *  · ZEMİN KÖPRÜSÜ: sistem renginde başlar, tema diskten okununca uygulamanın rengine geçer.
+ *  · Sistem splash'i yalnız renk + logo; uygulama ikonu ikinci kez gösterilmez.
+ *  · Zemin dokusu ana ekranla birebir aynı (DottedBackground).
+ *  · Hazır olmadan kapanmaz (ready); Hareketi Azalt açıkken her şey son hâliyle durur.
+ *  · Tema VE dil diskten okunmadan hiçbir şey çizilmez (yanlış renk/dil bir an bile görünmesin).
  */
 
-/** Giriş animasyonunun parçaları (ms) — toplamı süre bütçesini belirler. */
-const INTRO_HOLD = 90;        // sistem splash'inden devralınırken kısa bir sükûnet
-const INTRO_MARK = 360;       // kelime işaretinin belirmesi
-const INTRO_PULSE_UP = 130;   // nabzın yükselişi
-const INTRO_PULSE_DOWN = 190; // nabzın oturması
-const INTRO_DOTS = 240;       // üç noktanın belirmesi
-const INTRO_MERGE = 320;      // noktaların ortada birleşmesi
-const INTRO_LINE = 240;       // birleşmeden doğan çizginin açılması
-const OUTRO_FADE = 260;       // içeriğe geçiş
 /**
- * Zeminin sistem renginden uygulama rengine geçme süresi.
- *
- * İşaret INTRO_HOLD'dan (90ms) sonra belirmeye başlıyor ve kendi içinde 360ms
- * soluyor; bu 240ms onun altında, ekran daha okunacak bir şey taşımazken bitiyor.
+ * Zamanlama (ms). Toplam ≈ INTRO_TOTAL + OUTRO ≈ 1.9 sn. Ayar geçmişi (kullanıcı, cihazda): 1.7 sn yavaş
+ * (aslında 8× yavaşlatılmış önizlemeydi) → 1.0 "çok hızlı, oturmadı" → 1.5 "bi tık hızlı" → 1.9: kuşaklar
+ * açılır ve OTURUR, sözcükler okunur, kısa bir duruştan sonra çıkılır.
  */
-const BG_BRIDGE = 240;
+const WORD_STEP = 140;      // sözcükler neredeyse birlikte — okunur ama beklenmez
+const GLYPH_DRAW = 440;
+const RIBBON_B_DELAY = 140; // ikinci kuşak ilkini keser
+const INTRO_TOTAL = 1480;
+const OUTRO = 440;
+const BG_BRIDGE = 200;
+/** Yay: ağır bir ipek şerit — açılırken hafif taşar, sekmeden oturur. */
+const RIBBON_SPRING = { mass: 1.3, damping: 24, stiffness: 80 } as const;
+
+/** '#RRGGBB' → [r, g, b] (kuşağın ışık hesabı sayılarla çalışır). */
+const rgbOf = (hex: string): [number, number, number] => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
+const WORD_SPRING = { mass: 0.7, damping: 15, stiffness: 220 } as const;
 
 /**
- * KELİME İŞARETİNİN GERÇEK GEOMETRİSİ — ölçülmüş, tahmin değil.
- *
- * ── ÖLÇÜLEN SORUN ────────────────────────────────────────────────────────────
- * Logo ile altındaki çizgi arasında kullanıcının bildirdiği fazla boşluk, aslında
- * verilen boşluk DEĞİLDİ: boşluğun çoğu PNG'nin kendi içindeki şeffaf piksellerdi.
- *
- * tazq_text_*.png 282×153 ve mürekkep yalnız 245×82'lik bir kutuda duruyor:
- * üstte %28.1, altta %18.3 şeffaf alan var. Dolayısıyla `marginTop` ne verilirse
- * verilsin, görünen aralık her zaman "verilen değer + resmin alt boşluğu" oluyordu.
- * Ölçülen: ~27pt aralık, 32pt'lik bir kelime işaretinin altında — kelimenin kendi
- * boyunun %85'i kadar. Göz bunu "kopmuş" diye okur.
- *
- * Bir de kutu oranı yanlıştı: bileşen 3.2 varsayıyor, resim 1.843. `contain` bunu
- * yükseklikten sığdırıp yanlara ölü alan bırakıyordu — yani kabın genişliği görünen
- * kelimeyle ilgisizdi ve altındaki çizgi ona göre hesaplanamıyordu.
- *
- * Aşağıdaki oranlar o ölçümün kendisi. Artık her şey MÜREKKEPTEN türüyor: kelimenin
- * ekranda kapladığı genişlik, çizginin genişliği ve aradaki optik boşluk.
- * Görsel dosya değişirse bu üç sayı yeniden ölçülmeli — başka hiçbir yer değişmez.
+ * İMZA (TAZQ) GEOMETRİSİ — ölçülmüş (bkz. __tests__/splashGeometry). tazq_text_*.png 282×153;
+ * mürekkep 245×82, üstte 43, altta 28 piksel şeffaf pay. Boyut ve hiza MÜREKKEPTEN türer.
+ * (Kullanıcı: "TAZQ logosu eksik, boş kalmış gibi" — imza kompozisyonu kapatır.)
  */
-const LOGO_ASPECT = 282 / 153;   // PNG kutusunun oranı (bileşenin varsaydığı 3.2 DEĞİL)
-const LOGO_INK_W = 245 / 282;    // kutunun ne kadarı yatayda mürekkep
-const LOGO_INK_H = 82 / 153;     // ... ve dikeyde
-const LOGO_INK_BOTTOM = 28 / 153;// mürekkebin ALTINDAKİ şeffaf pay
-/**
- * Optik aralık: kelime işaretinin boyunun yarısı.
- *
- * Bir kelime işaretiyle altındaki kural çizgisi arasındaki klasik oran 0.4–0.6×;
- * ölçüldüğünde buradaki 0.85× idi. Yarım, iki uçtan da güvenli.
- */
-const LOGO_GAP_RATIO = 0.5;
+const LOGO_ASPECT = 282 / 153;
+const LOGO_INK_W = 245 / 282;
+const LOGO_INK_TOP = 43 / 153;
+const LOGO_INK_BOTTOM = 28 / 153;
+
+const GREET = {
+  tr: { locale: 'tr-TR', greet: (h: number) => (h < 5 ? 'İyi geceler' : h < 12 ? 'Günaydın' : h < 18 ? 'İyi günler' : h < 23 ? 'İyi akşamlar' : 'İyi geceler') },
+  en: { locale: 'en-US', greet: (h: number) => (h < 5 ? 'Good night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : h < 23 ? 'Good evening' : 'Good night') },
+} as const;
 
 /**
- * Tema tercihi diskten OKUNDU mu?
- *
- * Okunmadan önce mağaza varsayılanı ('system') döner. O anda köprüyü başlatmak,
- * yanlış renge geçip geri dönmek demek olurdu.
+ * SÜRÜMLER — "splash her seferinde aynısı olmaz; renk, içerik, komple değişmeli" (kullanıcı).
+ * Her açılış bir sürüm seçer: üç sözcük + onların işaretleri + kuşak rengi + kuşak düzeni.
+ * Renkler sabit küratörlü set (ayar çipleriyle aynı aile), kişinin vurgusu DEĞİL. İkinci kuşak
+ * her sürümde mürekkep — sürümler değişse de marka bağı aynı kalır.
  */
+interface Edition { id: string; label: { tr: string; en: string }; words: { tr: readonly string[]; en: readonly string[] }; glyphs: readonly GlyphKind[]; color: { readonly light: string; readonly dark: string }; mirror: boolean }
+const EDITIONS: readonly Edition[] = [
+  { id: 'blue', label: { tr: 'Mavi', en: 'Blue' }, words: { tr: ['Planla', 'Odaklan', 'Tamamla'], en: ['Plan', 'Focus', 'Finish'] }, glyphs: ['list', 'ring', 'check'], color: SplashEditionColors.blue, mirror: false },
+  { id: 'teal', label: { tr: 'Deniz', en: 'Teal' }, words: { tr: ['Nefes al', 'Odaklan', 'Akışa gir'], en: ['Breathe', 'Focus', 'Flow'] }, glyphs: ['wave', 'ring', 'arrow'], color: SplashEditionColors.teal, mirror: true },
+  { id: 'coral', label: { tr: 'Mercan', en: 'Coral' }, words: { tr: ['Başla', 'Sürdür', 'Bitir'], en: ['Start', 'Keep going', 'Finish'] }, glyphs: ['arrow', 'wave', 'check'], color: SplashEditionColors.coral, mirror: false },
+  { id: 'lavender', label: { tr: 'Lavanta', en: 'Lavender' }, words: { tr: ['Yaz', 'Seç', 'Yap'], en: ['Write', 'Choose', 'Do'] }, glyphs: ['list', 'spark', 'check'], color: SplashEditionColors.lavender, mirror: true },
+];
+
+/** Admin kartındaki sürüm seçenekleri (bkz. SplashAdminCard). */
+export const SPLASH_EDITIONS = EDITIONS.map(e => ({ id: e.id, label: e.label }));
+
+/** Tema tercihi diskten OKUNDU mu? Okunmadan başlarsa yanlış renge geçip geri döner. */
 function useThemeHydrated() {
   const [hydrated, setHydrated] = React.useState(() => useThemeStore.persist.hasHydrated());
   useEffect(() => {
@@ -137,247 +102,231 @@ function useThemeHydrated() {
   return hydrated;
 }
 
+/** Dil tercihi diskten OKUNDU mu? Sözcükler bir an yanlış dilde görünmesin. */
+function useLanguageHydrated() {
+  const [hydrated, setHydrated] = React.useState(() => useLanguageStore.persist.hasHydrated());
+  useEffect(() => {
+    if (hydrated) return;
+    const unsub = useLanguageStore.persist.onFinishHydration(() => setHydrated(true));
+    return unsub;
+  }, [hydrated]);
+  return hydrated;
+}
+
+/** Admin açılış ayarları diskten OKUNDU mu? (Sabitlenmiş sürüm / kapalı açılış bir an bile ıskalanmasın.) */
+function useSplashPrefsHydrated() {
+  const [hydrated, setHydrated] = React.useState(() => useSplashPrefs.persist.hasHydrated());
+  useEffect(() => {
+    if (hydrated) return;
+    const unsub = useSplashPrefs.persist.onFinishHydration(() => setHydrated(true));
+    return unsub;
+  }, [hydrated]);
+  return hydrated;
+}
+
+/** Bir sözcük satırı: yaydan gelir, işareti kendini çizer. */
+function WordRow({ word, kind, fontSize, glyph, ink, brand, track, enter, draw }: {
+  word: string; kind: GlyphKind; fontSize: number; glyph: number; ink: string; brand: string; track: string;
+  enter: SharedValue<number>; draw: SharedValue<number>;
+}) {
+  const style = useAnimatedStyle(() => ({
+    opacity: Math.min(1, enter.value * 1.5),
+    transform: [{ translateY: (1 - enter.value) * fontSize * 0.5 }],
+  }));
+  return (
+    <Animated.View style={[styles.row, { gap: Math.round(fontSize * 0.34) }, style]}>
+      <SplashGlyph kind={kind} size={glyph} color={brand} track={track} progress={draw} />
+      <Text allowFontScaling={false} numberOfLines={1} style={{ fontSize, lineHeight: Math.round(fontSize * 1.12), fontWeight: '700', letterSpacing: -fontSize * 0.02, color: ink }}>
+        {word}<Text style={{ color: brand }}>.</Text>
+      </Text>
+    </Animated.View>
+  );
+}
+
 export const AnimatedSplash = ({
   onFinish,
   onReady,
   ready = true,
+  canStart = true,
 }: {
   onFinish: () => void;
   onReady: () => void;
-  /**
-   * Uygulama gerçekten hazır mı (font + varlık yüklendi mi)?
-   *
-   * NEDEN GEREKLİ: animasyon SABİT süreliydi ve sonunda ekranı saydama çekiyordu.
-   * Yavaş bir açılışta (soğuk başlatma, büyük paket) animasyon biter ama uygulama
-   * hazır olmaz → kullanıcı BOŞ ekrana bakar; splash orada durur ama görünmezdir.
-   */
+  /** Uygulama gerçekten hazır mı (font + varlık)? Giriş bitse de hazır değilse açılış durur. */
   ready?: boolean;
+  /**
+   * Giriş başlayabilir mi? Uygulama ağacı açılışın ALTINDA kurulurken ana iş parçacığı yerel
+   * görünümleri yaratmakla meşgul: animasyon o sırada başlarsa donup kapanışta son karesine
+   * atlıyordu (iOS'ta görüldü). Kök düzen ağaç kurulup iki kare geçince true verir; o ana kadar
+   * yerel (durağan) açılış ekranda kalır.
+   */
+  canStart?: boolean;
 }) => {
   const systemScheme = useColorScheme();
   const { colorScheme } = useAppTheme();
   const reduceMotion = useReduceMotion();
-  const { width } = useWindowDimensions();
+  /* Zayıf Android: kuşak daha az parçayla, bulanık gölgesiz çizilir (kare kaçırmasın). */
+  const lowPower = useLowPowerGraphics();
+  const { width, height } = useWindowDimensions();
   const themeReady = useThemeHydrated();
+  const langReady = useLanguageHydrated();
+  const prefsReady = useSplashPrefsHydrated();
+  const forced = useSplashPrefs(s => s.edition);
+  const enabled = useSplashPrefs(s => s.enabled);
+  const language = useLanguageStore(s => s.language);
+  const lang: 'tr' | 'en' = language in GREET ? (language as 'tr' | 'en') : 'en';
+  const c = GREET[lang];
+  const greet = useMemo(() => c.greet(new Date().getHours()), [c]);
+  /* Açılış başına bir sürüm. */
+  // Admin bir sürüm sabitlediyse o; yoksa rastgele (bkz. useSplashPrefs).
+  const edition = useMemo(
+    () => EDITIONS.find(e => e.id === forced) ?? EDITIONS[Math.floor(Math.random() * EDITIONS.length)],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [prefsReady],
+  );
+  const wordsOf = edition.words[lang];
 
   /** Devralınan renk: sistem splash'i ne çizdiyse o. */
   const systemBg = systemScheme === 'dark' ? Colors.dark.background : Colors.light.background;
   /** Varılan renk: uygulamanın kendi teması (tercih + sistem). */
   const isDark = colorScheme === 'dark';
   const bg = isDark ? Colors.dark.background : Colors.light.background;
-  const lineColor = isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.10)';
-  /*
-    Nokta ÇİZGİDEN KOYU. Aynı tonu paylaşsalardı noktalar görünmezdi: bir çizgi uzun
-    ve sürekli, üç nokta ise toplam birkaç piksel — aynı opaklık gözde aynı ağırlığı
-    vermiyor. Bu bir tasarım tercihi değil, alan farkının telafisi.
-  */
-  const dotColor = isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.38)';
-  /** İki uç aynıysa geçişe hiç gerek yok — çoğu kullanıcıda durum bu. */
   const needsBridge = bg !== systemBg;
+  const ink = isDark ? Colors.dark.onBackground : Colors.light.onBackground;
+  const muted = isDark ? Colors.dark.onSurfaceMuted : Colors.light.onSurfaceMuted;
+  /** Sürümün rengi — küratörlü sabit set, kişisel vurgudan bağımsız. */
+  const brand = isDark ? edition.color.dark : edition.color.light;
+  const track = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)';
 
   /*
-    ÖLÇÜ EKRAN GENİŞLİĞİNDEN TÜRER → küçük telefondan tablete %100 responsive.
-    Tek serbest sayı `markWidth`: kelime işaretinin ekranda GÖRÜNEN genişliği.
-    Resim kutusu ondan geri hesaplanıyor, aralık ve çizgi de ondan.
+    ÖLÇÜ EKRANDAN TÜRER — küçük telefondan tablete:
+      · yazı genişliğin %11.5'i (34–64); blok İÇERİĞİ kadar geniş ve yatayda ortalı (sola yaslı sütun sağı boş bırakıyordu);
+      · kuşaklar ekran dışından ekran dışına uzanır, genişlikleri ekranın %12'si (36–72);
+      · biri üst, biri alt bölgede, sözcükler ortada — birbirini örtmez.
   */
-  const markWidth = Math.min(width * 0.24, 110);
-  /* Kabın oranı resmin oranına EŞİT → `contain` artık hiçbir yönde ölü alan bırakmıyor. */
+  const fontSize = Math.round(Math.min(64, Math.max(34, width * 0.115)));
+  const glyph = Math.round(fontSize * 0.62);
+  const ribbonW = Math.round(Math.min(72, Math.max(36, width * 0.12)));
+  /* Düzen sürüme göre aynalanır: kuşaklar bazen soldan, bazen sağdan gelir. */
+  const L0 = -width * 0.15, R0 = width * 1.15;
+  const pathA: RibbonPath = edition.mirror
+    ? { x0: R0, y0: height * 0.25, x1: L0, y1: height * 0.13, amp: height * 0.025, waves: 0.85, twists: 1.35, width: ribbonW }
+    : { x0: L0, y0: height * 0.25, x1: R0, y1: height * 0.13, amp: height * 0.025, waves: 0.85, twists: 1.25, width: ribbonW };
+  const pathB: RibbonPath = edition.mirror
+    ? { x0: L0, y0: height * 0.79, x1: R0, y1: height * 0.88, amp: height * 0.022, waves: 0.75, twists: 1.0, width: ribbonW }
+    : { x0: R0, y0: height * 0.79, x1: L0, y1: height * 0.88, amp: height * 0.022, waves: 0.75, twists: 1.1, width: ribbonW };
+  /* İmza: genişliğin %22'si (tavanlı), alt kuşağın altında; kutu mürekkepten geri hesaplanır. */
+  const markWidth = Math.min(width * 0.22, 110);
   const boxWidth = markWidth / LOGO_INK_W;
   const boxHeight = boxWidth / LOGO_ASPECT;
-  /* Çizgi tam kelimenin genişliği: iki kenar da aynı hizada biter. */
-  const lineWidth = Math.round(markWidth);
-  /*
-    Verilecek boşluk = istenen optik aralık EKSİ resmin kendi alt payı. Bu çıkarma
-    olmadan aralık her zaman resmin görünmez boşluğu kadar fazla çıkıyor.
-  */
-  const inkHeight = boxHeight * LOGO_INK_H;
-  const markGap = Math.max(0, Math.round(inkHeight * LOGO_GAP_RATIO - boxHeight * LOGO_INK_BOTTOM));
-  /*
-    Noktanın çapı ve yayılımı ÇİZGİDEN türer, elle yazılmaz: markWidth ekran
-    genişliğinden geldiği için küçük telefondan tablete kadar oran korunur.
-    Nokta çizginin kalınlığından kalın olmalı (saç teli bir nokta görünmez),
-    ama iri de olmamalı — 3pt göz için "işaret", 6pt "buton" okunur.
-  */
-  const dotSize = Math.max(3, Math.round(lineWidth * 0.035));
-  const dotSpread = lineWidth / 2;
+  const signBottom = Math.round(height * 0.045 - boxHeight * LOGO_INK_BOTTOM);
+  const signLift = Math.round((boxHeight * (LOGO_INK_TOP - LOGO_INK_BOTTOM)) / 2);
+  const rgbA = rgbOf(brand);
+  const rgbB = rgbOf(ink);
 
   const [introDone, setIntroDone] = React.useState(false);
-
-  // Hareketi Azalt açıkken her şey son hâliyle başlar.
-  const markOpacity = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
-  const markY = useRef(new Animated.Value(reduceMotion ? 0 : 8)).current;
-  const markScale = useRef(new Animated.Value(1)).current;
-  const lineScale = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
   /*
-    Noktaların üç hâli tek değerde toplanıyor:
-      dotSpread  1 → dağınık, 0 → ortada birleşmiş
-      dotOpacity 0 → yok, 1 → görünür (birleşme bitince çizgiye devrederken 0'a döner)
-    Hareketi Azalt açıkken noktalar hiç çizilmez; çizgi son hâliyle durur.
+    ÇIKIŞ UI İŞ PARÇACIĞINDA PLANLANIR. Uygulama ağacı açılışın ALTINDA kurulurken JS iş parçacığı
+    saniyelerce meşgul olabiliyor; çıkış bir JS zamanlayıcısına bağlıyken açılış Android'de ~12 sn
+    ekranda kaldı (ölçüldü). Artık giriş başladığı an (ve hazır olduğu an) kalan süre hesaplanıp
+    çıkış Reanimated gecikmesiyle UI'da kurulur; JS geç kalsa da açılış tam zamanında söner.
   */
-  const dotsSpread = useRef(new Animated.Value(1)).current;
-  const dotsOpacity = useRef(new Animated.Value(0)).current;
-  const screenOpacity = useRef(new Animated.Value(1)).current;
-  /*
-    Zemin geçişi AYRI bir katmanda ve JS sürücüsüyle.
+  const introStart = React.useRef(0);
+  const outroStarted = React.useRef(false);
+  const bridge = useSharedValue(needsBridge ? 0 : 1);
+  const headA = useSharedValue(reduceMotion ? 1 : 0);
+  const headB = useSharedValue(reduceMotion ? 1 : 0);
+  const tailA = useSharedValue(0);
+  const tailB = useSharedValue(0);
+  const phase = useSharedValue(0);
+  const w0 = useSharedValue(reduceMotion ? 1 : 0);
+  const w1 = useSharedValue(reduceMotion ? 1 : 0);
+  const w2 = useSharedValue(reduceMotion ? 1 : 0);
+  const d0 = useSharedValue(reduceMotion ? 1 : 0);
+  const d1 = useSharedValue(reduceMotion ? 1 : 0);
+  const d2 = useSharedValue(reduceMotion ? 1 : 0);
+  const words = [w0, w1, w2];
+  const draws = [d0, d1, d2];
+  const content = useSharedValue(1);
+  const screen = useSharedValue(1);
 
-    Renk yerel sürücüde canlandırılamaz; kabın kendisine verilseydi aynı View üstünde
-    biri JS biri yerel iki animasyon olur ve RN bunu reddeder. Bu yüzden uygulamanın
-    rengi, sistem renginin ÜSTÜNDE açılan ayrı bir katman: kap ve opaklığı yerel
-    sürücüde kalmaya devam ediyor.
-  */
-  const bridgeOpacity = useRef(new Animated.Value(needsBridge ? 0 : 1)).current;
+  const shown = themeReady && langReady && prefsReady && canStart;
 
   // Zemin köprüsü: tema diskten okunur okunmaz, ekran hâlâ boşken.
   useEffect(() => {
     if (!needsBridge || !themeReady) return;
-    Animated.timing(bridgeOpacity, {
-      toValue: 1,
-      duration: reduceMotion ? 0 : BG_BRIDGE,
-      easing: Easing.inOut(Easing.quad),
-      useNativeDriver: false,
-    }).start();
+    bridge.value = withTiming(1, { duration: reduceMotion ? 0 : BG_BRIDGE, easing: Easing.inOut(Easing.quad) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [needsBridge, themeReady, reduceMotion]);
 
-  /*
-    Giriş, tema diskten OKUNANA kadar bekler: işaret yanlış zemine düşmesin. Okuma
-    tipik olarak 40ms'nin altında, yani INTRO_HOLD'un içinde erir; yavaş bir açılışta
-    sükûnet anı biraz uzar — kullanıcı boş bir zemin görür, yanlış renkte bir işaret
-    değil.
-  */
-  useEffect(() => {
-    if (!themeReady) return;
-    onReady();
+  const startOutro = (delay: number) => {
+    if (outroStarted.current) return;
+    outroStarted.current = true;
+    const accel = Easing.in(Easing.cubic);
+    if (!reduceMotion) {
+      // Kuşaklar kendi yolunda akıp gider (kuyruk ucu kovalar).
+      tailA.value = withDelay(delay, withTiming(1, { duration: OUTRO, easing: accel }));
+      tailB.value = withDelay(delay, withTiming(1, { duration: OUTRO, easing: accel }));
+      content.value = withDelay(delay, withTiming(0, { duration: OUTRO * 0.7, easing: accel }));
+    }
+    screen.value = withDelay(delay + (reduceMotion ? 0 : OUTRO * 0.4), withTiming(0, { duration: reduceMotion ? 120 : OUTRO * 0.6, easing: accel }, done => {
+      if (done) runOnJS(onFinish)();
+    }));
+  };
 
-    if (reduceMotion) {
-      // Hareket yok — ama uygulamanın hazır olmasını beklemek YİNE gerekiyor,
-      // yoksa boş ekran görünür.
+  // Giriş: tema VE dil okunduktan sonra.
+  useEffect(() => {
+    if (!shown) return;
+    onReady();
+    // Hareketi Azalt: her şey yerinde. Admin açılışı kapattıysa: hiçbir şey çizilmez, hazır olunca geçilir.
+    if (reduceMotion || !enabled) {
       setIntroDone(true);
       return;
     }
-
-    /*
-      TEK DOKUNUŞ — nabız atarken, tam o anda.
-
-      Titreşim iki vuruşluydu; açılışta iki kez titremek marka anından çok bildirim
-      gibi okunuyordu. Tek dokunuş kalıyor ama NABZA denk geliyor: kullanıcı hareketi
-      görürken aynı anda hissediyor — ikisi tek olay gibi okunuyor.
-      Kullanıcının titreşim tercihine saygılı (bkz. haptics.enabled).
-    */
-    const hapticTimer = setTimeout(() => haptic.select(), INTRO_HOLD + INTRO_MARK);
-
-    Animated.sequence([
-      // 1. Sistem splash'inden devralınan sakin an — ikon zaten ekranda, kıpırdamıyor.
-      Animated.delay(INTRO_HOLD),
-
-      // 2. Kelime işareti ikonun altında belirir (yukarı doğru 8pt yerleşerek).
-      Animated.parallel([
-        Animated.timing(markOpacity, {
-          toValue: 1,
-          duration: INTRO_MARK,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(markY, {
-          toValue: 0,
-          duration: INTRO_MARK,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]),
-
-      /*
-        3. KALP ATIŞI — işaret otururken mikroskopik bir nabız.
-
-        Bir tur kaldırılmıştı (süreyi kısaltmak için). Geri alındı: onsuz açılış "duran
-        bir yazı" oluyor; marka anını canlı kılan tam olarak bu 320ms. Ölçü bilinçli
-        olarak küçük — %3.5 büyüme göz tarafından "nefes" olarak okunur, "animasyon"
-        olarak değil.
-      */
-      Animated.sequence([
-        Animated.timing(markScale, {
-          toValue: 1.035,
-          duration: INTRO_PULSE_UP,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(markScale, {
-          toValue: 1,
-          duration: INTRO_PULSE_DOWN,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ]),
-
-      // 4. ÜÇ NOKTA belirir — henüz dağınık.
-      Animated.timing(dotsOpacity, {
-        toValue: 1,
-        duration: INTRO_DOTS,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-
-      /*
-        5. BİRLEŞME. Noktalar ortaya doğru kayarken çizgi aynı anda açılıyor ve
-        noktalar sönüyor: üçü tek harekette devrediliyor. Ayrı ayrı yapılsaydı
-        (önce sön, sonra çiz) araya boş bir kare girer ve "birleşme" okunmazdı.
-        Yay fiziği değil zamanlama: bir yayın sekmesi "toplanma"yı gevşetirdi.
-      */
-      Animated.parallel([
-        Animated.timing(dotsSpread, {
-          toValue: 0,
-          duration: INTRO_MERGE,
-          easing: Easing.inOut(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.sequence([
-          Animated.delay(INTRO_MERGE - INTRO_LINE),
-          Animated.parallel([
-            Animated.timing(dotsOpacity, {
-              toValue: 0,
-              duration: INTRO_LINE,
-              easing: Easing.in(Easing.quad),
-              useNativeDriver: true,
-            }),
-            Animated.timing(lineScale, {
-              toValue: 1,
-              duration: INTRO_LINE,
-              easing: Easing.out(Easing.quad),
-              useNativeDriver: true,
-            }),
-          ]),
-        ]),
-      ]),
-    ]).start(() => setIntroDone(true));
-
-    return () => clearTimeout(hapticTimer);
+    // Kuşaklar açılarak gelir (uç yol boyunca ilerler); dalga ve bükülme süre boyunca akar.
+    headA.value = withSpring(1, RIBBON_SPRING);
+    headB.value = withDelay(RIBBON_B_DELAY, withSpring(1, RIBBON_SPRING));
+    // Dalga sönümlenerek durur: kumaş yerine oturur, sonra çıkış başlar.
+    phase.value = withTiming(1.8, { duration: INTRO_TOTAL, easing: Easing.out(Easing.cubic) });
+    const drawEase = Easing.inOut(Easing.cubic);
+    words.forEach((w, i) => { w.value = withDelay(240 + i * WORD_STEP, withSpring(1, WORD_SPRING)); });
+    draws.forEach((d, i) => { d.value = withDelay(330 + i * WORD_STEP, withTiming(1, { duration: GLYPH_DRAW, easing: drawEase })); });
+    // Dokunsal koreografi hareketle senkron: kuşak oturur · sözcükler · tik (bkz. haptic.splash).
+    const stopHaptics = haptic.splash([
+      { at: 360, kind: 'soft' },
+      { at: 240 + WORD_STEP + 120, kind: 'tick' },
+      { at: 240 + 2 * WORD_STEP + 120, kind: 'tick' },
+      { at: 330 + 2 * WORD_STEP + GLYPH_DRAW * 0.8, kind: 'firm' },
+    ]);
+    introStart.current = Date.now();
+    // Hazırsa çıkış ŞİMDİ UI'da planlanır (JS meşgul olsa da zamanında); değilse hazır olunca.
+    if (ready) startOutro(INTRO_TOTAL);
+    const doneTimer = setTimeout(() => setIntroDone(true), INTRO_TOTAL);
+    return () => { stopHaptics(); clearTimeout(doneTimer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reduceMotion, themeReady]);
+  }, [shown, reduceMotion]);
 
-  // 5. Kaybolma — giriş bitti VE uygulama hazır olduğunda. İkisi de şart:
-  //    erken kaybolmak boş ekran, geç kaybolmak gereksiz bekleme demek.
+  // Çıkış — uygulama hazır olunca: girişten kalan süre kadar bekleyip (UI'da) kuşaklar fırlar, ekran söner.
   useEffect(() => {
-    if (!introDone || !ready) return;
-    Animated.timing(screenOpacity, {
-      toValue: 0,
-      duration: reduceMotion ? 120 : OUTRO_FADE,
-      easing: Easing.in(Easing.cubic),
-      useNativeDriver: true,
-    }).start(() => onFinish());
+    if (!ready || outroStarted.current) return;
+    if (!introDone && !introStart.current) return; // giriş henüz başlamadı (tema/dil okunuyor)
+    const left = introDone ? 0 : Math.max(0, INTRO_TOTAL - (Date.now() - introStart.current));
+    startOutro(left);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [introDone, ready, reduceMotion]);
 
-  return (
-    <Animated.View style={[styles.container, { backgroundColor: systemBg, opacity: screenOpacity }]}>
-      {/* Uygulamanın rengi: sistem renginin üstünde açılır (bkz. yukarıdaki köprü notu). */}
-      <Animated.View
-        pointerEvents="none"
-        style={[StyleSheet.absoluteFill, { backgroundColor: bg, opacity: bridgeOpacity }]}
-      />
+  const screenStyle = useAnimatedStyle(() => ({ opacity: screen.value }));
+  const bridgeStyle = useAnimatedStyle(() => ({ opacity: bridge.value }));
+  const contentStyle = useAnimatedStyle(() => ({ opacity: content.value, transform: [{ scale: 0.97 + content.value * 0.03 }] }));
+  const greetStyle = useAnimatedStyle(() => ({ opacity: w0.value }));
+  // İmza son sözcükle birlikte belirir; çıkışta içerikle söner.
+  const signStyle = useAnimatedStyle(() => ({ opacity: Math.min(w2.value, content.value), transform: [{ translateY: -signLift + (1 - w2.value) * 8 }] }));
 
-      {/*
-        UYGULAMANIN KENDİ ZEMİN DOKUSU — ana ekranda da aynısı var (bkz. app/index.tsx).
-        Açılış böylece "ayrı bir ekran" değil, uygulamanın kendi tuvalinin ilk hâli
-        oluyor: düz bir renk alanı yerine, içeri girince devam eden bir yüzey.
-        Değerler ana ekranla BİREBİR aynı — ayrışırsa geçiş yine görünür olur.
-      */}
+  return (
+    <Animated.View style={[styles.container, { backgroundColor: systemBg }, screenStyle]}>
+      {/* Uygulamanın rengi: sistem renginin üstünde açılır (zemin köprüsü). */}
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: bg }, bridgeStyle]} />
+
+      {/* Ana ekranın kendi zemin dokusu — değerler BİREBİR aynı (bkz. app/index.tsx). */}
       <DottedBackground
         color={isDark ? Colors.dark.onBackground : Colors.light.onBackground}
         opacity={isDark ? 0.05 : 0.08}
@@ -385,56 +334,34 @@ export const AnimatedSplash = ({
         dotSize={1}
       />
 
-      <Animated.View
-        style={[
-          styles.markSlot,
-          { opacity: markOpacity, transform: [{ translateY: markY }, { scale: markScale }] },
-        ]}
-      >
-        {/*
-          Varyant UYGULAMANIN temasından — çünkü işaret çizilmeye başladığında zemin
-          çoktan oraya geçmiş oluyor (bkz. köprü). Kural değişmedi, yalnız hangi
-          "zemin"den bahsettiğimiz değişti: mürekkep hep ALTINDAKİ renge göre seçilir,
-          yoksa açık zemine beyaz yazı düşer ve işaret kaybolur.
-        */}
-        <TazqLogo height={boxHeight} width={boxWidth} variant={isDark ? 'white' : 'dark'} />
-        {/*
-          Çizgi ve noktalar AYNI şeridi paylaşıyor: nokta katmanı çizginin üstüne
-          mutlak konumlu biniyor, ikisi de aynı genişlikten türüyor. Böylece
-          birleşme tam çizginin doğduğu yerde oluyor; iki ayrı kutu olsaydı
-          yükseklik farkı yüzünden noktalar çizginin üstüne değil YANINA düşerdi.
-        */}
-        <Animated.View style={[styles.line, { width: lineWidth, marginTop: markGap }]}>
-          <Animated.View
-            style={[
-              StyleSheet.absoluteFill,
-              { backgroundColor: lineColor, transform: [{ scaleX: lineScale }] },
-            ]}
-          />
-          {!reduceMotion && [-1, 0, 1].map((slot) => (
-            <Animated.View
-              key={slot}
-              style={{
-                position: 'absolute',
-                // Dikey merkez: nokta çizgiden kalın, farkın yarısı kadar yukarı.
-                top: (StyleSheet.hairlineWidth - dotSize) / 2,
-                left: lineWidth / 2 - dotSize / 2,
-                width: dotSize,
-                height: dotSize,
-                borderRadius: dotSize / 2,
-                backgroundColor: dotColor,
-                opacity: dotsOpacity,
-                transform: [{
-                  translateX: dotsSpread.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, slot * dotSpread],
-                  }),
-                }],
-              }}
-            />
-          ))}
-        </Animated.View>
-      </Animated.View>
+      {/*
+        Süs kuşakları — yazısız, 3B ışıklı ipek (bkz. SilkRibbon). Tuval EN BAŞTAN kurulur (kuşaklar
+        görünmez: uç = 0): Android'de Skia yüzeyinin ilk karesi geç geliyor, tema/dil okununca kurulunca
+        sözcükler gelmiş ama kuşaklar henüz yoktu (cihazda).
+      */}
+      <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+        <SilkRibbon path={pathA} rgb={rgbA} head={headA} tail={tailA} phase={phase} lowPower={lowPower} />
+        <SilkRibbon path={pathB} rgb={rgbB} head={headB} tail={tailB} phase={phase} lowPower={lowPower} shadow={isDark ? 0.4 : 0.22} />
+      </Canvas>
+      {shown && enabled && (
+        <>
+
+          <Animated.View style={[{ alignSelf: 'center', maxWidth: Math.min(width * 0.88, 560), gap: Math.round(fontSize * 0.16) }, contentStyle]}
+            accessible accessibilityLabel={`${greet}. ${wordsOf.join('. ')}.`}>
+            <Animated.Text allowFontScaling={false} style={[{ fontSize: Math.round(fontSize * 0.26), fontWeight: '700', letterSpacing: fontSize * 0.04, color: muted, marginBottom: Math.round(fontSize * 0.12) }, greetStyle]}>
+              {greet.toLocaleUpperCase(c.locale)}
+            </Animated.Text>
+            {wordsOf.map((w, i) => (
+              <WordRow key={w} word={w} kind={edition.glyphs[i]} fontSize={fontSize} glyph={glyph} ink={ink} brand={brand} track={track} enter={words[i]} draw={draws[i]} />
+            ))}
+          </Animated.View>
+
+          {/* İMZA — ekranın dibinde, alt kuşağın altında. Mürekkep VARILAN zemine göre. */}
+          <Animated.View style={[styles.sign, { bottom: signBottom }, signStyle]}>
+            <TazqLogo height={boxHeight} width={boxWidth} variant={isDark ? 'white' : 'dark'} />
+          </Animated.View>
+        </>
+      )}
     </Animated.View>
   );
 };
@@ -445,13 +372,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 9999,
+    overflow: 'hidden',
   },
-  markSlot: {
+  row: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  line: {
-    height: StyleSheet.hairlineWidth,
-    // `overflow` YOK: noktalar birleşmeden önce şeridin uçlarında ve dikeyde
-    // taşıyor; kırpılsalardı "dağınıklık" hiç görünmezdi.
+  sign: {
+    position: 'absolute',
+    alignSelf: 'center',
   },
 });

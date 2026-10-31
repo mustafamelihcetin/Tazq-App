@@ -1,3 +1,4 @@
+import { useBootStore } from '@/shared/store/useBootStore';
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet, useWindowDimensions, Platform, KeyboardAvoidingView, Animated, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -176,6 +177,7 @@ export default function HomeScreen() {
   const [profileSetupVisible, setProfileSetupVisible] = useState(false);
   const isGuest = useSessionStore(s => s.isGuest);
   const guestProfile = useSessionStore(s => s.guestProfile);
+  const splashDone = useBootStore(s => s.splashDone);
   const setGuestProfile = useSessionStore(s => s.setGuestProfile);
   const isNamePlaceholder = user?.name === 'TAZQ Kullanıcısı' || !!(user?.email && user?.name && user?.name === user?.email.split('@')[0]);
 
@@ -474,7 +476,8 @@ export default function HomeScreen() {
   useEffect(() => {
     // Sunucu cevabı gelmeden dünü yargılama. Çevrimdışıysa da bu bayrak kalkar:
     // o zaman diskteki görevler elimizdeki en iyi gerçektir.
-    if (!tasksFetched || shieldCheckedRef.current) return;
+    // Açılış bitmeden kalkan uyarısı açılmaz (uyarı açılışın üstünde belirirdi; bkz. useBootStore).
+    if (!tasksFetched || !splashDone || shieldCheckedRef.current) return;
     if (habits.length === 0 && tasks.length === 0) return;
     shieldCheckedRef.current = true;
 
@@ -544,7 +547,7 @@ export default function HomeScreen() {
     };
 
     checkStreakShield();
-  }, [tasksFetched, tasks, habits, language]);
+  }, [tasksFetched, splashDone, tasks, habits, language]);
 
   /*
     ── GÜNÜN İLK İLERLEMESİ SERİYİ ARTIRIR ─────────────────────────────────────

@@ -99,7 +99,7 @@ function Gallery() {
           </Text>
           <View style={[styles.row, { flexWrap: 'wrap' }]}>
             {(Object.keys(haptic) as (keyof typeof haptic)[]).map((k) => (
-              <Touchable key={k} accessibilityRole="button" accessibilityLabel={`${k} titreşimini dene`} onPress={haptic[k]} style={[styles.chip, { backgroundColor: theme.surfaceField }]}>
+              <Touchable key={k} accessibilityRole="button" accessibilityLabel={`${k} titreşimini dene`} onPress={() => (k === 'splash' ? haptic.splash([{ at: 0, kind: 'soft' }, { at: 140, kind: 'tick' }, { at: 280, kind: 'tick' }, { at: 600, kind: 'firm' }]) : (haptic[k] as () => void)())} style={[styles.chip, { backgroundColor: theme.surfaceField }]}>
                 <Text style={{ fontSize: F.footnote, color: theme.onSurface }}>{k}</Text>
               </Touchable>
             ))}

@@ -1,3 +1,4 @@
+import { useBootStore } from '@/shared/store/useBootStore';
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { create } from 'zustand';
@@ -58,7 +59,9 @@ export function useTourGate(page: FirstRunPage, blocked = false): boolean {
   );
   const hydrated = usePrefsStore((s) => s._hasHydrated);
   const done = usePrefsStore((s) => s.completedTours?.[page] === true);
-  return focused && hydrated && !done && !blocked;
+  // Açılış üstte katmanken tur başlamaz (bkz. useBootStore).
+  const splashDone = useBootStore((s) => s.splashDone);
+  return focused && hydrated && splashDone && !done && !blocked;
 }
 
 /**

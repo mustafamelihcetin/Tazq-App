@@ -47,6 +47,7 @@ import { SettingsCard, SettingItem, ToggleRow, RowDivider, SettingsActionRow, Ch
 import { AppIcon } from '@/shared/components/AppIcon';
 import { haptic } from '@/shared/utils/haptics';
 import { canStaff, isAnalystOnly } from '@/shared/utils/staffRoles';
+import { SplashAdminCard } from '@/features/admin/components/SplashAdminCard';
 import { AccentPicker } from '@/features/user/components/AccentPicker';
 import { goHome } from '@/shared/utils/authNavigation';
 
@@ -655,6 +656,9 @@ export default function SettingsScreen() {
                 <ChevronRight size={ICON.sm} color={A.system} />
               </Touchable>
             )}
+
+            {/* Açılış ekranı yönetimi — YALNIZ süper admin; kullanıcı hiç görmez (bkz. SplashAdminCard). */}
+            {canStaff(user?.role, 'super') && <SplashAdminCard lang={language === 'en' ? 'en' : 'tr'} />}
 
             {__DEV__ && ( /* Bileşen galerisi — release'de çizilmez (bkz. app/dev-gallery.tsx). */
               <Touchable

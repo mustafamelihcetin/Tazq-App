@@ -83,6 +83,9 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as SplashScreen from 'expo-splash-screen';
 import { AnimatedSplash } from '@/shared/components/AnimatedSplash';
+import { useBootStore } from '@/shared/store/useBootStore';
+import { useSplashPrefs } from '@/shared/store/useSplashPrefs';
+import { MountedSignal } from '@/shared/components/MountedSignal';
 import { Toast } from '@/shared/components/Toast';
 import { CelebrationOverlay } from '@/features/user/components/CelebrationOverlay';
 import { OfflineBanner } from '@/shared/components/OfflineBanner';
@@ -802,27 +805,46 @@ export default function RootLayout() {
     safeNavigationBar(isDark ? 'dark' : 'light');
   }, [isDark]);
 
-  if (showSplash || !fontsLoaded || !assetsLoaded) {
+  /*
+    AÇILIŞ ÜSTTE, UYGULAMA ALTTA (2026-10-31, iOS'ta: "splash bittikten sonra beyaz ekran geliyor").
+    Eskiden açılış ve uygulama ağacı birbirini dışlıyordu: açılış kendini saydamlaştırırken arkasında
+    henüz HİÇBİR ŞEY yoktu (çıplak beyaz zemin), ağaç ancak sonra kuruluyordu. Şimdi uygulama hazır
+    olunca ağaç ALTTA kurulur, açılış üstte katman olarak söner — altında gerçek ana sayfa çizilmiş olur.
+    Açılış React'te AYNI yerde (ikinci çocuk) kalır: ağaç belirince yeniden başlamaz.
+  */
+  const appReady = fontsLoaded && assetsLoaded;
+  // Ağaç kuruldu mu (bkz. AnimatedSplash → canStart): açılış animasyonu ancak sonra başlar.
+  const [treeMounted, setTreeMounted] = useState(false);
+  // Admin "Şimdi oynat" (bkz. SplashAdminCard): açılış katmanı yeniden kurulur ve baştan oynar.
+  const previewNonce = useSplashPrefs(s => s.previewNonce);
+  useEffect(() => { if (previewNonce > 0) setShowSplash(true); }, [previewNonce]);
+  const splashLayer = showSplash ? (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 9999 }]}>
+      <AnimatedSplash
+        key={previewNonce}
+        // Hazır olmadan kaybolmaz: yavaş açılışta boş ekran görünmesin.
+        ready={appReady}
+        canStart={treeMounted}
+        onFinish={() => { setShowSplash(false); useBootStore.getState().setSplashDone(); }}
+        onReady={() => {
+          // Yerel splash yalnız bizim açılışımız ekrandayken kapanır.
+          SplashScreen.hideAsync().catch(() => {});
+        }}
+      />
+    </View>
+  ) : null;
+  if (!appReady) {
     return (
       <>
         {/* Durum çubuğu da UYGULAMANIN teması — açılış zemini oraya geçiyor. */}
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        <AnimatedSplash
-          // Splash, uygulama GERÇEKTEN hazır olana kadar kaybolmaz. Eskiden sabit
-          // süreli animasyon bitince saydama geçiyordu; yavaş açılışta kullanıcı
-          // boş ekrana bakıyordu (splash oradaydı ama görünmezdi).
-          ready={fontsLoaded && assetsLoaded}
-          onFinish={() => setShowSplash(false)}
-          onReady={() => {
-            // This ensures the native splash only hides when our custom splash is visible
-            SplashScreen.hideAsync().catch(() => {});
-          }}
-        />
+        {splashLayer}
       </>
     );
   }
 
   return (
+    <>
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.background }}>
     <ErrorBoundary>
     <SafeAreaProvider>
@@ -864,6 +886,7 @@ export default function RootLayout() {
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: uiDepth.interpolate({ inputRange: [0, 1], outputRange: [0, 0.18] }) }]} />
         </Animated.View>
 
+        <MountedSignal onMounted={() => setTreeMounted(true)} />
         <FocusIsland />
         <Toast />
         {/*
@@ -878,7 +901,7 @@ export default function RootLayout() {
         <ConfettiOverlay />
         <CustomAlertModal />
         <NotificationPrimer
-          visible={showNotifPrimer}
+          visible={showNotifPrimer && !showSplash}
           onEnable={async () => {
             usePrefsStore.getState().setNotifPrimerSeen(true);
             const granted = await requestNotificationPermissions();
@@ -891,6 +914,8 @@ export default function RootLayout() {
     </SafeAreaProvider>
     </ErrorBoundary>
     </GestureHandlerRootView>
+    {splashLayer}
+    </>
   );
 }
 

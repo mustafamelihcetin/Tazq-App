@@ -312,6 +312,17 @@ export type CategoryColor = typeof CategoryColors[keyof typeof CategoryColors];
  * nötr arduvaz). Bir sayfadaki bütün satırlar o kategorinin rengini taşır (renk = nerede olduğun).
  * Beyaz glif her çipte ≥4:1; koyu kartta çip sınırı ≥3:1. İki temada aynı (iOS Ayarlar gibi).
  */
+/**
+ * AÇILIŞ SÜRÜMLERİNİN RENKLERİ (2026-10-31) — her açılış bir sürüm seçer (bkz. AnimatedSplash).
+ * Küratörlü sabit set: marka mavisi + ayar çipleriyle aynı ailenin üç tonu; kişinin vurgusu DEĞİL.
+ */
+export const SplashEditionColors = {
+  blue: { light: '#0B6BCB', dark: '#0A84FF' },
+  teal: { light: '#00877C', dark: '#1AA7A0' },
+  coral: { light: '#C35045', dark: '#E06C5F' },
+  lavender: { light: '#7B4EAF', dark: '#A579DD' },
+} as const;
+
 export const SettingsChip = {
   notify: '#C35045',     // Bildirimler — mercan kırmızısı (dikkat, ama alarm değil)
   appearance: '#5864BF', // Görünüm & Dil — indigo

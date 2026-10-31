@@ -1,6 +1,7 @@
 import { renderHook, act } from '@testing-library/react-native';
 import { useDemoGate, useTourGate, useTourRun } from '@/features/onboarding/utils/firstRun';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
+import { useBootStore } from '@/shared/store/useBootStore';
 import fs from 'fs';
 import path from 'path';
 
@@ -86,7 +87,14 @@ describe('ilk kullanım senaryosu — tur ve örnek veri BİRLİKTE', () => {
   const reset = (over: Record<string, unknown> = {}) =>
     usePrefsStore.setState({ _hasHydrated: true, completedTours: {}, ...over } as never);
 
-  beforeEach(() => { reset(); useTourRun.setState({ running: null, requested: null }); });
+  // Açılış bitti varsayılır (turlar açılış katmanının altında başlamaz — ayrı testte).
+  beforeEach(() => { reset(); useTourRun.setState({ running: null, requested: null }); useBootStore.setState({ splashDone: true }); });
+
+  it('açılış bitmeden tur başlamaz (açılış üstte katmanken)', () => {
+    useBootStore.setState({ splashDone: false });
+    expect(renderHook(() => useTourGate('tasks')).result.current).toBe(false);
+  });
+
 
   it('tur sayfaya İLK girişte açılır — içerik şartı YOK', () => {
     /*

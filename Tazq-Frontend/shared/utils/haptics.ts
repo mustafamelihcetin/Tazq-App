@@ -142,7 +142,31 @@ export const haptic = {
     if (Platform.OS === 'android') Vibration.vibrate(28);
     else safe(Expo.impactAsync(Expo.ImpactFeedbackStyle.Soft));
   },
+  /**
+   * AÇILIŞ KOREOGRAFİSİ (2026-10-31, kullanıcı: "titreşim de buna uygun, hisli olmalı"). Hareketle
+   * senkron kısa bir dokunsal cümle: yumuşak (kuşak oturur) · tık · tık (sözcükler) · sert (tik atılır).
+   * Android'de TEK desen olarak gönderilir: zamanlama JS iş parçacığına bağlı kalmaz (açılışta meşgul)
+   * ve sistemin "dokunma titreşimi" ayarından bağımsızdır (alarm/nefes gibi). iOS: Soft/Selection/Rigid.
+   * Dönen işlev bekleyen vuruşları iptal eder (açılış erken kapanırsa).
+   */
+  splash: (beats: { at: number; kind: 'soft' | 'tick' | 'firm' }[]): (() => void) => {
+    if (!enabled() || beats.length === 0) return noop;
+    if (Platform.OS === 'android') {
+      const ms = { soft: 14, tick: 7, firm: 26 } as const;
+      const pattern: number[] = [];
+      let t = 0;
+      for (const b of beats) { pattern.push(Math.max(0, b.at - t), ms[b.kind]); t = b.at + ms[b.kind]; }
+      Vibration.vibrate(pattern);
+      return () => Vibration.cancel();
+    }
+    const timers = beats.map(b => setTimeout(() => {
+      if (b.kind === 'tick') safe(Expo.selectionAsync());
+      else safe(Expo.impactAsync(b.kind === 'soft' ? Expo.ImpactFeedbackStyle.Soft : Expo.ImpactFeedbackStyle.Rigid));
+    }, b.at));
+    return () => timers.forEach(clearTimeout);
+  },
 };
+const noop = () => {};
 
 /**
  * TİTREŞİM YOK — bilinçli sessizlik.

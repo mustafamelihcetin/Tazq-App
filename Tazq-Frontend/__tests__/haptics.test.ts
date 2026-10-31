@@ -213,7 +213,9 @@ describe('yoğunluk', () => {
      *   (gerçek işlem onayları; konuşmayı AÇMAK titreşmez — saf gezinme).
      * → 351 (2026-10-31): ödeme satırında uzun bas → Düzenle/Sil menüsü (sistem bağlam menüsü gibi
      *   uzun basışın tanınması hissedilir; eskiden uzun bas doğrudan silme uyarısı açıyordu).
+     * → 354 (2026-10-31): YALNIZ süper adminin açılış kartı — şimdi oynat, sürüm seçimi, aç/kapa
+     *   (kullanıcı bu ekranı hiç görmez; diğer seçim satırlarıyla aynı seçim tiki).
      */
-    expect(hap).toBeLessThanOrEqual(351);
+    expect(hap).toBeLessThanOrEqual(354);
   });
 });
