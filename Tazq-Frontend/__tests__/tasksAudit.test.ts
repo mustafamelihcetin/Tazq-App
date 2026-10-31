@@ -64,6 +64,23 @@ describe('Görevler — menü yazımı cümle düzeninde (Türkçe)', () => {
   });
 });
 
+describe('Görevler — terim ve ton (2026-10-31)', () => {
+  const I18N = read('shared/constants/i18n.ts');
+  it('ekran başlığı sekmeyle aynı: "Görevler" (eskiden "Aksiyon Merkezi")', () => {
+    expect(I18N).toContain("actionCenter: 'Görevler'");
+    expect(I18N).toContain("actionCenter: 'Tasks'");
+    expect(I18N).not.toMatch(/: 'Aksiyon Merkezi'/);
+  });
+  it('sayı nötr: "N görevin var" (eskiden "seni bekliyor")', () => {
+    expect(I18N).toContain("tasksPending: '{n} görevin var'");
+    expect(read('app/index.tsx')).not.toContain('görevin seni bekliyor');
+  });
+  it('kullanıcının gördüğü yerde eski ad kalmadı', () => {
+    expect(read('features/modes/components/modes/BirakmaCard.tsx')).not.toMatch(/'[^']*Aksiyon[^']*'/);
+    expect(read('features/promo/promoCopy.ts')).not.toContain('Aksiyon Merkezi');
+  });
+});
+
 describe('Görevler — ham renk ve başlık kalabalığı', () => {
   const SRC = read('app/tasks.tsx');
 

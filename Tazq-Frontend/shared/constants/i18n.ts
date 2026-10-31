@@ -137,7 +137,7 @@ export const translations = {
     termsOfService: 'Terms of Service',
     privacyPolicy: 'Privacy Policy',
     chooseAvatar: 'Select Identity',
-    actionCenter: 'Action Center',
+    actionCenter: 'Tasks',
     allTasksReady: 'All done! Ready to add something new?',
     tasksPending: '{n} tasks to go',
     completedTasks: 'MISSION COMPLETE',
@@ -654,9 +654,9 @@ export const translations = {
     termsOfService: 'Kullanım Koşulları',
     privacyPolicy: 'Gizlilik Politikası',
     chooseAvatar: 'Kimlik Seçin',
-    actionCenter: 'Aksiyon Merkezi',
+    actionCenter: 'Görevler', // sekmeyle aynı ad (eskiden "Aksiyon Merkezi": aynı yer için iki isim)
     allTasksReady: 'Her şey hazır! Yeni bir görev ekle.',
-    tasksPending: '{n} görev seni bekliyor',
+    tasksPending: '{n} görevin var', // nötr: "seni bekliyor" baskı gibi okunuyordu
     completedTasks: 'GÖREV TAMAMLANDI',
     pendingTasks: 'AKTİF GÖREVLER',
     deleteTask: 'Görevi Sil',

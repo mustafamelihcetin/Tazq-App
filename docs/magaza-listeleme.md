@@ -27,10 +27,13 @@ TAZQ: Sınav ve Hedef Planı
 Tarihini gir, planın hazır
 ```
 
-**Anahtar kelimeler** (sınır 100, virgülle, boşluksuz) — 91 karakter
+**Anahtar kelimeler** (sınır 100, virgülle, boşluksuz) — 97 karakter
 ```
-yks,kpss,çalışma programı,sınav,geri sayım,tez,sigara bırakma,tasarruf,kilo,odak,alışkanlık
+yks,kpss,çalışma programı,sınav,geri sayım,tez,sigara bırakma,tasarruf,kilo,odak,alışkanlık,görev
 ```
+> 2026-10-31: `görev` eklendi. Uygulamanın temel adı "Görev" (sekme ve ekran başlığı aynı);
+> Apple kelimeleri alanlar arasında birleştirir, başlıktaki "Plan" ile "görev planı" gibi
+> aramalara da girer. Doymuş "yapılacaklar listesi" yine BİLEREK hedeflenmiyor (yukarıya bkz.).
 
 **Tanıtım metni** (sınır 170) — 141 karakter
 ```
@@ -130,6 +133,49 @@ PRIVACY AND PRICE
 • Task contents are stored encrypted; health data never leaves your device
 • Works offline
 ```
+
+---
+
+## Google Play (tr-TR ve en-US)
+
+Play'de anahtar kelime alanı YOK: arama başlık, kısa açıklama ve **tam açıklamadan** okunur.
+Bu yüzden mod terimleri tam açıklamada doğal cümlelerle geçmeli (art arda kelime dizmek Play
+politikasına aykırı). Strateji App Store ile aynı: düşük rekabetli mod aramaları.
+
+**Uygulama adı** (sınır 30) — 26 karakter
+```
+TAZQ: Sınav ve Hedef Planı
+```
+
+**Kısa açıklama** (sınır 80) — 69 karakter
+```
+Tarihini gir, her gün planın hazır: YKS, KPSS, tez ve hedef görevleri
+```
+
+**Tam açıklama** — App Store açıklamasının aynısı, iki farkla:
+- "Apple Sağlık" satırı yerine: `• Health Connect: uyku, adım ve antrenman verisi görevlerini kendiliğinden işaretler`
+- İlk iki satır arama sonucunda kesilmeden görünür; ikisi de modları ve "görev"i taşıyor, dokunma.
+
+**English — App name** (30) — 26 karakter
+```
+TAZQ: Goal & Study Planner
+```
+
+**English — Short description** (80) — 70 karakter
+```
+Set a date, get daily tasks: study plans, thesis, quitting and savings
+```
+
+**English — Full description** — App Store metni; "Apple Health" satırı yerine:
+`• Health Connect: sleep, steps and workouts tick off your tasks automatically`
+
+---
+
+## Terim (2026-10-31)
+
+Uygulamada, sitede ve mağazada tek ad: **Görev / Görevler** (EN: Task / Tasks). Görevler
+ekranının eski başlığı "Aksiyon Merkezi" kaldırıldı — sekme "Görevler" derken başlığın başka
+bir şey demesi aynı yer için iki isimdi. Görsel başlıklarında da "görev" geçiyor (2. görsel).
 
 ---
 

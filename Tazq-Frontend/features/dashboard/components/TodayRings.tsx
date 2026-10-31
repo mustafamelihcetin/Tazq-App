@@ -25,7 +25,7 @@ import { TodayDetail, type DetailKind, type DetailTask, type DetailHabit } from 
   Önce iç içe halkalardı ("renkler çirkin, bakınca anlaşılmıyor" — iç halka kısa kalır, aynı
   oran farklı uzunlukta görünür), sonra yatay ölçerler ("demode"). Kullanıcı: "grafik şart
   değil, daha geniş düşün". Şimdi BİLGİYİ okunur bir cümle taşır (bkz. daySentence): "Bugün
-  seni ⟨3 görev⟩, ⟨90 dk odak⟩ ve ⟨1 alışkanlık⟩ bekliyor." — haplar dokunulabilir, bitince
+  planında ⟨3 görev⟩, ⟨90 dk odak⟩ ve ⟨1 alışkanlık⟩ var." — haplar dokunulabilir, bitince
   tiklenir; HİSSİ her işin bir yaprak olduğu çiçek (bkz. DayOrb). Bileşen adı geçmişten
   (testler ve çağıranlar bu adla bağlı).
 

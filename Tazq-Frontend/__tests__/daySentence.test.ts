@@ -11,12 +11,17 @@ const m = (tasks: [number, number], focus: [number, number], habits: [number, nu
 ];
 
 describe('yaşayan cümle', () => {
+  /*
+    2026-10-31: "Bugün seni … bekliyor" → "Bugün planında … var". Kullanıcı: "görevin seni bekliyor"
+    baskı gibi; ürün "germesin" diyor. Plan sahipliği nötr ve boş günün cümlesiyle ("Bugün için
+    planın boş.") aynı dil. Haplar değişmedi.
+  */
   it('hepsi bekliyor', () => {
-    expect(plain(buildDaySentence(m([0, 3], [0, 90], [0, 1]), 'tr'))).toBe('Bugün seni ⟨3 görev⟩, ⟨90 dk odak⟩ ve ⟨1 alışkanlık⟩ bekliyor.');
+    expect(plain(buildDaySentence(m([0, 3], [0, 90], [0, 1]), 'tr'))).toBe('Bugün planında ⟨3 görev⟩, ⟨90 dk odak⟩ ve ⟨1 alışkanlık⟩ var.');
   });
 
   it('hapta KALAN miktar yazar', () => {
-    expect(plain(buildDaySentence(m([1, 3], [25, 90], [0, 1]), 'tr'))).toBe('Bugün seni ⟨2 görev⟩, ⟨65 dk odak⟩ ve ⟨1 alışkanlık⟩ bekliyor.');
+    expect(plain(buildDaySentence(m([1, 3], [25, 90], [0, 1]), 'tr'))).toBe('Bugün planında ⟨2 görev⟩, ⟨65 dk odak⟩ ve ⟨1 alışkanlık⟩ var.');
   });
 
   it('biri bitince tamam + kalanlar', () => {
@@ -30,7 +35,7 @@ describe('yaşayan cümle', () => {
   });
 
   it('hedefi olmayan ölçü cümleye girmez; hiç hedef yoksa plan boş', () => {
-    expect(plain(buildDaySentence(m([0, 0], [0, 90], [0, 0]), 'tr'))).toBe('Bugün seni ⟨90 dk odak⟩ bekliyor.');
+    expect(plain(buildDaySentence(m([0, 0], [0, 90], [0, 0]), 'tr'))).toBe('Bugün planında ⟨90 dk odak⟩ var.');
     expect(plain(buildDaySentence(m([0, 0], [0, 0], [0, 0]), 'tr'))).toBe('Bugün için planın boş.');
   });
 
@@ -40,6 +45,6 @@ describe('yaşayan cümle', () => {
   });
 
   it('İngilizce tekil/çoğul', () => {
-    expect(plain(buildDaySentence(m([0, 1], [0, 0], [0, 2]), 'en'))).toBe('You have ⟨1 task⟩ and ⟨2 habits⟩ waiting today.');
+    expect(plain(buildDaySentence(m([0, 1], [0, 0], [0, 2]), 'en'))).toBe('You have ⟨1 task⟩ and ⟨2 habits⟩ today.');
   });
 });

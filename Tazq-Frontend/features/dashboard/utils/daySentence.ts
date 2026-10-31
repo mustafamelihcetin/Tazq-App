@@ -3,10 +3,11 @@
  *
  * Halkalar ("renkler çirkin, bakınca anlaşılmıyor") ve ölçerler ("demode") reddedildi;
  * kullanıcı: "grafik şart değil, daha geniş düşün". Ekranın 2 saniyede söylemesi gereken
- * şey bir grafik değil, bir CÜMLE: "Bugün seni 3 görev, 90 dk odak ve 1 alışkanlık bekliyor."
+ * şey bir grafik değil, bir CÜMLE: "Bugün planında 3 görev, 90 dk odak ve 1 alışkanlık var."
  * Cümle duruma göre kendini yeniden kurar; içindeki ölçüler dokunulabilir HAP'tır.
  *
- *  · bugün, hepsi bekliyor  → "Bugün seni ⟨3 görev⟩, ⟨90 dk odak⟩ ve ⟨1 alışkanlık⟩ bekliyor."
+ *  · bugün, hepsi bekliyor  → "Bugün planında ⟨3 görev⟩, ⟨90 dk odak⟩ ve ⟨1 alışkanlık⟩ var."
+ *    (2026-10-31: "seni … bekliyor" baskı gibi okunuyordu; plan sahipliği nötr ve boş günle aynı dil.)
  *  · biri bitti             → "⟨✓ Görevler⟩ tamam; ⟨65 dk odak⟩ ve ⟨1 alışkanlık⟩ kaldı."
  *  · hepsi bitti            → "Günü kapattın: ⟨✓ görevler⟩ ⟨✓ odak⟩ ⟨✓ alışkanlıklar⟩"
  *  · hiçbir hedef yok       → "Bugün için planın boş."
@@ -25,7 +26,7 @@ const W = {
     did: { tasks: (n: number) => `${n} görev`, focus: (n: number) => `${n} dk`, habits: (n: number) => `${n} alışkanlık` },
     doneTok: { tasks: 'Görevler', focus: 'Odak', habits: 'Alışkanlıklar' },
     pastVerb: { tasks: 'bitirdin', focus: 'odaklandın', habits: 'yaptın' },
-    and: 've', waiting: 'bekliyor.', left: 'kaldı.', done: 'tamam;', today: 'Bugün seni',
+    and: 've', waiting: 'var.', left: 'kaldı.', done: 'tamam;', today: 'Bugün planında',
     closed: 'Günü kapattın:', empty: 'Bugün için planın boş.', pastEmpty: 'Bu gün kayıt yok — dinlenme günü.',
   },
   en: {
@@ -33,7 +34,7 @@ const W = {
     did: { tasks: (n: number) => `${n} ${n === 1 ? 'task' : 'tasks'}`, focus: (n: number) => `${n} min`, habits: (n: number) => `${n} ${n === 1 ? 'habit' : 'habits'}` },
     doneTok: { tasks: 'Tasks', focus: 'Focus', habits: 'Habits' },
     pastVerb: { tasks: 'done', focus: 'of focus', habits: 'kept' },
-    and: 'and', waiting: 'waiting today.', left: 'left.', done: 'done;', today: 'You have',
+    and: 'and', waiting: 'today.', left: 'left.', done: 'done;', today: 'You have',
     closed: 'Day closed:', empty: 'Nothing planned for today.', pastEmpty: 'Nothing recorded — a rest day.',
   },
 };

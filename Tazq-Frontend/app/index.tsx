@@ -1501,7 +1501,7 @@ export default function HomeScreen() {
     if (momentum >= 75) {
       return tr ? `${incomplete} görev var ama sen zirvedesin — durdurulamaz!` : `${incomplete} tasks, but you're at peak momentum!`;
     }
-    return tr ? `${incomplete} görevin seni bekliyor.` : `${incomplete} tasks are waiting for you.`;
+    return tr ? `${incomplete} görevin var.` : `${incomplete} tasks today.`;
   };
 
   const pressMyDayItem = useLatestCallback((item: MyDayTaskItem) => { // satır işleyicileri: kimlik sabit, gövde güncel (bkz. MyDayItem)

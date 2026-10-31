@@ -301,8 +301,8 @@ export function BirakmaCard() {
             <Shield size={ICON.xs} color={doneToday ? C : theme.onSurfaceVariant} />
             <Text style={{ color: doneToday ? C : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>
               {doneToday 
-                ? (tr ? 'Bugün Temiz ✓ (Aksiyondan senkronize)' : 'Clean Today ✓ (Synced from Action Center)') 
-                : (tr ? 'Sayaç otomatik ilerler · Takip Aksiyon Merkezi\'nde' : 'Auto-counter active · Managed in Action Center')}
+                ? (tr ? 'Bugün temiz ✓ (Görevlerden eşitlendi)' : 'Clean Today ✓ (Synced from Tasks)')
+                : (tr ? 'Sayaç otomatik ilerler · Takip Görevler\'de' : 'Auto-counter active · Managed in Tasks')}
             </Text>
           </View>
 

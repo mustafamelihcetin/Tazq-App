@@ -62,7 +62,7 @@ export const PROMO_COPY: Record<'tr' | 'en', MockCopy> = {
     dayLabel: 'BUGÜNÜN İŞLERİ',
     momentumLabel: 'İvme', momentumDelta: 'bu hafta +12%',
     nextLabel: 'SIRADAKİ', nextTask: 'Paragraf denemesi çöz', nextAction: 'Odaklan',
-    tasksTitle: 'Aksiyon Merkezi',
+    tasksTitle: 'Görevler',
     filters: ['Tümü', 'Bugün', 'Yüksek'],
     taskRows: [
       { title: 'Toplantı notlarını yaz', time: 'Bugün 09:30', done: true },
@@ -120,7 +120,7 @@ export const PROMO_COPY: Record<'tr' | 'en', MockCopy> = {
     dayLabel: "TODAY'S WORK",
     momentumLabel: 'Momentum', momentumDelta: '+12% this week',
     nextLabel: 'UP NEXT', nextTask: 'Reading practice set', nextAction: 'Focus',
-    tasksTitle: 'Action Center',
+    tasksTitle: 'Tasks',
     filters: ['All', 'Today', 'High'],
     taskRows: [
       { title: 'Write up meeting notes', time: 'Today 09:30', done: true },
