@@ -5,6 +5,7 @@ import { Touchable } from '@/shared/components/Touchable';
 import { ICON, R, S, F, HAIRLINE, B, touchSlop } from '@/shared/constants/tokens';
 import { getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { getLocalizedTaskTitle } from '@/features/tasks';
+import { titleWithoutLabel } from '@/features/tasks/utils/displayTitle';
 import type { AppTheme } from '@/shared/constants/Colors';
 
 export interface MyDayTaskRowProps {
@@ -126,6 +127,8 @@ export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme
   // Örnek görev `original: {}` taşır — boş nesne "doğru" sayıldığı için başlık boş kalıyordu.
   // Başlığı olan bir kaynak seçilir (bkz. __tests__/MyDayTaskRow.test.tsx).
   const title = getLocalizedTaskTitle(item.original?.title ? item.original : item, tr);
+  // Alt satır mod adını yazıyor → başlığın başındaki aynı ad ekranda düşer (bkz. displayTitle). Sesli ad TAM başlık.
+  const shownTitle = titleWithoutLabel(title, modeInfo ? (tr ? modeInfo.labelTr : modeInfo.labelEn) : null, tr);
   const c = copy(tr);
   return (
     <Touchable
@@ -188,7 +191,7 @@ export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme
             opacity: item.isCompleted ? 0.5 : 1,
             flexShrink: 1
           }} numberOfLines={1}>
-            {title}
+            {shownTitle}
           </Text>
           {/*
             MOD ROZETİ BAŞLIĞIN YANINDAN ALINDI — aşağıdaki ikincil satıra taşındı.

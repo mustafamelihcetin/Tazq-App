@@ -92,7 +92,12 @@ describe('günlük listeden görev tamamlanabiliyor', () => {
       tamamlanamıyordu. Aynı kartın üstünde ritüeller tek dokunuşla işaretleniyordu.
     */
     expect(INDEX).toContain('const handleCheckTask = async (taskId: number) => {');
-    expect(INDEX).toMatch(/onCheck=\{[^}]*handleCheckTask\(item\.id\)/);
+    // 2026-10-31: satır → handlers.check → checkMyDayItem → handleCheckTask (memo'lu satır, bkz. MyDayItem).
+    const ITEM = read('features/dashboard/components/MyDayItem.tsx');
+    expect(ITEM).toMatch(/onCheck=\{[^}]*handlers\.check\(item\.id\)/);
+    expect(INDEX).toContain('const checkMyDayItem = useLatestCallback((id: number) => handleCheckTask(id));');
+    expect(INDEX).toContain('check: checkMyDayItem');
+    expect(INDEX).toContain('handlers={myDayHandlers}');
   });
 
   it('satır bir tamamlama kontrolü ÇİZİYOR', () => {
@@ -102,7 +107,8 @@ describe('günlük listeden görev tamamlanabiliyor', () => {
   });
 
   it('örnek (sahte) satırlarda dokunulamaz', () => {
-    expect(INDEX).toMatch(/onCheck=\{isDemoId\(item\.id\) \? undefined : \(\) => handleCheckTask\(item\.id\)\}/);
+    const ITEM = read('features/dashboard/components/MyDayItem.tsx');
+    expect(ITEM).toMatch(/onCheck=\{isDemoId\(item\.id\) \? undefined : \(\) => handlers\.check\(item\.id\)\}/);
   });
 
   it('kilo görevi ORTAK yardımcıyla tanınıyor', () => {
@@ -135,8 +141,11 @@ describe('örnek veri GERÇEK bir şey tetiklemiyor', () => {
       `pendingHabits` gerçek (ve boş) listeden hesaplanıyor, "hepsi bitti" çıkıyor ve
       kullanıcıya sahip olmadığı ritüeller için tam ekran kutlama patlıyordu.
     */
-    expect(INDEX).toContain("const DEMO_ID_PREFIX = 'mock-';");
-    expect(INDEX).toMatch(/const isDemoId = \(id: string \| number\) => typeof id === 'string' && id\.startsWith\(DEMO_ID_PREFIX\);/);
+    // 2026-10-31: kapı satır bileşeniyle birlikte MyDayItem'e taşındı; ana sayfa oradan alıyor.
+    const ITEM = read('features/dashboard/components/MyDayItem.tsx');
+    expect(ITEM).toContain("const DEMO_ID_PREFIX = 'mock-';");
+    expect(ITEM).toMatch(/export const isDemoId = \(id: string \| number\) => typeof id === 'string' && id\.startsWith\(DEMO_ID_PREFIX\);/);
+    expect(INDEX).toMatch(/import \{ MyDayItem, isDemoId, type MyDayTaskItem \} from '@\/features\/dashboard\/components\/MyDayItem';/);
   });
 
   it('alışkanlığın iki eylemi de kapıdan geçiyor', () => {
@@ -500,7 +509,9 @@ describe('düğmeler üstünde yazanı yapıyor', () => {
     */
     // 2026-10-25: tam form yerine HIZLI ekleme — şimşek düğmesiyle aynı yüzey (tek ekleme
     // yolu); tam form oradaki "Detaylar"dan açılır. Amaç değişmedi: liste değil, ekleme.
-    expect(INDEX).toContain('onAdd={() => setQuickDraftVisible(true)}');
+    // 2026-10-31: halka paneli memo'lu olduğu için kararlı callback (openQuickAdd) — hedef aynı.
+    expect(INDEX).toContain('onAdd={openQuickAdd}');
+    expect(INDEX).toContain('const openQuickAdd = React.useCallback(() => setQuickDraftVisible(true), []);');
     expect(INDEX).not.toMatch(/onAdd=\{\(\) => router\.push\(\{ pathname: '\/tasks' \}/);
   });
 

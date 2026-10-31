@@ -23,6 +23,7 @@ const useSharedValue = (init) => {
 
 // Animasyon fonksiyonlari hedef degeri aninda dondurur (zaman yok).
 const identity = (toValue) => toValue;
+const layoutChain = new Proxy(function () {}, { get: () => () => layoutChain, apply: () => layoutChain });
 const withCallback = (toValue, _cfg, cb) => {
   if (typeof cb === 'function') cb(true);
   return toValue;
@@ -70,8 +71,10 @@ module.exports = {
   Extrapolation: { CLAMP: 'clamp', EXTEND: 'extend', IDENTITY: 'identity' },
   Easing: new Proxy({}, { get: () => () => (t) => t }),
 
-  FadeIn: { duration: () => ({}), delay: () => ({}) },
-  FadeOut: { duration: () => ({}), delay: () => ({}) },
-  Layout: { springify: () => ({}), duration: () => ({}) },
-  LinearTransition: { springify: () => ({}), duration: () => ({}) },
+  // Düzen animasyonu kurucuları zincirlenir (`LinearTransition.springify().damping(28)`): her çağrı
+  // aynı zinciri döndürür, testte etkisizdir.
+  FadeIn: layoutChain,
+  FadeOut: layoutChain,
+  Layout: layoutChain,
+  LinearTransition: layoutChain,
 };

@@ -807,7 +807,7 @@ export const translations = {
     cockpitTarget: 'Hedef',
     dayLabels: ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'],
     sortByPriority: 'Öncelik',
-    sortByDate: 'Bitiş Tarihi',
+    sortByDate: 'Bitiş tarihi',
     sortByCreation: 'Oluşturulma',
     sortLabel: 'Sırala',
     draftPlaceholder: 'Ne planlıyorsun?',

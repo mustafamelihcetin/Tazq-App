@@ -255,7 +255,6 @@ const ROLE_CEILING: Record<string, number> = {
   'app/promo.tsx': 2,
   'app/odemeler.tsx': 7, // 8 → 7 (2026-10-24): satırlar PaymentRow'a taşındı (rollü), ekle düğmesi rollü başlık çubuğunda // (2026-10-18): yeni ekran — ekle davetiyesi, ödendi/geri al, sil, vazgeç/ekle // +1 (2026-10-19): para birimi çipi // +1 (2026-10-19): gün gridi çipi (1-31, tek JSX çağrı noktası) // +1 (2026-10-19): sağlayıcı önerisi satırı
   'app/settings.tsx': 3, // 5 → 3 (2026-10-25): hesap bölümü ortak SettingItem / SettingsActionRow satırlarına geçti
-  'app/tasks.tsx': 3, // 4 → 3: satır bileşeni TaskListItem'a taşındı
   'features/focus/components/FocusIsland.tsx': 1,
   'features/modes/components/TurkishModeBanner.tsx': 19,
   'features/modes/components/WeightEntryModal.tsx': 1,

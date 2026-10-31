@@ -22,6 +22,8 @@ const EDGE_MARGIN = S.md;
 
 interface MagneticFABProps {
   onPress: () => void;
+  /** Ekran okuyucunun söylediği ad — düğmenin içi yalnız ikon. */
+  accessibilityLabel: string;
   storageKey: string;
   isDark: boolean;
   theme: AppTheme;
@@ -34,6 +36,7 @@ interface MagneticFABProps {
 
 export const MagneticFAB: React.FC<MagneticFABProps> = ({
   onPress,
+  accessibilityLabel,
   storageKey,
   isDark,
   theme,
@@ -226,6 +229,16 @@ export const MagneticFAB: React.FC<MagneticFABProps> = ({
   return (
     <Animated.View
       {...panResponder.panHandlers}
+      /*
+        Dokunuş PanResponder'dan geliyor (sürükle-bırak ile ayrılıyor); VoiceOver/TalkBack ise
+        jest göndermez, çift dokunuşu 'activate' eylemi olarak iletir. Bu olmadan ana ekleme
+        eylemi ekran okuyucuya hiç görünmüyordu.
+      */
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityActions={[{ name: 'activate' }]}
+      onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'activate') onPress(); }}
       style={[
         styles.container,
         {

@@ -30,3 +30,20 @@ export function useSettledValue<T>(value: T, delay = 400): T {
 
   return settled;
 }
+
+/**
+ * Değer mount'tan beri en az bir kez `delay` ms SABİT kaldı mı (bir kez true olunca öyle kalır).
+ *
+ * Neden: momentum açılışta store'lar hidrate olurken geçici olarak 0 hesaplanıyor. Açılış
+ * animasyonu katmanın arkasından çıkınca bu 0 ~2 sn ekranda GERÇEK skor gibi duruyordu
+ * (cihazda görüldü). Sayı, değer durulana kadar gösterilmez — sahte bir 0 hiç okunmaz.
+ */
+export function useHasSettled<T>(value: T, delay = 400): boolean {
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    if (settled) return;
+    const timer = setTimeout(() => setSettled(true), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay, settled]);
+  return settled;
+}

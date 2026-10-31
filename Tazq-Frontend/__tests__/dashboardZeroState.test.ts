@@ -38,7 +38,8 @@ describe('dashboard sırası', () => {
   it('eylem çağrısı listenin ilk bekleyen satırında — ayrı kart ve koşullu sıra YOK', () => {
     expect(src).not.toContain('dayNotStarted');
     expect(src).not.toContain('<NextMissionCard');
-    expect(src).toContain('onFocus={index === 0 && !item.isCompleted');
+    // 2026-10-31: satır memo'lu MyDayItem'de; kural aynı (yalnız ilk bekleyen satır).
+    expect(read('features/dashboard/components/MyDayItem.tsx')).toContain('onFocus={index === 0 && !item.isCompleted');
   });
 
   it('skor TEK yerde ve özetin içinde', () => {
@@ -55,7 +56,9 @@ describe('dashboard sırası', () => {
     // Selam da ayrı blok değil, panelin durum şeridinde (yer yiyen statik blok kaldırıldı).
     expect(src).not.toContain('<DashboardHero');
     expect(src).toMatch(/greeting=\{/);
-    expect(src).toMatch(/topSlot=\{<ModeTodayCard bare /);
+    // 2026-10-31: memo'lu değişken üzerinden (todayTopSlot) — yuva ve içerik aynı.
+    expect(src).toContain('topSlot={todayTopSlot}');
+    expect(src).toMatch(/const todayTopSlot = React\.useMemo\(\(\) => <ModeTodayCard bare /);
     const body = read('features/dashboard/components/TodayRings.tsx');
     // Ekranın sırası: durum şeridi → plan → çiçek + cümle.
     expect(body.indexOf('<DisplayStatus')).toBeLessThan(body.indexOf('{topSlot}'));

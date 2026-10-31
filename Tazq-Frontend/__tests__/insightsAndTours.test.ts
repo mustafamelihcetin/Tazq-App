@@ -44,6 +44,48 @@ describe('TAZQ Insights — ham renk ve gradyan yok', () => {
 });
 
 /**
+ * İÇGÖRÜ MODALI — impeccable denetimi (2026-10-31), 15/20.
+ */
+describe('TAZQ Insights — denetim düzeltmeleri', () => {
+  const SRC = read('features/dashboard/components/StatusHubModal.tsx');
+
+  it('alışkanlık rengi ortak kuraldan (habitColor) — ham habit.color değil', () => {
+    // Modal 30 Ekim renk kararına bağlanmayan TEK yüzeydi: mod alışkanlıkları eski şablon
+    // rengiyle, koyu temada açık tonla çiziliyordu; Haftalık Merkez'le aynı alışkanlık farklı renkti.
+    expect(SRC).toContain('habitColor(habit, isDark)');
+    expect(SRC).not.toMatch(/habit\.color \|\|/);
+  });
+
+  it('ızgara satırı ekran okuyucuya gün gün durumu söylüyor', () => {
+    // Hücrelerin etiketi yoktu: VoiceOver/TalkBack yalnız alışkanlığın adını okuyordu.
+    expect(SRC).toContain('accessibilityLabel={c.habitRow(');
+    expect(SRC).toContain('importantForAccessibility="no-hide-descendants"');
+  });
+
+  it('kapat düğmesi 36 pt ama dokunma alanı 44 pt', () => {
+    expect(SRC).toContain('hitSlop={touchSlop(CLOSE_SIZE)}');
+  });
+
+  it('ızgara da grafikle aynı gün kısaltmasını kullanıyor (Pzt, Pt değil)', () => {
+    expect(SRC).not.toContain("'Pt'");
+    expect(SRC).toContain("'Pzt'");
+  });
+
+  it('değişim yüzdesi dile göre yazılıyor', () => {
+    expect(SRC).toContain('formatDeltaPct(delta.pct, language)');
+  });
+});
+
+describe('Alttan kayan sayfa — Hareketi azalt', () => {
+  const SRC = read('shared/hooks/useSwipeToDismiss.ts');
+
+  it('tercih açıkken sayfa kaymaz, yerinde belirir', () => {
+    expect(SRC).toContain('useReduceMotion()');
+    expect(SRC).toMatch(/if \(reduceMotion\)/);
+  });
+});
+
+/**
  * PROFİL — koyu temada okunmayan buton + ham hex.
  */
 describe('Profil — koyu tema kontrastı ve ham hex', () => {

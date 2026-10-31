@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import { MotiView } from 'moti';
+import { Easing } from 'react-native-reanimated';
 import { TrendingUp, TrendingDown, Minus, CheckCircle2, Zap, Flame, Shield, Info } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { ICON, S, F, R, B, METRIC, LH, trackingFor } from '@/shared/constants/tokens';
@@ -13,8 +14,10 @@ import { Separator } from '@/shared/components/Separator';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { AnimatedNumber } from '@/shared/components/AnimatedNumber';
 import { MomentumOrb } from '@/features/user/components/MomentumOrb';
+import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
+import { useEntranceReady, useFirstInSession } from '@/shared/components/EntranceStage';
 import { DISPLAY_FONT } from '@/shared/components/DisplayPanel';
-import { useSettledValue } from '@/shared/hooks/useSettledValue';
+import { useSettledValue, useHasSettled } from '@/shared/hooks/useSettledValue';
 import { haptic } from '@/shared/utils/haptics';
 import { isBestDayOfWeek } from '@/shared/utils/momentum';
 
@@ -24,12 +27,18 @@ interface Props {
   score: number;
   history: DayScore[];
   language: string;
+  /**
+   * Skorun girdileri henüz gelmedi (ana sayfa: haftalık istatistik + görevler). Görevler gelmeden
+   * skor EKSİK veriyle hesaplanır — açılışta cihazda "0" görüldü. İskelet yalnız ilk yüklemede.
+   */
   loading?: boolean;
   /**
    * Başka bir kartın İÇİNDE çizilir (ana sayfa "Bugün" özeti): kendi kartı ve dış
    * boşluğu yok. Isı şeridi, bilgi penceresi ve trend aynen kalır.
    */
   embedded?: boolean;
+  /** Uyanış sinyali: artınca küre bir nefes alır, çubuklar sırayla yeniden yükselir (bkz. TodayRings). */
+  wake?: number;
 }
 
 /** Gömülüyken düz kap, değilken kendi kartı — modül düzeyinde ki her render'da yeniden kurulmasın. */
@@ -39,12 +48,50 @@ const CardBox = ({ embedded, children }: { embedded?: boolean; children: React.R
     : <BentoCard index={0} style={{ padding: S.md, overflow: 'hidden' }}>{children}</BentoCard>;
 
 /** İlk gün (tek veri noktası) grafiğin yerine geçen cümle — iki dil yan yana (i18nRatchet). */
+/*
+  Giriş eğrisi: sekmeden yerine oturan ease-out (better-ui: "bounce 0"). Eskiden yaylar
+  (damping 16-18) hedefi aşıp geri dönüyordu — sayı ve çubuk bir an YANLIŞ değeri gösteriyordu.
+*/
+const ENTER = { type: 'timing' as const, duration: 300, easing: Easing.out(Easing.cubic) };
+
+/**
+ * İLK YÜKLEME İSKELETİ — gerçek içerikle AYNI ölçüler (küre, sayı + etiket, 7 çubuk + alt
+ * yazı): veri gelince hiçbir şey yer değiştirmez. Durağan; sonsuz parıltı yok (hareket durur).
+ */
+const MomentumSkeleton = ({ embedded, tone }: { embedded?: boolean; tone: string }) => {
+  const orb = embedded ? 28 : 40;
+  const num = embedded ? F.title : METRIC.sm;
+  return (
+    <View testID="momentum-skeleton" accessible={false} style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
+      <View style={{ width: orb, height: orb, borderRadius: R.full, backgroundColor: tone }} />
+      <View style={{ gap: S.xs }}>
+        <View style={{ width: num * 1.6, height: num * LH.tight * 0.8, borderRadius: R.xs, backgroundColor: tone }} />
+        <View style={{ width: 64, height: F.caption, borderRadius: R.xs, backgroundColor: tone }} />
+      </View>
+      <View style={{ flex: 1, gap: S.xs }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: S.xs, height: 24 }}>
+          {[10, 14, 9, 16, 12, 18, 15].map((h, i) => <View key={i} style={{ flex: 1, height: h, borderRadius: R.xs, backgroundColor: tone }} />)}
+        </View>
+        <View style={{ width: 56, height: F.caption, borderRadius: R.xs, backgroundColor: tone }} />
+      </View>
+    </View>
+  );
+};
+
 const FIRST_DAY = {
   tr: 'Gidişatın yarından itibaren burada çizilecek.',
   en: 'Your trend starts drawing here tomorrow.',
 } as const;
 
-export const MomentumPulse: React.FC<Props> = ({ score, history, language, loading, embedded }) => {
+export const MomentumPulse: React.FC<Props> = ({ score, history, language, loading, embedded, wake = 0 }) => {
+  const reduceMotion = useReduceMotion();
+  // Açılış animasyonları (sayım, çubuklar, giriş) açılış katmanı KALKINCA oynar — altında boşa gitmesin.
+  const ready = useEntranceReady();
+  // Skor durulmadan sayı GÖSTERİLMEZ: hidrasyondaki geçici 0 ekranda gerçek skor gibi durmasın.
+  const scoreSettled = useHasSettled(score, 400);
+  // Sayım ve giriş yalnız oturumdaki İLK gösterimde; sekmeden dönüşte değer (oturum verisiyle) anında.
+  const first = useFirstInSession('home.momentum');
+  const scoreShown = !first || (ready && scoreSettled);
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
   const [infoVisible, setInfoVisible] = useState(false);
@@ -91,10 +138,17 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
 
   const tr = language === 'tr';
 
-  if (loading) {
-    return (
-      <View style={{ height: 64, marginHorizontal: S.md, marginBottom: S.md }} />
-    );
+  /*
+    YER TUTUCU YALNIZ İLK YÜKLEMEDE. `useWeeklyStats` ekrana her dönüşte loading=true yapıyor;
+    kart her seferinde boş kutuya dönüp yeniden mount ediliyordu (zıplama, 0'dan sayma, küre
+    baştan nefes). Bir kez çizildikten sonra eldeki veri ekranda kalır, yenisi gelince yerinde
+    güncellenir. Bayrak tek yönlü (yalnız true olur), render'da yazmak güvenli.
+  */
+  const shownOnce = useRef(false);
+  if (!loading) shownOnce.current = true;
+  if (loading && !shownOnce.current) {
+    const skeleton = <MomentumSkeleton embedded={embedded} tone={theme.onSurface + '0F'} />;
+    return embedded ? skeleton : <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}><CardBox>{skeleton}</CardBox></View>;
   }
 
   /**
@@ -178,18 +232,18 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
 
       {/* Skoru okutan küre: açılınca üç nefes alır, sonra skor seviyesinde durur (bkz. MomentumOrb).
           Panel içinde küçük: ana öğe gün çiçeği, momentum alt bilgi ("daha minimalist", 2026-10-30). */}
-      <MomentumOrb score={targetScore} color={accentColor} size={embedded ? 28 : 40} />
+      <MomentumOrb score={targetScore} color={accentColor} size={embedded ? 28 : 40} wake={wake} />
 
       {/* Score + info */}
       <View>
       <MotiView
-        from={{ opacity: 0, translateY: 4 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'spring', damping: 18 }}
+        from={{ opacity: first ? 0 : 1, translateY: first ? 4 : 0 }}
+        animate={{ opacity: scoreShown ? 1 : 0, translateY: scoreShown ? 0 : 4 }}
+        transition={ENTER}
       >
         <AnimatedNumber
-          value={targetScore}
-          from={0}
+          value={scoreShown ? targetScore : 0}
+          from={first ? 0 : undefined}
           duration={1100}
           /*
             İKİNCİL SAYI ÖLÇEĞİ — kart kahramanından KÜÇÜK olmak zorunda.
@@ -296,11 +350,15 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
 
                   Lite modda kapalı: o mod süslemeleri değil, sürekli çalışan işi keser.
                 */}
-                {isToday && isBestDay && (
+                {isToday && isBestDay && ready && (
+                  /*
+                    SONLU: iki kez parlar, sonra soluk bir halede DURUR (eskiden sonsuz döngüydü —
+                    "hareket durur" kuralı). Kalan hale durağan işarettir: animasyon tek kanal değil.
+                  */
                   <MotiView
                     from={{ opacity: 0 }}
-                    animate={{ opacity: 0.35 }}
-                    transition={{ type: 'timing', duration: 1400, loop: true, repeatReverse: true }}
+                    animate={{ opacity: [0.35, 0.1, 0.35, 0.18] }}
+                    transition={{ type: 'timing', duration: 700 }}
                     style={{
                       position: 'absolute',
                       left: -3,
@@ -313,9 +371,13 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
                   />
                 )}
               <MotiView
-                from={{ height: 0 }}
-                animate={{ height: h }}
-                transition={{ type: 'spring', damping: 16, delay: i * 35 }}
+                // Uyanışta çubuk yeniden yükselir (anahtar `wake`): grafik yeniden okundu. Çubuk
+                // etkileşimsiz, ekran okuyucu ağacında değil — yeniden mount güvenli.
+                key={reduceMotion ? 'bar' : `bar-${wake}`}
+                // İlk gösterimde ve uyanışta yükselir; sekmeden dönüşte (uyanıştan önce) yerinde çizilir.
+                from={{ height: first || wake > 0 ? 0 : h }}
+                animate={{ height: ready ? h : 0 }}
+                transition={{ ...ENTER, duration: 450, delay: i * 35 }}
                 /*
                   `opacity: isToday ? 1 : 0.45` KALDIRILDI. Geçmiş günleri %45'e kısmak
                   iki şeyi bozuyordu: renk skoru kodluyor (yeşil/turuncu/gri) ve kısılınca
@@ -382,7 +444,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
         <MotiView
           from={{ scale: 0.92, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', damping: 18 }}
+          transition={ENTER}
           style={{ borderRadius: R.sheet, padding: S.lg, width: '100%', gap: S.md }}
         >
           <GlassSurface radius={R.sheet} />

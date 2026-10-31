@@ -20,17 +20,26 @@ export type WeeklyStats = {
   refresh: () => Promise<void>;
 };
 
+/*
+  OTURUM ÖNBELLEĞİ (2026-10-31, cihazda). Ana sayfa alt menüde `router.replace` ile her dönüşte
+  YENİDEN kuruluyor; bu kanca her seferinde boş başlıyor, momentum eksik veriyle hesaplanıyor ve
+  kart iskelete dönüyordu. Son bilinen veri oturum boyunca tutulur: yeniden kurulum onunla başlar,
+  yenileme arka planda yapılır (loading yalnız HİÇ veri yokken true — yukarıdaki sözleşme).
+*/
+let sessionCache: { weeklyFocus: DailyFocusData[]; lastWeekMinutes: number } | null = null;
+
 export function useWeeklyStats(): WeeklyStats {
-  const [weeklyFocus, setWeeklyFocus] = useState<DailyFocusData[]>([]);
-  const [lastWeekMinutes, setLastWeekMinutes] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [weeklyFocus, setWeeklyFocus] = useState<DailyFocusData[]>(sessionCache?.weeklyFocus ?? []);
+  const [lastWeekMinutes, setLastWeekMinutes] = useState(sessionCache?.lastWeekMinutes ?? 0);
+  const [loading, setLoading] = useState(sessionCache === null);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    if (sessionCache === null) setLoading(true);
     try {
       const stats = await FocusService.getStats();
-      setWeeklyFocus(stats.weeklyFocus || []);
-      setLastWeekMinutes(stats.lastWeekFocusMinutes || 0);
+      sessionCache = { weeklyFocus: stats.weeklyFocus || [], lastWeekMinutes: stats.lastWeekFocusMinutes || 0 };
+      setWeeklyFocus(sessionCache.weeklyFocus);
+      setLastWeekMinutes(sessionCache.lastWeekMinutes);
 
       // Sunucudaki seri yereli besler: yeni cihaz/kurulumda yerel 0 iken sunucudaki
       // gerçek seri kaybolmasın.

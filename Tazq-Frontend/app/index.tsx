@@ -44,7 +44,7 @@ import { getSmartInsight, generateWeeklyTips } from '@/shared/utils/insights';
 import { sameSpanTotal } from '@/features/dashboard/utils/weeklyHub';
 import { understand, titleOf } from '@/features/tasks/nlp/understand';
 import { computeMomentum } from '@/shared/utils/momentum';
-import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, contentMaxWidth, sideInset, HAIRLINE, navBarSpace, fabSafeBottom, topBarSpace, TOP_BAR_HEIGHT, TOP_BAR_LIFT, TOP_ITEM_SIZE, TOP_AVATAR_SIZE, touchSlop } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, MIN_TOUCH, TRACKING, MAX_W, contentMaxWidth, sideInset, HAIRLINE, navBarSpace, fabSafeBottom, topBarSpace, TOP_BAR_HEIGHT, TOP_BAR_LIFT, TOP_ITEM_SIZE, TOP_AVATAR_SIZE, touchSlop } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, TurkishModeBanner, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { useHabitStore, fmtDateKey, useSleepHealthSync, useActiveHabitList } from '@/features/habits';
@@ -75,7 +75,6 @@ import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { MagneticFAB } from '@/shared/components/MagneticFAB';
 import { WideSplit, WideCol } from '@/shared/components/ResponsiveColumns';
-import { MyDayTaskRow } from '@/features/dashboard/components/MyDayTaskRow';
 import { HabitBubble } from '@/features/habits/components/HabitBubble';
 import { swallow } from '@/shared/utils/swallow';
 import { playSoundEffect } from '@/shared/utils/soundEffects';
@@ -88,12 +87,18 @@ import { lastDays } from '@/features/dashboard/utils/dayHistory';
 import { ReviewPromptModal } from '@/features/user/components/ReviewPromptModal';
 import { httpStatusOf, isNetworkError } from '@/shared/utils/errors';
 import { Separator } from '@/shared/components/Separator';
+import { AppIcon } from '@/shared/components/AppIcon';
+import { EntranceStage } from '@/shared/components/EntranceStage';
+import { useLatestCallback } from '@/shared/hooks/useLatestCallback';
+import { useWakeSignal } from '@/features/dashboard/hooks/useWakeSignal';
+import { MyDayItem, isDemoId, type MyDayTaskItem } from '@/features/dashboard/components/MyDayItem';
+import type { MyDayHabitsProps } from '@/features/dashboard/components/MyDayHabits';
 import { haptic } from '@/shared/utils/haptics';
 import { useChromeMinimizeOnScroll } from '@/shared/hooks/useChromeMinimizeOnScroll';
 import { savedLocallyMessage } from '@/shared/utils/saveFeedback';
 import { celebrate } from '@/features/user/utils/celebrate';
 import { scopeDay } from '@/features/dashboard/utils/dayScope';
-import { TodayRings } from '@/features/dashboard/components/TodayRings';
+import { TodayRings, type TodayRingsProps } from '@/features/dashboard/components/TodayRings';
 import { habitColor } from '@/features/habits/utils/habitColor';
 import { isFocusWorthy } from '@/features/focus/focusWorthy';
 
@@ -108,6 +113,7 @@ const RINGS_COPY = {
   en: { tasks: 'Tasks', focus: 'Focus', habits: 'Habits', min: 'min', empty: 'Nothing planned today', undatedOnly: (n: number) => `Nothing dated today · ${n} undated ${n === 1 ? 'task' : 'tasks'} in your list`, allDone: "Today's tasks are done", focusCta: 'Focus' },
 } as const;
 
+let tasksFetchedInSession = false; // yalnız momentum iskeleti: sekme dönüşünde (router.replace) iskelete dönmesin; kalkan kararı mount'ta TAZE cevabı bekler
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
   // Küçük ekranlarda kart içi boşlukları bir kademe sık → dikey kaydırma azalır.
@@ -696,7 +702,7 @@ export default function HomeScreen() {
       if (httpStatusOf(e) !== 401) swallow('index.fetchTasks', e);
     } finally {
       setLoading(false);
-      setTasksFetched(true);
+      tasksFetchedInSession = true; setTasksFetched(true);
     }
   };
 
@@ -706,10 +712,11 @@ export default function HomeScreen() {
     beliren çark, geçişin pürüzlü hissettirmesinin bir parçasıydı.
   */
   const [pullRefreshing, setPullRefreshing] = useState(false);
+  const [wakeKey, wake] = useWakeSignal(); // dönüş / öne gelme / yenileme → panel bir kez "canlanır"
   const onPullRefresh = async () => {
     setPullRefreshing(true);
     try { await Promise.all([fetchTasks(), fetchStats(), refreshFocusHistory()]); }
-    finally { setPullRefreshing(false); }
+    finally { setPullRefreshing(false); wake(); }
   };
 
   useFocusEffect(
@@ -924,8 +931,17 @@ export default function HomeScreen() {
   // yazar → habitScore'u artırır → sonsuz 27↔28 salınımı. getLastNDays(8)'in ilk 7'si
   // dünden 7 gün öncesine denk gelir (bugün indeks 7'de, atılır).
   // getLastNDays(8) tek çağrı — eskiden aynı store taraması render başına 2 kez yapılıyordu.
-  const last8Days = getLastNDays(8);
-  const completionHistory = last8Days.slice(0, 7);
+  /*
+    İÇERİKLE SABİT: getLastNDays depoyu (history) doğrudan okuyup her çağrıda yeni dizi
+    döndürüyor. Memo'yu girdilere bağlamak bayat veri riskiydi (gün sınırı 03:00, depo
+    dışarıdan değişir); içeriğe bağlamak değil — içerik aynıysa aynı dizi, değişince yenisi.
+  */
+  const last8Raw = getLastNDays(8);
+  const last8Key = last8Raw.map(d => `${d.date}:${d.score}`).join('|');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const last8Days = React.useMemo(() => last8Raw, [last8Key]);
+  // last8Days içerikle sabit → bu da; weeklyTips memo'su her render'da yeniden hesaplanıyordu.
+  const completionHistory = React.useMemo(() => last8Days.slice(0, 7), [last8Days]);
   const habitActivityDays = completionHistory.filter(d => d.score >= 0).length;
   // computeMomentum, girdileri (tasks, memoize mergedWeeklyFocus, primitive'ler) değişmedikçe
   // ilgisiz re-render'larda (prefs/saat/momentum) yeniden hesaplanmasın diye memoize edildi.
@@ -1112,13 +1128,12 @@ export default function HomeScreen() {
    * Kimlik önekiyle ayırt ediliyor; gerçek alışkanlık kimlikleri de METİN olduğu
    * için tür kontrolü yetmiyor (bkz. __tests__/dashboardIntegrity).
    */
-  const DEMO_ID_PREFIX = 'mock-';
-  const isDemoId = (id: string | number) => typeof id === 'string' && id.startsWith(DEMO_ID_PREFIX);
 
   /* Ref: kapı her odaklanmada GÜNCEL diziyi okur, kapanışta eskiye saplanmaz. */
 
   // Unified My Day feed items (Tasks only)
-  const myDayTasks = (() => {
+  // useMemo: dizi halka paneline (detail) ve listeye gidiyor; her render'da yeni dizi memo'ları boşa düşürüyordu.
+  const myDayTasks = React.useMemo(() => {
     // Örnek veri, GERÇEK görev yokken (bkz. useDemoGate — dört kuralın gerekçesi orada).
     // Dizi yukarıda tanımlı: halka da onu sayıyor, ikisi ayrışamıyor.
     if (demoActive) return demoMyDayTasks;
@@ -1185,11 +1200,11 @@ export default function HomeScreen() {
       }
       return a.title.localeCompare(b.title);
     });
-  })();
+  }, [demoActive, demoMyDayTasks, todayTasksIncomplete, undatedTasksIncomplete, todayTasksCompleted]);
   const highlight = useHighlight(myDayTasks.filter(item => !item.isCompleted), demoActive);
 
   // Today's Habits
-  const myDayHabits = (() => {
+  const myDayHabits = React.useMemo(() => {
     if (demoGate(habits.length)) {
       return [
         {
@@ -1246,7 +1261,13 @@ export default function HomeScreen() {
         original: h
       };
     });
-  })();
+  },
+    /*
+      currentHour: sıra ŞU ANKİ dilime göre (orderForNow içeride saati okuyor; dilim sınırları
+      12:00 / 17:00 tam saat). Memo saate bağlanmazsa sabah sırası akşama kadar kalırdı.
+    */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [demoGate, habits, language, theme, habitTodayKey, isDark, getHabitStreak, currentHour]);
 
   const topTaskToday = todayTasksIncomplete[0] ?? undatedTasksIncomplete[0];
   const highPriorityToday = todayTasksIncomplete.find(t => t.priority === 'High') ?? undatedTasksIncomplete.find(t => t.priority === 'High');
@@ -1483,58 +1504,54 @@ export default function HomeScreen() {
     return tr ? `${incomplete} görevin seni bekliyor.` : `${incomplete} tasks are waiting for you.`;
   };
 
-  const renderMyDayItem = (item: any, isLast: boolean, index: number) => {
-    return (
-      <MyDayTaskRow
-        key={`task-${item.id}`}
-        item={item}
-        isLast={isLast}
-        theme={theme}
-        isDark={isDark}
-        tr={tr}
-        onPress={() => {
-          /*
-            KİLO GÖREVİ — iki kusur birden.
+  const pressMyDayItem = useLatestCallback((item: MyDayTaskItem) => { // satır işleyicileri: kimlik sabit, gövde güncel (bkz. MyDayItem)
+    /*
+      KİLO GÖREVİ — iki kusur birden.
 
-             1. `item.tags` diye bakılıyordu ama bu satırın aldığı nesne bir SARMAL:
-                etiketler `item.original.tags` altında. Koşul HİÇ doğru olmuyor,
-                yani kilo görevine basınca modal yerine Görevler sayfası açılıyordu.
-             2. Ham etiket kontrolü yerine ortak `isWeightEntryTask` kullanılmalı:
-                o, BAŞLIĞA da bakıyor ("Güncel kilonu gir") ve etiketsiz eski kilo
-                görevlerini de tanıyor.
+       1. `item.tags` diye bakılıyordu ama bu satırın aldığı nesne bir SARMAL:
+          etiketler `item.original.tags` altında. Koşul HİÇ doğru olmuyor,
+          yani kilo görevine basınca modal yerine Görevler sayfası açılıyordu.
+       2. Ham etiket kontrolü yerine ortak `isWeightEntryTask` kullanılmalı:
+          o, BAŞLIĞA da bakıyor ("Güncel kilonu gir") ve etiketsiz eski kilo
+          görevlerini de tanıyor.
 
-            İkisi de `handleCheckTask` içinde uzun uzun anlatılıp düzeltilmişti;
-            satır o düzeltmenin dışında kalmış.
-          */
-          if (isWeightEntryTask(item.original)) {
-            haptic.select();
-            setWeightModalTaskId(item.id);
-          } else {
-            router.push({ pathname: '/tasks', params: { highlightId: item.id } });
-          }
-        }}
-        /*
-          Örnek (sahte) satırların kimliği metin; canlı görevinki sayı. Kapı burada:
-          sahte bir satıra basmak sessizce hiçbir şey yapmasın diye halka onlarda
-          dokunulamaz çiziliyor.
-        */
-        onCheck={isDemoId(item.id) ? undefined : () => handleCheckTask(item.id)}
-        // İlk bekleyen görev = SIRADAKİ: odak çağrısı satırın yanında (ayrı kart değil).
-        // Görevi odak ekranına SEÇİLİ götürür; seans başlamaz (bkz. startQuickFocus farkı).
-        onFocus={index === 0 && !item.isCompleted && isFocusWorthy(item.original || item) ? (isDemoId(item.id)
-          // Turda örnek satır da "Odaklan"ı gösterir (adım onu anlatıyor); örtü dokunuşu
-          // yuttuğu için işlevsiz bir gösterim — gerçek görev seçilmez.
-          ? () => {}
-          : () => {
-            setCurrentTask(getLocalizedTaskTitle(item.original || item, tr), Number(item.id));
-            router.push('/focus');
-          }) : undefined}
-        focusLabel={RINGS_COPY[language === 'en' ? 'en' : 'tr'].focusCta}
-        priorityColor={priorityColor}
-        prefs={usePrefsStore.getState()}
-      />
-    );
-  };
+      İkisi de `handleCheckTask` içinde uzun uzun anlatılıp düzeltilmişti;
+      satır o düzeltmenin dışında kalmış.
+    */
+    if (isWeightEntryTask(item.original)) {
+      haptic.select();
+      setWeightModalTaskId(item.id);
+    } else {
+      router.push({ pathname: '/tasks', params: { highlightId: item.id } });
+    }
+  });
+  const checkMyDayItem = useLatestCallback((id: number) => handleCheckTask(id));
+  // İlk bekleyen görev = SIRADAKİ: odak çağrısı satırın yanında (ayrı kart değil).
+  // Görevi odak ekranına SEÇİLİ götürür; seans başlamaz (bkz. startQuickFocus farkı).
+  const focusMyDayItem = useLatestCallback((item: MyDayTaskItem) => {
+    setCurrentTask(getLocalizedTaskTitle(item.original || item, tr), Number(item.id));
+    router.push('/focus');
+  });
+  const myDayHandlers = React.useMemo(
+    () => ({ press: pressMyDayItem, check: checkMyDayItem, focus: focusMyDayItem }),
+    [pressMyDayItem, checkMyDayItem, focusMyDayItem],
+  );
+  const renderMyDayItem = (item: any, isLast: boolean, index: number) => (
+    <MyDayItem
+      key={`task-${item.id}`}
+      item={item}
+      isLast={isLast}
+      index={index}
+      handlers={myDayHandlers}
+      theme={theme}
+      isDark={isDark}
+      tr={tr}
+      focusLabel={RINGS_COPY[language === 'en' ? 'en' : 'tr'].focusCta}
+      priorityColor={priorityColor}
+      prefs={usePrefsStore.getState()}
+    />
+  );
+
 
   /**
    * GÜNÜ TAMAMLAMA ANI — kullanıcıyı uygulamaya bağlayan tek an.
@@ -1587,11 +1604,12 @@ export default function HomeScreen() {
     })();
   }, [todayCompleted, dailyGoal, isLite, demoActive]);
 
-  const priorityColor = (p: string) => {
+  // Render sırasında çağrılıyor (satır rengi) → useLatestCallback DEĞİL, useCallback.
+  const priorityColor = React.useCallback((p: string) => {
     if (p === 'High') return theme.priorityHigh;
     if (p === 'Medium') return theme.priorityMedium;
     return theme.priorityLow;
-  };
+  }, [theme]);
 
 
   /*
@@ -1599,6 +1617,85 @@ export default function HomeScreen() {
     iki konumdu (aktif dönem varsa eylemlerin altı) — kartsız satır iki ağır kartın
     arasında öksüz kalıyordu. Aktif dönemde plan kartı (ModeTodayCard) yine özetten önce.
   */
+
+  // Halka paneli (memo'lu) kararlı props alır: ilgisiz state Skia halkalarını çizdirmesin.
+  const todayDetail = React.useMemo<NonNullable<TodayRingsProps['detail']>>(() => ({
+    tasks: myDayTasks.filter(i => !i.isCompleted && typeof i.id === 'number').slice(0, 3).map(i => ({ id: i.id, title: getLocalizedTaskTitle(i.original || i, tr) })),
+    habits: (myDayHabits as Array<{ id: string; title?: string; name?: string; isCompleted?: boolean; isSkipped?: boolean; streak?: number }>).map(h => ({ id: h.id, title: h.title ?? h.name ?? '', done: !!h.isCompleted, skipped: !!h.isSkipped, streak: h.streak || 0 })),
+    focusMin: todayFocusMinutes, focusGoal: dailyGoalMinutes,
+    onFocusTask: (t) => { if (t) setCurrentTask(t.title, Number(t.id)); router.push('/focus'); },
+  }), [myDayTasks, myDayHabits, tr, todayFocusMinutes, dailyGoalMinutes, setCurrentTask, router]);
+
+  const todayMetrics = React.useMemo<TodayRingsProps['metrics']>(() => {
+    const c = RINGS_COPY[language === 'en' ? 'en' : 'tr'];
+    const habitPool = (myDayHabits as Array<{ isSkipped?: boolean; isCompleted?: boolean }>).filter(h => !h.isSkipped);
+    // Tur sırasında halka DOLU anlatılır (bkz. useDemoGate); bitince gerçek dakika.
+    const focusShown = demoActive ? Math.round(dailyGoalMinutes * 0.6) : todayFocusMinutes;
+    const habitsDone = habitPool.filter(h => h.isCompleted).length;
+    return [
+      { label: c.tasks, value: dailyGoal > 0 ? `${todayCompleted}/${dailyGoal}` : '—', progress: dailyGoal > 0 ? todayCompleted / dailyGoal : 0, reached: dailyGoal > 0 && todayCompleted >= dailyGoal, done: todayCompleted, total: dailyGoal },
+      { label: c.focus, value: `${focusShown}/${dailyGoalMinutes} ${c.min}`, progress: dailyGoalMinutes > 0 ? focusShown / dailyGoalMinutes : 0, reached: dailyGoalMinutes > 0 && focusShown >= dailyGoalMinutes, done: focusShown, total: dailyGoalMinutes },
+      { label: c.habits, value: habitPool.length > 0 ? `${habitsDone}/${habitPool.length}` : '—', progress: habitPool.length > 0 ? habitsDone / habitPool.length : 0, reached: habitPool.length > 0 && habitsDone >= habitPool.length, done: habitsDone, total: habitPool.length },
+    ];
+  }, [language, myDayHabits, demoActive, dailyGoalMinutes, todayFocusMinutes, dailyGoal, todayCompleted]);
+
+  // Plan, dijital panelin EN ÜSTÜ (aktif mod yoksa null → turun "aktif plan" adımı atlanır).
+  const todayTopSlot = React.useMemo(() => <ModeTodayCard bare onOpen={() => router.push('/modlar')} />, [router]);
+
+  const todayFooter = React.useMemo(() => (!isLite ? (
+    <TourTarget id="momentum">
+      <MomentumPulse score={momentum} history={momentumHistory} language={language} loading={statsLoading || !(tasksFetched || tasksFetchedInSession)} embedded wake={wakeKey} />
+    </TourTarget>
+  ) : null), [isLite, momentum, momentumHistory, language, statsLoading, tasksFetched, wakeKey]);
+
+  const openQuickAdd = React.useCallback(() => setQuickDraftVisible(true), []);
+
+  // Alışkanlık şeridi (MyDayHabits, memo'lu) — işleyiciler kimliği sabit, gövdesi güncel.
+  const onAddHabit = useLatestCallback(() => { router.push('/cockpit'); });
+  const onHabitSkip = useLatestCallback<Parameters<MyDayHabitsProps['onSkip']>, void>((item) => {
+    if (isDemoId(item.id)) return;
+    // Atlamak bir BAŞARI değil; `success` titreşimi ritüeli
+    // tamamlamakla aynı karşılığı veriyordu.
+    haptic.surface();
+    toggleHabitSkipDate(item.id as string, habitTodayKey);
+  });
+  const onHabitToggle = useLatestCallback<Parameters<MyDayHabitsProps['onToggle']>, void>((item) => {
+    if (isDemoId(item.id)) return;
+    // Miktarlıda ara adım: yalnız hafif dokunuş; gün ancak hedefte "yapıldı".
+    const willComplete = (item.target ?? 1) > 1 ? (item.count ?? 0) + 1 === item.target : !item.isCompleted;
+    if ((item.target ?? 1) > 1 && !willComplete && !item.isCompleted && (item.count ?? 0) < item.target) {
+      haptic.select(); tapHabit(item.id as string, habitTodayKey); return;
+    }
+    if (!item.isCompleted) {
+      /*
+        ATLANAN RİTÜEL "BEKLEYEN" DEĞİLDİR. Koşul yalnız
+        `completedDates`e bakıyordu: kullanıcı bir ritüeli
+        "bugün değil" diye atlayıp kalanları bitirdiğinde gün
+        kapanmış sayılmıyor, kutlama hiç gelmiyordu. Oysa
+        sistemin geri kalanı atlamayı MAZUR görüyor — seri bile
+        bozulmuyor (bkz. useHabitStore → computeStreak).
+      */
+      const pendingHabits = habits.filter(h =>
+        h.id !== item.id && isDueToday(h, habitTodayKey) &&
+        !h.completedDates?.includes(habitTodayKey) &&
+        !h.skippedDates?.includes(habitTodayKey));
+      const allHabitsDone = pendingHabits.length === 0;
+
+      if (soundEffects && !allHabitsDone) {
+        playSoundEffect(require('../assets/sounds/habit.mp3'), {
+          context: 'index.habitDoneSound',
+          volume: 0.18,
+          reassertVolumeAfterMs: 150,
+        });
+      }
+
+      if (allHabitsDone) celebrate({ kind: 'habits-cleared', isLite, tr });
+    }
+    // Tamamlama BAŞARI, geri alma yalnızca yüzey hareketi — ikisi farklı anlam.
+    item.isCompleted ? haptic.surface() : haptic.success();
+    tapHabit(item.id as string, habitTodayKey);
+    if (willComplete) celebrateMilestone(item.id as string, habitTodayKey); // 7/21/66. tekrar
+  });
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -1832,12 +1929,8 @@ export default function HomeScreen() {
               greeting={(() => { const n = (!isNamePlaceholder && user?.name?.split(' ')[0]) || guestProfile?.name?.split(' ')[0] || ''; return n ? `${getGreeting()}, ${n}` : getGreeting(); })()}
               history={dayHistory}
               // Okumaya dokununca açılan ayrıntı (bkz. TodayDetail): sıradaki işler, bugünkü alışkanlıklar, panelden odak.
-              detail={{ tasks: myDayTasks.filter(i => !i.isCompleted && typeof i.id === 'number').slice(0, 3).map(i => ({ id: i.id, title: getLocalizedTaskTitle(i.original || i, tr) })),
-                habits: (myDayHabits as Array<{ id: string; title?: string; name?: string; isCompleted?: boolean; isSkipped?: boolean; streak?: number }>).map(h => ({ id: h.id, title: h.title ?? h.name ?? '', done: !!h.isCompleted, skipped: !!h.isSkipped, streak: h.streak || 0 })),
-                focusMin: todayFocusMinutes, focusGoal: dailyGoalMinutes,
-                onFocusTask: (t) => { if (t) setCurrentTask(t.title, Number(t.id)); router.push('/focus'); } }}
-              // Plan, dijital panelin EN ÜSTÜ (aktif mod yoksa null → turun "aktif plan" adımı atlanır).
-              topSlot={<ModeTodayCard bare onOpen={() => router.push('/modlar')} />}
+              detail={todayDetail}
+              topSlot={todayTopSlot}
               label={t.todayLabel}
               caption={(() => {
                 const c = RINGS_COPY[language === 'en' ? 'en' : 'tr'];
@@ -1853,29 +1946,15 @@ export default function HomeScreen() {
                 return getSubGreeting();
               })()}
               captionHighlight={!isLite && todayHighlight}
-              metrics={(() => {
-                const c = RINGS_COPY[language === 'en' ? 'en' : 'tr'];
-                const habitPool = (myDayHabits as Array<{ isSkipped?: boolean; isCompleted?: boolean }>).filter(h => !h.isSkipped);
-                // Tur sırasında halka DOLU anlatılır (bkz. useDemoGate); bitince gerçek dakika.
-                const focusShown = demoActive ? Math.round(dailyGoalMinutes * 0.6) : todayFocusMinutes;
-                const habitsDone = habitPool.filter(h => h.isCompleted).length;
-                return [
-                  { label: c.tasks, value: dailyGoal > 0 ? `${todayCompleted}/${dailyGoal}` : '—', progress: dailyGoal > 0 ? todayCompleted / dailyGoal : 0, reached: dailyGoal > 0 && todayCompleted >= dailyGoal, done: todayCompleted, total: dailyGoal },
-                  { label: c.focus, value: `${focusShown}/${dailyGoalMinutes} ${c.min}`, progress: dailyGoalMinutes > 0 ? focusShown / dailyGoalMinutes : 0, reached: dailyGoalMinutes > 0 && focusShown >= dailyGoalMinutes, done: focusShown, total: dailyGoalMinutes },
-                  { label: c.habits, value: habitPool.length > 0 ? `${habitsDone}/${habitPool.length}` : '—', progress: habitPool.length > 0 ? habitsDone / habitPool.length : 0, reached: habitPool.length > 0 && habitsDone >= habitPool.length, done: habitsDone, total: habitPool.length },
-                ];
-              })()}
-              footer={!isLite ? (
-                <TourTarget id="momentum">
-                  <MomentumPulse score={momentum} history={momentumHistory} language={language} loading={statsLoading} embedded />
-                </TourTarget>
-              ) : null}
+              metrics={todayMetrics}
+              footer={todayFooter}
               /*
                 TEK EKLEME YOLU (2026-10-25): bu düğme tam formu, şimşek düğmesi hızlı eklemeyi
                 açıyordu — aynı ekranda aynı niyete iki ayrı yüzey. İkisi de artık hızlı ekleme;
                 tam form oradaki "Detaylar"dan bir dokunuş uzakta (Todoist/Things deseni).
               */
-              onAdd={() => setQuickDraftVisible(true)}
+              onAdd={openQuickAdd}
+              wake={wakeKey} entrance={!tourOn}
               addLabel={t.addTask}
               showAdd={dailyGoal === 0 && !demoGate(tasks.length)}
               onTap={todayTap.onTap}
@@ -1889,7 +1968,7 @@ export default function HomeScreen() {
             {/* Unified My Day Bento Card — geniş ekranda SAĞ sütunun tepesi. */}
             <WideCol col="right">
             {(myDayTasks.length > 0 || myDayHabits.length > 0) && (
-              <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
+              <EntranceStage order={1} enabled={!tourOn} style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 {overdueCount > 0 && (
                   <Touchable
                     // Sayının KENDİSİNE gider: filtresiz listede kullanıcı gecikmişleri arıyordu.
@@ -1903,7 +1982,8 @@ export default function HomeScreen() {
                       yalnız ADSIZ kontrolleri arıyor — bunların adı var, ROLÜ yoktu.
                     */
                     accessibilityRole="button"
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm, paddingHorizontal: S.xxs }}
+                    // 44 pt dokunma alanı YERLEŞİMİ DEĞİŞTİRMEDEN (hitSlop): minHeight satırı kartlar arasında ortaya itiyordu (cihazda görüldü).
+                    hitSlop={touchSlop(F.footnote + S.xs)} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm, paddingHorizontal: S.xxs }}
                   >
                     {/*
                       HATA DEĞİL, UYARI. Bu satır `theme.error` (kırmızı) ile çiziliyordu
@@ -1915,7 +1995,7 @@ export default function HomeScreen() {
                       yalnız aciliyet tonu gerçeğe indiriliyor.
                     */}
                     <View style={{ width: 5, height: 5, borderRadius: R.full, backgroundColor: theme.warning }} />
-                    <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.warning, flex: 1 }}>
+                    <Text style={{ fontSize: F.footnote, fontWeight: '600', color: theme.warning, flex: 1 }}>
                       {overdueCount} {language === 'tr' ? 'gecikmiş görev' : overdueCount === 1 ? 'overdue task' : 'overdue tasks'}
                     </Text>
                     <ChevronRight size={ICON.xs} color={theme.warning} opacity={0.5} />
@@ -1930,51 +2010,9 @@ export default function HomeScreen() {
                       theme={theme}
                       isDark={isDark}
                       tr={tr}
-                      onAddHabit={() => { router.push('/cockpit'); }}
-                      onSkip={(item) => {
-                        if (isDemoId(item.id)) return;
-                        // Atlamak bir BAŞARI değil; `success` titreşimi ritüeli
-                        // tamamlamakla aynı karşılığı veriyordu.
-                        haptic.surface();
-                        toggleHabitSkipDate(item.id as string, habitTodayKey);
-                      }}
-                      onToggle={(item) => {
-                          if (isDemoId(item.id)) return;
-                          // Miktarlıda ara adım: yalnız hafif dokunuş; gün ancak hedefte "yapıldı".
-                          const willComplete = (item.target ?? 1) > 1 ? (item.count ?? 0) + 1 === item.target : !item.isCompleted;
-                          if ((item.target ?? 1) > 1 && !willComplete && !item.isCompleted && (item.count ?? 0) < item.target) {
-                            haptic.select(); tapHabit(item.id as string, habitTodayKey); return;
-                          }
-                          if (!item.isCompleted) {
-                            /*
-                              ATLANAN RİTÜEL "BEKLEYEN" DEĞİLDİR. Koşul yalnız
-                              `completedDates`e bakıyordu: kullanıcı bir ritüeli
-                              "bugün değil" diye atlayıp kalanları bitirdiğinde gün
-                              kapanmış sayılmıyor, kutlama hiç gelmiyordu. Oysa
-                              sistemin geri kalanı atlamayı MAZUR görüyor — seri bile
-                              bozulmuyor (bkz. useHabitStore → computeStreak).
-                            */
-                            const pendingHabits = habits.filter(h =>
-                              h.id !== item.id && isDueToday(h, habitTodayKey) &&
-                              !h.completedDates?.includes(habitTodayKey) &&
-                              !h.skippedDates?.includes(habitTodayKey));
-                            const allHabitsDone = pendingHabits.length === 0;
-
-                            if (soundEffects && !allHabitsDone) {
-                              playSoundEffect(require('../assets/sounds/habit.mp3'), {
-                                context: 'index.habitDoneSound',
-                                volume: 0.18,
-                                reassertVolumeAfterMs: 150,
-                              });
-                            }
-
-                            if (allHabitsDone) celebrate({ kind: 'habits-cleared', isLite, tr });
-                          }
-                          // Tamamlama BAŞARI, geri alma yalnızca yüzey hareketi — ikisi farklı anlam.
-                          item.isCompleted ? haptic.surface() : haptic.success();
-                          tapHabit(item.id as string, habitTodayKey);
-                          if (willComplete) celebrateMilestone(item.id as string, habitTodayKey); // 7/21/66. tekrar
-}}
+                      onAddHabit={onAddHabit}
+                      onSkip={onHabitSkip}
+                      onToggle={onHabitToggle}
                     />
                   </TourTarget>
 
@@ -2004,7 +2042,7 @@ export default function HomeScreen() {
                     if (incompleteTasks.length === 0) {
                       return (
                         <View style={{ padding: S.md, alignItems: 'center' }}>
-                          <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted }}>
+                          <Text style={{ fontSize: F.footnote, color: theme.onSurfaceMuted }}>
                             {tr ? 'Bugün için bekleyen görevin kalmadı' : 'No pending tasks for today'}
                           </Text>
                         </View>
@@ -2030,6 +2068,7 @@ export default function HomeScreen() {
                             accessibilityRole="button"
                             accessibilityState={{ expanded: showAllIncomplete }}
                             style={{
+                              minHeight: MIN_TOUCH,
                               paddingVertical: S.smd,
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -2037,10 +2076,10 @@ export default function HomeScreen() {
                               borderTopColor: theme.separator
                             }}
                           >
-                            <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.primary }}>
+                            <Text style={{ fontSize: F.footnote, fontWeight: '600', color: theme.primary }}>
                               {showAllIncomplete
-                                ? (language === 'tr' ? 'Daha Az Göster' : 'Show Less')
-                                : (language === 'tr' ? `Daha Fazla Göster (${incompleteTasks.length - 4} adet)` : `Show More (${incompleteTasks.length - 4})`)
+                                ? (language === 'tr' ? 'Daha az göster' : 'Show less')
+                                : (language === 'tr' ? `${incompleteTasks.length - 4} görev daha` : `${incompleteTasks.length - 4} more`)
                               }
                             </Text>
                           </Touchable>
@@ -2064,16 +2103,16 @@ export default function HomeScreen() {
                             flexDirection: 'row',
                             alignItems: 'center',
                             justifyContent: 'space-between',
+                            minHeight: MIN_TOUCH,
                             paddingHorizontal: S.md,
                             paddingVertical: S.smd,
-                            backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)'
                           }}
                         >
-                          <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted }}>
+                          <Text style={{ fontSize: F.footnote, fontWeight: '600', color: theme.onSurfaceMuted }}>
                             {language === 'tr' ? `Tamamlananlar (${completedTasks.length})` : `Completed (${completedTasks.length})`}
                           </Text>
                           <ChevronRight
-                            size={14}
+                            size={ICON.sm}
                             color={theme.onSurfaceVariant}
                             opacity={0.4}
                             style={{ transform: [{ rotate: showCompletedSection ? '90deg' : '0deg' }] }}
@@ -2093,7 +2132,7 @@ export default function HomeScreen() {
                   })()}
                   </TourTarget>
                 </BentoCard>
-              </View>
+              </EntranceStage>
             )}
             </WideCol>
 
@@ -2120,18 +2159,18 @@ export default function HomeScreen() {
               Örnek veri varsa yönlendirmeyi tur yapıyor (bkz. useDemoGate).
             */}
             {tasks.length === 0 && habits.length === 0 && !demoGate(tasks.length) && (
-              <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
+              <EntranceStage order={1} enabled={!tourOn} style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 <BentoCard index={1} style={{ padding: bentoPad, gap: S.sm }}>
                     <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.3, marginBottom: S.xs }}>
                         {tr ? 'Hoş geldin! Nereden başlamak istersin?' : 'Welcome! Where would you like to start?'}
                     </Text>
                     {[
-                        { icon: <Plus size={ICON.md} color={theme.primary} />, label: tr ? 'İlk görevini ekle' : 'Add your first task', sub: tr ? 'Aklındakini yaz, gerisini TAZQ halletsin' : 'Jot it down, TAZQ handles the rest', onPress: () => setQuickDraftVisible(true) }, // "ekle" diyen satır listeye değil eklemeye açılır
-                        { icon: <Rocket size={ICON.md} color={theme.primary} />, label: tr ? 'Bir mod seç' : 'Choose a mode', sub: tr ? 'Sigara bırak, tasarruf, sınava hazırlık…' : 'Quit smoking, save, exam prep…', onPress: () => router.push('/modlar') },
-                        { icon: <Flame size={ICON.md} color={theme.primary} />, label: tr ? 'Bir alışkanlık başlat' : 'Start a habit', sub: tr ? 'Her gün tek dokunuşla işaretle' : 'Check in daily with one tap', onPress: () => router.push('/cockpit') },
+                        { Icon: Plus, label: tr ? 'İlk görevini ekle' : 'Add your first task', sub: tr ? 'Aklındakini yaz, gerisini TAZQ halletsin' : 'Jot it down, TAZQ handles the rest', onPress: () => setQuickDraftVisible(true) }, // "ekle" diyen satır listeye değil eklemeye açılır
+                        { Icon: Rocket, label: tr ? 'Bir mod seç' : 'Choose a mode', sub: tr ? 'Sigara bırak, tasarruf, sınava hazırlık…' : 'Quit smoking, save, exam prep…', onPress: () => router.push('/modlar') },
+                        { Icon: Flame, label: tr ? 'Bir alışkanlık başlat' : 'Start a habit', sub: tr ? 'Her gün tek dokunuşla işaretle' : 'Check in daily with one tap', onPress: () => router.push('/cockpit') },
                     ].map((row, i) => (
                         <Touchable key={i} onPress={row.onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingVertical: S.xs + 2 }} accessibilityRole="button" accessibilityLabel={row.label}>
-                            <View style={{ width: 38, height: 38, borderRadius: R.md, backgroundColor: theme.surfaceContainerHigh, alignItems: 'center', justifyContent: 'center' }}>{row.icon}</View>
+                            <AppIcon Icon={row.Icon} color={theme.primary} />
                             <View style={{ flex: 1 }}>
                                 <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurface }}>{row.label}</Text>
                                 <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted }}>{row.sub}</Text>
@@ -2140,7 +2179,7 @@ export default function HomeScreen() {
                         </Touchable>
                     ))}
                 </BentoCard>
-              </View>
+              </EntranceStage>
             )}
             </WideCol>
 
@@ -2237,6 +2276,7 @@ export default function HomeScreen() {
       {/* Hızlı taslak — görev listesine tek dokunuşla not düşer. */}
       <MagneticFAB
         onPress={() => setQuickDraftVisible(true)}
+        accessibilityLabel={t.quickAdd.title}
         // TEK ANAHTAR — düğme her ekranda AYNI yerde dursun.
         // İki ekran ayrı konum saklıyordu: kullanıcı dashboard'da sola taşıyıp Görevler'e
         // geçince düğme sağda kalıyordu. Kalıcı bir eylem düğmesinin tek gerekçesi kas
@@ -2320,11 +2360,6 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  topBarWrapper: { paddingHorizontal: S.lg, paddingVertical: S.sm, alignItems: 'center' },
-  // Yükseklik SABİT (bkz. TOP_BAR_HEIGHT): eskiden paddingVertical + en yüksek çocuk
-  // belirliyordu, yani başlığa bir öğe eklendiğinde bar sessizce uzayıp sayfaların
-  // hesabını bozuyordu. Öğeler artık barın içinde ortalanır.
   // Başlık çubuğu öğesi: SABİT 30pt (bkz. TOP_ITEM_SIZE). scale(34) hem 44pt'lik
   // çubukta kenara 1.8pt bırakıyordu hem de tablette 42.5'e çıkıyordu — chrome ölçeklenmez.
   // borderWidth/borderColor BURADA YOK: ikisi de kullanım yerinde temaya ve
@@ -2336,41 +2371,6 @@ const styles = StyleSheet.create({
   avatarContainer: { width: TOP_AVATAR_SIZE, height: TOP_AVATAR_SIZE, borderRadius: R.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   avatar: { width: '100%', height: '100%' },
   scrollContent: { flexGrow: 1 },
-  // Üst ve alt boşluk EŞİT (simetrik blok). Üst boşluk paddingTop'tan değil buradan gelir.
-  // marginTop KALDIRILDI: baslikla arasindaki bosluk artik topBarSpace'ten geliyor.
-  // Burada da vermek cift sayardi. marginBottom kaliyor -> ust/alt yine esit (S.lg).
-  metricValue: { fontSize: F.title, fontWeight: '600', letterSpacing: -1 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: scale(24) },
-  insightCard: { width: '100%', borderRadius: R.lg + 8, padding: scale(24), borderWidth: B.thin, gap: scale(24) },
-  insightHeader: { flexDirection: 'row', alignItems: 'center', gap: scale(12) },
-  insightIcon: { width: scale(36), height: scale(36), borderRadius: R.sm + 4, alignItems: 'center', justifyContent: 'center' },
-  insightHeaderTitle: { fontSize: moderateScale(13), fontWeight: '600', letterSpacing: 1, opacity: 0.6 },
-  insightBody: { gap: scale(16) },
-  bentoMini: { padding: scale(16), borderRadius: R.md + 4 },
-  insightMainText: { fontSize: moderateScale(16), fontWeight: '600', lineHeight: verticalScale(24), letterSpacing: -0.3 },
-  insightStats: { gap: scale(12) },
-  statBento: { padding: scale(16), borderRadius: R.md + 4, alignItems: 'center', gap: S.xs },
-  statValue: { fontSize: moderateScale(18), fontWeight: '600' },
-  statLabel: { fontSize: moderateScale(10), fontWeight: '500', opacity: 0.5, letterSpacing: 0.5 },
-  cockpitActions: { gap: scale(12) },
-  actionButtonMain: { height: verticalScale(60), borderRadius: R.md + 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: scale(12) },
-  actionButtonText: { fontSize: moderateScale(16), fontWeight: '500', letterSpacing: 0.5 },
-  actionButtonSecondary: { height: verticalScale(52), borderRadius: R.md + 4, alignItems: 'center', justifyContent: 'center' },
-  actionButtonTextSecondary: { fontSize: moderateScale(14), fontWeight: '600' },
-  draftOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  bottomSheetWrapper: { width: '100%' },
-  sheetHandle: { width: scale(40), height: scale(4), borderRadius: R.sm, backgroundColor: 'rgba(128,128,128,0.2)', alignSelf: 'center', marginBottom: S.md },
-  sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
-  sheetIcon: { width: scale(40), height: scale(40), borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
-  quickDraftTitle: { fontSize: F.title, fontWeight: '600', letterSpacing: -0.5 },
-  quickInputGroup: { borderRadius: R.lg, paddingHorizontal: S.md, height: verticalScale(64), justifyContent: 'center' },
-  quickInput: { fontWeight: '600', fontSize: F.subhead },
-  quickActions: { flexDirection: 'row', gap: S.sm, marginTop: S.lg },
-  quickSave: { flex: 1, height: verticalScale(56), borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
-  actionRow: { flexDirection: 'row', paddingHorizontal: S.lg, gap: S.md, marginTop: S.md },
-  actionBtn: { flex: 1, borderRadius: R.lg, alignItems: 'center', gap: S.sm },
-  actionLabel: { fontWeight: '600' },
-  fab: { position: 'absolute', right: S.lg, minHeight: scale(50), elevation: 10, zIndex: 100, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16 },
 });
 
 export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

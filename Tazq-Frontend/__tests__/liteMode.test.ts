@@ -48,7 +48,9 @@ describe('ana ekran — oyunlaştırma gizlenir', () => {
       Kapı o yuvanın başında: Sade modda footer `null`, skor hiç çizilmez.
     */
     expect((HOME.match(/<MomentumPulse/g) ?? [])).toHaveLength(1);
-    const gate = HOME.indexOf('footer={!isLite ? (');
+    // 2026-10-31: footer memo'lu bir değişkende (todayFooter) — kapı aynı, yeri değişti.
+    expect(HOME).toContain('footer={todayFooter}');
+    const gate = HOME.indexOf('const todayFooter = React.useMemo(() => (!isLite ? (');
     expect(gate).toBeGreaterThan(-1);
     const idx = HOME.indexOf('<MomentumPulse');
     expect(idx).toBeGreaterThan(gate);

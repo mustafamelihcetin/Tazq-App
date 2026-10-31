@@ -15,6 +15,13 @@ export function focusDelta(thisWeek: number, lastWeek: number): FocusDelta {
   return { kind: 'change', pct: Math.round(((thisWeek - lastWeek) / lastWeek) * 100) };
 }
 
+/** 12 → "+%12" / "+12%": Türkçede yüzde işareti sayının önünde. */
+export function formatDeltaPct(pct: number, lang: string): string {
+  const sign = pct >= 0 ? '+' : '-';
+  const n = Math.abs(pct);
+  return langOf(lang) === 'tr' ? `${sign}%${n}` : `${sign}${n}%`;
+}
+
 const UNITS = { tr: { h: ' sa', m: ' dk', sep: ' ' }, en: { h: 'h', m: 'm', sep: ' ' } } as const;
 
 /** 200 → "3 sa 20 dk" / "3h 20m". */

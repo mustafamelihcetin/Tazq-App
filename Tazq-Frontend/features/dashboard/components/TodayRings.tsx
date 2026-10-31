@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { runOnJS, useReducedMotion, useSharedValue } from 'react-native-reanimated';
+import Animated, { Easing, runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { MotiView } from 'moti';
 import { Check } from 'lucide-react-native';
 import { DisplayPanel, DisplayStatus, DisplayDivider } from '@/shared/components/DisplayPanel';
+import { EntranceStage } from '@/shared/components/EntranceStage';
 import { DayOrb, petalsOf } from '@/features/dashboard/components/DayOrb';
 import { buildDaySentence } from '@/features/dashboard/utils/daySentence';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -72,6 +73,10 @@ export interface TodayRingsProps {
   greeting?: string;
   /** Okumaya dokununca açılan ayrıntı (bkz. TodayDetail). Verilmezse okumalar dokunulmaz. */
   detail?: { tasks: DetailTask[]; habits: DetailHabit[]; focusMin: number; focusGoal: number; onFocusTask: (t?: DetailTask) => void };
+  /** Uyanış sinyali (ekrana dönüş, öne gelme, yenileme): artınca çiçekte ışık dalgası, haplarda yerine oturma. */
+  wake?: number;
+  /** Açılış girişi (bkz. EntranceStage). false → tur açık: panel kaymadan durur. */
+  entrance?: boolean;
   /** Son 7 gün (eskiden yeniye; sonuncusu bugün) — "haftayı kaydır" (bkz. dayHistory). */
   history?: DayStat[];
   theme: AppTheme;
@@ -79,14 +84,15 @@ export interface TodayRingsProps {
 }
 
 
-export const TodayRings = React.memo<TodayRingsProps>(({ tourId, padding, ...rest }) => (
-  <View style={styles.wrap}>
+export const TodayRings = React.memo<TodayRingsProps>(({ tourId, padding, entrance = true, ...rest }) => (
+  // Açılışta sayfanın İLK parçası (sahne 0): açılış katmanı kalkınca panel yükselerek gelir.
+  <EntranceStage order={0} enabled={entrance} style={styles.wrap}>
     <TourTarget id={tourId ?? 'today'} spotRadius={R.md}>
       <DisplayPanel padding={padding}>
         <RingsBody {...rest} />
       </DisplayPanel>
     </TourTarget>
-  </View>
+  </EntranceStage>
 ));
 
 /** Panelin içi: durum şeridi, plan yuvası, halkalar + okumalar, momentum. */
@@ -105,7 +111,7 @@ function pastMetrics(raw: [Metric, Metric, Metric], d: DayStat): [Metric, Metric
   ];
 }
 
-function RingsBody({ label, caption, captionHighlight, metrics: raw, footer, topSlot, onAdd, addLabel, showAdd, onTap, history, greeting, detail }: Omit<TodayRingsProps, 'tourId' | 'padding' | 'theme'>) {
+function RingsBody({ label, caption, captionHighlight, metrics: raw, footer, topSlot, onAdd, addLabel, showAdd, onTap, history, greeting, detail, wake = 0 }: Omit<TodayRingsProps, 'tourId' | 'padding' | 'theme'>) {
   const { theme } = useAppTheme();
   const language = useLanguageStore(st => st.language);
   const bc = BACK_COPY[language === 'en' ? 'en' : 'tr'];
@@ -136,6 +142,23 @@ function RingsBody({ label, caption, captionHighlight, metrics: raw, footer, top
     });
   useEffect(() => { lastBack.value = back; }, [back]);
 
+  /*
+    UYANIŞTA CÜMLE YENİDEN OKUNUR: bir an kısılıp hafifçe yerine oturur (çiçekteki ışık
+    dalgasıyla aynı anda). Hap yeniden MOUNT edilmez — ekran okuyucu odağı yerinde kalır.
+    Hareket azaltılmışsa yalnız ton geçişi (kayma yok). İlk çizimde oynamaz.
+  */
+  const reread = useSharedValue(1);
+  const firstWake = useRef(wake);
+  useEffect(() => {
+    if (wake === firstWake.current) return;
+    reread.value = 0;
+    reread.value = withTiming(1, { duration: 650, easing: Easing.out(Easing.cubic) });
+  }, [wake, reread]);
+  const rereadStyle = useAnimatedStyle(() => ({
+    opacity: 0.5 + 0.5 * reread.value,
+    transform: [{ translateY: reduceMotion ? 0 : (1 - reread.value) * 3 }],
+  }));
+
   const pastDate = back > 0 && history ? parseDateKey(history[history.length - 1 - back].key) : undefined;
   return (
     <>
@@ -155,14 +178,14 @@ function RingsBody({ label, caption, captionHighlight, metrics: raw, footer, top
         <Touchable accessible={false} onPress={onTap} activeOpacity={1} accessibilityLabel={label}>
           <GestureDetector gesture={pan}>
           <View style={styles.dayRow} accessible accessibilityLabel={plainSentence}>
-            <DayOrb units={petalsOf({ tasks: metrics[0], focus: metrics[1], habits: metrics[2] })} />
-            <View style={styles.sentence}>
+            <DayOrb units={petalsOf({ tasks: metrics[0], focus: metrics[1], habits: metrics[2] })} wake={wake} />
+            <Animated.View style={[styles.sentence, rereadStyle]}>
               {sentence.map((seg, si) => seg.t === 'text' ? (
                 // Noktalama (",") önceki parçaya yapışık: satır aralığı boşluğu geri alınır ("3 görev ," olmasın).
                 seg.s.split(' ').map((w, wi) => <Text key={`${si}-${wi}`} style={[styles.word, { color: theme.onSurface }, /^[,.;:]$/.test(w) && { marginLeft: -S.xs }]}>{w}</Text>)
               ) : (
-                // Değeri değişen hap küçük bir yaylı nabızla yerine oturur (anahtar = metin): ne değiştiği görülür.
-                <MotiView key={`${seg.kind}-${seg.s}`} from={{ scale: reduceMotion ? 1 : 0.9 }} animate={{ scale: 1 }} transition={{ type: 'spring', damping: 14, stiffness: 220 }}>
+                // Değeri değişen hap sekmeden yerine oturur (anahtar = metin): ne değiştiği görülür.
+                <MotiView key={`${seg.kind}-${seg.s}`} from={{ scale: reduceMotion ? 1 : 0.92 }} animate={{ scale: 1 }} transition={{ type: 'timing', duration: 300, easing: Easing.out(Easing.cubic) }}>
                 <Touchable disabled={!detail || back > 0} onPress={() => setOpen(open === seg.kind ? null : seg.kind)}
                   accessibilityRole="button" accessibilityState={{ expanded: open === seg.kind }} accessibilityLabel={seg.s}
                   hitSlop={{ top: S.xs, bottom: S.xs }}
@@ -171,7 +194,7 @@ function RingsBody({ label, caption, captionHighlight, metrics: raw, footer, top
                 </Touchable>
                 </MotiView>
               ))}
-            </View>
+            </Animated.View>
           </View>
           </GestureDetector>
           {/* Gün noktaları: nerede olunduğunu söyler, kaydırılabildiğini sezdirir; dokununca o güne. */}

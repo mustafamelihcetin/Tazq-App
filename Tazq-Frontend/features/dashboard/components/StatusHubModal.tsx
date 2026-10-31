@@ -7,14 +7,16 @@ import { BrainCircuit, Zap, Target, Play, TrendingUp, TrendingDown, Check, Coffe
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
-import { ICON, S, R, F, B, MAX_W, MIN_TOUCH } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, MAX_W, MIN_TOUCH, touchSlop } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { fmtDateKey } from '@/features/habits';
+import { habitColor } from '@/features/habits/utils/habitColor';
 import { weekdayIndex } from '@/features/dashboard/utils/streakDay';
-import { focusDelta, formatMinutes, bestDayIndex } from '@/features/dashboard/utils/weeklyHub';
+import { focusDelta, formatMinutes, bestDayIndex, formatDeltaPct } from '@/features/dashboard/utils/weeklyHub';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { Separator } from '@/shared/components/Separator';
-import { localeOf } from '@/shared/utils/lang';
+import { langOf, localeOf } from '@/shared/utils/lang';
+import { weekdayName } from '@/shared/constants/weekdays';
 
 /*
   ── İÇGÖRÜ MODALI — YENİDEN KURULDU (2026-10-25) ───────────────────────────────────
@@ -57,9 +59,15 @@ const COPY = {
     moreHabits: (n: number) => `+${n} alışkanlık daha · Haftalık Merkez`,
     legendDone: 'Yapıldı',
     legendBreak: 'Mola',
+    // Ekran okuyucu: ızgaranın bir satırı tek cümle ("Kitap: Pazartesi yapıldı, Salı mola").
+    habitRow: (name: string, days: string[]) => `${name}: ${days.join(', ')}`,
+    dayDone: 'yapıldı',
+    dayBreak: 'mola',
+    dayMissed: 'yapılmadı',
     tips: 'ÖNERİLER',
     review: 'Haftalık geri bakışın tamamı',
-    weekdays: ['Pa', 'Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct'],
+    // Grafikle aynı kısaltma (i18n dayLabels); ızgarada "Pt/Sa" ayrı bir sistemdi.
+    weekdays: ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'],
     dayA11y: (day: string, mins: string) => `${day}: ${mins}`,
   },
   en: {
@@ -78,9 +86,13 @@ const COPY = {
     moreHabits: (n: number) => `+${n} more habits · Weekly Hub`,
     legendDone: 'Done',
     legendBreak: 'Break',
+    habitRow: (name: string, days: string[]) => `${name}: ${days.join(', ')}`,
+    dayDone: 'done',
+    dayBreak: 'break',
+    dayMissed: 'missed',
     tips: 'SUGGESTIONS',
     review: 'Full weekly review',
-    weekdays: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'],
+    weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
     dayA11y: (day: string, mins: string) => `${day}: ${mins}`,
   },
 };
@@ -88,6 +100,9 @@ const COPY = {
 /** Izgarada en çok bu kadar alışkanlık; fazlası Haftalık Merkez'de (eskiden 3'ü sessizce kesiliyordu). */
 const MAX_HABITS = 5;
 const CHART_H = 72;
+/** Üç harfli gün kısaltması ("Çar", bugün kalın) 26'ya sığmıyordu. */
+const DAY_W = 28;
+const CLOSE_SIZE = 36;
 
 interface StatusHubModalProps {
   visible: boolean;
@@ -128,7 +143,8 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { height: winH } = useWindowDimensions();
-  const c = language === 'tr' ? COPY.tr : COPY.en;
+  const lang = langOf(language);
+  const c = COPY[lang];
   const { panResponder, animatedStyle, prepare, slideIn } = useSwipeToDismiss({
     onDismiss: onClose,
   });
@@ -230,6 +246,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                 onPress={onClose}
                 accessibilityRole="button"
                 accessibilityLabel={c.close}
+                hitSlop={touchSlop(CLOSE_SIZE)}
                 style={[styles.closeBtn, { backgroundColor: theme.surfaceField }]}
               >
                 <X size={ICON.sm} color={theme.onSurfaceVariant} strokeWidth={2.2} />
@@ -254,7 +271,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                       ? <TrendingUp size={ICON.xs} color={theme.success} />
                       : <TrendingDown size={ICON.xs} color={theme.warning} />}
                     <Text style={[styles.deltaText, { color: delta.pct >= 0 ? theme.success : theme.warning }]}>
-                      {delta.pct >= 0 ? '+' : ''}{delta.pct}%
+                      {formatDeltaPct(delta.pct, language)}
                     </Text>
                   </View>
                   <Text style={[styles.caption, { color: theme.onSurfaceMuted }]}>{c.deltaVs}</Text>
@@ -320,7 +337,8 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                   )}
                 </View>
                 <View style={styles.habitGrid}>
-                  <View style={styles.habitRow}>
+                  {/* Gün başlıkları satır etiketlerinde zaten okunuyor; ekran okuyucu ikinci kez saymasın. */}
+                  <View style={styles.habitRow} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
                     <View style={styles.habitName} />
                     {weekDays.map(day => (
                       <Text key={day.key} style={[styles.gridDay, { color: day.isToday ? theme.primary : theme.onSurfaceMuted, fontWeight: day.isToday ? '700' : '500' }]}>{day.label}</Text>
@@ -329,20 +347,30 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                   {shownHabits.map((habit, hIdx) => {
                     const completedSet = new Set(habit.completedDates || []);
                     const skippedSet = new Set(habit.skippedDates || []);
-                    const color = habit.color || theme.primary;
+                    const color = habitColor(habit, isDark);
                     // Alışkanlık o gün HENÜZ YOKTU: "yapılmadı" grisi değil, gelecek gün gibi boş çerçeve
                     // (bugün kurulan alışkanlık 6 kaçırılmış gün gibi görünüyordu; cihazda görüldü).
                     const bornKey = habit.createdAt ? fmtDateKey(new Date(habit.createdAt)) : '';
+                    const cells = weekDays.map(day => {
+                      const done = completedSet.has(day.key);
+                      return {
+                        day,
+                        done,
+                        skipped: !done && skippedSet.has(day.key),
+                        inactive: day.isFuture || (!!bornKey && day.key < bornKey),
+                      };
+                    });
+                    // "Henüz değil" günler sayılmaz; okunan her gün ekrandaki hücreyle aynı durum.
+                    const spoken = cells
+                      .filter(x => x.done || !x.inactive)
+                      .map(x => `${weekdayName(x.day.date.getDay(), lang)} ${x.done ? c.dayDone : x.skipped ? c.dayBreak : c.dayMissed}`);
                     return (
-                      <View key={habit.id ?? hIdx} style={styles.habitRow}>
+                      <View key={habit.id ?? hIdx} style={styles.habitRow} accessible accessibilityLabel={c.habitRow(habit.name, spoken)}>
                         <View style={styles.habitName}>
                           {renderModeEmojiIcon(habit.emoji ?? '📌', 14, color)}
                           <Text numberOfLines={1} style={[styles.habitText, { color: theme.onSurface }]}>{habit.name}</Text>
                         </View>
-                        {weekDays.map(day => {
-                          const done = completedSet.has(day.key);
-                          const skipped = !done && skippedSet.has(day.key);
-                          const inactive = day.isFuture || (!!bornKey && day.key < bornKey);
+                        {cells.map(({ day, done, skipped, inactive }) => {
                           return (
                             <View key={day.key} style={styles.cellSlot}>
                               <View style={[
@@ -442,7 +470,7 @@ const styles = StyleSheet.create({
   headerText: { flex: 1 },
   title: { fontSize: F.title3, fontWeight: '700', letterSpacing: -0.3 },
   subtitle: { fontSize: F.footnote, fontWeight: '500', marginTop: S.xxs },
-  closeBtn: { width: 36, height: 36, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: CLOSE_SIZE, height: CLOSE_SIZE, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   scroll: { flexGrow: 0 },
   scrollContent: { gap: S.md, paddingHorizontal: S.lg, paddingBottom: S.sm, width: '100%', maxWidth: MAX_W, alignSelf: 'center' },
   card: { borderRadius: R.lg, borderWidth: B.thin, padding: S.md, gap: S.sm },
@@ -467,8 +495,8 @@ const styles = StyleSheet.create({
   habitRow: { flexDirection: 'row', alignItems: 'center' },
   habitName: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingRight: S.sm },
   habitText: { flexShrink: 1, fontSize: F.caption2, fontWeight: '600' },
-  gridDay: { width: 26, textAlign: 'center', fontSize: F.caption },
-  cellSlot: { width: 26, alignItems: 'center' },
+  gridDay: { width: DAY_W, textAlign: 'center', fontSize: F.caption },
+  cellSlot: { width: DAY_W, alignItems: 'center' },
   cell: { width: 18, height: 18, borderRadius: R.xs, alignItems: 'center', justifyContent: 'center' },
   legend: { flexDirection: 'row', justifyContent: 'flex-end', gap: S.md, marginTop: S.xxs },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: S.xs },

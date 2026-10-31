@@ -1,5 +1,6 @@
 import { useRef, useCallback } from 'react';
 import { Animated, PanResponder } from 'react-native';
+import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
 
 interface Options {
   onDismiss: () => void;
@@ -12,6 +13,7 @@ export function useSwipeToDismiss({ onDismiss, threshold = 80, velocityThreshold
   // opacity=0 keeps the sheet invisible until slideIn() is called,
   // preventing any native-thread race condition flash on open.
   const opacity = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReduceMotion();
 
   // Call synchronously before setVisible(true).
   // Sets sheet off-screen AND invisible so no frame can show it prematurely.
@@ -22,13 +24,19 @@ export function useSwipeToDismiss({ onDismiss, threshold = 80, velocityThreshold
 
   // Call in Modal's onShow — makes sheet visible then slides it in.
   const slideIn = useCallback(() => {
+    // Reduce Motion: no slide — the sheet fades in place (HIG: crossfade instead of large slides).
+    if (reduceMotion) {
+      translateY.setValue(0);
+      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+      return;
+    }
     opacity.setValue(1);
     Animated.timing(translateY, {
       toValue: 0,
       duration: 300,
       useNativeDriver: true,
     }).start();
-  }, [translateY, opacity]);
+  }, [translateY, opacity, reduceMotion]);
 
   const panResponder = useRef(
     PanResponder.create({

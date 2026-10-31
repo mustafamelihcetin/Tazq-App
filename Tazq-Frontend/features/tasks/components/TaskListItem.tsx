@@ -13,6 +13,7 @@ import { Touchable } from '@/shared/components/Touchable';
 import { Separator } from '@/shared/components/Separator';
 import { describeTask, rowHint, bulkSelectHint } from '@/shared/utils/a11y';
 import type { Task } from '@/features/tasks/store/useTaskStore';
+import { titleWithoutLabel } from '@/features/tasks/utils/displayTitle';
 import type { getModeInfoForTask } from '@/features/modes';
 import type { AppTheme } from '@/shared/constants/Colors';
 import type { Language, TranslationKeys } from '@/shared/constants/i18n';
@@ -71,6 +72,8 @@ export interface TaskListItemProps {
   Bu satır artık ana ekranınkiyle aynı dili konuşuyor (bkz. MyDayTaskRow).
 */
 const SIZE = 22;
+/** Açılan satırdaki eylem düğmelerinin görsel yüksekliği; dokunma alanı touchSlop ile 44 pt. */
+const ACTION_H = 32;
 
 const copy = (tr: boolean) => tr
     ? { edit: 'Düzenle', complete: 'Görevi tamamla', undo: 'Görevi tamamlanmadı olarak işaretle', up: 'Yukarı taşı', down: 'Aşağı taşı', weight: 'KİLO', auto: 'OTO', steps: 'adım', dayOne: '1. Gün', clean: (d: number) => `Temiz: ${d} gün`, goal: (d: number) => `Hedef: ${d} gün` }
@@ -140,6 +143,8 @@ export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
     ].filter(Boolean) as string[];
     const modeLabel = modeInfo ? (tr ? modeInfo.labelTr : modeInfo.labelEn) : null;
     const lead = [modeLabel, isOverdue ? countdown : null].filter(Boolean).length;
+    // Alt satır mod adını yazıyor → başlığın başındaki aynı ad ekranda düşer (bkz. displayTitle). Sesli ad TAM başlık.
+    const shownTitle = titleWithoutLabel(title, modeLabel, tr);
 
     const rowBg = isBulkMode && isSelected
         ? theme.primaryContainer
@@ -227,7 +232,7 @@ export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
                                         style={[styles.title, { color: theme.onSurface }, done && { textDecorationLine: 'line-through' }]}
                                         numberOfLines={isExpanded ? 0 : 1}
                                     >
-                                        {title}
+                                        {shownTitle}
                                     </Text>
                                     {isWeightEntryTask(task) && <Text style={[styles.badge, { color: theme.primary }]}>{c.weight}</Text>}
                                     {task.tags?.includes('auto_generated') && <Text style={[styles.badge, { color: theme.onSurfaceMuted }]}>{c.auto}</Text>}
@@ -302,12 +307,14 @@ export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
                                 )}
 
                                 {!isBulkMode && (onEdit || (sortBy === 'creation' && (onMoveUp || onMoveDown))) && (
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginTop: S.sm }}>
+                                    // Aralık S.smd: komşu düğmelerin genişletilmiş dokunma alanları üst üste binmesin.
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.smd, marginTop: S.sm }}>
                                         {onEdit && (
                                             <Touchable
                                                 onPress={onEdit}
                                                 accessibilityRole="button"
                                                 accessibilityLabel={c.edit}
+                                                hitSlop={touchSlop(ACTION_H)}
                                                 style={[styles.moveBtn, { backgroundColor: theme.primary + '1A' }]}
                                             >
                                                 <Pencil size={ICON.sm} color={theme.primary} />
@@ -322,6 +329,7 @@ export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
                                                 accessibilityRole="button"
                                                 accessibilityLabel={label}
                                                 accessibilityState={{ disabled: !fn }}
+                                                hitSlop={touchSlop(ACTION_H)}
                                                 // Yalnız ok: üç etiketli düğme dar ekranda iki satıra kırılıyordu
                                                 // (cihazda görüldü). Ad ekran okuyucuda tam (accessibilityLabel).
                                                 style={[styles.iconBtn, { backgroundColor: theme.surfaceField, opacity: fn ? 1 : 0.4 }]}
@@ -363,6 +371,6 @@ const styles = StyleSheet.create({
   title: { fontSize: F.body, fontWeight: '600', flexShrink: 1 },
   meta: { fontSize: F.caption, fontWeight: '500' },
   badge: { fontSize: F.caption, fontWeight: '700' },
-  moveBtn: { flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingHorizontal: S.smd, minHeight: 32, borderRadius: R.full },
-  iconBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: R.full },
+  moveBtn: { flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingHorizontal: S.smd, minHeight: ACTION_H, borderRadius: R.full },
+  iconBtn: { width: ACTION_H, height: ACTION_H, alignItems: 'center', justifyContent: 'center', borderRadius: R.full },
 });

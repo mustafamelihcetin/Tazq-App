@@ -84,7 +84,6 @@ const CEILING: Record<string, number> = {
   'features/modes/components/modes/RamazanCard.tsx': 12,
   'features/user/components/CelebrationOverlay.tsx': 12,
   'shared/components/ConfettiOverlay.tsx': 12,
-  'app/tasks.tsx': 1, // 10 → 1: kullanılmayan etiket paleti (8 hex) silindi, satır bileşeni TaskListItem'a taşındı
   // 10 → 7: trend/nokta/değerlendirme yeşilleri theme.success'e bağlandı (tema-kör #10B981'di)
   // 7 → 6: sayfa zemini (#1C1C1E) cam yüzeye geçti.
   // StatusHubModal LİSTEDEN ÇIKTI (6 → 0, 2026-10-25): içgörü modalı yeniden kuruldu, ham renk kalmadı.

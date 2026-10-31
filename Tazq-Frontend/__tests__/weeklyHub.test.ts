@@ -1,4 +1,4 @@
-import { focusDelta, formatMinutes, bestDayIndex } from '@/features/dashboard/utils/weeklyHub';
+import { focusDelta, formatMinutes, bestDayIndex, formatDeltaPct } from '@/features/dashboard/utils/weeklyHub';
 
 /**
  * İÇGÖRÜ MODALI — gösterdiği her sayı GERÇEK veriden (2026-10-25 değerlendirmesi).
@@ -23,6 +23,20 @@ describe('focusDelta', () => {
     expect(focusDelta(120, 100)).toEqual({ kind: 'change', pct: 20 });
     expect(focusDelta(50, 100)).toEqual({ kind: 'change', pct: -50 });
     expect(focusDelta(0, 60)).toEqual({ kind: 'change', pct: -100 });
+  });
+});
+
+describe('formatDeltaPct', () => {
+  // Türkçede yüzde işareti sayının ÖNÜNDE: "+%12". Rozet dilden bağımsız "+12%" yazıyordu.
+  it('Türkçe: işaret, sonra %, sonra sayı', () => {
+    expect(formatDeltaPct(12, 'tr')).toBe('+%12');
+    expect(formatDeltaPct(-50, 'tr')).toBe('-%50');
+    expect(formatDeltaPct(0, 'tr')).toBe('+%0');
+  });
+
+  it('İngilizce: sayının arkasında %', () => {
+    expect(formatDeltaPct(12, 'en')).toBe('+12%');
+    expect(formatDeltaPct(-50, 'en')).toBe('-50%');
   });
 });
 

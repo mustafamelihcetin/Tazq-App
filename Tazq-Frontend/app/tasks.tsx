@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, TextInput, Platform, useWindowDimensions, Animated as RNAnimated, AppState } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Platform, useWindowDimensions, Animated as RNAnimated, AppState, BackHandler } from 'react-native';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { AppBlur } from '@/shared/components/AppBlur';
@@ -110,6 +110,8 @@ const BulkAction = ({ Icon, label, onPress, disabled, tint, theme }: {
 
 type FilterType = TaskFilter;
 const OVERDUE_LABEL = { tr: 'Gecikmiş', en: 'Overdue' } as const;
+/** Üst çubuk düğmeleri 40 pt çiziliyor; dokunma alanı 44 pt'ye tamamlanır (görsel boyut aynı). */
+const HEADER_SLOP = touchSlop(scale(40));
 
 
 
@@ -1120,6 +1122,23 @@ export default function ActionCenter() {
     const f = usePrefsStore.getState().taskFilter;
     if (f === 'someday' || f === 'overdue') usePrefsStore.getState().setTaskFilter('all');
   }, []));
+
+  /*
+    ANDROID GERİ TUŞU ÖNCE ÜSTTEKİ KATMANI KAPATIR (2026-10-31, cihazda görüldü): sıralama menüsü
+    açıkken geri, menüyü kapatmak yerine ekrandan çıkıp ana sayfaya gidiyordu. Sıra: menü → arama
+    → seçim modu. Hiçbiri açık değilse `false`: sıradaki dinleyici (BottomNavBar → eve dön) çalışır.
+    Bu dinleyici alt çubuğunkinden SONRA kurulur; Android'de son kurulan önce çağrılır.
+  */
+  useFocusEffect(React.useCallback(() => {
+    if (Platform.OS !== 'android') return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (showSortMenu) { setShowSortMenu(false); return true; }
+      if (showSearch) { setShowSearch(false); setSearchQuery(''); return true; }
+      if (isBulkMode) { setIsBulkMode(false); setSelectedIds(new Set()); return true; }
+      return false;
+    });
+    return () => sub.remove();
+  }, [showSortMenu, showSearch, isBulkMode]));
   const hc = horizonCopy(langOf(language));
 
   const handleBulkDelete = async () => {
@@ -1402,7 +1421,7 @@ export default function ActionCenter() {
                 </Touchable>
             ) : (
                 // Sol: Sırala & Filtrele. Sağ: Ara (büyüteç). Back butonu YOK — alt navigasyondan gezilir.
-                <Touchable ref={sortBtnRef} onPress={toggleSortMenu} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sırala ve filtrele' : 'Sort and filter'}>
+                <Touchable ref={sortBtnRef} onPress={toggleSortMenu} hitSlop={HEADER_SLOP} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sırala ve filtrele' : 'Sort and filter'}>
                     <ChromeShell />
                     <View>
                         <SlidersHorizontal size={ICON.md} color={(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) ? theme.primary : theme.onSurface} />
@@ -1440,6 +1459,7 @@ export default function ActionCenter() {
                 <>
                 <Touchable
                   onPress={() => router.push('/gun')}
+                  hitSlop={HEADER_SLOP}
                   style={styles.headerIconBtn}
                   accessibilityRole="button"
                   accessibilityLabel={t.dayView.title}
@@ -1448,7 +1468,7 @@ export default function ActionCenter() {
                     <ChromeShell />
                     <CalendarDays size={ICON.md} color={theme.onSurface} />
                 </Touchable>
-                <Touchable onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); haptic.surface(); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Ara' : 'Search'}>
+                <Touchable onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); haptic.surface(); }} hitSlop={HEADER_SLOP} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Ara' : 'Search'}>
                     <ChromeShell />
                     <Search size={ICON.md} color={showSearch ? theme.primary : theme.onSurface} />
                 </Touchable>
@@ -1501,7 +1521,7 @@ export default function ActionCenter() {
                 */}
                 {/* BELKİ BİR GÜN ikinci görünüm: Zen'in rafa kaldırdığı işler başka hiçbir
                     yerde toplu görünmüyordu. Satır yalnız rafta iş varken çıkar. */}
-                {([['today', language === 'tr' ? 'Sadece Bugün' : 'Today Only'],
+                {([['today', language === 'tr' ? 'Sadece bugün' : 'Today Only'],
                    ...(overdueCount > 0 || filter === 'overdue' ? [['overdue', `${overdueLabel} (${overdueCount})`]] : []),
                    ...(somedayCount > 0 || filter === 'someday' ? [['someday', `${language === 'tr' ? 'Belki Bir Gün' : 'Someday'} (${somedayCount})`]] : []),
                 ] as [FilterType, string][]).map(([key, label]) => (
@@ -1520,10 +1540,13 @@ export default function ActionCenter() {
                 {/* Hide Completed Toggle */}
                 <Touchable
                     onPress={() => { setHideCompleted(!hideCompleted); haptic.surface(); }}
+                    // Anahtar gibi çalışıyor: ekran okuyucu açık/kapalı durumunu duymalı (eskiden yalnız ✓ görseli).
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: hideCompleted }}
                     style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: StyleSheet.hairlineWidth }]}
                 >
                     <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>
-                        {language === 'tr' ? 'Tamamlananları Gizle' : 'Hide Completed'}
+                        {language === 'tr' ? 'Tamamlananları gizle' : 'Hide Completed'}
                     </Text>
                     {hideCompleted && <Check size={ICON.md} color={theme.primary} />}
                 </Touchable>
@@ -1531,23 +1554,28 @@ export default function ActionCenter() {
                 {/* Archive Button */}
                 <Touchable
                     onPress={() => { setShowSortMenu(false); router.push('/archive'); }}
+                    accessibilityRole="button"
                     style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: StyleSheet.hairlineWidth }]}
                 >
                     <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>
-                        {language === 'tr' ? 'Arşiv Klasörü' : 'Archive Folder'}
+                        {language === 'tr' ? 'Arşiv klasörü' : 'Archive Folder'}
                     </Text>
                     <Archive size={ICON.md} color={theme.onSurfaceVariant} />
                 </Touchable>
 
                 {/* Sorting Options */}
-                <View style={{ paddingHorizontal: S.lg, paddingVertical: S.xs, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
-                   <Text style={{ fontSize: F.caption, fontWeight: '600', opacity: 0.5, letterSpacing: 1 }}>{language === 'tr' ? 'SIRALAMA' : 'SORTING'}</Text>
+                {/* Zemin ve yazı tema jetonundan: ham rgba + %50 opaklık ölçülen kontrastı geçersiz kılıyordu. */}
+                <View style={{ paddingHorizontal: S.lg, paddingVertical: S.xs, backgroundColor: theme.surfaceField }}>
+                   <Text accessibilityRole="header" style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceMuted, letterSpacing: 1 }}>{language === 'tr' ? 'SIRALAMA' : 'SORTING'}</Text>
                 </View>
 
                 {([['creation', t.sortByCreation], ['priority', t.sortByPriority], ['date', t.sortByDate]] as const).map(([key, label]) => (
                   <Touchable
                     key={key}
                     onPress={() => { setSortBy(key); setShowSortMenu(false); haptic.select(); }}
+                    // Seçili sıralama yalnız RENK ve ✓ ile belliydi; ekran okuyucu da duysun.
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: sortBy === key }}
                     style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: key === 'date' ? 0 : StyleSheet.hairlineWidth }]}
                   >
                     <Text style={[{ color: sortBy === key ? theme.primary : theme.onSurface, fontSize: F.body, fontWeight: sortBy === key ? '700' : '400' }]}>
@@ -1583,8 +1611,8 @@ export default function ActionCenter() {
               <View style={[styles.searchBar, { 
                   overflow: 'hidden', 
                   borderWidth: StyleSheet.hairlineWidth,
-                  borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
-                  backgroundColor: Platform.OS === 'android' ? (isDark ? theme.surfaceContainerHighest : '#FFFFFF') : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.85)') 
+                  borderColor: theme.outlineVariant,
+                  backgroundColor: Platform.OS === 'android' ? (isDark ? theme.surfaceContainerHighest : theme.surfaceContainerLowest) : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.85)') 
                 }]}>
                 {Platform.OS !== 'android' && (
                   <AppBlur material="thin" />
@@ -1654,8 +1682,37 @@ export default function ActionCenter() {
         <React.Fragment>
             <MotiView animate={{ height: showSearch ? 52 : 0 }} transition={{ type: 'timing', duration: 250 }} />
             <View style={{ paddingBottom: S.md }}>
-{/* Sabit "Her şey hazır!" yazıyordu — listede bekleyen görev varken bile. */}
-<Text style={[styles.subHeadline, { color: theme.onSurfaceMuted }]}>{(() => { const n = filteredTasks.filter((x: { isCompleted?: boolean }) => !x.isCompleted).length; return n > 0 ? t.tasksPending.replace('{n}', String(n)) : t.allTasksReady; })()}</Text>
+{/*
+  BAŞLIK TEK SATIR (2026-10-31): üstte küçük gri "N görev seni bekliyor" + altında "Sırada Ne Var?"
+  vardı — "Aksiyon Merkezi"yle üç başlık üst üste ve biri başlığın üstünde etiket (impeccable).
+  Sayı başlığın KENDİSİ; temizleme düğmesi yanında, etkin filtre satırı altında.
+*/}
+<View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {/* Sabit "Her şey hazır!" yazıyordu — listede bekleyen görev varken bile. */}
+                <Text
+                    accessibilityRole="header"
+                    style={[styles.sectionTitle, { color: theme.onSurface, fontSize: F.subhead, flex: 1 }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                >
+                    {(() => { const n = filteredTasks.filter((x: { isCompleted?: boolean }) => !x.isCompleted).length; return n > 0 ? t.tasksPending.replace('{n}', String(n)) : t.allTasksReady; })()}
+                </Text>
+                {/* YALNIZ temizlenecek bir şey varken (cihazda görüldü): tamamlanan görev yokken de
+                    duruyordu — hiçbir şey yapmayan, "hepsini sil" gibi okunan bir çöp kutusu.
+                    Dokunma alanı 44 pt'ye tamamlanır. */}
+                {tasks.some(tk => tk.isCompleted) && (
+                <Touchable
+                    onPress={() => { haptic.commit(); handleClearCompleted(); }}
+                    accessibilityRole="button"
+                    accessibilityLabel={language === 'tr' ? 'Tamamlanan görevleri temizle' : 'Clear completed tasks'}
+                    hitSlop={touchSlop(ICON.sm + S.xs * 2)}
+                    style={{ padding: S.xs }}
+                >
+                    <Trash2 size={ICON.sm} color={theme.onSurfaceVariant} />
+                </Touchable>
+                )}
+            </View>
 
           {/*
             FİLTRE ŞERİTLERİ EKRANDAN KALDIRILDI — ODAK GÖREVLERDE.
@@ -1746,30 +1803,6 @@ export default function ActionCenter() {
 
           {/* Task List */}
           
-<View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text
-                    style={[styles.sectionTitle, { color: theme.onSurface, fontSize: F.subhead, flex: 1 }]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.7}
-                >
-                    {t.upcoming}
-                </Text>
-                {/* YALNIZ temizlenecek bir şey varken (cihazda görüldü): tamamlanan görev yokken de
-                    duruyordu — hiçbir şey yapmayan, "hepsini sil" gibi okunan bir çöp kutusu.
-                    Dokunma alanı 44 pt'ye tamamlanır. */}
-                {tasks.some(tk => tk.isCompleted) && (
-                <Touchable
-                    onPress={() => { haptic.commit(); handleClearCompleted(); }}
-                    accessibilityRole="button"
-                    accessibilityLabel={language === 'tr' ? 'Tamamlanan görevleri temizle' : 'Clear completed tasks'}
-                    hitSlop={touchSlop(ICON.sm + S.xs * 2)}
-                    style={{ padding: S.xs }}
-                >
-                    <Trash2 size={ICON.sm} color={theme.onSurfaceVariant} />
-                </Touchable>
-                )}
-            </View>
             
             
                 </View>
@@ -1783,8 +1816,8 @@ export default function ActionCenter() {
                 const titleText = onlyLater ? hc.emptyTitle : isSearch
                   ? t.noResults
                   : hasCompletedTasks
-                  ? (language === 'tr' ? 'Bugün Dünyayı Kurtardın!' : 'You Saved the Day!')
-                  : (language === 'tr' ? 'Huzurlu bir boşluk' : 'Peaceful Canvas');
+                  ? (language === 'tr' ? 'Bugün dünyayı kurtardın!' : 'You saved the day!')
+                  : (language === 'tr' ? 'Huzurlu bir boşluk' : 'A peaceful canvas');
                 const bodyText = onlyLater ? hc.emptyBody(horizon.later.length) : isSearch
                   ? (language === 'tr' ? `"${searchQuery}" için sonuç bulunamadı` : `No results for "${searchQuery}"`)
                   : hasCompletedTasks
@@ -1793,12 +1826,13 @@ export default function ActionCenter() {
 
                 return (
                   <MotiView key="empty" from={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={styles.emptyState}>
+                      {/* Bir kez oynar ve durur — sonsuz sallanma bilgi taşımıyordu ("hareket durur"). */}
                       <MotiView
                           animate={{ scale: [1, 1.15, 1], rotate: ['0deg', '8deg', '-8deg', '0deg'] }}
-                          transition={{ loop: true, duration: 3500 }}
+                          transition={{ duration: 900 }}
                           style={{ marginBottom: S.md, opacity: hasCompletedTasks ? 0.9 : 0.4 }}
                       >
-                          <Sparkles size={ICON.xxl} color={hasCompletedTasks ? '#F59E0B' : theme.primary} />
+                          <Sparkles size={ICON.xxl} color={hasCompletedTasks ? theme.success : theme.primary} />
                       </MotiView>
                       <Text style={[styles.emptyTitle, { color: theme.onSurface, textAlign: 'center' }]}>{titleText}</Text>
                       <Text style={[styles.emptyText, { color: theme.onSurfaceMuted, textAlign: 'center', marginTop: S.sm, maxWidth: 280, lineHeight: 20 }]}>{bodyText}</Text>
@@ -1991,6 +2025,7 @@ export default function ActionCenter() {
       {!isBulkMode && (
         <MagneticFAB
           onPress={handleAddBtnPress}
+          accessibilityLabel={t.addTask}
           // TEK ANAHTAR — düğme her ekranda AYNI yerde dursun.
         // İki ekran ayrı konum saklıyordu: kullanıcı dashboard'da sola taşıyıp Görevler'e
         // geçince düğme sağda kalıyordu. Kalıcı bir eylem düğmesinin tek gerekçesi kas
@@ -2077,7 +2112,6 @@ const styles = StyleSheet.create({
   bulkSep: { width: 1, height: verticalScale(22), marginHorizontal: S.sm },
   bulkIconBtn: { width: scale(40), height: scale(40), borderRadius: scale(20), alignItems: 'center', justifyContent: 'center' },
   headline: { fontWeight: '600', letterSpacing: -1.5 },
-  subHeadline: { fontWeight: '600', marginTop: S.xs },
   statsGrid: { flexDirection: 'row' },
   statLabel: { fontSize: F.caption, fontWeight: '600', letterSpacing: 1 },
   statValueRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, marginVertical: S.xs },
@@ -2108,7 +2142,8 @@ const styles = StyleSheet.create({
   },
   bulkActions: { flexDirection: 'row', alignItems: 'flex-start' },
   listSection: { flex: 1 },
-  sectionTitle: { fontWeight: '600', marginBottom: S.md },
+  // Başlık listesine yakın (altı < üstü): kapsayıcı zaten S.md bırakıyor, ikisi üst üste biniyordu (cihazda görüldü).
+  sectionTitle: { fontWeight: '600', marginBottom: S.xs },
   taskMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: S.xs },
   taskMetaText: { fontWeight: '600' },
   taskActions: { flexDirection: 'row', alignItems: 'center' },
