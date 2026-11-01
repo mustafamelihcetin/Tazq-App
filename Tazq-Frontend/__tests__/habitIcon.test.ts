@@ -57,3 +57,27 @@ describe('suggestHabitIcon', () => {
 it('zaman sözcüğü yalnız başkası yoksa: "Erken kalk" → 🌅', () => {
   expect(suggestHabitIcon('Erken kalk', 'tr')).toBe('🌅');
 });
+
+/**
+ * FİİL KÖKÜ İSİM GİBİ EKLENMEZ (2026-10-31). "oku", "yaz", "ara" fiil kökleri isim ekleriyle
+ * eşleşiyordu: "okula" = oku + -la, "arada" = ara + -da → "Okula git" 📚, "Arada su iç" 👥 alıyordu.
+ * Fiil kökü artık yalnız kendisi ya da fiil ekiyle (okumak, okuyor, okudum) tanınır.
+ */
+describe('fiil kökü tuzakları', () => {
+  it.each([
+    ['Okula git', null],
+    ['Arada su iç', '💧'],
+    ['Yaza tatil planı', null],
+  ])('%s → %s', (name, icon) => {
+    expect(suggestHabitIcon(name, 'tr')).toBe(icon);
+  });
+
+  it.each([
+    ['Okumaya başla', '📚'],
+    ['Her gün okuyorum', '📚'],
+    ['Koşuyorum', '🏃'],
+    ['Erken yat', '😴'],
+  ])('fiil çekimi yine tanınır: %s → %s', (name, icon) => {
+    expect(suggestHabitIcon(name, 'tr')).toBe(icon);
+  });
+});

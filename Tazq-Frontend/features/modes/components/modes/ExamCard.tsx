@@ -4,18 +4,18 @@
  * Tarih geçince "nasıl geçti?" review'ı bu bileşende (focus-effect). Önizleme merkezi → onOpenPreview.
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, Switch, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useFocusEffect } from 'expo-router';
 import { ChevronRight, CalendarDays, BookOpen, X, Sprout, TrendingUp, Flame, Sparkles, Target } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '../../store/usePrefsStore';
-import { useHabitStore, fmtDateKey } from '@/features/habits';
-import { useTaskStore } from '@/features/tasks';
+import { useHabitStore } from '@/features/habits';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
+import { ModeCardClose } from '../ModeCardClose';
 import { FormReveal, ModeField } from '../ModeField';
 import { renderModeEmojiIcon } from '../../utils/modeIcons';
 import { retirePlanTask, formatPlanDate, isDatePast, daysLeftOf , retireModeTasksByTag} from '@/features/modes/utils/planTaskOps';
@@ -33,7 +33,7 @@ import { ModePlanSummary } from '@/features/modes/components/ModePlanSummary';
 import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
-import { toDateKey, parseDateKey, calendarDayOf } from '@/shared/utils/dateKey';
+import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
 
 // Vurgu merkezi paletten (bkz. Colors.ModeAccents) — tema-duyarlı + kontrast güvenli.
 const BASE_CALENDAR_WIDTH = 340;
@@ -126,13 +126,13 @@ function PresetEditor({ name, onName, preset, onPreset, suggestions, onSuggestio
       {(suggestions.length > 0 || (name.trim().length > 0 && !preset)) && (
         <View style={{ borderRadius: R.md, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.09)', backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surface, overflow: 'hidden', marginTop: -S.xs }}>
           {suggestions.map((p, idx) => (
-            <Touchable key={p.id} onPress={() => { haptic.select(); onName(p.shortName); onPreset(p); onSuggestions([]); }} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.smd, borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }} activeOpacity={0.7}>
+            <Touchable accessibilityRole="button" key={p.id} onPress={() => { haptic.select(); onName(p.shortName); onPreset(p); onSuggestions([]); }} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.smd, borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }} activeOpacity={0.7}>
               <Text style={{ fontSize: F.body, fontWeight: '500', color: theme.onSurface, minWidth: 44 }}>{p.shortName}</Text>
               <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, flex: 1 }} numberOfLines={1}>{p.displayName}</Text>
             </Touchable>
           ))}
           {name.trim().length > 0 && !preset && (
-            <Touchable onPress={() => {
+            <Touchable accessibilityRole="button" onPress={() => {
               haptic.select();
               const trimmed = name.trim();
               const customPreset: ExamPreset = {
@@ -175,7 +175,7 @@ function HoursSelector({ preset, dailyMinutes, onPick, withLevelLabels }: { pres
           const active = dailyMinutes === opt.minutes;
           const levelObj = opt.minutes <= 60 ? { text: tr ? 'Temel' : 'Foundation', icon: <Sprout size={ICON.xs} color={ACCENT} /> } : opt.minutes <= 120 ? { text: tr ? 'Standart' : 'Standard', icon: <TrendingUp size={ICON.xs} color={ACCENT} /> } : { text: tr ? 'Yoğun' : 'Intensive', icon: <Flame size={ICON.xs} color={ACCENT} /> };
           return (
-            <Touchable key={opt.minutes} onPress={() => { haptic.select(); onPick(active ? null : opt.minutes); }} style={{ paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: withLevelLabels ? R.md : R.full, borderWidth: B.medium, borderColor: active ? ACCENT : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? ACCENT + '18' : 'transparent' }} activeOpacity={0.7}>
+            <Touchable accessibilityRole="button" accessibilityState={{ selected: active }} key={opt.minutes} onPress={() => { haptic.select(); onPick(active ? null : opt.minutes); }} style={{ paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: withLevelLabels ? R.md : R.full, borderWidth: B.medium, borderColor: active ? ACCENT : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? ACCENT + '18' : 'transparent' }} activeOpacity={0.7}>
               <Text style={{ fontSize: F.caption, fontWeight: '500', color: active ? ACCENT : theme.onSurfaceVariant }}>{tr ? opt.labelTr : opt.labelEn}</Text>
               {withLevelLabels && active && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.xxs }}>
@@ -305,7 +305,7 @@ function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview
     <View style={{ marginTop: S.xs }}>
       <Separator theme={theme} />
       {complete && !expanded ? (
-        <Touchable onPress={() => { haptic.select(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: (past ? theme.error : ACCENT) + '10', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.8}>
+        <Touchable accessibilityRole="button" onPress={() => { haptic.select(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: (past ? theme.error : ACCENT) + '10', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.8}>
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.caption }}>{name}</Text>
             <Text style={{ color: past ? theme.error : ACCENT, fontSize: F.caption, fontWeight: '500' }}>{past ? (tr ? 'Tarih geçti' : 'Date passed') : (tr ? `${daysLeft} gün kaldı` : `${daysLeft} days left`)}</Text>
@@ -316,7 +316,7 @@ function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview
           </Touchable>
         </Touchable>
       ) : !complete && !expanded ? (
-        <Touchable onPress={() => { haptic.select(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.7}>
+        <Touchable accessibilityRole="button" onPress={() => { haptic.select(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.7}>
           <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>＋</Text>
           <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption, flex: 1 }}>{addLabel}</Text>
         </Touchable>
@@ -324,7 +324,7 @@ function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview
       {expanded && (
         <FormReveal style={{ gap: S.sm }}>
           <PresetEditor name={name} onName={(v) => setSeasonalPref(nameKey, v)} preset={preset} onPreset={setPreset} suggestions={suggestions} onSuggestions={setSuggestions} dailyMinutes={dailyMinutes} onDailyMinutes={pickDailyMinutes} placeholder={placeholder} />
-          <Touchable hitSlop={{ top: 2, bottom: 2, left: 0, right: 0 }} onPress={() => { haptic.select(); setShowPicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
+          <Touchable accessibilityRole="button" hitSlop={{ top: 2, bottom: 2, left: 0, right: 0 }} onPress={() => { haptic.select(); setShowPicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
             <Text style={{ color: date ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.caption, fontWeight: '600', flex: 1 }}>{date ? formatPlanDate(date, tr) : (tr ? 'Sınav tarihi seç' : 'Select date')}</Text>
             <CalendarDays size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
           </Touchable>
@@ -347,11 +347,11 @@ function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview
               Yarım kalan kurulum da korunuyor: ad girilip tarih girilmemişse bile
               kullanıcı geri döndüğünde kaldığı yerden devam eder.
             */}
-            <Touchable onPress={() => setExpanded(false)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
+            <Touchable accessibilityRole="button" onPress={() => setExpanded(false)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
               <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
             </Touchable>
             {/* Kurulum bitmediyse dugme SESSIZCE KAYBOLMAZ — ne eksik oldugu yazar (bkz. ana sınav slotundaki aynı düzeltme). */}
-            {complete ? (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview({ templateId: levelTemplateIdFromMinutes(dailyMinutes ?? preset?.defaultDailyMinutes), examSlot: slot, examTipTr: preset?.tipTr, examTipEn: preset?.tipEn, examName: name, examDate: date }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><BookOpen size={ICON.xs} color={ACCENT_ON} /><Text style={{ color: ACCENT_ON, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>) : (
+            {complete ? (<Touchable accessibilityRole="button" onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview({ templateId: levelTemplateIdFromMinutes(dailyMinutes ?? preset?.defaultDailyMinutes), examSlot: slot, examTipTr: preset?.tipTr, examTipEn: preset?.tipEn, examName: name, examDate: date }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><BookOpen size={ICON.xs} color={ACCENT_ON} /><Text style={{ color: ACCENT_ON, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>) : (
               <View style={{ flex: 2, alignItems: 'center', justifyContent: 'center', paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)' }}>
                 <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption }}>
                   {!name.trim() || !preset ? (tr ? 'Önce sınavı seç' : 'Pick the exam first')
@@ -384,9 +384,7 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
   const exam2PlanTaskIds = usePrefsStore(s => s.exam2PlanTaskIds);
   const exam3PlanHabitIds = usePrefsStore(s => s.exam3PlanHabitIds);
   const exam3PlanTaskIds = usePrefsStore(s => s.exam3PlanTaskIds);
-  const habits = useHabitStore(s => s.habits);
   const removeHabit = useHabitStore(s => s.removeHabit);
-  const tasks = useTaskStore(s => s.tasks);
 
   const name = seasonal.examName || '';
   const date = seasonal.examDate || '';
@@ -482,22 +480,6 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
     return null;
   })();
 
-  // Bugünkü ilerleme.
-  const todayKey = fmtDateKey();
-  /*
-    GÖREV GÜNÜ ≠ ALIŞKANLIK GÜNÜ. `todayKey` (fmtDateKey) alışkanlıklar için 3 saatlik
-    gece-kuşu tamponu içerir ("gece 01:00 dün sayılır"); ama görev vade tarihi bir
-    TAKVİM taahhüdüdür, tamponsuz olmalı (bkz. dateKey.ts başlığındaki ayrım). Eskiden
-    ikisi de fmtDateKey ile karşılaştırılıyordu (tutarlıydı ama UTC-ayrıştırma hatası
-    taşıyordu); şimdi görev tarafı kendi takvim gününü kullanır.
-  */
-  const todayCalKey = toDateKey(new Date());
-  const isToday = (d?: string | null) => calendarDayOf(d) === todayCalKey;
-  const planHabits = habits.filter(h => examPlanHabitIds.includes(h.id));
-  const wkTasks = tasks.filter(t => examPlanTaskIds.includes(t.id) && (isToday(t.dueDate) || (t.isCompleted && isToday(t.completedAt))));
-  const progTotal = planHabits.length + wkTasks.length;
-  const progDone = planHabits.filter(h => (h.completedDates ?? []).includes(todayKey)).length + wkTasks.filter(t => t.isCompleted).length;
-
   const closeAll = () => {
     cancelExamCountdownNotifs();
     examPlanHabitIds.forEach(id => removeHabit(id)); examPlanTaskIds.forEach(id => retirePlanTask(id, 'exam'));
@@ -563,19 +545,6 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
               <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs }}>{tr ? 'Herhangi bir sınav için çalışma planı' : 'Study plan for any exam'}</Text>
             )}
           </View>
-          <Switch
-            value={seasonal.examMode}
-            onValueChange={(v) => {
-              haptic.select();
-              if (!v && seasonal.examMode) {
-                const hasItems = examPlanHabitIds.length > 0 || examPlanTaskIds.length > 0;
-                if (!hasItems) { closeAll(); return; }
-                Alert.alert(tr ? 'Sınav Takibi Kapatılıyor' : 'Turning off Exam Mode', tr ? 'Eklenen tüm alışkanlıklar ve görevler kaldırılacak. Emin misin?' : 'All added habits and tasks will be removed. Are you sure?', [{ text: tr ? 'İptal' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat ve Temizle' : 'Turn Off & Remove', style: 'destructive', onPress: closeAll }]);
-              } else if (v) { setSeasonalPref('examMode', true); setExpanded(true); }
-            }}
-            trackColor={{ false: theme.surfaceContainerHighest, true: past ? theme.error : theme.primary }}
-            thumbColor={isDark && !seasonal.examMode ? '#636366' : '#fff'}
-          />
         </View>
       </View>
 
@@ -583,7 +552,7 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
         <View style={{ paddingHorizontal: S.md, paddingBottom: S.md, gap: S.sm }}>
           <Separator theme={theme} />
           {!isComplete && !expanded && (
-            <Touchable onPress={() => { haptic.select(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.md }} activeOpacity={0.7}>
+            <Touchable accessibilityRole="button" onPress={() => { haptic.select(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.md }} activeOpacity={0.7}>
               <AppIcon Icon={Target} color={theme.onSurfaceVariant} size={24} radius={R.sm} iconSize={ICON.sm} />
               {/*
                 YARIM KURULUM "EKLE" DEMEZ.
@@ -612,11 +581,11 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
                 <View style={{ paddingTop: S.xs }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>
                     <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{name}</Text>
-                    <Touchable onPress={() => { haptic.surface(); onOpenPreview({ templateId: !hasPlan ? levelTemplateIdFromMinutes(dailyMinutes ?? preset?.defaultDailyMinutes ?? 90) : undefined, examSlot: 'exam', examTipTr: preset?.tipTr, examTipEn: preset?.tipEn, examName: name, examDate: date }); }} activeOpacity={0.7} style={{ paddingVertical: S.xs, paddingHorizontal: S.xxs }}>
+                    <Touchable accessibilityRole="button" onPress={() => { haptic.surface(); onOpenPreview({ templateId: !hasPlan ? levelTemplateIdFromMinutes(dailyMinutes ?? preset?.defaultDailyMinutes ?? 90) : undefined, examSlot: 'exam', examTipTr: preset?.tipTr, examTipEn: preset?.tipEn, examName: name, examDate: date }); }} activeOpacity={0.7} style={{ paddingVertical: S.xs, paddingHorizontal: S.xxs }}>
                       <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (tr ? 'Planı Seç ›' : 'Choose Plan ›')}</Text>
                     </Touchable>
                     <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
-                    <Touchable onPress={() => { haptic.select(); setExpanded(true); }} activeOpacity={0.7}>
+                    <Touchable accessibilityRole="button" onPress={() => { haptic.select(); setExpanded(true); }} activeOpacity={0.7}>
                       <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Düzenle' : 'Edit'}</Text>
                     </Touchable>
                     <Touchable onPress={() => { haptic.commit(); Alert.alert(tr ? 'Sınavı Sil' : 'Delete Exam', tr ? `"${name}" silinecek. Emin misin?` : `"${name}" will be deleted. Are you sure?`, [{ text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: tr ? 'Sil' : 'Delete', style: 'destructive', onPress: delSlot1 }]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }} style={{ marginLeft: S.sm }} accessibilityRole="button" accessibilityLabel={tr ? 'Sil' : 'Delete'}>
@@ -632,11 +601,9 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
                     daysLeft={date ? daysLeft : null}
                     past={past}
                     dateLabel={date ? formatPlanDate(date, tr) : ''}
-                    todayDone={progDone}
-                    todayTotal={progTotal}
                     lifecycle={lifecycle}
                     pastAction={
-                      <Touchable onPress={() => { haptic.commit(); closeWithReview(); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: theme.error + '12', borderRadius: R.md, paddingVertical: S.sm, borderWidth: B.thin, borderColor: theme.error + '25' }} activeOpacity={0.75}>
+                      <Touchable accessibilityRole="button" onPress={() => { haptic.commit(); closeWithReview(); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: theme.error + '12', borderRadius: R.md, paddingVertical: S.sm, borderWidth: B.thin, borderColor: theme.error + '25' }} activeOpacity={0.75}>
                         <Text style={{ color: theme.error, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Sınavı Tamamla & Kapat' : 'Complete & Close Exam'}</Text>
                       </Touchable>
                     }
@@ -655,7 +622,7 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
             <FormReveal style={{ gap: S.sm }}>
               <PresetEditor name={name} onName={(v) => setSeasonalPref('examName', v)} preset={preset} onPreset={setPreset} suggestions={suggestions} onSuggestions={setSuggestions} dailyMinutes={dailyMinutes} onDailyMinutes={pickDailyMinutes} placeholder={tr ? 'Sınav adı (örn: ALES, DGS, KPSS...)' : 'Exam name (e.g. SAT, GRE, IELTS...)'} />
               {conflict && (<Text style={{ fontSize: F.caption, color: theme.warning, fontWeight: '500', paddingHorizontal: S.xxs }}>{conflict}</Text>)}
-              <Touchable onPress={() => { haptic.select(); setShowPicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
+              <Touchable accessibilityRole="button" onPress={() => { haptic.select(); setShowPicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
                 <Text style={{ color: date ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.body, fontWeight: '600', flex: 1 }}>{date ? formatPlanDate(date, tr) : (tr ? 'Sınav tarihi seç' : 'Select exam date')}</Text>
                 <CalendarDays size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
               </Touchable>
@@ -663,12 +630,12 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
               {preset && <HoursSelector preset={preset} dailyMinutes={dailyMinutes} onPick={pickDailyMinutes} withLevelLabels />}
               {name.trim() && <WeakTopicPicker slot="exam" examName={name} />}
               <View style={{ flexDirection: 'row', gap: S.sm }}>
-                <Touchable onPress={() => setExpanded(false)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
+                <Touchable accessibilityRole="button" onPress={() => setExpanded(false)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
                   <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
                 </Touchable>
                 {/* Kurulum bitmediyse dugme SESSIZCE KAYBOLMAZ — ne eksik oldugu yazar.
                     Eskiden yalnizca gizleniyordu; kullanici neyi beklediğini bilemiyordu. */}
-                {isComplete ? (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview({ templateId: levelTemplateIdFromMinutes(dailyMinutes ?? preset?.defaultDailyMinutes ?? 90), examSlot: 'exam', examTipTr: preset?.tipTr, examTipEn: preset?.tipEn, examName: name, examDate: date }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}><BookOpen size={ICON.sm} color={ACCENT_ON} /><Text style={{ color: ACCENT_ON, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>) : (
+                {isComplete ? (<Touchable accessibilityRole="button" onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview({ templateId: levelTemplateIdFromMinutes(dailyMinutes ?? preset?.defaultDailyMinutes ?? 90), examSlot: 'exam', examTipTr: preset?.tipTr, examTipEn: preset?.tipEn, examName: name, examDate: date }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}><BookOpen size={ICON.sm} color={ACCENT_ON} /><Text style={{ color: ACCENT_ON, fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>) : (
                   <View style={{ flex: 2, alignItems: 'center', justifyContent: 'center', paddingVertical: S.sm + 2, borderRadius: R.full, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)' }}>
                     <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption }}>
                       {!name.trim() || !preset ? (tr ? 'Önce sınavı seç' : 'Pick the exam first')
@@ -681,6 +648,13 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
             </FormReveal>
           )}
         </View>
+      )}
+      {seasonal.examMode && (
+        <ModeCardClose
+          mode="exam"
+          hasItems={examPlanHabitIds.length + examPlanTaskIds.length + exam2PlanHabitIds.length + exam2PlanTaskIds.length + exam3PlanHabitIds.length + exam3PlanTaskIds.length > 0}
+          onClose={() => { if (examPlanHabitIds.length + examPlanTaskIds.length + exam2PlanHabitIds.length + exam2PlanTaskIds.length + exam3PlanHabitIds.length + exam3PlanTaskIds.length > 0) closeModeWithUndo('exam', closeAll, tr ? 'Sınav takibi kapatıldı' : 'Exam mode closed', tr ? 'Geri al' : 'Undo'); else closeAll(); }}
+        />
       )}
     </View>
   );

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { startDataExport } from '@/shared/utils/startDataExport';
 import { Lock } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
@@ -24,14 +24,14 @@ import { DEVICE_ONLY_COPY } from './deviceOnlyCopy';
 
 export function DeviceOnlyNote({ kind }: { kind: 'health' | 'budget' }) {
   const { theme } = useAppTheme();
-  const { language } = useLanguageStore();
-  const router = useRouter();
+  const { language, t } = useLanguageStore();
   const c = DEVICE_ONLY_COPY[langOf(language)];
 
   const explain = () => {
     haptic.select();
     Alert.alert(c.title, kind === 'health' ? c.healthBody : c.budgetBody, [
-      { text: c.backup, onPress: () => router.push('/settings') },
+      // Yedeği BURADA başlatır; eskiden Ayarlar'ın en üstünü açıp kullanıcıyı satırı aramaya bırakıyordu.
+      { text: c.backup, onPress: () => startDataExport({ copy: t.exportFormat }) },
       { text: c.ok, style: 'cancel' },
     ]);
   };

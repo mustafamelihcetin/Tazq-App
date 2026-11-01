@@ -75,28 +75,32 @@ const LITE_TAB_IDS = ['home', 'tasks', 'focus'];
  *   · SESLİ: ekran okuyucu kullanan kişi kısaltmayı duyuyordu. Oysa kısaltma bir
  *     yer darlığı çözümüdür; sesin yer sorunu yoktur ve kullanıcı özelliği
  *     onboarding'de duyduğu ADLA arar.
+ *
+ * ── ZAMANA GÖRE ADLAR (2026-10-31, yeniden düzenleme A4) ─────────────────────
+ * Sekmeler artık sorduğu soruyla adlanır: Bugün · Görevler · Odak · Hafta · Hedefler.
+ * Yapı ve sıra aynı; değişen yalnız ad. Bkz. __tests__/screenOwnership.test.ts.
  */
 const TAB_SHORT: Record<string, { tr: string; en: string }> = {
-  home: { tr: 'Ana Sayfa', en: 'Home' },
+  home: { tr: 'Bugün', en: 'Today' },
   tasks: { tr: 'Görevler', en: 'Tasks' },
   focus: { tr: 'Odak', en: 'Focus' },
-  cockpit: { tr: 'Haftalık', en: 'Weekly' },
-  modlar: { tr: 'Modlar', en: 'Modes' },
+  cockpit: { tr: 'Hafta', en: 'Week' },
+  modlar: { tr: 'Hedefler', en: 'Goals' },
 };
 
 /**
  * Ekran okuyucuya (VoiceOver/TalkBack) okunan TAM ad — kısaltma yalnız görsel.
  *
  * Sesli okunan ad, kullanıcının uygulamanın başka yerlerinde duyduğu adla AYNI
- * olmalı: "Derin Odak" odak ekranının kendi adı, "Yaşam Modları" da tanıtımda
- * geçen ad. Özelliği arayan kişi onu bu adla arar.
+ * olmalı: ekranın kendi BAŞLIĞI ("Derin Odak", "Bu Hafta", "Hedefler"). Özelliği
+ * arayan kişi onu bu adla arar.
  */
 const TAB_LABELS: Record<string, { tr: string; en: string }> = {
-  home: { tr: 'Ana Sayfa', en: 'Home' },
+  home: { tr: 'Bugün', en: 'Today' },
   tasks: { tr: 'Görevler', en: 'Tasks' },
   focus: { tr: 'Derin Odak', en: 'Deep Focus' },
-  cockpit: { tr: 'Haftalık Merkez', en: 'Weekly Hub' },
-  modlar: { tr: 'Yaşam Modları', en: 'Life Modes' },
+  cockpit: { tr: 'Bu Hafta', en: 'This Week' },
+  modlar: { tr: 'Hedefler', en: 'Goals' },
 };
 
 const IS_IOS = Platform.OS === 'ios';

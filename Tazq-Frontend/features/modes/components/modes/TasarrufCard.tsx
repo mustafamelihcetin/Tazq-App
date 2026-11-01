@@ -5,7 +5,7 @@
  * Kendi içinde kapsüllü: tüm veri store'lardan, plan oluşturma burada.
  */
 import React, { useState, useRef } from 'react';
-import { View, Text, Switch } from 'react-native';
+import { View, Text } from 'react-native';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -20,6 +20,7 @@ import { usePlanAdaptations, makeClientKey } from '@/features/modes/hooks/usePla
 import { TaskService } from '@/shared/services/api';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
+import { ModeCardClose } from '../ModeCardClose';
 import { DeviceOnlyNote } from '@/features/modes/components/DeviceOnlyNote';
 import { FormReveal, ModeField } from '../ModeField';
 import { renderModeEmojiIcon } from '@/features/modes/utils/modeIcons';
@@ -287,26 +288,6 @@ export function TasarrufCard() {
               <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs }}>{tr ? 'Para hedefine ulaşma planı' : 'Plan to reach a money goal'}</Text>
             )}
           </View>
-          <Switch
-            value={seasonal.tasarrufMode}
-            onValueChange={(v) => {
-              haptic.select();
-              if (v) { setSeasonalPref('tasarrufMode', true); setExpanded(true); }
-              else if (applied) {
-                // Kapatma planı + tüm bütçe kayıtlarını siler → önce onay iste.
-                Alert.alert(
-                  tr ? 'Tasarruf Modu Kapatılıyor' : 'Turning off Savings Mode',
-                  tr ? 'Eklenen tüm bütçe kayıtları ve görevler kaldırılacak. Emin misin?' : 'All added budget entries and tasks will be removed. Are you sure?',
-                  [
-                    { text: tr ? 'İptal' : 'Cancel', style: 'cancel' },
-                    { text: tr ? 'Kapat ve Temizle' : 'Turn Off & Remove', style: 'destructive', onPress: () => closeModeWithUndo('tasarruf', closePlan, tr ? 'Tasarruf modu kapatıldı' : 'Savings mode closed', tr ? 'Geri al' : 'Undo') },
-                  ],
-                );
-              } else { setSeasonalPref('tasarrufMode', false); setExpanded(false); }
-            }}
-            trackColor={{ false: theme.surfaceContainerHighest, true: theme.primary }}
-            thumbColor="#fff"
-          />
         </View>
       </View>
 
@@ -318,7 +299,7 @@ export function TasarrufCard() {
           <View style={{ borderRadius: R.md, borderWidth: B.thin, borderColor: C + '22', padding: S.md, gap: S.sm }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{seasonal.tasarrufName}</Text>
-              <Touchable onPress={() => { haptic.commit(); Alert.alert(tr ? 'Hedefi Sil' : 'Delete Goal', tr ? 'Plan ve tüm bütçe kayıtların silinecek. Bu işlem geri alınamaz.' : 'Your plan and all budget entries will be deleted. This cannot be undone.', [{ text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat' : 'Close', style: 'destructive', onPress: closePlan }]); }}>
+              <Touchable accessibilityRole="button" onPress={() => { haptic.commit(); Alert.alert(tr ? 'Hedefi Sil' : 'Delete Goal', tr ? 'Plan ve tüm bütçe kayıtların silinecek. Bu işlem geri alınamaz.' : 'Your plan and all budget entries will be deleted. This cannot be undone.', [{ text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat' : 'Close', style: 'destructive', onPress: closePlan }]); }}>
                 <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Kapat' : 'Close'}</Text>
               </Touchable>
             </View>
@@ -339,11 +320,11 @@ export function TasarrufCard() {
           {showEntry ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
               <View style={{ flex: 1 }}>{moneyInput(entryInput, setEntryInput, true)}</View>
-              <Touchable hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }} onPress={saveEntry} style={{ backgroundColor: C, borderRadius: R.full, paddingHorizontal: S.md, height: 36, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C_ON, fontWeight: '700', fontSize: F.caption }}>{tr ? 'Kaydet' : 'Save'}</Text></Touchable>
-              <Touchable hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={() => { setShowEntry(false); setEntryInput(''); }} style={{ padding: S.xs }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'İptal' : 'Cancel'}</Text></Touchable>
+              <Touchable accessibilityRole="button" hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }} onPress={saveEntry} style={{ backgroundColor: C, borderRadius: R.full, paddingHorizontal: S.md, height: 36, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C_ON, fontWeight: '700', fontSize: F.caption }}>{tr ? 'Kaydet' : 'Save'}</Text></Touchable>
+              <Touchable accessibilityRole="button" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={() => { setShowEntry(false); setEntryInput(''); }} style={{ padding: S.xs }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'İptal' : 'Cancel'}</Text></Touchable>
             </View>
           ) : (
-            <Touchable disabled={!canLog} onPress={() => { if (canLog) { haptic.select(); setShowEntry(true); } }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm + 2, borderRadius: R.md, backgroundColor: canLog ? C + '12' : 'transparent', borderWidth: canLog ? 0 : B.thin, borderColor: theme.onSurfaceVariant + '20' }}>
+            <Touchable accessibilityRole="button" disabled={!canLog} onPress={() => { if (canLog) { haptic.select(); setShowEntry(true); } }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm + 2, borderRadius: R.md, backgroundColor: canLog ? C + '12' : 'transparent', borderWidth: canLog ? 0 : B.thin, borderColor: theme.onSurfaceVariant + '20' }}>
               {<Coins size={ICON.sm} color={canLog ? C : theme.onSurfaceVariant} />}
               <Text style={{ color: canLog ? C : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{canLog ? (tr ? 'Bu hafta bakiyeni gir' : 'Log this week\'s balance') : (tr ? 'Kaydedildi · sonraki hafta' : 'Logged · next week')}</Text>
             </Touchable>
@@ -359,7 +340,7 @@ export function TasarrufCard() {
             {TYPES.map(t => {
               const active = budgetType === t.key;
               return (
-                <Touchable key={t.key} onPress={() => { haptic.select(); setBudgetType(active ? '' : t.key); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
+                <Touchable accessibilityRole="button" accessibilityState={{ selected: active }} key={t.key} onPress={() => { haptic.select(); setBudgetType(active ? '' : t.key); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
                   {renderModeEmojiIcon(t.emoji, 14, active ? C : theme.onSurfaceVariant)}
                   <Text style={{ fontSize: F.caption, fontWeight: '500', color: active ? C : theme.onSurfaceVariant }}>{tr ? t.tr : t.en}</Text>
                 </Touchable>
@@ -402,7 +383,7 @@ export function TasarrufCard() {
                 {[3, 6, 9, 12].map(m => {
                   const active = coverMonths === m;
                   return (
-                    <Touchable key={m} onPress={() => { haptic.select(); setCoverMonths(m); }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
+                    <Touchable accessibilityRole="button" accessibilityState={{ selected: active }} key={m} onPress={() => { haptic.select(); setCoverMonths(m); }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
                       <Text style={{ fontSize: F.caption, fontWeight: '600', color: active ? C : theme.onSurfaceVariant }}>{m} {tr ? 'ay' : 'mo'}</Text>
                     </Touchable>
                   );
@@ -424,7 +405,7 @@ export function TasarrufCard() {
                 {(['disarida_yemek', 'online_alisveris', 'abonelikler', 'eglence_hobi'] as const).map(key => {
                   const active = spendingArea === key;
                   return (
-                    <Touchable key={key} onPress={() => { haptic.select(); setSpendingArea(active ? '' : key); }} style={{ paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
+                    <Touchable accessibilityRole="button" accessibilityState={{ selected: active }} key={key} onPress={() => { haptic.select(); setSpendingArea(active ? '' : key); }} style={{ paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
                       <Text style={{ fontSize: F.caption, fontWeight: '500', color: active ? C : theme.onSurfaceVariant }}>{spendingAreaLabel(key, tr)}</Text>
                     </Touchable>
                   );
@@ -444,7 +425,7 @@ export function TasarrufCard() {
             {DURATIONS.map(m => {
               const active = durationMonths === m;
               return (
-                <Touchable key={m} onPress={() => { haptic.select(); setDurationMonths(m); }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
+                <Touchable accessibilityRole="button" accessibilityState={{ selected: active }} key={m} onPress={() => { haptic.select(); setDurationMonths(m); }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
                   <Text style={{ fontSize: F.caption, fontWeight: '600', color: active ? C : theme.onSurfaceVariant }}>{m} {tr ? 'ay' : 'mo'}</Text>
                 </Touchable>
               );
@@ -455,13 +436,20 @@ export function TasarrufCard() {
               {disabledHint}
             </Text>
           )}
-          <Touchable disabled={!configValid} onPress={apply} style={{ marginTop: S.xs, backgroundColor: configValid ? C : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), borderRadius: R.full, paddingVertical: S.sm + 2, alignItems: 'center' }}>
+          <Touchable accessibilityRole="button" disabled={!configValid} onPress={apply} style={{ marginTop: S.xs, backgroundColor: configValid ? C : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), borderRadius: R.full, paddingVertical: S.sm + 2, alignItems: 'center' }}>
             <Text style={{ color: configValid ? C_ON : theme.onSurfaceVariant, fontWeight: '700', fontSize: F.body }}>{tr ? 'Planı Uygula' : 'Apply Plan'}</Text>
           </Touchable>
         </FormReveal>
       )}
       {/* Sağlık/finans verisi sunucuya gitmez — kullanıcı bunu veriyi girerken bilsin (bkz. DeviceOnlyNote). */}
       {seasonal.tasarrufMode && <DeviceOnlyNote kind="budget" />}
+      {seasonal.tasarrufMode && (
+        <ModeCardClose
+          mode="tasarruf"
+          hasItems={applied}
+          onClose={() => { if (applied) closeModeWithUndo('tasarruf', closePlan, tr ? 'Tasarruf modu kapatıldı' : 'Savings mode closed', tr ? 'Geri al' : 'Undo'); else { setSeasonalPref('tasarrufMode', false); setExpanded(false); } }}
+        />
+      )}
     </View>
   );
 }

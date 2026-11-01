@@ -19,7 +19,12 @@ export function habitWeek(h: HabitLike, weekKeys: string[], todayKey: string): H
   const skipped = new Set(h.skippedDates ?? []);
   const born = h.createdAt ? keyOf(new Date(h.createdAt)) : '0000-00-00';
   const inWeek = weekKeys.filter(k => done.has(k));
-  const goal = s.kind === 'weekly' ? s.times : s.kind === 'days' ? s.days.length : 7;
+  /*
+    HEDEF KURULDUĞU GÜNDEN SAYILIR (2026-10-31, cihazda): Perşembe kurulan her günlük alışkanlık
+    "bu hafta 0/7" görünüyordu — o hafta en fazla 4 gün yapılabilirdi. Günlük/belirli günlerde hedef,
+    kurulduktan sonraki planlı günlerdir; "haftada N" hedefi kullanıcının seçtiği sayıdır, aynen kalır.
+  */
+  const goal = s.kind === 'weekly' ? s.times : weekKeys.filter(k => k >= born && isPlannedDay(h, k)).length;
   let expected = 0;
   if (s.kind === 'weekly') {
     const daysLeft = weekKeys.filter(k => k >= todayKey && !done.has(k)).length;
@@ -68,7 +73,10 @@ export function habitWeekStory<T extends HabitLike & { name: string; color?: str
   const c = COPY[lang];
   if (habits.length === 0) return [c.none];
   const rows = habits.map(h => ({ h, w: habitWeek(h, weekKeys, todayKey) }));
-  const worst = rows.filter(r => r.w.behind > 0).sort((a, b) => b.w.behind - a.w.behind || a.w.done - b.w.done)[0];
+  // Eşit gerilikte DAHA UZUN süredir aksayan öne (hiç yapılmamış = en uzun): eskiden listedeki sıra
+  // kazanıyordu ve "Perşembe'den beri" denirken asıl Salı'dan beri yapılmayan atlanıyordu.
+  const worst = rows.filter(r => r.w.behind > 0).sort((a, b) =>
+    b.w.behind - a.w.behind || (a.w.lastDone ?? '').localeCompare(b.w.lastDone ?? '') || a.w.done - b.w.done)[0];
   // Vurgu hapı alışkanlığın ekrandaki renginde (mod rengi ya da kullanıcının seçimi — bkz. habitColor).
   const tint = (segs: WeekSeg[], h: T) => { const color = colorOf?.(h); return color ? segs.map(s => (typeof s === 'string' ? s : { ...s, color })) : segs; };
   if (worst) {

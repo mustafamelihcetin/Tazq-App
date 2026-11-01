@@ -46,7 +46,7 @@ const DISCOVERY_SAMPLE = {
     tez: 'Örn: 2 sayfa yazım · kaynak tarama',
     mulakat: 'Örn: 1 mülakat sorusuna hazırlan',
     tasarruf: 'Örn: haftalık harcama özetini çıkar',
-    birakma: 'Örn: günlük check-in · tetikleyici notu',
+    birakma: 'Örn: günlük yoklama · tetikleyici notu',
   },
   en: {
     spor: "e.g. 30 min brisk walk",
@@ -132,7 +132,10 @@ import { retireModeTasksByTag, formatPlanDate } from '@/features/modes/utils/pla
 import { TaskService } from '@/shared/services/api';
 import { usePlanAdaptations } from '@/features/modes';
 import { PlanRefreshContext } from '@/features/modes/hooks/usePlanLifecycle';
-import { ModeStatusCard } from '@/features/modes/components/ModeStatusCard';
+import Reanimated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import { ModeStatusCard, type StatusGoal } from '@/features/modes/components/ModeStatusCard';
+import { roadProgress } from '@/features/modes/utils/roadProgress';
+import type { PlanMode } from '@/features/modes/store/usePrefsStore';
 import { Touchable } from '@/shared/components/Touchable';
 import { ChromeShell } from '@/shared/components/ChromeShell';
 import { modeAccent as resolveModeAccent, modeAccentText as resolveModeAccentText, ModeAccents, modeTile } from '@/shared/constants/Colors';
@@ -140,6 +143,8 @@ import { haptic } from '@/shared/utils/haptics';
 import { dateKeyFromNow, parseDateKey } from '@/shared/utils/dateKey';
 import { upperFor } from '@/shared/utils/localeCase';
 import { daysLeftOf as planDaysLeftOf, isDatePast } from '@/features/modes/utils/planTaskOps';
+import { goHome } from '@/shared/utils/authNavigation';
+import { modeToday } from '@/features/modes/utils/planProgress';
 
 const MarsIcon = ({ size = 16, color = 'currentColor', strokeWidth = 2.5 }: { size?: number; color?: string; strokeWidth?: number }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
@@ -172,6 +177,16 @@ const VenusIcon = ({ size = 16, color = 'currentColor', strokeWidth = 2.5 }: { s
   Canlı hâlleri: features/modes/components/modes/SporCard.tsx ve ExamCard.tsx
 */
 
+
+/*
+  SAYFA AKAR, SIÇRAMAZ (2026-10-31). Bir mod açılınca keşif satırı katlanıp kaybolur, kart
+  yukarıdaki bölümde belirir; kapatınca tersi. Eskiden her şey tek karede yer değiştiriyordu:
+  göz kartın nereye gittiğini kaybediyordu. Komşular yaylı bir geçişle yerine kayar (gerçek
+  nesne gibi), çıkan öğe kısaca söner. Reanimated "hareketi azalt" sistem ayarına uyar.
+*/
+const FLOW = LinearTransition.springify().damping(20).mass(0.9);
+const LEAVE = FadeOut.duration(160);
+const ARRIVE = FadeIn.duration(220);
 
 export default function ModlarScreen() {
   const router = useRouter();
@@ -586,27 +601,6 @@ export default function ModlarScreen() {
   const sporHabitsActiveThisWeek = sporPlanHabits.filter(h => (Array.isArray(h.completedDates) ? h.completedDates : []).some(d => thisWeekKeys.has(d))).length;
   const sporWeekPct = sporPlanHabits.length > 0 ? Math.round(sporHabitsActiveThisWeek / sporPlanHabits.length * 100) : 0;
 
-  // ── BUGÜN (o modun bugünkü görev + alışkanlık tamamlanması) ────────────
-  // Kullanıcı perspektifi: "bugün bu mod için işimi yaptım mı?" Sabit ve anlaşılır;
-  // bir görevi/alışkanlığı işaretleyince ANINDA dolar. Bugün planlı iş yoksa
-  // (total=0) çubuk gizlenir — kafa karıştıran "0/1" yerine hiç gösterilmez.
-  const todayKey = fmtDateKey();
-  const todayTaskStat = (taskIds: number[]) => {
-    if (!taskIds || taskIds.length === 0) return { done: 0, total: 0 };
-    const isToday = (d?: string | null) => !!d && !d.startsWith('0001') && fmtDateKey(new Date(d)) === todayKey;
-    // Bugün vadeli VEYA bugün tamamlanan plan görevleri.
-    const wk = useTaskStore.getState().tasks.filter(t =>
-      taskIds.includes(t.id) && (isToday(t.dueDate) || (t.isCompleted && isToday(t.completedAt)))
-    );
-    return { done: wk.filter(t => t.isCompleted).length, total: wk.length };
-  };
-  const mkToday = (planHabits: any[], taskIds: number[]) => {
-    const tk = todayTaskStat(taskIds);
-    const hDone = planHabits.filter(h => (Array.isArray(h.completedDates) ? h.completedDates : []).includes(todayKey)).length;
-    const total = planHabits.length + tk.total;
-    const done = hDone + tk.done;
-    return { done, total, pct: total > 0 ? Math.round((done / total) * 100) : 0 };
-  };
   /*
     MOD BAŞINA ilerleme değişkenleri KALDIRILDI: hiçbiri okunmuyordu (bu ekranda ölü
     koddu) ve mod başına toplamak zaten yanlış olurdu — ikinci/üçüncü slotlar (iki
@@ -686,31 +680,35 @@ export default function ModlarScreen() {
   // Her aday hem DOLGU rengini (color) hem KÜÇÜK YAZI rengini (textColor) taşır —
   // geri sayım rakamı dolgu tonuyla, 'gün kaldı'/'N mod' etiketleri AA geçen
   // metin tonuyla çizilir.
-  const statusCands: Array<{ days: number; label: string; color: string; textColor: string; emoji: string }> = [];
+  const statusCands: StatusGoal[] = [];
+  // Yol halkası: planın kurulduğu gün → hedef (bkz. roadProgress). Kuruluş günü planSpecs'te.
+  const planSpecs = usePrefsStore(s => s.planSpecs);
   // Decouple: tarih/ad LOCAL input yerine KALICI `seasonal`'dan okunur (mod çıkarımının
   // önünü açar; past/days dateStr'den içeride hesaplanır). Yalnız uygulanmış modlar sayılır.
   // TEK SAYAÇ (planTaskOps): buradaki 23:59:59 + yukarı yuvarlama kopyası kartın
   // hemen altındaki mod kartından bir gün FAZLA diyordu ("46 GÜN" / "45 gün kaldı").
   const dPast = (d?: string | null) => isDatePast(d);
   const dLeft = (d?: string | null) => (d && !dPast(d)) ? planDaysLeftOf(d) : 0;
-  const pushCand = (on: boolean, dateStr: string | null, label: string, color: string, textColor: string, emoji: string) => {
-    if (on && dateStr && !dPast(dateStr)) statusCands.push({ days: dLeft(dateStr), label: stripEmoji(label) || label, color, textColor, emoji });
+  const pushCand = (on: boolean, dateStr: string | null, label: string, color: string, textColor: string, emoji: string, slot: PlanMode) => {
+    if (!on || !dateStr || dPast(dateStr)) return;
+    const days = dLeft(dateStr);
+    statusCands.push({ days, label: stripEmoji(label) || label, color, textColor, emoji, id: slot, progress: roadProgress(planSpecs[slot]?.startDate, days) });
   };
-  pushCand(seasonal.examMode && examApplied, seasonal.examDate, seasonal.examName || (language === 'tr' ? 'Sınav' : 'Exam'), urgencyColor, urgencyTextColor, '🎯');
-  pushCand(seasonal.examMode && exam2Applied, seasonal.exam2Date, seasonal.exam2Name || (language === 'tr' ? 'Sınav' : 'Exam'), urgencyColor, urgencyTextColor, '🎯');
-  pushCand(seasonal.examMode && exam3Applied, seasonal.exam3Date, seasonal.exam3Name || (language === 'tr' ? 'Sınav' : 'Exam'), urgencyColor, urgencyTextColor, '🎯');
-  pushCand(seasonal.tezMode && tezApplied, seasonal.tezDate, seasonal.tezName || (language === 'tr' ? 'Tez' : 'Thesis'), tezUrgencyColor, tezTextColor, '📚');
-  pushCand(seasonal.mulakatMode && mulakatApplied, seasonal.mulakatDate, seasonal.mulakatName || (language === 'tr' ? 'Mülakat' : 'Interview'), mulakatUrgencyColor, mulakatTextColor, '💼');
-  pushCand(seasonal.mulakatMode && mulakat2Applied, seasonal.mulakat2Date, seasonal.mulakat2Name || (language === 'tr' ? 'Mülakat' : 'Interview'), mulakatUrgencyColor, mulakatTextColor, '💼');
-  pushCand(seasonal.mulakatMode && mulakat3Applied, seasonal.mulakat3Date, seasonal.mulakat3Name || (language === 'tr' ? 'Mülakat' : 'Interview'), mulakatUrgencyColor, mulakatTextColor, '💼');
-  pushCand(seasonal.sporMode && sporApplied, seasonal.sporDate, localizeSporGoal(seasonal.sporGoal || '', language === 'tr') || (language === 'tr' ? 'Spor' : 'Fitness'), sporColor, sporTextColor, '💪');
-  pushCand(seasonal.sporMode && spor2Applied, seasonal.spor2Date, localizeSporGoal(seasonal.spor2Goal || '', language === 'tr') || (language === 'tr' ? 'Spor' : 'Fitness'), sporColor, sporTextColor, '💪');
-  pushCand(seasonal.sporMode && spor3Applied, seasonal.spor3Date, localizeSporGoal(seasonal.spor3Goal || '', language === 'tr') || (language === 'tr' ? 'Spor' : 'Fitness'), sporColor, sporTextColor, '💪');
+  pushCand(seasonal.examMode && examApplied, seasonal.examDate, seasonal.examName || (language === 'tr' ? 'Sınav' : 'Exam'), urgencyColor, urgencyTextColor, '🎯', 'exam');
+  pushCand(seasonal.examMode && exam2Applied, seasonal.exam2Date, seasonal.exam2Name || (language === 'tr' ? 'Sınav' : 'Exam'), urgencyColor, urgencyTextColor, '🎯', 'exam2');
+  pushCand(seasonal.examMode && exam3Applied, seasonal.exam3Date, seasonal.exam3Name || (language === 'tr' ? 'Sınav' : 'Exam'), urgencyColor, urgencyTextColor, '🎯', 'exam3');
+  pushCand(seasonal.tezMode && tezApplied, seasonal.tezDate, seasonal.tezName || (language === 'tr' ? 'Tez' : 'Thesis'), tezUrgencyColor, tezTextColor, '📚', 'tez');
+  pushCand(seasonal.mulakatMode && mulakatApplied, seasonal.mulakatDate, seasonal.mulakatName || (language === 'tr' ? 'Mülakat' : 'Interview'), mulakatUrgencyColor, mulakatTextColor, '💼', 'mulakat');
+  pushCand(seasonal.mulakatMode && mulakat2Applied, seasonal.mulakat2Date, seasonal.mulakat2Name || (language === 'tr' ? 'Mülakat' : 'Interview'), mulakatUrgencyColor, mulakatTextColor, '💼', 'mulakat2');
+  pushCand(seasonal.mulakatMode && mulakat3Applied, seasonal.mulakat3Date, seasonal.mulakat3Name || (language === 'tr' ? 'Mülakat' : 'Interview'), mulakatUrgencyColor, mulakatTextColor, '💼', 'mulakat3');
+  pushCand(seasonal.sporMode && sporApplied, seasonal.sporDate, localizeSporGoal(seasonal.sporGoal || '', language === 'tr') || (language === 'tr' ? 'Spor' : 'Fitness'), sporColor, sporTextColor, '💪', 'spor');
+  pushCand(seasonal.sporMode && spor2Applied, seasonal.spor2Date, localizeSporGoal(seasonal.spor2Goal || '', language === 'tr') || (language === 'tr' ? 'Spor' : 'Fitness'), sporColor, sporTextColor, '💪', 'spor2');
+  pushCand(seasonal.sporMode && spor3Applied, seasonal.spor3Date, localizeSporGoal(seasonal.spor3Goal || '', language === 'tr') || (language === 'tr' ? 'Spor' : 'Fitness'), sporColor, sporTextColor, '💪', 'spor3');
   /*
     Tasarrufun da bir HEDEF TARİHİ var (tasarrufDate) ama geri sayıma hiç girmiyordu.
     Bırakma bilerek dışarıda: o bir "şu tarihten beri" modu, hedef tarihi yok.
   */
-  pushCand(seasonal.tasarrufMode && tasarrufApplied, seasonal.tasarrufDate, seasonal.tasarrufName || SAVINGS_FALLBACK[language === 'en' ? 'en' : 'tr'], resolveModeAccent('tasarruf', isDark), resolveModeAccentText('tasarruf', isDark), '💰');
+  pushCand(seasonal.tasarrufMode && tasarrufApplied, seasonal.tasarrufDate, seasonal.tasarrufName || SAVINGS_FALLBACK[language === 'en' ? 'en' : 'tr'], resolveModeAccent('tasarruf', isDark), resolveModeAccentText('tasarruf', isDark), '💰', 'tasarruf');
   /*
     DESTE SIRASI: en yakın hedef önce.
 
@@ -728,7 +726,7 @@ export default function ModlarScreen() {
     Eskiden yalnız 'daily' etiketli görevler sayılıyordu; o etiketi günlük plan motoru
     basıyor. Tasarruf ve Bırakma kendi akışlarını kullandığı için bu iki modun işi
     "bugün planlı iş yok" diye görünüyordu. Ölçü artık etiket değil, modun kendi planı:
-    o modun alışkanlıkları + bugüne düşen plan görevleri (bkz. mkToday).
+    bugüne düşen plan görevleri + bugün planlı plan alışkanlıkları (bkz. planProgress.modeToday).
   */
   /*
     Hesap TÜM SLOTLARIN birleşimi üzerinden yapılır. Mod başına yalnız ilk slot
@@ -750,7 +748,8 @@ export default function ModlarScreen() {
     ...sporPlanHabitIds, ...spor2PlanHabitIds, ...spor3PlanHabitIds,
     ...ramazanPlanHabitIds, ...tasarrufPlanHabitIds, ...birakmaPlanHabitIds,
   ]);
-  const statusTodayAgg = mkToday(habits.filter(h => allPlanHabitIdSet.has(h.id)), allPlanTaskIds);
+  // Tek tanım (bkz. planProgress.modeToday): ana sayfa, mod kartları ve yol haritası aynı sayıyı verir.
+  const statusTodayAgg = modeToday({ tasks: useTaskStore.getState().tasks, habits, planTaskIds: allPlanTaskIds, planHabitIds: [...allPlanHabitIdSet] });
   const statusTodayTotal = statusTodayAgg.total;
   const statusTodayDone = statusTodayAgg.done;
   const statusTodayPct = statusTodayTotal > 0 ? Math.round(statusTodayDone / statusTodayTotal * 100) : 0;
@@ -799,8 +798,10 @@ export default function ModlarScreen() {
     tur ve kaydırma o konumlara bakıyor (kartı MotiView'a sarmak yerini bozmaz).
   */
   const wrapCard = useCallback((sectionId: string) => (m: { id: string; node: React.ReactNode }, index = 0) => (
-    <View
+    <Reanimated.View
       key={m.id}
+      layout={FLOW}
+      exiting={LEAVE}
       onLayout={(e) => {
         cardY.current[m.id] = e.nativeEvent.layout.y;
         cardSection.current[m.id] = sectionId;
@@ -813,7 +814,7 @@ export default function ModlarScreen() {
       >
         {m.node}
       </MotiView>
-    </View>
+    </Reanimated.View>
   ), []);
 
   const appliedCards = [...modeCards.filter(m => m.applied), ...(seasonal.ramazan && ramazanApplied ? [ramazanCard] : [])].map((m, i) => wrapCard('applied')(m, i));
@@ -969,7 +970,7 @@ export default function ModlarScreen() {
             hedeflerin bugünkü durumu; dokununca yol haritası (madde 7, bkz. ModeRoadmap).
           */
           left={<ModeStatusPill summary={modeSummary} onPress={() => { haptic.surface(); setRoadmapVisible(true); }} />}
-          title={language === 'tr' ? 'Yaşam Modları' : 'Life Modes'}
+          title={language === 'tr' ? 'Hedefler' : 'Goals'}
           right={
             <TourTarget id="overview" spotRadius={R.full}>
               <Touchable
@@ -1007,16 +1008,18 @@ export default function ModlarScreen() {
               <ModeStatusCard
                 language={language === 'en' ? 'en' : 'tr'}
                 goals={demoStatus ? [
-                  { days: 42, label: demoCopy.exam, color: resolveModeAccent('exam', isDark), textColor: resolveModeAccentText('exam', isDark), emoji: '🎯' },
-                  { days: 63, label: demoCopy.spor, color: sporColor, textColor: sporTextColor, emoji: '💪' },
+                  { days: 42, label: demoCopy.exam, color: resolveModeAccent('exam', isDark), textColor: resolveModeAccentText('exam', isDark), emoji: '🎯', id: 'demo-exam', progress: 0.4 },
+                  { days: 63, label: demoCopy.spor, color: sporColor, textColor: sporTextColor, emoji: '💪', id: 'demo-spor', progress: 0.25 },
                 ] : statusOrdered}
                 activeCount={demoStatus ? 2 : statusActiveCount}
+                pendingCount={demoStatus ? 0 : pendingCards.length}
                 greeting={demoStatus ? { text: demoCopy.greeting, icon: <Dumbbell size={ICON.md} color={urgencyColor} /> } : statusGreetingObj}
                 todayDone={demoStatus ? 1 : statusTodayDone}
                 todayTotal={demoStatus ? 3 : statusTodayTotal}
                 motivation={demoStatus ? demoCopy.motiv : statusMotiv}
                 fallbackColor={urgencyColor}
                 fallbackTextColor={urgencyTextColor}
+                onOpenToday={() => goHome(router)}
               />
             </TourTarget>
             {/* ── KATMAN 1: AKTİF HEDEFLERİM / KURULUMU TAMAMLA ──
@@ -1040,8 +1043,11 @@ export default function ModlarScreen() {
                 Bölümün y'si de kaydedilip kart y'siyle TOPLANIYOR; böylece hedef konum
                 sayfanın tamamına göre doğru hesaplanıyor.
               */
-              <View
+              <Reanimated.View
                 key={section.id}
+                layout={FLOW}
+                entering={ARRIVE}
+                exiting={LEAVE}
                 onLayout={(e) => { sectionY.current[section.id] = e.nativeEvent.layout.y; }}
                 style={{ gap: S.md, marginTop: S.sm }}
               >
@@ -1070,25 +1076,13 @@ export default function ModlarScreen() {
                     ))}
                   </View>
                 ) : section.cards}
-              </View>
+              </Reanimated.View>
             ))}
 
             {/* ── KATMAN 2: 2 SÜTUNLU KEŞİF IZGARASI (PASİF HEDEFLER) ── */}
             {(() => {
+              // Sınav ilk sırada: ürünün çekirdek kitlesi sınav hazırlığı (denetim 2026-10-31).
               const discoveryItems = [
-                {
-                  key: 'spor',
-                  active: seasonal.sporMode,
-                  title: language === 'tr' ? 'Spor & Fiziksel' : 'Fitness & Health',
-                  desc: language === 'tr' ? 'Kilo, koşu veya antrenman takibi' : 'Weight, running or workouts',
-                  icon: '🏋️',
-                  Icon: Dumbbell,
-                  color: sporColor,
-                  textColor: sporTextColor,
-                  load: language === 'tr' ? '2-3 alışkanlık · günde 1-3 görev' : '2-3 habits · 1-3 tasks/day',
-                  sample: DISCOVERY_SAMPLE[language === 'en' ? 'en' : 'tr'].spor,
-                  onActivate: () => { setSeasonalPref('sporMode', true); focusCard('spor'); },
-                },
                 {
                   key: 'exam',
                   active: seasonal.examMode,
@@ -1103,10 +1097,23 @@ export default function ModlarScreen() {
                   onActivate: () => { setSeasonalPref('examMode', true); focusCard('exam'); },
                 },
                 {
+                  key: 'spor',
+                  active: seasonal.sporMode,
+                  title: language === 'tr' ? 'Spor & Fiziksel' : 'Fitness & Health',
+                  desc: language === 'tr' ? 'Kilo, koşu veya antrenman takibi' : 'Weight, running or workouts',
+                  icon: '🏋️',
+                  Icon: Dumbbell,
+                  color: sporColor,
+                  textColor: sporTextColor,
+                  load: language === 'tr' ? '2-3 alışkanlık · günde 1-3 görev' : '2-3 habits · 1-3 tasks/day',
+                  sample: DISCOVERY_SAMPLE[language === 'en' ? 'en' : 'tr'].spor,
+                  onActivate: () => { setSeasonalPref('sporMode', true); focusCard('spor'); },
+                },
+                {
                   key: 'tez',
                   active: seasonal.tezMode,
                   title: language === 'tr' ? 'Tez / Proje' : 'Thesis / Project',
-                  desc: language === 'tr' ? 'Deadline odaklı bitirme akışı' : 'Deadline-driven project plan',
+                  desc: language === 'tr' ? 'Teslim tarihine göre bitirme planı' : 'Deadline-driven project plan',
                   icon: '📝',
                   Icon: GraduationCap, // kartın kendi ikonuyla AYNI (TezCard) — keşifte 📄, kartta 🎓 idi
                   color: tezUrgencyColor,
@@ -1150,7 +1157,7 @@ export default function ModlarScreen() {
                   Icon: Ban,
                   color: resolveModeAccent('birakma', isDark),
                   textColor: resolveModeAccentText('birakma', isDark),
-                  load: language === 'tr' ? '3 alışkanlık · günlük check-in' : '3 habits · daily check-in',
+                  load: language === 'tr' ? '3 alışkanlık · her gün kısa yoklama' : '3 habits · daily check-in',
                   sample: DISCOVERY_SAMPLE[language === 'en' ? 'en' : 'tr'].birakma,
                   onActivate: () => { setSeasonalPref('birakmaMode', true); focusCard('birakma'); },
                 },
@@ -1170,7 +1177,7 @@ export default function ModlarScreen() {
                 başına renkli ikon, tam genişlik metin — hiçbir satır kesilmiyor.
               */
               return (
-                <View style={{ gap: S.sm, marginTop: statusActiveCount > 0 ? S.lg : 0 }}>
+                <Reanimated.View layout={FLOW} style={{ gap: S.sm, marginTop: statusActiveCount > 0 ? S.lg : 0 }}>
                   <SectionHeader title={language === 'tr' ? 'Yeni hedef keşfet' : 'Discover new goals'} theme={theme} tr={language === 'tr'} />
                   <View style={{ backgroundColor: theme.surfaceCard, borderRadius: R.lg, overflow: 'hidden', borderWidth: isDark ? B.thin : 0, borderColor: theme.outline }}>
                     {discoveryItems.map((item, idx) => (
@@ -1179,7 +1186,8 @@ export default function ModlarScreen() {
                         bölümleri sarıyordu — vurgu ekrandan taşıp sekme çubuğuna iniyor, başlık
                         aydınlatılan alanın kenarına yapışıyordu. Tek somut satır (TipKit deseni).
                       */
-                      <TourTarget id="contents" key={item.key} enabled={idx === 0} spotRadius={R.lg} spotCorners="top">
+                      <Reanimated.View key={item.key} layout={FLOW} exiting={LEAVE}>
+                      <TourTarget id="contents" enabled={idx === 0} spotRadius={R.lg} spotCorners="top">
                       <Touchable
                         accessibilityRole="button"
                         accessibilityLabel={`${item.title} — ${language === 'tr' ? 'kurulumu başlat' : 'start setup'}`}
@@ -1212,9 +1220,10 @@ export default function ModlarScreen() {
                         </View>
                       </Touchable>
                       </TourTarget>
+                      </Reanimated.View>
                     ))}
                   </View>
-                </View>
+                </Reanimated.View>
               );
             })()}
 

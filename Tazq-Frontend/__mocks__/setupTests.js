@@ -71,12 +71,15 @@ jest.mock('react-native-gesture-handler', () => ({
 // Skia — jest ortamında native/CanvasKit yok. Lottie oynatıcısı "yok" davranır:
 // LottieAnimation yedek gösterime düşer (web'deki gerçek davranışla aynı).
 jest.mock('@shopify/react-native-skia', () => ({
-  Skia: { Skottie: { Make: () => { throw new Error('Skia yok (test)'); } }, XYWHRect: () => ({}), Path: { Make: () => ({ addArc() { return this; }, moveTo() { return this; }, lineTo() { return this; } }) } },
+  Skia: { Skottie: { Make: () => { throw new Error('Skia yok (test)'); } }, XYWHRect: () => ({}), Path: { Make: () => ({ addArc() { return this; }, moveTo() { return this; }, lineTo() { return this; }, cubicTo() { return this; }, close() { return this; }, copy() { return this; } }) } },
+  LinearGradient: () => null,
+  vec: (x, y) => ({ x, y }),
   Canvas: () => null,
   Circle: () => null,
   Path: () => null,
   Group: () => null,
   BlurMask: () => null,
+  DashPathEffect: () => null,
   Skottie: () => null,
   useClock: () => ({ value: 0 }),
 }));

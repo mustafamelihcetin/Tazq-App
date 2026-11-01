@@ -1,0 +1,47 @@
+# "AKLINDAKİLERİ YAZ" — uçtan uca (KN2, 2026-10-31)
+#
+# Temiz kurulum → tanıtım (4 slayt) → Hesapsız dene → mod sorusu → hoş geldin → Aklındakileri yaz
+# → örnek cümle → Şunları anladım → Planıma ekle → ana sayfa kullanıcının KENDİ maddeleriyle açılır.
+#
+# Çalıştırma (Android, dev build, Metro açık):
+#   adb reverse tcp:8081 tcp:8081
+#   ~/.maestro/bin/maestro.bat test .maestro/kayit-yaz-ekle.yaml
+# Misafir yolu seçildi: hesap açmadan aynı ilk dakikayı kurar (hoş geldin misafire de gösterilir).
+appId: com.tazqapp.tazq.dev
+---
+- launchApp:
+    clearState: true
+- openLink: "exp+tazq-frontend://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"
+- extendedWaitUntil:
+    visible: "Devam Et"
+    timeout: 120000            # dev build ilk açılış + yazı tipleri ~90 sn
+- tapOn: "Devam Et"
+- tapOn: "Devam Et"
+- tapOn: "Devam Et"
+- tapOn: "Hesapsız dene"
+- tapOn: "Skor ve seri açık olsun"
+# Hoş geldin: misafirin adı yok → ad zorunlu
+- extendedWaitUntil:
+    visible: "Adın"
+    timeout: 30000
+- tapOn: "Adın"
+- inputText: "Deneme"
+- hideKeyboard
+- tapOn: "Başla"
+# Aklındakileri yaz
+- extendedWaitUntil:
+    visible: "Aklında ne var?"
+    timeout: 30000
+- tapOn: "Örnek: faturayı öde, annemi ara, haftada 3 gün spor"
+- extendedWaitUntil:
+    visible: "Devam (3)"
+    timeout: 5000
+- tapOn: "Devam (3)"
+- assertVisible: "Şunları anladım"
+- assertVisible: "Spor: Alışkanlık. Türünü değiştir"
+- tapOn: "Planıma ekle (3)"
+# Varış: ana sayfa kendi maddeleriyle
+- extendedWaitUntil:
+    visible: "Faturayı öde"
+    timeout: 15000
+- assertVisible: "Annemi ara"

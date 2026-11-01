@@ -40,13 +40,11 @@ import { useSporStore } from '@/features/modes/store/useSporStore';
 import { useSessionStore } from '@/shared/store/useSessionStore';
 import { StatusHub } from '@/features/dashboard/components/StatusHub';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getSmartInsight, generateWeeklyTips } from '@/shared/utils/insights';
-import { sameSpanTotal } from '@/features/dashboard/utils/weeklyHub';
 import { understand, titleOf } from '@/features/tasks/nlp/understand';
 import { computeMomentum } from '@/shared/utils/momentum';
 import { ICON, S, R, F, B, MIN_TOUCH, TRACKING, MAX_W, contentMaxWidth, sideInset, HAIRLINE, navBarSpace, fabSafeBottom, topBarSpace, TOP_BAR_HEIGHT, TOP_BAR_LIFT, TOP_ITEM_SIZE, TOP_AVATAR_SIZE, touchSlop } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
-import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, TurkishModeBanner, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
+import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { useHabitStore, fmtDateKey, useSleepHealthSync, useActiveHabitList } from '@/features/habits';
 import { isDueToday, orderForNow, weekProgress, countOn, targetOf, missState } from '@/features/habits/utils/habitSchedule';
 import { celebrateMilestone } from '@/features/habits/utils/autoMark';
@@ -62,13 +60,14 @@ import { useDemoGate, useTourGate } from '@/features/onboarding/utils/firstRun';
 import { TourTarget } from '@/shared/components/TourContext';
 import { scheduleWeeklySummary } from '@/shared/utils/notifications';
 import { Touchable } from '@/shared/components/Touchable';
-import { StatusHubModal } from '@/features/dashboard/components/StatusHubModal';
 import { QuickAddSheet, type DayChoice } from '@/features/tasks/components/QuickAddSheet';
 import { dateKeyFromNow } from '@/shared/utils/dateKey';
 import { ModeTodayCard } from '@/features/modes/components/ModeTodayCard';
 import { PaymentsSummaryCard } from '@/features/payments/components/PaymentsSummaryCard';
 import { useAppShortcuts } from '@/shared/hooks/useAppShortcuts';
 import { ProfileSetupModal } from '@/features/user/components/ProfileSetupModal';
+import { CaptureSheet } from '@/features/onboarding/components/CaptureSheet';
+import { shouldOfferCapture } from '@/features/onboarding/utils/captureFlow';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
@@ -91,6 +90,7 @@ import { AppIcon } from '@/shared/components/AppIcon';
 import { EntranceStage } from '@/shared/components/EntranceStage';
 import { useLatestCallback } from '@/shared/hooks/useLatestCallback';
 import { useWakeSignal } from '@/features/dashboard/hooks/useWakeSignal';
+import { useAwayLine } from '@/features/dashboard/hooks/useAwayLine';
 import { MyDayItem, isDemoId, type MyDayTaskItem } from '@/features/dashboard/components/MyDayItem';
 import type { MyDayHabitsProps } from '@/features/dashboard/components/MyDayHabits';
 import { haptic } from '@/shared/utils/haptics';
@@ -101,6 +101,7 @@ import { scopeDay } from '@/features/dashboard/utils/dayScope';
 import { TodayRings, type TodayRingsProps } from '@/features/dashboard/components/TodayRings';
 import { habitColor } from '@/features/habits/utils/habitColor';
 import { isFocusWorthy } from '@/features/focus/focusWorthy';
+import { dayRatingKey } from '@/features/modes/utils/dayRating';
 
 
 // Hoş geldin (profil kurulumu) oturum başına yalnızca bir kez — remount'ta sıfırlanmasın diye
@@ -178,7 +179,7 @@ export default function HomeScreen() {
     gezinme ağacı henüz hazır olmuyor (bkz. useAppShortcuts).
   */
   useAppShortcuts();
-  const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor, soundEffects, productivityHour, completedTours, setOnboardingCompleted, welcomeStatus, _hasHydrated: prefsHydrated } = usePrefsStore();
+  const { seasonal, weeklyNotification, avatarBorderColor, soundEffects, completedTours, setOnboardingCompleted, welcomeStatus, capturePending, firstCapture, _hasHydrated: prefsHydrated } = usePrefsStore();
 
   const [profileSetupVisible, setProfileSetupVisible] = useState(false);
   const isGuest = useSessionStore(s => s.isGuest);
@@ -217,6 +218,7 @@ export default function HomeScreen() {
     */
     if (isFirstLogin && welcomeStatus === 'unknown') {
       usePrefsStore.getState().setWelcomeStatus('pending');
+      usePrefsStore.getState().setCapturePending(true); // hoş geldinden sonra "Aklındakileri yaz" (bkz. captureFlow)
     }
 
     if (welcomeStatus === 'pending' && !welcomeSetupShown) {
@@ -304,30 +306,6 @@ export default function HomeScreen() {
     return null;
   })();
 
-  /*
-    BANDIN DÖNEM ANAHTARI — kapatma kaydı buna bağlı.
-
-    Anahtar `examDate ?? mulakatDate ?? tezDate ?? yıl` diye kuruluyordu, yani MODUN
-    KENDİ dönemine değil, sırayla bulunan HERHANGİ bir tarihe. İki sonucu vardı:
-
-     · Ramazan bandını kapatan kullanıcının kaydı `ramazan-<sınav tarihi>` olarak
-       yazılıyordu. Sınav tarihini değiştirince anahtar değişiyor ve RAMAZAN bandı
-       geri geliyordu — kapattığı şeyle hiç ilgisi olmayan bir ayar yüzünden.
-     · `mulakatDate`/`tezDate` dalları zaten ulaşılamıyordu (bkz. activePlanApplied
-       notu): bu ekranda mod tipi yalnız exam/ramazan/yks/kpss olabiliyor.
-
-    Anahtar artık modun kendi döneminden türüyor.
-  */
-  const activeBannerKey = activeMode
-    ? `${activeMode.type}-${
-        activeMode.type === 'ramazan'
-          ? new Date().getFullYear()
-          : seasonal.examDate ?? `auto-${new Date().getFullYear()}`
-      }`
-    : '';
-  const modeDismissed = !!activeBannerKey && dismissedBannerKey === activeBannerKey;
-
-
   // Alışkanlıklar (dashboard hızlı giriş şeridi) — tek dokunuşla bugünü işaretle.
   const habits = useActiveHabitList(); // dinlenenler bugünün listesinde yok (madde 6)
   // Uyku sağlık senkronu — onaylı asistan (iOS HealthKit; desteklenmeyen yerde sessiz no-op).
@@ -358,7 +336,6 @@ export default function HomeScreen() {
   const todayFocusMinutes = dailyFocusDate === todayKey() ? dailyFocusMinutes : 0;
 
   // State
-  const [statusHubVisible, setStatusHubVisible] = useState(false);
   const [weightModalTaskId, setWeightModalTaskId] = useState<number | null>(null);
   const [quickDraftVisible, setQuickDraftVisible] = useState(false);
   useUiDepth(quickDraftVisible);
@@ -427,20 +404,20 @@ export default function HomeScreen() {
   const [todayRating, setTodayRating] = useState<number | null>(null);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
 
-  useEffect(() => {
-    // Adı `todayKey` idi ve aynı adı taşıyan İÇE AKTARILMIŞ fonksiyonu gölgeliyordu
-    // (bkz. streakDay → todayKey). Gölgeleme derlenir ama okuyanı yanıltır.
-    const evalDayKey = fmtDateKey();
-    if (activeMode) {
-      const key = `tazq_eval_${activeMode.type}_${evalDayKey}`;
-      AsyncStorage.getItem(key).then(val => {
-        if (val) setTodayRating(parseInt(val, 10));
-        else setTodayRating(null);
-      }).catch(e => swallow('index.readTodayRating', e));
-    } else {
-      setTodayRating(null);
-    }
-  }, [activeMode]);
+  /*
+    Günün değerlendirmesi artık Hedefler ekranındaki mod bandında veriliyor (bant ana
+    sayfadan 2026-10-31'de kalktı) → ekrana her DÖNÜŞTE yeniden okunur. Anahtar yazanla
+    aynı fonksiyondan (dayRatingKey): YKS/KPSS'de band `exam` yuvasına yazıyor.
+    Eskiden bağımlılık `activeMode` nesnesiydi; her render'da yeni nesne olduğu için okuma
+    her render'da tekrarlanıyordu.
+  */
+  const ratingKey = activeMode ? dayRatingKey(activeMode.type, fmtDateKey()) : null;
+  useFocusEffect(useCallback(() => {
+    if (!ratingKey) { setTodayRating(null); return; }
+    AsyncStorage.getItem(ratingKey).then(val => {
+      setTodayRating(val ? parseInt(val, 10) : null);
+    }).catch(e => swallow('index.readTodayRating', e));
+  }, [ratingKey]));
 
   const initialCompletedCountRef = useRef<number | null>(null);
   const initialStreakRef = useRef<number | null>(null);
@@ -528,10 +505,11 @@ export default function HomeScreen() {
           }
 
           Alert.alert(
-            language === 'tr' ? 'Seri Korundu!' : 'Streak Protected!',
+            // "Sen" dili ve suçlamayan ton (2026-11-01): ara bir olgu, kusur değil (bkz. streakCopy.test).
+            language === 'tr' ? 'Serin korundu' : 'Streak protected',
             language === 'tr'
-              ? `Son ${verdict.daysMissed} gündür aktif değildiniz fakat ${verdict.daysMissed} adet TAZQ Kalkanı kullanılarak seriniz başarıyla korundu.`
-              : `You were inactive for the last ${verdict.daysMissed} days, but ${verdict.daysMissed} TAZQ Shields successfully protected your streak.`
+              ? `${verdict.daysMissed} gün ara verdin; ${verdict.daysMissed} kalkan serini korudu.`
+              : `You took ${verdict.daysMissed} ${verdict.daysMissed === 1 ? 'day' : 'days'} off; ${verdict.daysMissed} ${verdict.daysMissed === 1 ? 'shield' : 'shields'} kept your streak.`
           );
         } else if (verdict.action === 'reset') {
           useFocusStore.setState({
@@ -541,10 +519,10 @@ export default function HomeScreen() {
           });
 
           Alert.alert(
-            language === 'tr' ? 'Seri Sıfırlandı' : 'Streak Reset',
+            language === 'tr' ? 'Yeni bir seri başlıyor' : 'A fresh streak starts',
             language === 'tr'
-              ? `Son ${verdict.daysMissed} gündür aktif değildiniz. ${verdict.shieldsHad} kalkanınız yetersiz kaldığı için seriniz sıfırlandı.`
-              : `You were inactive for the last ${verdict.daysMissed} days. Since your ${verdict.shieldsHad} shields were not enough, your streak was reset.`
+              ? `${verdict.daysMissed} gün ara verdin; seri baştan başlıyor. Bugün tek bir iş yeter.`
+              : `You took ${verdict.daysMissed} ${verdict.daysMissed === 1 ? 'day' : 'days'} off, so your streak starts over. One thing today is enough.`
           );
         }
       }
@@ -643,7 +621,13 @@ export default function HomeScreen() {
     farkında olmadan karıştırılmasından çıkmıştı.
   */
   // Ana sayfa turu HOŞ GELDİN (profil kurulumu) bitene kadar BEKLER — ikisi üst üste binmez.
-  const tourOn = useTourGate('dashboard', profileSetupVisible || welcomeStatus === 'pending');
+  /*
+    "AKLINDAKİLERİ YAZ" (C2–C5): yeni hesapta hoş geldinden SONRA, turdan ÖNCE bir kez. Tur ekran açıkken
+    ve varış (panel bir kez uyanır) sürerken bekler — tur açıkken giriş animasyonu kapalı (%0 kayma).
+  */
+  const captureOn = shouldOfferCapture({ capturePending, welcomeStatus, firstCapture }) && !profileSetupVisible;
+  const [arriving, setArriving] = useState(false);
+  const tourOn = useTourGate('dashboard', profileSetupVisible || welcomeStatus === 'pending' || captureOn || arriving);
   const demoGate = useDemoGate('dashboard', tourOn);
   /*
     ÖRNEK SATIRLAR TEK KAYNAKTAN.
@@ -692,6 +676,8 @@ export default function HomeScreen() {
     tarihini ('…T00:00:00Z') UTC'nin gerisindeki saat dilimlerinde bir gün kaydırıyordu.
   */
   const overdueCount = zen.analysis.overdue.length;
+  // "Sen yokken" (B5): 2+ gün aradan sonra açılış selamının yerine tek satır (bkz. awaySentence).
+  const awayLine = useAwayLine(language === 'en' ? 'en' : 'tr', todayTasksIncomplete.length + overdueCount);
 
   const fetchTasks = async () => {
     setLoading(true);
@@ -713,6 +699,13 @@ export default function HomeScreen() {
   */
   const [pullRefreshing, setPullRefreshing] = useState(false);
   const [wakeKey, wake] = useWakeSignal(); // dönüş / öne gelme / yenileme → panel bir kez "canlanır"
+  // Varış: yazılanlar eklendiyse panel bir kez uyanır (ışık dalgası, yeni yapraklar); bitince tur açılır.
+  const onCaptureDone = useLatestCallback((added: { tasks: number; habits: number }) => {
+    if (added.tasks + added.habits === 0) return;
+    wake();
+    setArriving(true);
+    setTimeout(() => setArriving(false), 900);
+  });
   const onPullRefresh = async () => {
     setPullRefreshing(true);
     try { await Promise.all([fetchTasks(), fetchStats(), refreshFocusHistory()]); }
@@ -905,19 +898,6 @@ export default function HomeScreen() {
     }));
   }, [focusSessions, tasks, habits, dayLabels]);
 
-  // Geçen haftanın AYNI günleri (Pzt → bugünün haftagünü) — içgörü modalındaki kıyas için.
-  // Tamamıyla kıyaslamak hafta başında trendi hep eksi gösteriyordu (bkz. weeklyHub.sameSpanTotal).
-  const lastWeekMinutes = React.useMemo(
-    () => sameSpanTotal(summarizeWeek({ sessions: focusSessions, tasks, habits, range: weekRange(new Date(), -1) }).focusPerDay, currentDayIndex),
-    [focusSessions, tasks, habits, currentDayIndex],
-  );
-
-  // Alışkanlık oranı Haftalık Merkez ile AYNI motordan (bkz. StatusHubModal.habitStats).
-  const weekHabitStats = React.useMemo(() => {
-    const w = summarizeWeek({ sessions: focusSessions, tasks, habits, range: weekRange(new Date()) });
-    return { done: w.habitDone, possible: w.habitPossible, pct: w.habitPct };
-  }, [focusSessions, tasks, habits]);
-
   const mergedWeeklyFocus = React.useMemo(
     () => buildWeekStrip({ weeklyFocus, dayLabels, todayIndex: currentDayIndex, todayMinutes: localTodayMinutes }),
     [weeklyFocus, dayLabels, currentDayIndex, localTodayMinutes],
@@ -999,7 +979,7 @@ export default function HomeScreen() {
     ya da hızlı ekleme açıkken iki modal üst üste binerdi. Koşul kalkınca (örn. tur
     kapanınca) efekt yeniden kurulur ve istek o zaman değerlendirilir.
   */
-  const otherModalOpen = profileSetupVisible || welcomeStatus === 'pending' || tourOn || quickDraftVisible;
+  const otherModalOpen = profileSetupVisible || welcomeStatus === 'pending' || captureOn || tourOn || quickDraftVisible;
 
   useEffect(() => {
     if (statsLoading || streak === undefined || tasks.length === 0 || otherModalOpen) return;
@@ -1037,30 +1017,6 @@ export default function HomeScreen() {
 
     return () => clearTimeout(timer);
   }, [statsLoading, tasks, streak, overdueCount, momentum, todayRating, todayCompleted, dailyGoal, otherModalOpen]);
-
-
-
-  /*
-    BU BANT YALNIZ DÖNEMSEL (mevsimlik) MODLAR İÇİN.
-
-    `tez` ve `mulakat` dalları buradan KALDIRILDI çünkü ulaşılamıyorlardı: bu ekranda
-    `activeMode` yalnız `getCustomExamMode` (her zaman 'exam') ya da
-    `detectTurkishMode` (ramazan / yks / kpss) sonucundan geliyor. Ölü dallar
-    zararsız görünür ama yalan söyler — kodu okuyan, tez modunda da bir bant
-    çıktığını sanır ve olmayan bir davranışı korumaya çalışır.
-
-    Tez ve mülakat ana ekranda `ModeTodayCard` üzerinden görünüyor
-    (bkz. useActiveModeSummary), yani kullanıcı bir şey kaybetmiyor.
-  */
-  const activePlanApplied = (() => {
-    if (!activeMode) return false;
-    const t = activeMode.type;
-    if (t === 'exam' || t === 'yks' || t === 'kpss')
-      return examPlanHabitIds.length > 0 || examPlanTaskIds.length > 0;
-    if (t === 'ramazan')
-      return ramazanPlanHabitIds.length > 0 || ramazanPlanTaskIds.length > 0;
-    return false;
-  })();
 
   // Track last scheduled values to avoid re-firing on every momentum change
   const lastScheduledNotifRef = useRef({ momentum: -1, streak: -1 });
@@ -1269,66 +1225,6 @@ export default function HomeScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [demoGate, habits, language, theme, habitTodayKey, isDark, getHabitStreak, currentHour]);
 
-  const topTaskToday = todayTasksIncomplete[0] ?? undatedTasksIncomplete[0];
-  const highPriorityToday = todayTasksIncomplete.find(t => t.priority === 'High') ?? undatedTasksIncomplete.find(t => t.priority === 'High');
-  const topTask = topTaskToday; // gelecek tarihli task aksiyon merkezine girmiyor
-
-  const insight = getSmartInsight(
-    language as 'tr' | 'en',
-    isActive,
-    momentum,
-    highPriorityToday,
-    topTaskToday,
-    seasonal,
-    todayCompleted,
-    dailyGoal,
-    todayRating
-  );
-
-  const weeklyTips = React.useMemo(() => {
-    return generateWeeklyTips({
-      weeklyFocusMinutes: mergedWeeklyFocus.map(d => d.minutes || 0),
-      /*
-        `completedAt` yoksa eskiden KOŞULSUZ sayılıyordu (`: true`). Sunucu bu alanı
-        tutmadığı için (bkz. useTaskStore.setTasks) yılların tamamlanmış görevleri
-        "bu hafta bitirildi" sayılıyor ve haftalık ipuçları uydurma bir hacimle
-        konuşuyordu. Yedek artık VADEYE düşüyor — aynı yedek kuralı ekranın her
-        yerinde geçerli (bkz. streakDay → wasCompletedOn).
-      */
-      completedTasksWeek: tasks.filter(t => {
-        if (!t.isCompleted) return false;
-        const when = t.completedAt ?? t.dueDate;
-        return !!when && Date.now() - new Date(when).getTime() < 7 * 86400000;
-      }).length,
-      streak: streak,
-      /*
-        İKİSİ DE SABİT YAZILIYDI ve ikisi de yalan söylüyordu:
-
-         · `momentumLast7: []` → ipucu motoru ivme geçmişini boş görüyor, eğilim hep
-           'na' çıkıyor ve ivmeye dayalı ipuçları HİÇ üretilmiyordu. Oysa veri iki
-           satır yukarıda hazır duruyor (bkz. completionHistory).
-         · `productivityHour: 'afternoon'` → kullanıcıya hoş geldin ekranında "en
-           verimli saatin hangisi?" diye SORULUYOR, cevap kaydediliyor, buluta bile
-           eşitleniyor — sonra burada yok sayılıp herkese "öğleden sonra" deniyordu.
-           Sorulan bir sorunun cevabını yok saymak, hiç sormamaktan kötüdür.
-      */
-      momentumLast7: completionHistory.map(d => d.score),
-      productivityHour,
-      habits: habits.map(h => ({
-        name: h.name,
-        skippedDates: h.skippedDates || [],
-        completedDates: h.completedDates || []
-      })),
-      tasks: tasks.map(t => ({
-        id: t.id,
-        priority: t.priority,
-        isCompleted: t.isCompleted,
-        dueDate: t.dueDate,
-        completedAt: t.completedAt
-      }))
-    });
-  }, [mergedWeeklyFocus, tasks, streak, habits, completionHistory, productivityHour]);
-
   const handleCheckTask = async (taskId: number) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
@@ -1429,7 +1325,6 @@ export default function HomeScreen() {
     // Store yolu: `setState` seansın BİTİŞ ANINI kurmuyor → kilitli telefonda sayaç geri kalıyordu.
     useFocusStore.getState().setDuration(25);
     useFocusStore.getState().setIsActive(true);
-    setStatusHubVisible(false);
     router.replace('/focus');
   };
 
@@ -1640,6 +1535,8 @@ export default function HomeScreen() {
   }, [language, myDayHabits, demoActive, dailyGoalMinutes, todayFocusMinutes, dailyGoal, todayCompleted]);
 
   // Plan, dijital panelin EN ÜSTÜ (aktif mod yoksa null → turun "aktif plan" adımı atlanır).
+  // Tarih şeridi → o günü saatleriyle aç (Gün ekranı = Bugün'ün saat görünümü; E-1).
+  const openDay = useLatestCallback((key?: string) => router.push(key ? { pathname: '/gun', params: { date: key } } : { pathname: '/gun' }));
   const todayTopSlot = React.useMemo(() => <ModeTodayCard bare onOpen={() => router.push('/modlar')} />, [router]);
 
   const todayFooter = React.useMemo(() => (!isLite ? (
@@ -1801,30 +1698,13 @@ export default function HomeScreen() {
           // Sade modda gizli; erişim Ayarlar → MERKEZ satırından sürüyor.
           isLite ? undefined : (
             <TourTarget id="cockpit" spotRadius={R.full}>
-              <StatusHub onPress={() => { haptic.commit(); setStatusHubVisible(true); }} />
+              <StatusHub onPress={() => router.push('/cockpit')} />
             </TourTarget>
           )
         }
       />
 
       <View style={{ flex: 1 }}>
-
-        {/* Smart Cockpit Modal — bottom sheet */}
-        <StatusHubModal
-          visible={statusHubVisible}
-          onClose={() => setStatusHubVisible(false)}
-          theme={theme}
-          isDark={isDark}
-          language={language}
-          insight={insight}
-          isActive={isActive}
-          startQuickFocus={startQuickFocus}
-          weeklyTips={weeklyTips}
-          weeklyFocusData={mergedWeeklyFocus}
-          lastWeekMinutes={lastWeekMinutes}
-          habits={habits}
-          habitStats={weekHabitStats}
-        />
 
         {/* Değerlendirme / geri bildirim akışı — kendi bileşeninde (state'i de orada). */}
         <ReviewPromptModal
@@ -1926,10 +1806,11 @@ export default function HomeScreen() {
             <TodayRings
               tourId="today"
               // Selam ekranın durum şeridinde (ayrı blok yok). Ad bilinmiyorsa yalnız selam — "…, sen" UYDURULMAZ.
-              greeting={(() => { const n = (!isNamePlaceholder && user?.name?.split(' ')[0]) || guestProfile?.name?.split(' ')[0] || ''; return n ? `${getGreeting()}, ${n}` : getGreeting(); })()}
+              greeting={awayLine ?? (() => { const n = (!isNamePlaceholder && user?.name?.split(' ')[0]) || guestProfile?.name?.split(' ')[0] || ''; return n ? `${getGreeting()}, ${n}` : getGreeting(); })()}
               history={dayHistory}
               // Okumaya dokununca açılan ayrıntı (bkz. TodayDetail): sıradaki işler, bugünkü alışkanlıklar, panelden odak.
               detail={todayDetail}
+              onOpenDay={openDay}
               topSlot={todayTopSlot}
               label={t.todayLabel}
               caption={(() => {
@@ -2183,46 +2064,6 @@ export default function HomeScreen() {
             )}
             </WideCol>
 
-            {/* Sonraki görev — dashboard'ın tek eylem çağrısı. Hiç görev/alışkanlık
-                yoksa gösterilmez: orada soğuk başlangıç kartı zaten yönlendiriyor.
-
-                SIRA DENENDİ VE GERİ ALINDI: gün açılmamışken bu kart sayfanın en üstüne,
-                selamlamanın hemen altına taşınmıştı. Mantığı doğruydu (sayfa skorla değil
-                eylemle açılsın) ama SAYFANIN RİTMİNİ bozdu: momentum satırı kartsızdır ve
-                eskiden selamlamayla kartlar arasında yumuşak bir geçiş kuruyordu. Üstüne
-                bir kart konunca iki ağır kartın arasında sıkışıp öksüz kaldı. */}
-
-            {/* ── Turkish Mode Banner (opt-in) ── */}
-            <WideCol col="right">
-            {activeMode && !modeDismissed && (
-              <View style={{ paddingHorizontal: S.lg }}>
-                <TurkishModeBanner
-                mode={activeMode}
-                onDismiss={() => setDismissedBannerKey(activeBannerKey)}
-                planApplied={activePlanApplied}
-                planHabitIds={(() => {
-                  const t = activeMode.type;
-                  if (t === 'exam' || t === 'yks' || t === 'kpss') return examPlanHabitIds;
-                  if (t === 'ramazan') return ramazanPlanHabitIds;
-                  return [];
-                })()}
-                planTaskIds={(() => {
-                  const t = activeMode.type;
-                  if (t === 'exam' || t === 'yks' || t === 'kpss') return examPlanTaskIds;
-                  if (t === 'ramazan') return ramazanPlanTaskIds;
-                  return [];
-                })()}
-                onApplied={(habitIds, taskIds) => {
-                  const t = activeMode.type;
-                  if (t === 'exam' || t === 'yks' || t === 'kpss') setPlanIds('exam', habitIds, taskIds);
-                  else if (t === 'ramazan') setPlanIds('ramazan', habitIds, taskIds);
-                }}
-                onRatingChange={setTodayRating}
-              />
-              </View>
-            )}
-            </WideCol>
-
             {/*
               ── Section Header — easter egg sadece aktifken görünür ──
 
@@ -2257,6 +2098,9 @@ export default function HomeScreen() {
           language={language}
           t={t}
         />
+
+        {/* Hoş geldinden sonra, turdan önce: "Aklındakileri yaz" (bkz. captureFlow). */}
+        <CaptureSheet visible={captureOn} onDone={onCaptureDone} />
 
         {/* Profile Onboarding/Setup Modal */}
         <ProfileSetupModal

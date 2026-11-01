@@ -1,4 +1,4 @@
-import { focusDelta, formatMinutes, bestDayIndex, formatDeltaPct } from '@/features/dashboard/utils/weeklyHub';
+import { formatMinutes, bestDayIndex } from '@/features/dashboard/utils/weeklyHub';
 
 /**
  * İÇGÖRÜ MODALI — gösterdiği her sayı GERÇEK veriden (2026-10-25 değerlendirmesi).
@@ -10,35 +10,6 @@ import { focusDelta, formatMinutes, bestDayIndex, formatDeltaPct } from '@/featu
  *  · "Ritüel günlerinde odak %45 daha yüksek" cümlesi SABİT metindi, hiçbir hesaba dayanmıyordu.
  */
 
-describe('focusDelta', () => {
-  it('iki hafta da boşsa karşılaştırma yok', () => {
-    expect(focusDelta(0, 0)).toEqual({ kind: 'none' });
-  });
-
-  it('geçen hafta kayıt yoksa yüzde UYDURULMAZ', () => {
-    expect(focusDelta(40, 0)).toEqual({ kind: 'new' });
-  });
-
-  it('gerçek değişim yuvarlanmış yüzde', () => {
-    expect(focusDelta(120, 100)).toEqual({ kind: 'change', pct: 20 });
-    expect(focusDelta(50, 100)).toEqual({ kind: 'change', pct: -50 });
-    expect(focusDelta(0, 60)).toEqual({ kind: 'change', pct: -100 });
-  });
-});
-
-describe('formatDeltaPct', () => {
-  // Türkçede yüzde işareti sayının ÖNÜNDE: "+%12". Rozet dilden bağımsız "+12%" yazıyordu.
-  it('Türkçe: işaret, sonra %, sonra sayı', () => {
-    expect(formatDeltaPct(12, 'tr')).toBe('+%12');
-    expect(formatDeltaPct(-50, 'tr')).toBe('-%50');
-    expect(formatDeltaPct(0, 'tr')).toBe('+%0');
-  });
-
-  it('İngilizce: sayının arkasında %', () => {
-    expect(formatDeltaPct(12, 'en')).toBe('+12%');
-    expect(formatDeltaPct(-50, 'en')).toBe('-50%');
-  });
-});
 
 describe('formatMinutes', () => {
   it('saat ve dakikaya böler, dilde birimiyle', () => {
@@ -61,16 +32,3 @@ describe('bestDayIndex', () => {
   });
 });
 
-describe('sameSpanTotal — hafta ortasında adil kıyas', () => {
-  const { sameSpanTotal } = require('@/features/dashboard/utils/weeklyHub');
-  // Çarşamba (indeks 2): bu haftanın 3 günü, geçen haftanın 7 günüyle kıyaslanınca trend
-  // hafta başında HEP eksi çıkıyordu. Kıyas geçen haftanın AYNI günlerine.
-  it('geçen haftanın yalnız bugüne kadarki günleri toplanır', () => {
-    expect(sameSpanTotal([10, 20, 30, 40, 50, 60, 70], 2)).toBe(60);
-  });
-  it('Pazar tüm haftayı, sınır dışı indeks güvenli', () => {
-    expect(sameSpanTotal([1, 1, 1, 1, 1, 1, 1], 6)).toBe(7);
-    expect(sameSpanTotal([5], 3)).toBe(5);
-    expect(sameSpanTotal([], 0)).toBe(0);
-  });
-});

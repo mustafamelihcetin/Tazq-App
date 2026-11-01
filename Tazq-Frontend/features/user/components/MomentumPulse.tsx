@@ -20,6 +20,7 @@ import { DISPLAY_FONT } from '@/shared/components/DisplayPanel';
 import { useSettledValue, useHasSettled } from '@/shared/hooks/useSettledValue';
 import { haptic } from '@/shared/utils/haptics';
 import { isBestDayOfWeek } from '@/shared/utils/momentum';
+import { useSeenChange } from '@/shared/hooks/useSeenChange';
 
 interface DayScore { date: string; score: number }
 
@@ -108,6 +109,8 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
   // her biri hidrate oldukça yeniden hesaplanıyor. Durulmasını bekleyip TEK bir hedef
   // değere sayıyoruz; ara değerler ekrana hiç çıkmıyor.
   const targetScore = useSettledValue(score, 400);
+  // B3: oturumun ilk açılışı 0'dan sayar (açılış sahnesi); sonraki dönüşlerde skor değiştiyse son görülenden akar.
+  const seenScore = useSeenChange(scoreShown ? 'home.momentum' : undefined, targetScore);
 
   /*
     ── SADE MOD KARARI BURADA DEĞİL ─────────────────────────────────────────────
@@ -243,7 +246,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
       >
         <AnimatedNumber
           value={scoreShown ? targetScore : 0}
-          from={first ? 0 : undefined}
+          from={first ? 0 : seenScore.from}
           duration={1100}
           /*
             İKİNCİL SAYI ÖLÇEĞİ — kart kahramanından KÜÇÜK olmak zorunda.

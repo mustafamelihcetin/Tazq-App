@@ -60,12 +60,12 @@ describe('tanıtım mock ekranı', () => {
       tanımadığı bir arayüzle karşılaşır. Kaynak: BottomNavBar → TAB_SHORT.
     */
     const tr = render(<PromoMock kind="home" mode="light" lang="tr" {...fit('iphone')} />);
-    for (const label of ['Ana Sayfa', 'Görevler', 'Odak', 'Haftalık', 'Modlar']) {
+    for (const label of ['Bugün', 'Görevler', 'Odak', 'Hafta', 'Hedefler']) {
       expect(tr.getByText(label)).toBeTruthy();
     }
 
     const en = render(<PromoMock kind="home" mode="dark" lang="en" {...fit('pixel')} />);
-    for (const label of ['Home', 'Tasks', 'Focus', 'Weekly', 'Modes']) {
+    for (const label of ['Today', 'Tasks', 'Focus', 'Week', 'Goals']) {
       expect(en.getByText(label)).toBeTruthy();
     }
   });
@@ -74,9 +74,9 @@ describe('tanıtım mock ekranı', () => {
     // Dil değişince bir anahtarın unutulması en kolay hata: iki sözlük de aynı
     // anahtarları taşımalı, yoksa mock'ta `undefined` çizilir.
     const tr = render(<PromoMock kind="cockpit" mode="light" lang="tr" {...fit('ipad')} />);
-    expect(tr.getByText('Haftalık Merkez')).toBeTruthy();
+    expect(tr.getByText('Bu Hafta')).toBeTruthy();
     const en = render(<PromoMock kind="cockpit" mode="light" lang="en" {...fit('pixelTablet')} />);
-    expect(en.getByText('Weekly Hub')).toBeTruthy();
+    expect(en.getByText('This Week')).toBeTruthy();
   });
 
   it('ÖLÇEK gerçek cihaza bağlı — mock kendi referansını UYDURMAZ', () => {

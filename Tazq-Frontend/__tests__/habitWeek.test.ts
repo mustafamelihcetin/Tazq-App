@@ -23,10 +23,26 @@ describe('hedef ve geride kalma', () => {
   });
 });
 
+describe('hedef kurulduğu günden sayılır (2026-10-31, cihazda "bu hafta 0/7")', () => {
+  it('Perşembe kurulan her günlük alışkanlığın bu haftaki hedefi 4 (Pe, Cu, Ct, Pa)', () => {
+    expect(habitWeek(h('Araştırma', { createdAt: '2026-10-29T09:00:00Z' }), WEEK, TODAY).goal).toBe(4);
+  });
+  it('hafta başından önce kurulduysa hedef 7', () => {
+    expect(habitWeek(h('Su'), WEEK, TODAY).goal).toBe(7);
+  });
+});
+
 describe('kartın cümlesi', () => {
   it('en çok geride kalanı ve son yapıldığı günü söyler', () => {
     const list = [h('Su', { completedDates: WEEK.slice(0, 5) }), h('Okuma', { completedDates: ['2026-10-27'] })];
     expect(plain(habitWeekStory(list, WEEK, TODAY, 'tr', dayName))).toBe("[Okuma] Salı'dan beri aksıyor; bugün yaparsan toparlanır.");
+  });
+
+  it('eşit gerilikte DAHA UZUN süredir aksayanı söyler (2026-10-31, denetim)', () => {
+    // İkisi de 2 gün geride; Yürüyüş en son Perşembe, Meditasyon en son Salı yapıldı.
+    // Eskiden listedeki sıra kazanıyordu ("Yürüyüş Perşembe'den beri") — asıl aksayan Meditasyon.
+    const list = [h('Yürüyüş', { completedDates: ['2026-10-27', '2026-10-29'] }), h('Meditasyon', { completedDates: ['2026-10-26', '2026-10-27'] })];
+    expect(plain(habitWeekStory(list, WEEK, TODAY, 'tr', dayName))).toBe("[Meditasyon] Salı'dan beri aksıyor; bugün yaparsan toparlanır.");
   });
 
   it('hiç başlamadıysa "bugün bir kez yeter"', () => {

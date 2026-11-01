@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Compass, CloudOff } from 'lucide-react-native';
+import { Compass, CloudOff, ChevronRight } from 'lucide-react-native';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { Touchable } from '@/shared/components/Touchable';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -12,7 +12,7 @@ import { useMomentumStore } from '@/features/user';
 import { useHabitStore } from '@/features/habits';
 import { useTaskStore } from '@/features/tasks';
 import { useFocusStore } from '@/features/focus';
-import { ICON, S, R, F, B, topBarSpace } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, MIN_TOUCH, topBarSpace } from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { generateWeeklyTips, getCoachAction, ProductivityHour } from '@/shared/utils/insights';
 import { track } from '@/shared/utils/analytics';
@@ -75,6 +75,8 @@ const COPY = {
     closed: 'Bu haftayı kapattın ✦',
     goalPick: (m: number) => `${m} dk`,
     legacy: 'Geçmiş haftaların odak kaydı sunucu güncellendiğinde görünecek.',
+    thisWeekLink: 'Bu haftanın planı ve alışkanlıkları',
+    modesLink: 'Modların geçmişi',
   },
   en: {
     title: 'Weekly Review',
@@ -98,6 +100,8 @@ const COPY = {
     closed: 'You closed this week ✦',
     goalPick: (m: number) => `${m} min`,
     legacy: 'Focus history for past weeks appears once the server is updated.',
+    thisWeekLink: 'This week’s plan and habits',
+    modesLink: 'Your modes over time',
   },
 };
 
@@ -182,6 +186,8 @@ export default function ReportScreen() {
   const weeklyTarget = dailyGoalMinutes * 7;
   const goalPct = weeklyTarget > 0 ? Math.min(1, summary.totalFocusMin / weeklyTarget) : 0;
   const isCurrentWeek = offset === 0;
+  // Mod yoksa Mod özeti'ne bağlantı da yok: boş bir sayfaya göndermez (E-2).
+  const hasModes = usePrefsStore(st => { const x = st.seasonal; return !!(x.examMode || x.tezMode || x.mulakatMode || x.sporMode || x.ramazan || x.tasarrufMode || x.birakmaMode); });
 
   const deltaLabel = delta.comparable && delta.focusMin !== 0
     ? `${delta.focusMin > 0 ? '+' : '−'}${Math.abs(delta.focusMin)} ${lang === 'tr' ? 'dk' : 'min'}`
@@ -219,6 +225,12 @@ export default function ReportScreen() {
           ]}
         />
 
+        {/*
+          HAFTANIN GÖKYÜZÜ — özetin hemen altında (2026-11-01, kullanıcı: "daha ön plana çıksın").
+          Her yıldız bir seans: yükseklik saat, büyüklük süre (bkz. WeekSky). Eski sunucuda saat yok.
+        */}
+        <WeekSky sessions={sessions} dayKeys={summary.range.days} language={lang === 'en' ? 'en' : 'tr'} timed={!usingLegacyFallback} todayKey={todayKey} />
+
         {/* Eski sunucuda yalnız içinde bulunulan hafta dolu gelir (bkz. useFocusHistoryStore). */}
         {usingLegacyFallback && !isCurrentWeek && (
           <View style={{ flexDirection: 'row', gap: S.sm, alignItems: 'center', borderRadius: R.md, padding: S.md, backgroundColor: theme.surfaceContainerHigh }}>
@@ -234,8 +246,6 @@ export default function ReportScreen() {
           </View>
         )}
 
-        {/* Işık koleksiyonu — odak dakikalarından takımyıldızlar (bkz. WeekSky). */}
-        <WeekSky focusPerDay={summary.focusPerDay} dayKeys={summary.range.days} language={lang === 'en' ? 'en' : 'tr'} />
         <WeekChart summary={summary} language={lang} todayKey={todayKey} />
         <HabitWeekList habits={habits} summary={summary} language={lang} todayKey={todayKey} />
 
@@ -324,6 +334,29 @@ export default function ReportScreen() {
             })}
           </View>
         )}
+
+        {/*
+          GEÇMİŞ'İN BAĞLANTILARI (2026-10-31, E-2 · K-4). Rapor geçmişin sahibi:
+           · İçinde bulunulan hafta "bu hafta" sorusudur — sahibi Bu Hafta. Yığında varsa ona DÖNER
+             (dismissTo; aynı ekran ikinci kez açılmaz).
+           · Modların geçmişi (Mod özeti) yalnız Hedefler'den açılıyordu. Mod yoksa satır yok.
+        */}
+        {(isCurrentWeek || hasModes) && (
+          <View style={[styles.links, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest }]}>
+            {isCurrentWeek && (
+              <Touchable accessibilityRole="link" accessibilityLabel={c.thisWeekLink} onPress={() => router.dismissTo('/cockpit')} style={styles.linkRow}>
+                <Text style={{ flex: 1, color: theme.onSurface, fontSize: F.footnote, fontWeight: '600' }}>{c.thisWeekLink}</Text>
+                <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} />
+              </Touchable>
+            )}
+            {hasModes && (
+              <Touchable accessibilityRole="link" accessibilityLabel={c.modesLink} onPress={() => router.push('/mod-ozet')} style={styles.linkRow}>
+                <Text style={{ flex: 1, color: theme.onSurface, fontSize: F.footnote, fontWeight: '600' }}>{c.modesLink}</Text>
+                <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} />
+              </Touchable>
+            )}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -333,5 +366,7 @@ const styles = StyleSheet.create({
   tip: { borderRadius: R.md, borderLeftWidth: 3, padding: S.md },
   coach: { borderRadius: R.lg, borderWidth: B.thin, padding: S.lg },
   close: { borderRadius: R.lg, borderWidth: B.thin, padding: S.lg, gap: S.xxs },
+  links: { borderRadius: R.lg, paddingHorizontal: S.lg },
+  linkRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, minHeight: MIN_TOUCH, paddingVertical: S.sm },
 });
 export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

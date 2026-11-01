@@ -8,6 +8,9 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { upperFor } from '@/shared/utils/localeCase';
 import { AnimatedNumber } from '@/shared/components/AnimatedNumber';
 import { useMinuteClock } from '@/shared/hooks/useMinuteClock';
+import { useSeenChange } from '@/shared/hooks/useSeenChange';
+import { Touchable } from '@/shared/components/Touchable';
+import { partOf, type DayPart } from '@/shared/utils/dayPart';
 
 /*
   DİJİTAL PANEL — uygulamanın özet/sayı yüzeylerinin ortak dili (2026-10-30).
@@ -88,9 +91,17 @@ function useIntro(intro?: string): boolean {
  * Ekranın durum şeridi: GÜN · TARİH (solda) — canlı SAAT (sağda).
  * `date` verilirse o günü gösterir (geçmişe kaydırılmış ekran); `right` saatin yerine geçer.
  * `intro`: açılışta birkaç saniye gösterilen selam (oturumda bir kez).
+ * `onPress`: tarih bir BAĞLANTI olur (ana sayfa: o günü saatleriyle açar — Gün ekranı). Saat ve
+ * `right` ayrı kalır; selam gösterilirken dokunulmaz (selam bir bağlantı değil).
+ * `tonal` (B4): tarihin altında kısa, ince bir çizgi VAKTİN tonunu taşır (sabah · öğle · akşam · gece);
+ * panel "şimdi"yi bilir. Zemin DEĞİŞMEZ (panel kartlarla aynı kalır). Geçmiş günde gösterilmez.
  */
-export function DisplayStatus({ label, date, right, intro }: { label?: string; date?: Date; right?: React.ReactNode; intro?: string }) {
+export function DisplayStatus({ label, date, right, intro, onPress, pressLabel, tonal }: {
+  label?: string; date?: Date; right?: React.ReactNode; intro?: string;
+  onPress?: () => void; pressLabel?: string; tonal?: boolean;
+}) {
   const c = useDisplayColors();
+  const { theme } = useAppTheme();
   const language = useLanguageStore(st => st.language);
   const now = useMinuteClock();
   const showIntro = useIntro(intro);
@@ -103,11 +114,25 @@ export function DisplayStatus({ label, date, right, intro }: { label?: string; d
       </MotiView>
     );
   }
+  // Vaktin tonu temadan (ham renk yok): sabah altın, öğle mavi, akşam kor, gece mor.
+  const TONE: Record<DayPart, string> = { morning: theme.warning, noon: theme.primary, evening: theme.streak, night: theme.secondary };
+  const tone = tonal && !date ? TONE[partOf(now.getHours())] : null;
   return (
     <MotiView key="status" from={{ translateY: 4 }} animate={{ translateY: 0 }} transition={{ type: 'timing', duration: 360 }} style={styles.status}>
-      <Text style={[styles.statusText, { color: c.label }]} numberOfLines={1}>
-        {upperFor(label ? `${label} · ${day}` : day, language)}
-      </Text>
+      <View style={styles.statusLink}>
+      {onPress ? (
+        <Touchable onPress={onPress} accessibilityRole="link" accessibilityLabel={pressLabel} hitSlop={{ top: S.sm, bottom: S.sm }} style={styles.statusLink}>
+          <Text style={[styles.statusText, { color: c.label }]} numberOfLines={1}>
+            {upperFor(label ? `${label} · ${day}` : day, language)}{' ›'}
+          </Text>
+        </Touchable>
+      ) : (
+        <Text style={[styles.statusText, { color: c.label }]} numberOfLines={1}>
+          {upperFor(label ? `${label} · ${day}` : day, language)}
+        </Text>
+      )}
+      {tone ? <View testID="day-tone" style={[styles.tone, { backgroundColor: tone }]} /> : null}
+      </View>
       {right ?? <Text style={[styles.clock, { color: c.muted }]}>{`${pad2(now.getHours())}:${pad2(now.getMinutes())}`}</Text>}
     </MotiView>
   );
@@ -122,15 +147,18 @@ export function DisplayDivider({ spacing = S.md }: { spacing?: number }) {
 /**
  * Dijital DEĞER — sabit genişlikli rakam; baştaki sayı SAYARAK değişir (bir şey tamamlanınca
  * ne değiştiği görülür), kalanı düz metin. Etiketsiz; okumalar ve KPI satırları kullanır.
+ * `seenKey` (B3): sekmeye dönünce sayı en son GÖRÜLEN değerden yenisine akar; değişmediyse durur.
  */
-export function DisplayValue({ value, color, style }: { value: string; color?: string; style?: StyleProp<TextStyle> }) {
+export function DisplayValue({ value, color, style, from, duration = 450, seenKey }: { value: string; color?: string; style?: StyleProp<TextStyle>; from?: number; duration?: number; seenKey?: string }) {
   const c = useDisplayColors();
   // Binlik/ondalık ayraçlı tutarda ("1.250 ₺") sayma YOK: yalnız baştaki "1" sayılırdı.
   const lead = /^(\d+)(?![.,]\d)(.*)$/.exec(value);
+  const seen = useSeenChange(lead ? seenKey : undefined, lead ? Number(lead[1]) : 0);
+  const start = from ?? seen.from;
   const st = [styles.readValue, { color: color ?? c.ink }, style];
   return (
     <Text style={st} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-      {lead ? <AnimatedNumber value={Number(lead[1])} duration={450} style={st} /> : value}
+      {lead ? <AnimatedNumber value={Number(lead[1])} from={start} duration={duration} style={st} /> : value}
       {lead ? lead[2] : null}
     </Text>
   );
@@ -153,6 +181,8 @@ const styles = StyleSheet.create({
   inset: { position: 'absolute', top: 0, left: 0, right: 0, height: 10 },
   status: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: S.sm, marginBottom: S.md },
   intro: { flexShrink: 1, fontSize: F.callout, fontWeight: W.semibold },
+  statusLink: { flexShrink: 1 },
+  tone: { width: 20, height: 2, borderRadius: R.full, marginTop: S.xxs, opacity: 0.7 },
   statusText: { flexShrink: 1, fontSize: F.caption, fontWeight: W.semibold, letterSpacing: 1.2 },
   clock: { fontFamily: DISPLAY_FONT.digits, fontSize: F.footnote, letterSpacing: 0.5, fontVariant: ['tabular-nums'] },
   readLabel: { fontSize: F.caption2, fontWeight: W.semibold, letterSpacing: 1.1 },

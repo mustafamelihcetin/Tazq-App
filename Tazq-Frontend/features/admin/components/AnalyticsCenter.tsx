@@ -37,6 +37,9 @@ const COPY = {
     seg: { today: 'Bugün', week: 'Bu hafta', month: 'Bu ay', fresh: 'Yeni', dormant: 'Uykuda', oneDay: 'Bir gün kalıp gitti' },
     versions: 'Sürümler', installs: 'Kurulumlar',
     funnelHint: 'Kayıtlıların yüzde kaçı bu adıma ulaştı',
+    firstMinute: 'İlk dakika', firstMinuteHint: '"Aklındakileri yaz" ekranını görenler',
+    fm: { wrote: 'Yazdı', skipped: 'Atladı', activated: '24 saatte bir işi bitirdi', modeAccepted: 'Mod önerisini kabul etti' } as Record<string, string>,
+    avgItems: (n: number) => `ortalama ${n} madde`,
     steps: { registered: 'Kayıt', verified: 'E-posta onayı', firstTask: 'İlk görev', firstDone: 'İlk tamamlanan görev', firstFocus: 'İlk odak seansı', day7: '7. gün dönüş' } as Record<string, string>,
     cohorts: 'Haftalık kohortlar', cohortsHint: 'O hafta kaydolanların 7. gün dönüşü',
     featHint: 'Kayıtlı kullanıcıların kullananları',
@@ -68,6 +71,9 @@ const COPY = {
     seg: { today: 'Today', week: 'This week', month: 'This month', fresh: 'New', dormant: 'Dormant', oneDay: 'Left after day 1' },
     versions: 'Versions', installs: 'Installs',
     funnelHint: 'Share of registered users reaching each step',
+    firstMinute: 'First minute', firstMinuteHint: 'People who saw "What’s on your mind"',
+    fm: { wrote: 'Wrote', skipped: 'Skipped', activated: 'Finished something within 24h', modeAccepted: 'Accepted the mode suggestion' } as Record<string, string>,
+    avgItems: (n: number) => `${n} items on average`,
     steps: { registered: 'Sign-up', verified: 'Email verified', firstTask: 'First task', firstDone: 'First task done', firstFocus: 'First focus', day7: 'Day-7 return' } as Record<string, string>,
     cohorts: 'Weekly cohorts', cohortsHint: 'Day-7 return of each sign-up week',
     featHint: 'Registered users who use it',
@@ -253,6 +259,23 @@ export function AnalyticsCenter({ lang, stats, insights }: {
             </View>
           </Surface>
         )}
+        {/* İLK DAKİKA (C0): yazan/atlayan, ortalama madde, mod önerisi, 24 saatte aktivasyon. Eski sunucuda alan yok. */}
+        {r.firstMinute && r.firstMinute.shown > 0 && (() => {
+          const fm = r.firstMinute;
+          const rows = [
+            { key: 'wrote', n: fm.wrote, base: fm.shown, sub: c.avgItems(fm.avgItems) },
+            { key: 'skipped', n: fm.skipped, base: fm.shown, sub: String(fm.skipped) },
+            { key: 'activated', n: fm.activated24h, base: fm.wrote, sub: String(fm.activated24h) },
+            { key: 'modeAccepted', n: fm.modeAccepted, base: fm.modeSuggested, sub: `${fm.modeAccepted}/${fm.modeSuggested}` },
+          ];
+          return (
+            <Surface title={c.firstMinute} hint={c.firstMinuteHint}>
+              {rows.map(x => (
+                <Line key={x.key} label={c.fm[x.key]} value={`%${pct(x.n, x.base)}`} ratio={x.base > 0 ? x.n / x.base : 0} sub={x.sub} />
+              ))}
+            </Surface>
+          );
+        })()}
       </>
     );
   };

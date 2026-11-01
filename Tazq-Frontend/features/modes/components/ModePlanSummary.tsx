@@ -1,8 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { MotiView } from 'moti';
-import { Calendar, CheckCircle2 } from 'lucide-react-native';
-import { ProgressRail } from '@/shared/components/ProgressRail';
+import { Calendar } from 'lucide-react-native';
 import { S, F, ICON } from '@/shared/constants/tokens';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { PlanArcRow, PlanPausedBanner } from '@/features/modes/components/PlanPauseRow';
@@ -37,13 +36,9 @@ const COPY = {
     today: 'bugün',
     todayUpper: 'BUGÜN',
     openEnded: 'Süresiz hedef',
-    todayLabel: 'Bugün',
     passed: 'Tarih geçti',
-    nothingToday: 'Bugün planlı iş yok',
-    allDone: 'Bugünlük tamam',
-    a11y: (name: string, when: string, prog: string) => `${name}. ${when}. ${prog}`,
+    a11y: (name: string, when: string) => `${name}. ${when}`,
     daysLeft: (n: number) => `${n} gün kaldı`,
-    progress: (d: number, t: number) => `bugün ${d} / ${t} tamamlandı`,
     note: (text: string) => `Not: ${text}`,
   },
   en: {
@@ -51,13 +46,9 @@ const COPY = {
     today: 'today',
     todayUpper: 'TODAY',
     openEnded: 'Open-ended goal',
-    todayLabel: 'Today',
     passed: 'Date passed',
-    nothingToday: 'Nothing planned today',
-    allDone: 'Done for today',
-    a11y: (name: string, when: string, prog: string) => `${name}. ${when}. ${prog}`,
+    a11y: (name: string, when: string) => `${name}. ${when}`,
     daysLeft: (n: number) => `${n} days left`,
-    progress: (d: number, t: number) => `today ${d} of ${t} done`,
     note: (text: string) => `Note: ${text}`,
   },
 };
@@ -75,8 +66,6 @@ export interface ModePlanSummaryProps {
   past: boolean;
   /** Okunabilir tarih ("12 Haziran 2026"). Tarih yoksa boş. */
   dateLabel: string;
-  todayDone: number;
-  todayTotal: number;
   /** Tarih geçtiyse gösterilecek kapatma çağrısı (kartın kendi akışı). */
   pastAction?: React.ReactNode;
   /**
@@ -103,12 +92,10 @@ export interface ModePlanSummaryProps {
 }
 
 export const ModePlanSummary: React.FC<ModePlanSummaryProps> = ({
-  language, accent, accentText, goalName, daysLeft, past, dateLabel, todayDone, todayTotal, pastAction, progress, lifecycle, personalNote,
+  language, accent, accentText, goalName, daysLeft, past, dateLabel, pastAction, progress, lifecycle, personalNote,
 }) => {
   const { theme } = useAppTheme();
   const c = COPY[language];
-  const pct = todayTotal > 0 ? Math.round((todayDone / todayTotal) * 100) : 0;
-  const complete = todayTotal > 0 && todayDone >= todayTotal;
 
   const whenText = past
     ? c.passed
@@ -117,11 +104,10 @@ export const ModePlanSummary: React.FC<ModePlanSummaryProps> = ({
       : daysLeft === 0
         ? c.today
         : c.daysLeft(daysLeft);
-  const progText = todayTotal > 0 ? c.progress(todayDone, todayTotal) : c.nothingToday;
 
   if (past) {
     return (
-      <View accessible accessibilityLabel={c.a11y(goalName, whenText, progText)} style={{ gap: S.sm }}>
+      <View accessible accessibilityLabel={c.a11y(goalName, whenText)} style={{ gap: S.sm }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
           <Calendar size={ICON.sm} color={theme.error} />
           <Text numberOfLines={1} style={{ flex: 1, color: theme.error, fontWeight: '600', fontSize: F.caption }}>
@@ -141,7 +127,7 @@ export const ModePlanSummary: React.FC<ModePlanSummaryProps> = ({
   return (
     <View
       accessible
-      accessibilityLabel={c.a11y(goalName, whenText, progText)}
+      accessibilityLabel={c.a11y(goalName, whenText)}
       style={{ flexDirection: 'row', alignItems: 'flex-start', gap: S.lg }}
     >
       {/* Geri sayım — ekranın tek kahraman sayısı. Yumuşak giriş: sayı "belirir". */}
@@ -179,7 +165,11 @@ export const ModePlanSummary: React.FC<ModePlanSummaryProps> = ({
         )}
 
         {/*
-          DURAKLI PLAN BUGÜNÜN İŞİNİ GÖSTERMEZ — çünkü bugün iş yok.
+          BUGÜNÜN İŞİ BURADA YOK (2026-10-31, Y-2): Bugün'ün sahibi Ana sayfa; Hedefler'de bugün
+          yalnız durum kartındaki "Bugünün planı ›" satırında. Kart hedefi anlatır: geri sayım,
+          tarih, modun kendi ölçüsü (`progress`), kat edilen yol, ara verme.
+
+          DURAKLI PLAN: ara verildiğini söyler.
           Geri sayım yine de duruyor: hedefin tarihi ara verince ertelenmiyor, bunu
           saklamak kullanıcıyı yanıltmak olurdu.
         */}
@@ -189,25 +179,7 @@ export const ModePlanSummary: React.FC<ModePlanSummaryProps> = ({
           </View>
         ) : progress ? (
           <View style={{ marginTop: S.sm }}>{progress}</View>
-        ) : todayTotal > 0 ? (
-          <View style={{ marginTop: S.sm, gap: S.xs }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{c.todayLabel}</Text>
-              {complete ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xxs }}>
-                  <CheckCircle2 size={ICON.xs} color={theme.success} />
-                  <Text style={{ color: theme.success, fontSize: F.caption, fontWeight: '700' }}>{c.allDone}</Text>
-                </View>
-              ) : (
-                <Text style={{ color: accentText, fontSize: F.caption, fontWeight: '600' }}>{todayDone}/{todayTotal} · {pct}%</Text>
-              )}
-            </View>
-            <ProgressRail variant="segments" value={todayDone} total={todayTotal} color={complete ? theme.success : accent} />
-          </View>
-        ) : (
-          // "0/0" yazmak yerine sessizlik: bugün bu moddan bir şey beklenmiyor.
-          <Text style={{ marginTop: S.sm, color: theme.onSurfaceMuted, fontSize: F.caption }}>{c.nothingToday}</Text>
-        )}
+        ) : null}
 
         {/*
           KAT EDİLEN YOL + ARA VERME.

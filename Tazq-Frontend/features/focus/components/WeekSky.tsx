@@ -3,135 +3,199 @@ import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Canvas, Circle, Path, Group, BlurMask, Skia } from '@shopify/react-native-skia';
 import { Easing, useDerivedValue, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
+import { Sun, Moon } from 'lucide-react-native';
 import { useLowPowerGraphics } from '@/shared/hooks/useLowPowerGraphics';
 import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
+import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
-import { sceneOf, lightsFor, LIGHT_NAMES } from '@/features/focus/utils/focusScenes';
-import { S, R, F } from '@/shared/constants/tokens';
+import { sceneOf, sceneLights, LIGHT_NAMES } from '@/features/focus/utils/focusScenes';
+import { Nebula } from '@/features/focus/components/FocusBackdrop';
+import { skyStars, skyStory, type SkySession } from '@/features/report/weekSky';
+import { S, R, F, ICON } from '@/shared/constants/tokens';
 
 /*
-  BU HAFTANIN GÖKYÜZÜ — ışık toplamanın koleksiyonu (bkz. focusScenes.lightsFor).
+  HAFTANIN GÖKYÜZÜ (v3, 2026-11-01).
 
-  Her gün bir sütun; o günün ışıkları, güne ÖZGÜ sabit bir düzende (tohumlu) yerleşip ince
-  çizgilerle bir takımyıldıza bağlanır. Aynı gün her açılışta aynı şekli çizer (rastgele
-  zıplamaz). Zemin ve ışık rengi seçili sahneden.
+  v2 veriyi anlamlı kıldı ama kartı GRAFİĞE çevirdi (saat çizgileri, eksen yazıları, "yıldız = seans"
+  açıklaması); kullanıcı: "mistik ve gökyüzü imajını kaybetti". v3 anlamı korur, ızgarayı kaldırır:
+   · Zemin odak ekranının AURORASI (Nebula, durağan tek kare — sürekli shader yok). Düşük güçte gradyan.
+   · Saat ekseni ÇİZGİSİZ: tepeden süzülen şafak ışığı + köşelerde soluk güneş (sabah) ve ay (gece).
+     Yükseklik yine saattir (model: features/report/weekSky.ts), ama bir eksen gibi okunmaz.
+   · Sabit, soluk TOZ yıldızları gökyüzü dokusudur; veri yıldızlarından ayrışır (hale yok, minik).
+   · Veri yıldızı = seans (büyüklük süre); uzun seansın ışıltı haçı var. Çizgi = haftanın yolu.
+   · Bugün = yumuşak bir ışık huzmesi. Açıklama ekran okuyucu etiketinde (görsel gürültü değil).
 
-  PERFORMANS: tek Skia tuvali, sürekli animasyon YOK. Gün başına en çok 12 ışık çizilir.
-
-  DOĞUŞ (2026-10-30, kullanıcı seçti): açılışta günler soldan sağa sırayla doğar; her günün
-  yıldızları ışıltıyla (bulanık hale) belirir ve takımyıldız çizgisi yıldızdan yıldıza
-  ÇİZİLEREK ilerler. Tek saat (`t`) hepsini sürer; bittiğinde gökyüzü durağan kalır.
-  Hareket azaltılmışsa ilk karede tam çizilir; düşük güçte hale bulanıklığı yok.
+  DOĞUŞ (2026-10-30, kullanıcı seçti — korunuyor): çizgi yıldızdan yıldıza ÇİZİLEREK ilerler; yıldız
+  çizgi ona varınca ışıltıyla belirir. Tek saat; bitince durağan. Hareket azaltılmışsa ilk karede tam.
 */
-const DAY_DELAY = 0.11;   // günler arası gecikme (t biriminde)
-const DAY_SPAN = 0.34;    // bir günün doğuş süresi (t biriminde)
-const REVEAL_MS = 2200;
+const REVEAL_MS = 2400;
+const H = 180;
+const PAD = 12;
+const DUST = 46;
+const GLINT_MIN = 0.55; // ~27 dk ve üstü seanslarda ışıltı haçı
 
-/** Günün yerel ilerleyişi 0..1. */
-function dayProgress(t: number, d: number) {
-  'worklet';
-  return Math.max(0, Math.min(1, (t - d * DAY_DELAY) / DAY_SPAN));
-}
-
-type Pt = { x: number; y: number; r: number };
-
-const Star = ({ p, d, i, n, t, core, halo, low }: { p: Pt; d: number; i: number; n: number; t: SharedValue<number>; core: string; halo: string; low: boolean }) => {
-  // Yıldız, çizgi kendisine ulaştığında doğar.
-  const at = n <= 1 ? 0 : i / (n - 1);
-  const k = useDerivedValue(() => Math.max(0, Math.min(1, (dayProgress(t.value, d) - at * 0.8) / 0.2)));
-  const r = useDerivedValue(() => p.r * (0.4 + 0.6 * k.value + 0.35 * Math.sin(Math.PI * k.value)));
-  const hr = useDerivedValue(() => p.r * 2.8 * k.value);
+const Star = ({ x, y, r, at, t, core, halo, glint, low }: { x: number; y: number; r: number; at: number; t: SharedValue<number>; core: string; halo: string; glint: boolean; low: boolean }) => {
+  const k = useDerivedValue(() => Math.max(0, Math.min(1, (t.value - at) / 0.08)));
+  const rr = useDerivedValue(() => r * (0.4 + 0.6 * k.value + 0.35 * Math.sin(Math.PI * k.value)));
+  const hr = useDerivedValue(() => r * 3.2 * k.value);
+  const hrMid = useDerivedValue(() => hr.value * 0.66);
+  const hrIn = useDerivedValue(() => hr.value * 0.4);
+  const ray = useMemo(() => {
+    const p = Skia.Path.Make();
+    const L = r * 3.4;
+    p.moveTo(x - L, y); p.lineTo(x + L, y); p.moveTo(x, y - L); p.lineTo(x, y + L);
+    return p;
+  }, [x, y, r]);
   return (
     <Group opacity={k}>
-      <Circle cx={p.x} cy={p.y} r={hr} color={halo} opacity={0.22}>
-        {!low && <BlurMask blur={3} style="normal" />}
-      </Circle>
-      <Circle cx={p.x} cy={p.y} r={r} color={core} />
+      {low ? (
+        // Zayıf cihazda bulanıklık yok: iç içe soluk halkalar aynı parıltıyı neredeyse bedavaya verir.
+        <>
+          <Circle cx={x} cy={y} r={hr} color={halo} opacity={0.08} />
+          <Circle cx={x} cy={y} r={hrMid} color={halo} opacity={0.14} />
+          <Circle cx={x} cy={y} r={hrIn} color={halo} opacity={0.24} />
+        </>
+      ) : (
+        <Circle cx={x} cy={y} r={hr} color={halo} opacity={0.42}>
+          <BlurMask blur={6} style="normal" />
+        </Circle>
+      )}
+      {glint && <Path path={ray} style="stroke" strokeWidth={0.7} color={core} opacity={0.45} />}
+      <Circle cx={x} cy={y} r={rr} color={core} />
     </Group>
   );
 };
 
-const Constellation = ({ pts, d, t, line }: { pts: Pt[]; d: number; t: SharedValue<number>; line: string }) => {
-  const path = useMemo(() => {
-    const pa = Skia.Path.Make();
-    pts.forEach((p, i) => (i === 0 ? pa.moveTo(p.x, p.y) : pa.lineTo(p.x, p.y)));
-    return pa;
-  }, [pts]);
-  const end = useDerivedValue(() => Math.min(1, dayProgress(t.value, d) / 0.8));
-  if (pts.length < 2) return null;
-  return <Path path={path} style="stroke" strokeWidth={0.8} color={line} opacity={0.32} start={0} end={end} />;
-};
-
-const MAX_PER_DAY = 12;
 const COPY = {
-  tr: { title: 'Haftanın gökyüzü', total: (n: number, l: string) => `${n} ${l}`, empty: 'Odaklandıkça burada takımyıldızların belirecek.' },
-  en: { title: "The week's sky", total: (n: number, l: string) => `${n} ${l}`, empty: 'Your constellations will appear here as you focus.' },
+  tr: {
+    title: 'Haftanın gökyüzü',
+    total: (n: number, l: string) => `${n} ${l}`,
+    empty: 'Her odak seansın bu gökyüzüne bir yıldız olarak düşer.',
+    a11yHow: 'Her yıldız bir odak seansı; yukarısı sabah, aşağısı gece; büyük yıldız uzun seans',
+    days: ['P', 'S', 'Ç', 'P', 'C', 'C', 'P'],
+  },
+  en: {
+    title: "The week's sky",
+    total: (n: number, l: string) => `${n} ${l}`,
+    empty: 'Every focus session lands in this sky as a star.',
+    a11yHow: 'Each star is a focus session; higher is morning, lower is night; bigger is longer',
+    days: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+  },
 };
 
-/** Güne özgü sabit sözde-rastgele (mulberry32). */
+/** Gökyüzü dokusu: güne değil karta bağlı sabit sözde-rastgele (mulberry32). */
 function seeded(seed: number) {
   let a = seed >>> 0;
   return () => { a = (a + 0x6d2b79f5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 
-export function WeekSky({ focusPerDay, dayKeys, language }: { focusPerDay: number[]; dayKeys: string[]; language: 'tr' | 'en' }) {
+export function WeekSky({ sessions, dayKeys, language, timed = true, todayKey }: {
+  sessions: SkySession[]; dayKeys: string[]; language: 'tr' | 'en'; timed?: boolean; todayKey?: string;
+}) {
   const reduce = useReduceMotion();
+  const low = useLowPowerGraphics();
+  const { theme } = useAppTheme();
   const scene = sceneOf(usePrefsStore((s) => s.focusScene));
+  const [c1, c2, c3] = sceneLights(scene, theme);
   const c = COPY[language];
   const [w, setW] = useState(0);
-  const H = 120;
-  const total = focusPerDay.reduce((a, m) => a + lightsFor(m), 0);
+  const [card, setCard] = useState({ w: 0, h: 0 });
+
+  const stars = useMemo(() => skyStars(sessions, dayKeys, timed), [sessions, dayKeys, timed]);
+  const story = useMemo(() => skyStory(sessions, dayKeys, language, timed), [sessions, dayKeys, language, timed]);
   const names = LIGHT_NAMES[scene.id];
-  const label = language === 'tr' ? names.tr : total === 1 ? names.enOne : names.en;
+  const label = language === 'tr' ? names.tr : stars.length === 1 ? names.enOne : names.en;
+  const todayIdx = todayKey ? dayKeys.indexOf(todayKey) : -1;
 
-  const days = useMemo(() => {
-    if (w === 0) return [];
-    const colW = w / 7;
-    return focusPerDay.map((m, d) => {
-      const n = Math.min(MAX_PER_DAY, lightsFor(m));
-      const rnd = seeded(parseInt((dayKeys[d] ?? `${d}`).replace(/-/g, ''), 10) || d + 1);
-      const pts = Array.from({ length: n }, () => ({ x: d * colW + colW * (0.2 + 0.6 * rnd()), y: 14 + (H - 28) * rnd(), r: 1.4 + 1.4 * rnd() }));
-      pts.sort((a, b) => a.y - b.y);
-      return pts;
-    });
-  }, [w, focusPerDay, dayKeys]);
+  const pts = useMemo(() => stars.map((st, i) => ({
+    x: st.x01 * w,
+    y: PAD + st.y01 * (H - 2 * PAD),
+    r: 2.4 + 4.6 * st.size,
+    glint: st.size >= GLINT_MIN,
+    at: stars.length <= 1 ? 0 : (i / (stars.length - 1)) * 0.92,
+  })), [stars, w]);
 
-  const low = useLowPowerGraphics();
-  const tEnd = 6 * DAY_DELAY + DAY_SPAN;
-  const t = useSharedValue(reduce ? tEnd : 0);
+  const dust = useMemo(() => {
+    const rnd = seeded(7);
+    return Array.from({ length: DUST }, () => ({ x: rnd() * w, y: rnd() * H, r: 0.4 + rnd() * 0.6, o: 0.18 + rnd() * 0.3 }));
+  }, [w]);
+
+  const path = useMemo(() => {
+    const p = Skia.Path.Make();
+    pts.forEach((q, i) => (i === 0 ? p.moveTo(q.x, q.y) : p.lineTo(q.x, q.y)));
+    return p;
+  }, [pts]);
+
+  const t = useSharedValue(reduce ? 1 : 0);
+  const sig = stars.map(s => `${s.day}:${s.minutes}`).join(',');
   useEffect(() => {
     if (w === 0) return;
-    if (reduce) { t.value = tEnd; return; }
+    if (reduce) { t.value = 1; return; }
     t.value = 0;
-    t.value = withTiming(tEnd, { duration: REVEAL_MS, easing: Easing.out(Easing.quad) });
-  }, [w, focusPerDay.join(','), reduce]);
+    t.value = withTiming(1, { duration: REVEAL_MS, easing: Easing.out(Easing.quad) });
+  }, [w, sig, reduce]);
+  const lineEnd = useDerivedValue(() => Math.min(1, t.value / 0.92));
 
   return (
-    <View style={styles.card}>
+    <View
+      style={styles.card}
+      onLayout={(e) => setCard({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+      accessible
+      accessibilityLabel={[c.title, story ?? c.empty, stars.length > 0 ? c.a11yHow : ''].filter(Boolean).join('. ')}
+    >
       <LinearGradient colors={scene.zen.slice(0, 3) as [string, string, string]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      {/* Aurora bandı: sahnenin ışık renkleriyle durağan çapraz pus — HER cihazda (zayıfta tek mistik katman). */}
+      <LinearGradient colors={[c1 + '2E', 'transparent', c2 + '24', 'transparent']} locations={[0, 0.35, 0.65, 1]} start={{ x: 0, y: 0.2 }} end={{ x: 1, y: 0.8 }} style={StyleSheet.absoluteFill} pointerEvents="none" />
+      {/* Aurora zemini — odak ekranının dili; durağan tek kare. Zayıf cihazda yok. */}
+      {!low && card.w > 0 && (
+        <View style={[StyleSheet.absoluteFill, { opacity: scene.zenOpacity }]} pointerEvents="none">
+          <Nebula size={0} width={card.w} height={card.h} c1={c1} c2={c2} c3={c3} scene={scene.id} base={scene.base} paused />
+        </View>
+      )}
+      {/* Şafak: gökyüzünün üstü (sabah) hafifçe aydınlık — saat eksenini çizgisiz söyler. */}
+      <LinearGradient colors={[scene.stars[3] ?? scene.stars[1], 'transparent']} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 0.45 }} style={[StyleSheet.absoluteFill, { opacity: 0.1 }]} pointerEvents="none" />
+
       <View style={styles.head}>
         <Text style={styles.title}>{c.title}</Text>
-        {total > 0 && <Text style={[styles.total, { color: scene.stars[1] }]}>{c.total(total, label)}</Text>}
+        {stars.length > 0 && <Text style={[styles.total, { color: scene.stars[1] }]}>{c.total(stars.length, label)}</Text>}
       </View>
+      {story ? <Text style={styles.story}>{story}</Text> : null}
+
       <View style={{ height: H }} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
-        {total === 0 ? (
-          <Text style={styles.empty}>{c.empty}</Text>
-        ) : (
-          <Canvas style={{ width: w, height: H }}>
-            {days.map((pts, d) => (
-              <Group key={d}>
-                <Constellation pts={pts} d={d} t={t} line={scene.stars[1]} />
-                {pts.map((p, i) => (
-                  <Star key={i} p={p} d={d} i={i} n={pts.length} t={t} core={scene.stars[0]} halo={scene.stars[1]} low={low} />
-                ))}
-              </Group>
-            ))}
-          </Canvas>
+        {todayIdx >= 0 && w > 0 && (
+          <LinearGradient
+            colors={['transparent', scene.stars[1] + '1F', 'transparent']}
+            style={{ position: 'absolute', top: 0, bottom: 0, left: (todayIdx / 7) * w, width: w / 7 }}
+            pointerEvents="none"
+          />
         )}
+        <Canvas style={{ width: w, height: H }}>
+          {dust.map((d, i) => <Circle key={`d${i}`} cx={d.x} cy={d.y} r={d.r} color={scene.stars[0]} opacity={d.o} />)}
+          {/* Takımyıldız: bulanık ikiz hafif parıltı verir (düşük güçte yok). */}
+          {pts.length > 1 && (low
+            ? <Path path={path} style="stroke" strokeWidth={4} color={c1} opacity={0.1} start={0} end={lineEnd} />
+            : (
+              <Path path={path} style="stroke" strokeWidth={3} color={c1} opacity={0.22} start={0} end={lineEnd}>
+                <BlurMask blur={4} style="normal" />
+              </Path>
+            ))}
+          {pts.length > 1 && <Path path={path} style="stroke" strokeWidth={0.8} color={scene.stars[1]} opacity={0.5} start={0} end={lineEnd} />}
+          {pts.map((q, i) => (
+            <Star key={i} x={q.x} y={q.y} r={q.r} at={q.at} t={t} core={scene.stars[0]} halo={c1} glint={q.glint} low={low} />
+          ))}
+        </Canvas>
+        {timed && stars.length > 0 && (
+          <>
+            <View style={[styles.mark, { top: 0 }]} pointerEvents="none"><Sun size={ICON.xs} color="#FFFFFF" /></View>
+            <View style={[styles.mark, { bottom: 0 }]} pointerEvents="none"><Moon size={ICON.xs} color="#FFFFFF" /></View>
+          </>
+        )}
+        {stars.length === 0 && <Text style={styles.empty}>{c.empty}</Text>}
       </View>
+
       <View style={styles.days}>
-        {(language === 'tr' ? ['P', 'S', 'Ç', 'P', 'C', 'C', 'P'] : ['M', 'T', 'W', 'T', 'F', 'S', 'S']).map((l, i) => (
-          <Text key={i} style={styles.dayLabel}>{l}</Text>
+        {c.days.map((l, i) => (
+          <Text key={i} style={[styles.dayLabel, i === todayIdx && styles.dayToday]}>{l}</Text>
         ))}
       </View>
     </View>
@@ -141,9 +205,12 @@ export function WeekSky({ focusPerDay, dayKeys, language }: { focusPerDay: numbe
 const styles = StyleSheet.create({
   card: { borderRadius: R.lg, overflow: 'hidden', padding: S.md, gap: S.sm },
   head: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
-  title: { color: '#FFFFFF', fontSize: F.subhead, fontWeight: '700' },
+  title: { color: '#FFFFFF', fontSize: F.title3, fontWeight: '700' },
   total: { fontSize: F.caption, fontWeight: '700' },
-  empty: { color: 'rgba(255,255,255,0.6)', fontSize: F.caption, textAlign: 'center', marginTop: S.xl },
+  story: { color: 'rgba(255,255,255,0.82)', fontSize: F.footnote, fontWeight: '500', lineHeight: 19 },
+  empty: { position: 'absolute', left: 0, right: 0, top: H / 2 - S.md, color: 'rgba(255,255,255,0.7)', fontSize: F.footnote, textAlign: 'center', paddingHorizontal: S.lg },
+  mark: { position: 'absolute', left: 0, opacity: 0.35 },
   days: { flexDirection: 'row' },
   dayLabel: { flex: 1, textAlign: 'center', color: 'rgba(255,255,255,0.45)', fontSize: F.caption2, fontWeight: '600' },
+  dayToday: { color: '#FFFFFF', fontWeight: '700' },
 });

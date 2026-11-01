@@ -170,7 +170,8 @@ describe('hoş geldin ile tur SENKRON', () => {
   const LAYOUT = stripComments(read('app/_layout.tsx'));
 
   it('ana sayfa turu hoş geldin görünür ya da beklemedeyken AÇILMAZ', () => {
-    expect(INDEX).toContain("useTourGate('dashboard', profileSetupVisible || welcomeStatus === 'pending')");
+    // Hoş geldinden sonra "Aklındakileri yaz" ve varış da beklenir (bkz. captureFlow.test — sıra C5).
+    expect(INDEX).toContain("useTourGate('dashboard', profileSetupVisible || welcomeStatus === 'pending' || ");
   });
 
   it('hoş geldin turu ZORLA sıfırlamaz — misafirken görülen tur ikinci kez gelmez', () => {

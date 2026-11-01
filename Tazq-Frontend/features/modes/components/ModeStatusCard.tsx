@@ -2,12 +2,14 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { MotiView } from 'moti';
 import { DisplayPanel, DisplayValue } from '@/shared/components/DisplayPanel';
-import { Sparkles } from 'lucide-react-native';
-import { ProgressRail } from '@/shared/components/ProgressRail';
-import { S, F, R, B, ICON } from '@/shared/constants/tokens';
+import { ChevronRight, Sparkles, Zap } from 'lucide-react-native';
+import { Touchable } from '@/shared/components/Touchable';
+import { S, F, R, B, ICON, MIN_TOUCH } from '@/shared/constants/tokens';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { renderModeEmojiIcon } from '@/features/modes/utils/modeIcons';
 import { ModeDeck } from '@/features/modes/components/ModeDeck';
+import { RoadRing } from '@/features/modes/components/RoadRing';
+import { useCountdownTick } from '@/features/modes/hooks/useCountdownTick';
 
 /**
  * YAŞAM MODLARI — SAYFANIN DURUM KARTI.
@@ -45,7 +47,9 @@ const COPY = {
     a11yNoGoal: 'tarihli hedef yok',
     a11yToday: (d: number, t: number) => (t === 0 ? 'bugün planlı iş yok' : `bugün ${d} / ${t} tamamlandı`),
     inviteTitle: 'Bir hedef seç, gerisini bize bırak',
-    inviteBody: 'Sınav, tez, mülakat ya da spor — birini aç, hazır plan otomatik olarak Haftalık Merkez ve görevlerine düşsün.',
+    inviteBody: 'Sınav, tez, mülakat, spor, tasarruf ya da bırakmak istediğin bir alışkanlık — birini aç, hazır plan Bu Hafta ekranına ve görevlerine kendiliğinden düşsün.',
+    pendingTitle: (n: number) => `${n} hedef planını bekliyor`,
+    pendingBody: 'Aşağıda kurulumu tamamla; plan o an Bu Hafta ekranına ve görevlerine düşer.',
   },
   en: {
     unit: (d: number) => (d === 0 ? 'TODAY' : 'DAYS'),
@@ -62,7 +66,9 @@ const COPY = {
     a11yNoGoal: 'no dated goal',
     a11yToday: (d: number, t: number) => (t === 0 ? 'nothing planned today' : `today ${d} of ${t} done`),
     inviteTitle: 'Pick a goal, leave the rest to us',
-    inviteBody: 'Exam, thesis, interview or fitness — turn one on and a ready plan flows into your Weekly Hub and tasks automatically.',
+    inviteBody: 'Exam, thesis, interview, fitness, savings or a habit to quit — turn one on and a ready plan flows into This Week and your tasks automatically.',
+    pendingTitle: (n: number) => (n === 1 ? '1 goal is waiting for its plan' : `${n} goals are waiting for their plan`),
+    pendingBody: 'Finish setup below; the plan lands in This Week and your tasks right away.',
   },
 };
 
@@ -73,6 +79,40 @@ export interface StatusGoal {
   color: string;
   textColor: string;
   emoji: string;
+  /** Kalıcı kimlik (geri sayımın son görülen değeri buna bağlanır). */
+  id: string;
+  /** Yolun geçen payı 0..1 (bkz. roadProgress); başlangıç bilinmiyorsa null. */
+  progress: number | null;
+}
+
+/*
+  Destede bir hedefin ikonu + geri sayımı. Kancalar (halka, akan sayı) hedef başına;
+  map içinde çağrılamayacakları için ayrı bileşen.
+*/
+function GoalCountdown({ g, unit, isDark }: { g: StatusGoal; unit: string; isDark: boolean }) {
+  const tick = useCountdownTick(g.id, g.days);
+  return (
+    <>
+      <RoadRing size={54} progress={g.progress} color={g.color} id={g.id}>
+        <View style={{ width: 42, height: 42, borderRadius: R.full, backgroundColor: g.color + (isDark ? '26' : '18'), alignItems: 'center', justifyContent: 'center' }}>
+          {renderModeEmojiIcon(g.emoji, 22, g.color)}
+        </View>
+      </RoadRing>
+      <MotiView
+        from={{ opacity: 0, translateY: 6 }}
+        animate={{ opacity: tick.ready ? 1 : 0, translateY: tick.ready ? 0 : 6 }}
+        transition={{ type: 'timing', duration: 320 }}
+        style={{ alignItems: 'center', minWidth: 56 }}
+      >
+        {tick.ready && (
+          <DisplayValue value={String(g.days)} from={tick.from} duration={tick.from != null ? 1400 : 450} color={g.color} style={{ fontSize: F.hero, lineHeight: F.hero + 2, letterSpacing: -1 }} />
+        )}
+        <Text style={{ color: g.textColor, fontWeight: '700', fontSize: F.caption, letterSpacing: 1, opacity: 0.75 }}>
+          {unit}
+        </Text>
+      </MotiView>
+    </>
+  );
 }
 
 export interface ModeStatusCardProps {
@@ -80,6 +120,8 @@ export interface ModeStatusCardProps {
   /** Tarihe göre SIRALI hedefler (en yakın önce). Boşsa "tarihli hedefin yok" hâli. */
   goals: StatusGoal[];
   activeCount: number;
+  /** Açılmış ama planı uygulanmamış mod sayısı; aktif hedef yokken davet yerine bunu söyler. */
+  pendingCount?: number;
   greeting: { text: string; icon: React.ReactNode };
   todayDone: number;
   todayTotal: number;
@@ -87,14 +129,29 @@ export interface ModeStatusCardProps {
   /** Hiç tarihli hedef yokken kullanılan nötr vurgu. */
   fallbackColor: string;
   fallbackTextColor: string;
+  /** Bugünün planı satırı → Ana sayfa (Bugün'ün sahibi). */
+  onOpenToday: () => void;
 }
 
 export const ModeStatusCard: React.FC<ModeStatusCardProps> = ({
-  language, goals, activeCount, greeting, todayDone, todayTotal, motivation, fallbackColor, fallbackTextColor,
+  language, goals, activeCount, pendingCount = 0, greeting, todayDone, todayTotal, motivation, fallbackColor, fallbackTextColor, onOpenToday,
 }) => {
   const { theme, isDark } = useAppTheme();
   const c = COPY[language];
   const nearest = goals[0] ?? null;
+
+  // Mod açık, kurulum yarım: "Bir hedef seç" demek yanlış — kullanıcı zaten seçti.
+  if (activeCount === 0 && pendingCount > 0) {
+    return (
+      <DisplayPanel padding={S.md}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+          <Zap size={ICON.md} color={theme.warning} />
+          <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{c.pendingTitle(pendingCount)}</Text>
+        </View>
+        <Text style={{ color: theme.onSurfaceVariant, fontSize: F.footnote, marginTop: S.xs, lineHeight: 18 }}>{c.pendingBody}</Text>
+      </DisplayPanel>
+    );
+  }
 
   if (activeCount === 0) {
     return (
@@ -129,7 +186,6 @@ export const ModeStatusCard: React.FC<ModeStatusCardProps> = ({
         greeting.text,
         `${activeCount} ${c.activeModes}`,
         nearest ? c.a11yNearest(nearest.label, nearest.days) : c.a11yNoGoal,
-        c.a11yToday(todayDone, todayTotal),
       ].join('. ')}
     >
       {/* üst satır: selam + aktif mod çipi */}
@@ -161,20 +217,7 @@ export const ModeStatusCard: React.FC<ModeStatusCardProps> = ({
             a11yLabel={c.deck(goals.length)}
             pages={goals.map((g, gi) => (
               <View key={`${g.label}-${gi}`} style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
-                <View style={{ width: 46, height: 46, borderRadius: R.lg, backgroundColor: g.color + (isDark ? '26' : '18'), alignItems: 'center', justifyContent: 'center' }}>
-                  {renderModeEmojiIcon(g.emoji, 24, g.color)}
-                </View>
-                <MotiView
-                  from={{ opacity: 0, translateY: 6 }}
-                  animate={{ opacity: 1, translateY: 0 }}
-                  transition={{ type: 'timing', duration: 320 }}
-                  style={{ alignItems: 'center', minWidth: 56 }}
-                >
-                  <DisplayValue value={String(g.days)} color={g.color} style={{ fontSize: F.hero, lineHeight: F.hero + 2, letterSpacing: -1 }} />
-                  <Text style={{ color: g.textColor, fontWeight: '700', fontSize: F.caption, letterSpacing: 1, opacity: 0.75 }}>
-                    {c.unit(g.days)}
-                  </Text>
-                </MotiView>
+                <GoalCountdown g={g} unit={c.unit(g.days)} isDark={isDark} />
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text numberOfLines={1} style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{g.label}</Text>
                   <Text numberOfLines={1} style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginTop: S.xxs }}>
@@ -197,26 +240,29 @@ export const ModeStatusCard: React.FC<ModeStatusCardProps> = ({
         </View>
       )}
 
-      {/* Bugünün planı — kartlardakiyle AYNI çubuk; hepsi tamamsa kutlanır. */}
-      <View style={{ marginTop: S.md, gap: S.xs }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{c.todayLabel}</Text>
-          <DisplayValue value={c.todayValue(todayDone, todayTotal)} color={todayTotal > 0 && todayDone >= todayTotal ? theme.success : theme.onSurfaceVariant} style={{ fontSize: F.footnote }} />
-        </View>
-        {todayTotal > 0 && (
-          <ProgressRail
-            variant="segments"
-            value={todayDone}
-            total={todayTotal}
-            color={todayDone >= todayTotal ? theme.success : (nearest?.color ?? fallbackColor)}
-          />
-        )}
-      </View>
-
       {motivation ? (
         <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '500', marginTop: S.md, lineHeight: 17 }}>{motivation}</Text>
       ) : null}
     </View>
+
+    {/*
+      BUGÜNÜN PLANI — TEK SATIR BAĞLANTI (2026-10-31, yeniden düzenleme A3 · K-1).
+      Eskiden burada ana sayfadaki ModeTodayCard'ın aynısı bir ilerleme çubuğu vardı: aynı soru
+      iki ekranda. Bugün'ün sahibi Ana sayfa; burada yalnız durum + oraya götüren satır kalır.
+      Özet görünümün DIŞINDA: `accessible` kabın içindeki dokunulabilir öğe odak alamaz.
+    */}
+    <Touchable
+      onPress={onOpenToday}
+      accessibilityRole="link"
+      accessibilityLabel={c.a11yToday(todayDone, todayTotal)}
+      style={{ marginTop: S.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: MIN_TOUCH }}
+    >
+      <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{c.todayLabel}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xxs }}>
+        <DisplayValue seenKey="goals.today" value={c.todayValue(todayDone, todayTotal)} color={todayTotal > 0 && todayDone >= todayTotal ? theme.success : theme.onSurfaceVariant} style={{ fontSize: F.footnote }} />
+        <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} />
+      </View>
+    </Touchable>
     </DisplayPanel>
   );
 };

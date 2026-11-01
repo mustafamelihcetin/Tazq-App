@@ -219,7 +219,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
           </ScrollView>
 
           {/* Save button */}
-          <Touchable
+          <Touchable accessibilityRole="button"
             onPress={handleSave}
             disabled={saving || !input}
             style={{

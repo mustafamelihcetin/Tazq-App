@@ -1,14 +1,15 @@
 import { useMemo } from 'react';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { localizeSporGoal } from '@/features/modes/utils/turkishModes';
-import { useActiveHabitList } from '@/features/habits';
+import { useActiveHabitList, useHabitStore } from '@/features/habits';
 import { useActiveTasks } from '@/features/tasks';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { modeAccent, modeAccentText } from '@/shared/constants/Colors';
 import { toDateKey } from '@/shared/utils/dateKey';
-import { planProgressFor } from '@/features/modes/utils/planProgress';
+import { modeToday, planProgressFor } from '@/features/modes/utils/planProgress';
 import { daysLeftOf as sharedDaysLeftOf, isDatePast } from '@/features/modes/utils/planTaskOps';
+import { modeHistory, type ModeHistory } from '@/features/modes/utils/modeHistory';
 
 /**
  * AKTİF MODLARIN ÖZETİ — tek kaynak.
@@ -43,11 +44,14 @@ export interface ModeSummaryEntry {
   weekActive: number;
   /** Haftalık alışkanlık uyumu (%). */
   pct: number;
+  /** Bugünün plan işleri: görev + bugün planlı alışkanlık (bkz. planProgress.modeToday). */
   todayDone: number;
   todayTotal: number;
   /** Tarihi ne olursa olsun HENÜZ bitmemiş plan görevleri. */
   openTotal: number;
   taskTotal: number;
+  /** Son 4 hafta (Modların Özeti — geriye bakış). Dinlenen alışkanlığın geçmişi de sayılır. */
+  history: ModeHistory;
 }
 
 export interface ModeSummary {
@@ -100,6 +104,7 @@ export function useActiveModeSummary(): ModeSummary {
   const habits = useActiveHabitList(); // dinlenen plan alışkanlığı bugünün yükü değil
   // Arşivlenmişler hariç: özet AKTİF planı anlatır.
   const tasks = useActiveTasks();
+  const allHabits = useHabitStore(s => s.habits);
 
   return useMemo(() => {
     // Mod renkleri MERKEZİ PALETTEN — iki ekran aynı modu farklı tonda göstermesin.
@@ -120,7 +125,7 @@ export function useActiveModeSummary(): ModeSummary {
     const mulLbl = names.interview;
     const sporLbl = names.fitness;
 
-    type RawEntry = Omit<ModeSummaryEntry, 'habitCount' | 'weekActive' | 'pct' | 'todayDone' | 'todayTotal' | 'openTotal' | 'taskTotal'>;
+    type RawEntry = Omit<ModeSummaryEntry, 'habitCount' | 'weekActive' | 'pct' | 'todayDone' | 'todayTotal' | 'openTotal' | 'taskTotal' | 'history'>;
     const entries: RawEntry[] = [];
 
     if (seasonal.examMode) {
@@ -169,8 +174,11 @@ export function useActiveModeSummary(): ModeSummary {
         `taskTotal` da artık GERÇEKTEN var olan görevleri sayıyor: eskiden kaydedilmiş
         id listesinin uzunluğuydu ve silinmiş görevler de sayılıyordu.
       */
-      const progress = planProgressFor(tasks, e.taskIds, now);
-      return { ...e, habitCount: eHabits.length, weekActive, pct, ...progress };
+      const progress = planProgressFor(tasks, e.taskIds);
+      // Bugün: görev + bugün planlı alışkanlık (tek tanım — Hedefler, mod kartları ve rozet de bunu sayar).
+      const today = modeToday({ tasks, habits, planTaskIds: e.taskIds, planHabitIds: e.habitIds, now });
+      const history = modeHistory({ habits: allHabits, tasks, habitIds: e.habitIds, taskIds: e.taskIds, now });
+      return { ...e, habitCount: eHabits.length, weekActive, pct, ...progress, todayDone: today.done, todayTotal: today.total, history };
     });
 
     const dated = computed.filter(c => c.days !== null && c.days >= 0).sort((a, b) => (a.days! - b.days!));
@@ -194,5 +202,5 @@ export function useActiveModeSummary(): ModeSummary {
       todayDoneAll: computed.reduce((a, c) => a + c.todayDone, 0),
       todayTotalAll: computed.reduce((a, c) => a + c.todayTotal, 0),
     };
-  }, [isDark, tr, names, seasonal, prefs, habits, tasks]);
+  }, [isDark, tr, names, seasonal, prefs, habits, allHabits, tasks]);
 }

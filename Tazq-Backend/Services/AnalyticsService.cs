@@ -147,7 +147,8 @@ namespace Tazq_App.Services
                 .Select(g => new PlatformCount(g.Key, g.Count()))
                 .ToListAsync();
 
-            return new AnalyticsReport(now, segments, funnel, adoption, focus, stability, platforms.OrderByDescending(p => p.Installs).ToList());
+            return new AnalyticsReport(now, segments, funnel, adoption, focus, stability, platforms.OrderByDescending(p => p.Installs).ToList(),
+                FirstMinuteOf(users.Select(u => u.Preferences)));
         }
 
         /// <summary>Kullanıcı başına görev sinyalleri — yalnız düz (şifresiz) alanlar. Npgsql'e çevrilebilir (bkz. SqlTranslationTests).</summary>
@@ -161,6 +162,41 @@ namespace Tazq_App.Services
                 g.Count(t => t.Priority == TaskPriority.High)));
 
         /// <summary>Alışkanlık JSON'u en az bir öğe içeriyor mu (içerik dışarı çıkmaz).</summary>
+        /// <summary>
+        /// İLK DAKİKA ("Aklındakileri yaz", 2026-10-31). İstemci tercihe yalnız sayı ve enum yazar
+        /// (firstCapture: result, items, habits, modeSuggested, modeAccepted, at) — yazılan METİN hiç gelmez.
+        /// Aktivasyon: ilk tamamlanan iş (firstWinAt) yakalamadan sonraki 24 saat içinde mi. Sunucu görevin
+        /// tamamlanma anını tutmadığı için ölçü istemcinin ilk başarı damgası.
+        /// </summary>
+        public static FirstMinute FirstMinuteOf(IEnumerable<string?> preferences)
+        {
+            int shown = 0, wrote = 0, skipped = 0, suggested = 0, accepted = 0, activated = 0, items = 0;
+            foreach (var json in preferences)
+            {
+                if (string.IsNullOrWhiteSpace(json)) continue;
+                try
+                {
+                    using var doc = JsonDocument.Parse(json);
+                    var root = doc.RootElement;
+                    if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("firstCapture", out var fc) || fc.ValueKind != JsonValueKind.Object) continue;
+                    shown++;
+                    var result = fc.TryGetProperty("result", out var r) && r.ValueKind == JsonValueKind.String ? r.GetString() : null;
+                    if (result == "skipped") { skipped++; continue; }
+                    if (result != "wrote") continue;
+                    wrote++;
+                    if (fc.TryGetProperty("items", out var n) && n.ValueKind == JsonValueKind.Number) items += n.GetInt32();
+                    if (fc.TryGetProperty("modeSuggested", out var m) && m.ValueKind == JsonValueKind.String) suggested++;
+                    if (fc.TryGetProperty("modeAccepted", out var a) && a.ValueKind == JsonValueKind.True) accepted++;
+                    if (fc.TryGetProperty("at", out var at) && at.ValueKind == JsonValueKind.String && at.TryGetDateTime(out var atTime)
+                        && root.TryGetProperty("firstWinAt", out var w) && w.ValueKind == JsonValueKind.String && w.TryGetDateTime(out var winTime)
+                        && winTime >= atTime && winTime <= atTime.AddHours(24))
+                        activated++;
+                }
+                catch (JsonException) { }
+            }
+            return new FirstMinute(shown, wrote, skipped, wrote > 0 ? Math.Round((double)items / wrote, 1) : 0, suggested, accepted, activated);
+        }
+
         public static bool HasAnyHabit(string? json)
         {
             if (string.IsNullOrWhiteSpace(json)) return false;
@@ -187,6 +223,7 @@ namespace Tazq_App.Services
     public record VersionCount(string Version, int Count);
     public record Stability(int Crashes7d, int AffectedUsers7d, double? CrashFreePct, List<VersionCount> TopVersions);
     public record PlatformCount(string Platform, int Installs);
+    public record FirstMinute(int Shown, int Wrote, int Skipped, double AvgItems, int ModeSuggested, int ModeAccepted, int Activated24h);
     public record AnalyticsReport(DateTime GeneratedAt, AnalyticsSegments Segments, List<FunnelStep> Funnel, List<FeatureAdoption> Adoption,
-        FocusBehavior Focus, Stability Stability, List<PlatformCount> Platforms);
+        FocusBehavior Focus, Stability Stability, List<PlatformCount> Platforms, FirstMinute FirstMinute);
 }

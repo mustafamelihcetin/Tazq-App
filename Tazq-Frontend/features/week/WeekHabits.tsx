@@ -8,7 +8,8 @@ import { S, R, F, W, ICON, HAIRLINE } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { DisplayPanel, useDisplayColors } from '@/shared/components/DisplayPanel';
 import { PillSentence } from '@/shared/components/PillSentence';
-import { consistency, countOn, targetOf, type HabitLike } from '@/features/habits/utils/habitSchedule';
+import { countOn, targetOf, type HabitLike } from '@/features/habits/utils/habitSchedule';
+import { habitWeek } from '@/features/week/habitWeek';
 import { cellState, streakStats } from '@/features/habits/utils/habitStats';
 import { habitColor } from '@/features/habits/utils/habitColor';
 import type { WeekSeg } from '@/features/week/WeekPanel';
@@ -51,6 +52,9 @@ function TodayCheck({ h, today, color, onTap, onHold, label }: {
 }
 
 /** Haftanın 7 çubuğu — yalnız bilgi. */
+/** Bugünün (henüz yapılmamış) çubuğu: alışkanlığın renginde soluk dolgu. */
+const TODAY_ALPHA = '4D';
+
 function WeekBars({ h, weekKeys, today, color }: { h: HabitLike; weekKeys: string[]; today: string; color: string }) {
   const { theme, isDark } = useAppTheme();
   const faint = theme.onSurface + (isDark ? '24' : '17');
@@ -62,8 +66,9 @@ function WeekBars({ h, weekKeys, today, color }: { h: HabitLike; weekKeys: strin
         return (
           <View key={k} style={[styles.bar, {
             height: tall ? S.smd : S.xs,
-            backgroundColor: st === 'done' ? color : st === 'rest' ? theme.warning + '99' : faint,
-            borderWidth: st === 'today' ? 1 : 0, borderColor: color,
+            // Bugün SOLUK DOLGU: eskiden 5 px'lik çerçeveli hap bu boyutta "0" rakamı gibi okunuyordu
+            // (cihazda görüldü, "bu hafta 0/7" yazısının hemen yanında).
+            backgroundColor: st === 'done' ? color : st === 'rest' ? theme.warning + '99' : st === 'today' ? color + TODAY_ALPHA : faint,
           }]} />
         );
       })}
@@ -72,7 +77,7 @@ function WeekBars({ h, weekKeys, today, color }: { h: HabitLike; weekKeys: strin
 }
 
 export function WeekHabits<T extends HabitLike & { id: string; name: string; color?: string; planMode?: string | null }>({
-  label, story, habits, weekKeys, todayKey, onToday, onTodayHold, onOpen, renderName, todayLabel, streakLabel,
+  label, story, habits, weekKeys, todayKey, onToday, onTodayHold, onOpen, renderName, todayLabel, streakLabel, weekLabel,
 }: {
   label: string; story: WeekSeg[];
   habits: T[]; weekKeys: string[]; todayKey: string;
@@ -81,6 +86,8 @@ export function WeekHabits<T extends HabitLike & { id: string; name: string; col
   renderName: (h: T, sub: string) => React.ReactNode;
   todayLabel: (h: T, done: boolean) => string;
   streakLabel: (n: number, unit: 'day' | 'week') => string;
+  /** Haftanın sayısı ("bu hafta 6/7") — dil çağıranda. */
+  weekLabel: (done: number, goal: number) => string;
 }) {
   const { theme, isDark } = useAppTheme();
   const dc = useDisplayColors();
@@ -92,8 +99,13 @@ export function WeekHabits<T extends HabitLike & { id: string; name: string; col
         {habits.map((h, i) => {
           const color = habitColor(h, isDark);
           const st = streakStats(h, todayKey);
-          const cons = consistency(h, todayKey);
-          const sub = [st.current > 0 ? streakLabel(st.current, st.unit) : '', cons != null ? `%${cons}` : ''].filter(Boolean).join(' · ');
+          /*
+            HAFTANIN SAYISI ("bu hafta 6/7"). Eskiden son 30 günün tutarlılığı etiketsiz "%20" diye
+            yazıyordu: bu hafta her gün yapılmış alışkanlığın yanında %20 — haftalık ekranda yanlış
+            okunuyordu, üstelik cümledeki haftalık yüzdeyle yan yana iki farklı yüzde.
+          */
+          const wk = habitWeek(h, weekKeys, todayKey);
+          const sub = [st.current > 0 ? streakLabel(st.current, st.unit) : '', weekLabel(wk.done, wk.goal)].filter(Boolean).join(' · ');
           return (
             <View key={h.id} style={[styles.row, i > 0 && { borderTopWidth: HAIRLINE, borderTopColor: theme.separator }]}>
               <TodayCheck h={h} today={todayKey} color={color} onTap={() => onToday(h)} onHold={() => onTodayHold(h)}

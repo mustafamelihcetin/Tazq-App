@@ -167,14 +167,14 @@ describe('ayar metni yaptığı işi anlatır', () => {
       → LITE_TAB_IDS). Haftalık Merkez'in sessizce kaybolması sürpriz oluyordu; bir
       ayarın altyazısı yaptığı işin TAMAMINI saymak zorunda.
     */
-    expect(SETTINGS).toContain('İvme skorunu, kutlamaları, Modlar ve Haftalık sekmelerini gizler');
-    expect(SETTINGS).toContain('Hides momentum, celebrations, Modes & Weekly tabs');
+    expect(SETTINGS).toContain('İvme skorunu, kutlamaları, Hedefler ve Hafta sekmelerini gizler');
+    expect(SETTINGS).toContain('Hides momentum, celebrations, Goals & Week tabs');
   });
 
-  it('Haftalık Merkez Sade modda erişilebilir kalıyor', () => {
+  it('Bu Hafta ekranı Sade modda erişilebilir kalıyor', () => {
     // Durum merkezi düğmesi gizlendiği için bu satır TEK erişim yolu
     expect(SETTINGS).toContain("uiMode === 'lite' && (");
-    expect(SETTINGS).toContain("'Haftalık Merkez'");
+    expect(SETTINGS).toContain("'Bu Hafta'");
   });
 });
 

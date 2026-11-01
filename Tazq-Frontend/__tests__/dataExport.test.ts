@@ -81,7 +81,7 @@ describe('dışa aktarma arayüzü', () => {
   const settings = read('app/settings.tsx');
 
   it('ayarlarda görünür ve erişilebilir', () => {
-    expect(settings).toContain("exportUserData");
+    expect(settings).toContain('startDataExport(');
     expect(settings).toMatch(/'Verilerimi indir' : 'Download my data'/);
     // 2026-10-25: ortak SettingItem satırı — ekran okuyucu adı görünen etiketin kendisi
     // (SettingItem accessibilityLabel={label}); ayrı, farklı bir ad gerekmiyor.
@@ -94,7 +94,7 @@ describe('dışa aktarma arayüzü', () => {
    * olarak kaybolurdu.
    */
   it('silme düğmesinin ÜSTÜNDE — önce al, sonra sil', () => {
-    const exportIdx = settings.indexOf('exportUserData');
+    const exportIdx = settings.indexOf('startDataExport(');
     // Düğme misafirde "cihazdaki verileri sil"e döner; hesaplıda openDeleteAccount'tur.
     const deleteIdx = settings.indexOf(': openDeleteAccount}');
     expect(exportIdx).toBeGreaterThan(-1);
@@ -132,14 +132,14 @@ describe('özellik adlandırması tek', () => {
 
   it('onboarding ile ekran okuyucu AYNI adı söylüyor', () => {
     const i18n = read('shared/constants/i18n.ts');
-    expect(i18n).toContain("onboardingTitleModes: 'Yaşam Modları'");
+    expect(i18n).toContain("onboardingTitleModes: 'Hedefler'");
     expect(read('shared/components/BottomNavBar.tsx'))
-      .toContain("modlar: { tr: 'Yaşam Modları', en: 'Life Modes' }");
+      .toContain("modlar: { tr: 'Hedefler', en: 'Goals' }");
   });
 
   it('sekmedeki KISA etiket kısa kalıyor', () => {
     // Sekme etiketleri kısaltmadır; tam ad ekran okuyucuya verilir.
     expect(read('shared/components/BottomNavBar.tsx'))
-      .toContain("modlar: { tr: 'Modlar', en: 'Modes' }");
+      .toContain("cockpit: { tr: 'Hafta', en: 'Week' }");
   });
 });

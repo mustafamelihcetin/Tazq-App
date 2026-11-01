@@ -50,6 +50,7 @@ import { canStaff, isAnalystOnly } from '@/shared/utils/staffRoles';
 import { SplashAdminCard } from '@/features/admin/components/SplashAdminCard';
 import { AccentPicker } from '@/features/user/components/AccentPicker';
 import { goHome } from '@/shared/utils/authNavigation';
+import { startDataExport } from '@/shared/utils/startDataExport';
 
 /**
  * Ayarlar sayfası — profil'den AYRILDI. İçerik profile.tsx'ten BYTE-BYTE çıkarıldı;
@@ -510,7 +511,7 @@ export default function SettingsScreen() {
                     /* Sekme seti de daralıyor: Modlar VE Haftalık gizleniyor (bkz. BottomNavBar
                        → LITE_TAB_IDS). Etiket yalnız 'modlar' diyordu; Haftalık Merkez'in
                        kaybolması sürpriz oluyordu. */
-                    subtitle={language === 'tr' ? 'İvme skorunu, kutlamaları, Modlar ve Haftalık sekmelerini gizler' : 'Hides momentum, celebrations, Modes & Weekly tabs'}
+                    subtitle={language === 'tr' ? 'İvme skorunu, kutlamaları, Hedefler ve Hafta sekmelerini gizler' : 'Hides momentum, celebrations, Goals & Week tabs'}
                     value={uiMode === 'lite'}
                     onValueChange={(v: boolean) => { haptic.select(); setUiMode(v ? 'lite' : 'pro'); track('ui_mode_changed', { mode: v ? 'lite' : 'pro' }); }}
                     theme={theme} isDark={isDark}
@@ -590,7 +591,7 @@ export default function SettingsScreen() {
               <SettingsCard theme={theme} isDark={isDark}>
                   <SettingItem
                       icon={<CalendarDays size={ICON.md} color="#FFFFFF" />}
-                      label={language === 'tr' ? 'Haftalık Merkez' : 'Weekly Hub'}
+                      label={language === 'tr' ? 'Bu Hafta' : 'This Week'}
                       sub={language === 'tr' ? 'Momentum, seri ve haftalık bakış' : 'Momentum, streak & weekly view'}
                       bg={A.core}
                       onPress={() => router.push('/cockpit')}
@@ -714,36 +715,8 @@ export default function SettingsScreen() {
                 bg={A.legal}
                 right={exporting ? <ActivityIndicator size="small" color={theme.onSurfaceVariant} /> : undefined}
                 onPress={exporting ? undefined : () => {
-                  // Biçim seçimi (madde 8): okunabilir özet ya da tam ayrıntılı JSON.
-                  const run = async (format: 'md' | 'json') => {
-                  setExporting(true);
-                  try {
-                    const { exportUserData } = require('@/shared/utils/dataExport');
-                    const res = await exportUserData(format);
-                    if (res.ok) {
-                      haptic.success();
-                    } else {
-                      haptic.error();
-                      Alert.alert(
-                        language === 'tr' ? 'Dışa aktarılamadı' : 'Export failed',
-                        res.reason === 'no-sharing'
-                          ? (language === 'tr'
-                              ? 'Bu cihaz dosya paylaşımını desteklemiyor.'
-                              : 'This device does not support file sharing.')
-                          : (language === 'tr'
-                              ? 'Bir sorun oldu, tekrar dener misin?'
-                              : 'Something went wrong, please try again.'),
-                      );
-                    }
-                  } finally {
-                    setExporting(false);
-                  }
-                  };
-                  Alert.alert(t.exportFormat.title, t.exportFormat.body, [
-                    { text: t.exportFormat.md, onPress: () => run('md') },
-                    { text: t.exportFormat.json, onPress: () => run('json') },
-                    { text: t.exportFormat.cancel, style: 'cancel' },
-                  ]);
+                  // Biçim seçimi (madde 8): okunabilir özet ya da tam ayrıntılı JSON. Akış ortak (bkz. startDataExport).
+                  startDataExport({ copy: t.exportFormat, onBusy: setExporting });
                 }}
                 theme={theme}
               />

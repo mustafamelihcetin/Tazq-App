@@ -11,6 +11,7 @@ import { useActiveModeSummary, type ModeSummaryEntry } from '@/features/modes/ho
 import { ModeDeck } from '@/features/modes/components/ModeDeck';
 import { TourTarget } from '@/shared/components/TourContext';
 import { DisplayDivider } from '@/shared/components/DisplayPanel';
+import { GainBadge } from '@/shared/components/GainBadge';
 
 /**
  * AKTİF DÖNEMİN BUGÜNÜ — ana ekranın en üstü, mod varken.
@@ -64,6 +65,8 @@ function ModeLine({ mode, t, onOpen }: { mode: ModeSummaryEntry; t: Copy; onOpen
       <Text numberOfLines={1} style={{ flex: 1, fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant }}>
         {`· ${status}`}
       </Text>
+      {/* İş bitince bir an "+1": yapılan bir yere gitti (B2). */}
+      <GainBadge seenKey={`modeToday:${mode.key}`} value={mode.todayDone} color={mode.textColor} />
       {/* Gün sayısı kesilmez; dar ekranda önce durum metni kısalır. */}
       {mode.days != null && mode.days >= 0 && (
         <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceMuted }}>{`${mode.days} ${t.daysShort}`}</Text>

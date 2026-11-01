@@ -380,31 +380,34 @@ describe('misafir hoş geldin — yalnız YENİ misafir girişinde, bir kez (202
   });
 });
 
-describe('tanıtımdan misafir çıkışı — başlangıç görevi KAYBOLMAZ (2026-10-24, cihazda bulundu)', () => {
+describe('misafirin ilk görevleri KAYBOLMAZ (2026-10-24 cihazda bulundu; 2026-10-31 yeni yol)', () => {
   /*
-    Android cihaz logu: `onboarding.quickStart.createTask: 401`. completeOnboarding önce
-    hedefi uyguluyor (başlangıç görevi), SONRA startGuest çağırıyordu. Misafir bayrağı
-    henüz kapalıyken istek token'sız sunucuya gitti, 401 döndü, yutuldu → görev yok.
-    Misafirlik ÖNCE açılırsa api kapısı isteği durdurur ve görev yerel kuyruğa düşer.
+    Android cihaz logu: `onboarding.quickStart.createTask: 401`. Görev, misafir bayrağı açılmadan
+    token'sız sunucuya gitti, 401 döndü, yutuldu → görev yok. Misafirlik ÖNCE açılırsa api kapısı
+    isteği durdurur ve görev yerel kuyruğa düşer.
+    Tanıtımın "neyle uğraşıyorsun" sorusu kalktı (2026-10-31); ilk görevler artık girişten sonra
+    "Aklındakileri yaz" ekranından geliyor (captureFlow.applyCapture → createSeedTask). Kural aynı.
   */
   beforeEach(() => jest.resetModules());
 
-  it('misafirken başlangıç görevi cihaza yazılır ve kuyruğa girer', async () => {
+  it('misafirken (çevrimiçi) yazma ekranından eklenen görev cihaza yazılır ve kuyruğa girer', async () => {
     const { useSessionStore } = require('@/shared/store/useSessionStore');
+    const { useNetworkStore } = require('@/shared/store/useNetworkStore');
     const { useTaskStore } = require('@/features/tasks/store/useTaskStore');
     const { useOfflineQueue } = require('@/shared/store/useOfflineQueue');
-    const { quickStartWelcomeTask } = require('@/features/onboarding/utils/quickStart');
+    const { applyCapture } = require('@/features/onboarding/utils/captureFlow');
     useSessionStore.getState().setGuest(true);
+    useNetworkStore.setState({ isOnline: true });
     useTaskStore.setState({ tasks: [] });
-    await quickStartWelcomeTask(true);
+    await applyCapture({ drafts: [{ id: 'c0', kind: 'task', title: 'Faturayı öde', evidence: [] }], lang: 'tr', acceptMode: false });
     expect(useTaskStore.getState().tasks).toHaveLength(1);
     expect(useOfflineQueue.getState().ops.some((q: { type: string }) => q.type === 'create-task')).toBe(true);
   });
 
-  it('completeOnboarding misafirliği hedeften ÖNCE açar', () => {
+  it('tanıtımdan misafir çıkışı oturumu çıkıştan ÖNCE açar (hoş geldin misafiri tanısın)', () => {
     const src = stripComments(read('app/onboarding.tsx'));
     const fn = src.slice(src.indexOf('const completeOnboarding'), src.indexOf('const nextSlide'));
     expect(fn.indexOf('startGuest()')).toBeGreaterThan(-1);
-    expect(fn.indexOf('startGuest()')).toBeLessThan(fn.indexOf('await applyPickedGoal()'));
+    expect(fn.indexOf('startGuest()')).toBeLessThan(fn.indexOf('goHome(router)'));
   });
 });

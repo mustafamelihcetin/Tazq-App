@@ -31,7 +31,6 @@ const INDEX = stripComments(read('app/index.tsx'));
 const DAYSCOPE = stripComments(read('features/dashboard/utils/dayScope.ts'));
 const PORTAL = stripComments(read('features/dashboard/components/CommandPortal.tsx'));
 const ROW = stripComments(read('features/dashboard/components/MyDayTaskRow.tsx'));
-const HUB = stripComments(read('features/dashboard/components/StatusHubModal.tsx'));
 const SLEEP = stripComments(read('features/habits/hooks/useSleepHealthSync.ts'));
 const LAYOUT = stripComments(read('app/_layout.tsx'));
 const TASKS = stripComments(read('app/tasks.tsx'));
@@ -221,18 +220,6 @@ describe('tek bir "bugün" tanımı', () => {
     expect(INDEX).toMatch(/\}, \[tasks, habits, isLoading, streakDayDone, currentHour\]\);/);
   });
 
-  it('7 günlük alışkanlık ızgarası ÜRÜNÜN gün anahtarını kullanıyor', () => {
-    /*
-      Anahtarlar ham takvim tarihinden kuruluyordu, oysa alışkanlıklar `fmtDateKey`
-      ile (3 saat tamponlu) yazılıyor. Gece 00:00–03:00 arasında ızgara BİR GÜN
-      kayıyordu: kullanıcı 01:00'de bir ritüeli işaretliyor, "bugün" diye
-      çerçevelenen kutu boş kalıyordu. Aynı kayma haftalık sayımı da bozuyordu.
-    */
-    expect(HUB).toContain("import { fmtDateKey } from '@/features/habits';");
-    expect(HUB).toContain('const key = fmtDateKey(d);');
-    expect(HUB).not.toMatch(/const key = `\$\{y\}-\$\{m\}-\$\{day\}`/);
-  });
-
   it('uyku senkronu tek gün tanımı kullanıyor', () => {
     /*
       Aynı dosya bugünü `fmtDateKey()` ile, geriye dolguyu tamponsuz yerel bir
@@ -251,8 +238,6 @@ describe('tek bir "bugün" tanımı', () => {
       dolu çubuk ile "bugün" çerçevesi ayrı sütuna düşüyordu.
     */
     expect(INDEX).toContain('const currentDayIndex = weekdayIndex();');
-    expect(HUB).toContain('const todayIndex = weekdayIndex();');
-    expect(HUB).not.toMatch(/new Date\(\)\.getDay\(\) \+ 6\) % 7/);
   });
 
   it('odak dakikası GÜN KAPISINDAN geçiyor', () => {
@@ -477,26 +462,23 @@ describe('Odak ekranı — seans kaydı', () => {
 });
 
 describe('haftalık ipuçları GERÇEK veriyle konuşuyor', () => {
+  // İpuçlarının tek çağıranı artık Rapor (ana sayfa içgörü penceresi 2026-10-31'de kaldırıldı).
+  const REPORT = stripComments(read('app/report.tsx'));
+
   it('ivme geçmişi boş dizi olarak verilmiyor', () => {
-    // `momentumLast7: []` → eğilim hep 'na', ivmeye dayalı hiçbir ipucu üretilmiyordu.
-    expect(INDEX).not.toMatch(/momentumLast7: \[\]/);
-    expect(INDEX).toContain('momentumLast7: completionHistory.map(d => d.score),');
+    // momentumLast7 boş verilirse eğilim hep 'na' olur, ivmeye dayalı hiçbir ipucu üretilmez.
+    expect(REPORT).not.toMatch(/momentumLast7: \[\]/);
+    expect(REPORT).toContain('momentumLast7: getLastNDays(7).map(d => d.score),');
   });
 
   it('kullanıcının seçtiği verimli saat kullanılıyor', () => {
-    /*
-      Hoş geldin ekranında sorulan, kaydedilen ve buluta eşitlenen bir tercih burada
-      sabit `'afternoon'` ile eziliyordu. Sorulan bir sorunun cevabını yok saymak,
-      hiç sormamaktan kötüdür.
-    */
-    expect(INDEX).not.toMatch(/productivityHour: 'afternoon'/);
-    expect(INDEX).toMatch(/^\s+productivityHour,$/m);
+    // Hoş geldin ekranında sorulan ve buluta eşitlenen tercih sabit bir saatle ezilmemeli.
+    expect(REPORT).not.toMatch(/productivityHour: 'afternoon'/);
+    expect(REPORT).toContain('productivityHour: productivityHour as ProductivityHour,');
   });
 
-  it('haftalık tamamlama sayısı KOŞULSUZ saymıyor', () => {
-    // `: true` yedeği, `completedAt` taşımayan her eski kaydı "bu hafta" sayıyordu.
-    expect(INDEX).not.toMatch(/< 7 \* 86400000\) : true\)/);
-    expect(INDEX).toContain('const when = t.completedAt ?? t.dueDate;');
+  it('haftalık tamamlama sayısı tek motordan (yerel tamamlanma günü)', () => {
+    expect(REPORT).toContain('completedTasksWeek: summary.totalTasks,');
   });
 });
 
@@ -540,25 +522,17 @@ describe('düğmeler üstünde yazanı yapıyor', () => {
   });
 });
 
-describe('dönemsel bant kendi dönemine bağlı', () => {
-  it('kapatma anahtarı ilgisiz bir tarihten türemiyor', () => {
-    /*
-      Anahtar `examDate ?? mulakatDate ?? tezDate ?? yıl` idi: Ramazan bandını kapatan
-      kullanıcının kaydı sınav tarihine bağlanıyor, sınav tarihi değişince Ramazan
-      bandı geri geliyordu — kapattığı şeyle ilgisi olmayan bir ayar yüzünden.
-    */
-    expect(INDEX).not.toMatch(/seasonal\.examDate \?\? seasonal\.mulakatDate/);
-    expect(INDEX).toMatch(/activeMode\.type === 'ramazan'/);
+describe('dönemsel bant ana sayfada yok (A3 · K-2, 2026-10-31)', () => {
+  it('bant yalnız Hedefler ekranında; ana sayfa modun bugününü ModeTodayCard ile gösterir', () => {
+    // Plan kurmak Hedefler'in işi. Ana sayfadaki bant kalkınca kapatma anahtarı da kalktı.
+    expect(INDEX).not.toContain('<TurkishModeBanner');
+    expect(INDEX).not.toContain('dismissedBannerKey');
+    expect(INDEX).toContain('<ModeTodayCard');
   });
 
-  it('ulaşılamayan mod dalları kaldırıldı', () => {
-    /*
-      Bu ekranda `activeMode` yalnız 'exam' (getCustomExamMode) ya da ramazan/yks/kpss
-      (detectTurkishMode) olabiliyor. 'tez' ve 'mulakat' dalları hiç çalışmıyordu ama
-      okuyana bu modlarda da bir bant çıktığını söylüyordu.
-    */
-    expect(INDEX).not.toMatch(/if \(t === 'tez'\) return tezPlanHabitIds;/);
-    expect(INDEX).not.toMatch(/setPlanIds\('mulakat'/);
+  it('günün değerlendirmesi momentuma yine ulaşıyor — anahtar yazanla aynı', () => {
+    expect(INDEX).toContain('dayRatingKey(activeMode.type, fmtDateKey())');
+    expect(INDEX).toContain('if (!todayRating) return rawMomentum;');
   });
 });
 

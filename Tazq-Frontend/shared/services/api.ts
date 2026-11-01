@@ -702,6 +702,8 @@ export interface AnalyticsReport {
   focus: { sessions30d: number; completed30d: number; avgMinutes: number; medianMinutes: number; lengthBuckets: number[]; hourMinutes: number[]; weekdayMinutes: number[]; daily: { date: string; minutes: number }[]; heat?: number[] };
   stability: { crashes7d: number; affectedUsers7d: number; crashFreePct: number | null; topVersions: { version: string; count: number }[] };
   platforms: { platform: string; installs: number }[];
+  /** "Aklındakileri yaz" — yalnız sayılar (bkz. AnalyticsService.FirstMinuteOf). Eski sunucuda yok. */
+  firstMinute?: { shown: number; wrote: number; skipped: number; avgItems: number; modeSuggested: number; modeAccepted: number; activated24h: number };
 }
 
 export const AdminService = {

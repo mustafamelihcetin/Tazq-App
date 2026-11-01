@@ -140,5 +140,42 @@ namespace Tazq_Backend.Tests
             Assert.Equal((2, 1, 50.0), (s.Crashes7d, s.AffectedUsers7d, s.CrashFreePct!.Value));
             Assert.Equal("2.0.0", s.TopVersions[0].Version);
         }
+
+        /// <summary>
+        /// İLK DAKİKA ("Aklındakileri yaz") — yalnız sayılar: kaç kişiye gösterildi, kaçı yazdı/atladı,
+        /// ortalama kaç madde, mod önerildi/kabul edildi, ilk 24 saatte bir işi bitirdi mi (firstWinAt).
+        /// Metin hiç yok: tercihte yalnız sayı ve enum tutulur.
+        /// </summary>
+        [Fact]
+        public void FirstMinute_YazanAtlayanVeAktivasyon()
+        {
+            var at = "2026-10-30T09:00:00Z";
+            var prefs = new string?[]
+            {
+                "{\"firstCapture\":{\"result\":\"wrote\",\"items\":4,\"habits\":1,\"modeSuggested\":\"exam\",\"modeAccepted\":true,\"at\":\"" + at + "\"},\"firstWinAt\":\"2026-10-30T15:00:00Z\"}",  // 6 saatte ilk iş → aktif
+                "{\"firstCapture\":{\"result\":\"wrote\",\"items\":2,\"habits\":0,\"modeSuggested\":null,\"modeAccepted\":false,\"at\":\"" + at + "\"},\"firstWinAt\":\"2026-11-02T09:00:00Z\"}",  // 3 gün sonra → aktif değil
+                "{\"firstCapture\":{\"result\":\"skipped\",\"items\":0,\"habits\":0,\"modeSuggested\":null,\"modeAccepted\":false,\"at\":\"" + at + "\"}}",
+                "{\"seasonal\":{}}",   // akıştan önce kaydolmuş: sayılmaz
+                null,
+                "bozuk json",
+            };
+
+            var f = AnalyticsService.FirstMinuteOf(prefs);
+            Assert.Equal((3, 2, 1), (f.Shown, f.Wrote, f.Skipped));
+            Assert.Equal(3.0, f.AvgItems);                 // yalnız yazanlar: (4 + 2) / 2
+            Assert.Equal((1, 1), (f.ModeSuggested, f.ModeAccepted));
+            Assert.Equal(1, f.Activated24h);
+        }
+
+        [Fact]
+        public async Task Report_IlkDakikaBolumunuTasir()
+        {
+            var (db, svc) = Make();
+            db.Users.Add(new User { Id = 1, Email = "1", Name = "a", CreatedAt = Now.AddDays(-1), LastActiveAt = Now,
+                Preferences = "{\"firstCapture\":{\"result\":\"skipped\",\"items\":0,\"habits\":0,\"modeAccepted\":false,\"at\":\"2026-10-29T10:00:00Z\"}}" });
+            await db.SaveChangesAsync();
+            var r = await svc.GetReportAsync(Now);
+            Assert.Equal((1, 0, 1), (r.FirstMinute.Shown, r.FirstMinute.Wrote, r.FirstMinute.Skipped));
+        }
     }
 }

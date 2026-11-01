@@ -51,6 +51,8 @@ import { HabitBubble } from '@/features/habits/components/HabitBubble';
 import { WeekPanel, type WeekSeg } from '@/features/week/WeekPanel';
 import { WeekHabits } from '@/features/week/WeekHabits';
 import { habitWeekStory } from '@/features/week/habitWeek';
+import { buildWeekSentence } from '@/features/week/weekSentence';
+import { weekdayIndex } from '@/features/dashboard/utils/streakDay';
 import { planSummary } from '@/features/habits/utils/planCopy';
 import { celebrateMilestone } from '@/features/habits/utils/autoMark';
 import { scheduleOf, consistency, isPlannedDay, isDueToday, orderForNow, weekProgress, countOn, targetOf, isQuantity, missState } from '@/features/habits/utils/habitSchedule';
@@ -126,22 +128,6 @@ const DAY_LABELS_EN_SUN = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
  * ve pratikte ayrışıyor (bkz. i18nRatchet).
  */
 /** Haftanın cümlesi (sözlük — bkz. i18nRatchet). */
-const WEEK_COPY = {
-  tr: {
-    fresh: 'Hafta yeni başlıyor — bir alışkanlık ya da kısa bir odakla aç.',
-    story: (focus: string, tasks: number, habitPct: number, hasHabits: boolean): WeekSeg[] => [
-      'Bu hafta ', { em: focus }, ' odaklandın, ', { em: `${tasks} görev` }, ' bitirdin',
-      ...(hasHabits ? ['; alışkanlıklarda ', { em: `%${habitPct}` }] as WeekSeg[] : []), '.',
-    ],
-  },
-  en: {
-    fresh: 'The week is just starting — open it with a habit or a short focus.',
-    story: (focus: string, tasks: number, habitPct: number, hasHabits: boolean): WeekSeg[] => [
-      'This week you focused ', { em: focus }, ' and finished ', { em: `${tasks} task${tasks === 1 ? '' : 's'}` },
-      ...(hasHabits ? ['; habits at ', { em: `${habitPct}%` }] as WeekSeg[] : []), '.',
-    ],
-  },
-};
 
 const DAY_COPY = {
   tr: {
@@ -167,7 +153,9 @@ const DAY_COPY = {
     addTaskFor: (day: string) => `${day} için görev ekle`,
     dayTaskCount: (n: number) => n > 0 ? `${n} görev` : 'Görev yok',
     tapPastDays: '← Geçmiş günlere dokun',
-    dayCell: (day: string, done: number, total: number) => total > 0 ? `${day}, ${total} görevden ${done} tamamlandı` : `${day}, görev yok`,
+    // Sayı görev + alışkanlık: "görev" demek yanlıştı (Pazartesi "6 görevden 5" — 4'ü alışkanlıktı).
+    dayCell: (day: string, done: number, total: number) => total > 0 ? `${day}, ${total} planlı işten ${done} tamamlandı` : `${day}, plan yok`,
+    weekCount: (done: number, goal: number) => `bu hafta ${done}/${goal}`,
   },
   en: {
     hint: 'Tap ✓ to mark · Tap the row for options',
@@ -192,7 +180,8 @@ const DAY_COPY = {
     addTaskFor: (day: string) => `Add a task for ${day}`,
     dayTaskCount: (n: number) => n === 0 ? 'No tasks' : n === 1 ? '1 task' : `${n} tasks`,
     tapPastDays: '← Tap past days',
-    dayCell: (day: string, done: number, total: number) => total > 0 ? `${day}, ${done} of ${total} tasks done` : `${day}, no tasks`,
+    dayCell: (day: string, done: number, total: number) => total > 0 ? `${day}, ${done} of ${total} planned items done` : `${day}, nothing planned`,
+    weekCount: (done: number, goal: number) => `${done}/${goal} this week`,
   },
 };
 
@@ -269,7 +258,7 @@ export default function CockpitScreen() {
       return [
         {
           id: 'mock-habit-1',
-          name: language === 'tr' ? 'Su İç' : 'Drink Water',
+          name: language === 'tr' ? 'Su iç' : 'Drink Water',
           emoji: '🥛',
           completedDates: [fmtDateKey(new Date())],
           skippedDates: [],
@@ -277,7 +266,7 @@ export default function CockpitScreen() {
         },
         {
           id: 'mock-habit-2',
-          name: language === 'tr' ? 'Kitap Oku' : 'Read Book',
+          name: language === 'tr' ? 'Kitap oku' : 'Read Book',
           emoji: '📚',
           completedDates: [],
           skippedDates: [],
@@ -709,13 +698,6 @@ export default function CockpitScreen() {
     );
   };
 
-  const weeklyFocusMin = weekSummary.totalFocusMin;
-  const focusHrs = Math.floor(weeklyFocusMin / 60);
-  const focusMins = weeklyFocusMin % 60;
-  const focusLabel = weeklyFocusMin >= 60
-    ? `${focusHrs}${tr ? 'sa' : 'h'}${focusMins > 0 ? `${focusMins}${tr ? 'dk' : 'm'}` : ''}`
-    : `${weeklyFocusMin} ${tr ? 'dk' : 'min'}`;
-
   const selectedDayObj = weekData.find((d) => d.key === selectedDay);
   const selectedDayLabel = selectedDayObj?.isToday
     ? (tr ? 'BUGÜN' : 'TODAY')
@@ -723,10 +705,12 @@ export default function CockpitScreen() {
         weekday: 'long', day: 'numeric',
       }) ?? '';
 
-  // Haftanın cümlesi — veriden, vurgu yalnız sayılarda (ana sayfadaki yaşayan cümleyle aynı dil).
-  const weekSentence: WeekSeg[] = weekSummary.totalFocusMin === 0 && thisWeekCompleted === 0 && weekSummary.habitDone === 0
-    ? [WEEK_COPY[tr ? 'tr' : 'en'].fresh]
-    : WEEK_COPY[tr ? 'tr' : 'en'].story(focusLabel, thisWeekCompleted, habitsThisWeekPct, weekSummary.habitPossible > 0);
+  // Haftanın cümlesi — ortak motordan (bkz. features/week/weekSentence): gün bilen boş cümle,
+  // sıfır olan kısım cümleye girmez, süre "6 sa 15 dk".
+  const weekSentence = buildWeekSentence({
+    focusMin: weekSummary.totalFocusMin, tasks: thisWeekCompleted, habitPct: habitsThisWeekPct,
+    hasHabits: weekSummary.habitPossible > 0, dayIndex: weekdayIndex(),
+  }, tr ? 'tr' : 'en');
 
 
   return (
@@ -764,8 +748,9 @@ export default function CockpitScreen() {
               <Sunrise size={ICON.md} color={theme.onSurface} />
             </Touchable>
           }
-          title={tr ? 'Haftalık Merkez' : 'Weekly Hub'}
-          subtitle={`${weekDays[0].getDate()} – ${weekDays[6].getDate()} ${upperFor(weekDays[6].toLocaleString(tr ? 'tr-TR' : 'en-US', { month: 'short' }), tr)}`}
+          title={tr ? 'Bu Hafta' : 'This Week'}
+          // Ay değişen haftada ilk günün ayı da yazılır: "26 – 1 KAS" 26 Kasım gibi okunuyordu.
+          subtitle={`${weekDays[0].getDate()}${weekDays[0].getMonth() !== weekDays[6].getMonth() ? ` ${upperFor(weekDays[0].toLocaleString(localeOf(language), { month: 'short' }), tr)}` : ''} – ${weekDays[6].getDate()} ${upperFor(weekDays[6].toLocaleString(tr ? 'tr-TR' : 'en-US', { month: 'short' }), tr)}`}
           scrollY={scrollY}
           right={
             <Touchable
@@ -794,7 +779,8 @@ export default function CockpitScreen() {
               alışkanlıkları ve takvim satırı, hafta sayıları — tek ekran. Tur hedefleri burada. ── */}
           <TourTarget id="weekStrip" spotRadius={R.md} style={{ marginBottom: S.lg }}>
             <WeekPanel
-              label={`${upperFor(tr ? 'Bu hafta' : 'This week', tr)} · ${weekDays[0].getDate()} – ${weekDays[6].getDate()} ${upperFor(weekDays[6].toLocaleString(tr ? 'tr-TR' : 'en-US', { month: 'short' }), tr)}`}
+              // Tarih aralığı başlıkta (alt başlık) zaten yazıyor; panelde ikinci kez yazılıyordu.
+              label={upperFor(tr ? 'Bu hafta' : 'This week', tr)}
               sentence={weekSentence}
               days={weekData.map((d, i) => ({
                 key: d.key, abbr: dayLabels[i], num: d.date.getDate(), isToday: d.isToday, isFuture: d.key > todayKey,
@@ -836,8 +822,8 @@ export default function CockpitScreen() {
                     <View style={{ flex: 1, gap: S.xxs }}>
                       <Text style={[styles.planBtnText, { color: theme.onSurface }]}>
                         {showPlanButton
-                          ? (tr ? 'Gelecek Haftayı Planla' : 'Plan Next Week')
-                          : (tr ? 'Haftalık Hedefi Güncelle' : 'Update Weekly Goal')}
+                          ? (tr ? 'Gelecek haftayı planla' : 'Plan Next Week')
+                          : (tr ? 'Haftalık hedefi güncelle' : 'Update Weekly Goal')}
                       </Text>
                       {!!weeklyGoal && (
                         <Text numberOfLines={2} style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{weeklyGoal}</Text>
@@ -866,6 +852,7 @@ export default function CockpitScreen() {
                 onOpen={h => router.push({ pathname: '/aliskanlik', params: { id: h.id } })}
                 todayLabel={(h, done) => dc.todayA11y(h.name, done)}
                 streakLabel={(n, unit) => dc.streakText(n, unit)}
+                weekLabel={(done, goal) => dc.weekCount(done, goal)}
                 renderName={(habit, sub) => {
                   const doneToday = (habit.completedDates ?? []).includes(todayKey);
                   const isSkipped = (habit.skippedDates ?? []).includes(todayKey);
@@ -874,7 +861,8 @@ export default function CockpitScreen() {
                     /* Satıra dokun → alışkanlığın sayfası (takvim, seri, desen, plan); basılı tut → hızlı menü. */
                     <Touchable
                       accessibilityRole="button"
-                      accessibilityLabel={describeHabit({ doneToday, skipped: isSkipped, streak }, habit.name, language)}
+                      // Haftanın çubukları ağaçta değil: haftanın sayısı (sub) sesli ada eklenir.
+                      accessibilityLabel={describeHabit({ doneToday, skipped: isSkipped, streak }, habit.name, language) + (sub ? `, ${sub}` : '')}
                       accessibilityState={{ checked: doneToday }}
                       accessibilityHint={rowHint(language)}
                       onPress={() => router.push({ pathname: '/aliskanlik', params: { id: habit.id } })}
@@ -904,17 +892,17 @@ export default function CockpitScreen() {
               <Text style={[styles.emptySub, { color: theme.onSurfaceVariant }]}>
                 {hasActiveSeasonalMode
                   ? (tr ? 'Manuel ekle veya ana ekrandan mod planını uygula.' : 'Add manually or apply your mode plan from Home.')
-                  : (tr ? 'Küçük alışkanlıklar büyük dönüşümler yaratır.' : 'Small habits create big transformations.')}
+                  : (tr ? 'Her gün tek dokunuşla işaretleyeceğin küçük bir şeyle başla: su içmek, 10 sayfa okumak.' : 'Start with one small thing you can tick daily: drink water, read 10 pages.')}
               </Text>
               <Touchable onPress={openAddHabit} accessibilityRole="button" style={[styles.emptyAddBtn, { backgroundColor: theme.primary }]}>
                 <Plus size={ICON.sm} color={theme.onPrimary} />
-                <Text style={[styles.emptyAddText, { color: theme.onPrimary }]}>{tr ? 'Alışkanlık Ekle' : 'Add Habit'}</Text>
+                <Text style={[styles.emptyAddText, { color: theme.onPrimary }]}>{tr ? 'Alışkanlık ekle' : 'Add Habit'}</Text>
               </Touchable>
             </BentoCard>
           ) : (
             <Touchable onPress={openAddHabit} accessibilityRole="button" style={[styles.addHabitRow, { borderColor: theme.outline, marginBottom: S.md }]}>
               <Plus size={ICON.sm} color={theme.onSurfaceVariant} />
-              <Text style={[styles.addHabitText, { color: theme.onSurfaceVariant }]}>{tr ? 'Alışkanlık Ekle' : 'Add Habit'}</Text>
+              <Text style={[styles.addHabitText, { color: theme.onSurfaceVariant }]}>{tr ? 'Alışkanlık ekle' : 'Add Habit'}</Text>
             </Touchable>
           )}
           </WideCol>
@@ -970,7 +958,7 @@ export default function CockpitScreen() {
               {...addPan.panHandlers}
               style={styles.handleArea}
             >
-              <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)' }]} />
+              <View style={[styles.sheetHandle, { backgroundColor: theme.outline }]} />
             </View>
             {/* Yeni Hedef formuyla aynı dil — bkz. NewHabitForm (ölçülen simetrik ızgara, kesilmeyen renkler). */}
             <NewHabitForm
@@ -1034,12 +1022,12 @@ export default function CockpitScreen() {
               {...planPan.panHandlers}
               style={styles.handleArea}
             >
-              <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)' }]} />
+              <View style={[styles.sheetHandle, { backgroundColor: theme.outline }]} />
             </View>
             <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface }]}>
               {showPlanButton
-                ? (tr ? 'Gelecek Hafta' : 'Next Week')
-                : (tr ? 'Haftalık Hedef' : 'Weekly Goal')}
+                ? (tr ? 'Gelecek hafta' : 'Next Week')
+                : (tr ? 'Haftalık hedef' : 'Weekly Goal')}
             </Text>
             <Text style={[styles.sheetSub, { color: theme.onSurfaceVariant }]}>
               {tr

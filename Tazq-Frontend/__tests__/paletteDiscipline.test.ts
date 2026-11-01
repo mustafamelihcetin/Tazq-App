@@ -70,11 +70,12 @@ const CEILING: Record<string, number> = {
   // palet token'larına bağlandı (accentKey → theme/CategoryColors, tema-duyarlı); emoji
   // etiketler lucide glife çevrildi. İlk-izlenim ekranı artık app'in paletiyle aynı.
   // 20 → 19 / 22 → 21: sayfa zeminleri cam yüzeye geçti.
+  // Spor/Sınav/Mülakat/Tez kartları LİSTEDEN ÇIKTI (2026-10-31): kalan ham tonlar başlıktaki
+  // anahtarın gri başparmağıydı (#636366/#fff); anahtar kapatma satırına döndü (ModeCardClose).
   'features/modes/components/TurkishModeBanner.tsx': 19,
   'features/focus/utils/focusScenes.ts': 73,  // odak sahneleri — her sahnenin kendi ışık/taban/vurgu paleti (odak ekranı temadan bağımsız koyu)  // avatar halkası paleti — kullanıcının seçtiği kimlik renkleri (2026-10-25: ProfileSetupModal 21 + Profil kopyası buraya toplandı)
   // 21 → 4: mod vurgusu palete, semantik renkler (#EF4444/#F59E0B/#10B981) tema
   // token'larına (theme.error/warning/success) bağlandı. Kalan 4: yüzey/nötr tonlar.
-  'features/modes/components/modes/SporCard.tsx': 4,
   // 18 → 13: beş modalın elle yazılmış sayfa zemini ve süre seçicinin kenar solmaları
   // ortak cam yüzeyin ton rengine (tema token'ı) bağlandı.
   'app/focus.tsx': 9,  // derin odak — kendi görsel dili; 13 → 9: yıldız alanı + aurora FocusBackdrop'a taşındı
@@ -92,15 +93,12 @@ const CEILING: Record<string, number> = {
   'features/modes/utils/modeHelpers.ts': 7,
   // QuickDraftModal LİSTEDEN ÇIKTI: dosya silindi. Yerine features/tasks altındaki
   // hızlı ekleme sayfası geçti (renkleri tamamen paletten).
-  'features/modes/components/modes/ExamCard.tsx': 6,
   // 6 → 3: alt-görev "yapıldı" tik/çerçeve/zemin semantik theme.success'e bağlandı
   // 3 → 2: sayfa zemini (#1A1A1A) cam yüzeye geçti.
   // TaskFormModal LİSTEDEN ÇIKTI (2 → 0): önerilen etiket yongasının iki hex'i de form
   // alanı jetonlarına bağlandı (surfaceField / outlineField). O iki renk, alanların
   // GÖRÜNMEZLİK kusuruyla aynı kökten geliyordu — elle seçilen renk paletin derinlik
   // dilinin dışında kalır ve tema değişince yerinde çakılı durur.
-  'features/modes/components/modes/MulakatCard.tsx': 5,
-  'features/modes/components/modes/TezCard.tsx': 5,
   // 5 → 3: sayfa zemini cam yüzeye geçti.
   'shared/components/SupportModal.tsx': 3,
   'app/login.tsx': 4,
@@ -208,7 +206,7 @@ describe('palet disiplini', () => {
   it('mod kategori renkleri palete bağlı kalmalı', () => {
     // turkishModes 270, planExtractor 26 sabit renk içeriyordu — hepsi CategoryColors'a
     // taşındı. Geri dönerse burası kırılır.
-    for (const f of ['features/modes/utils/turkishModes.ts', 'features/modes/utils/examContent.ts', 'shared/utils/planExtractor.ts']) {
+    for (const f of ['features/modes/utils/turkishModes.ts', 'features/modes/utils/examContent.ts', 'features/modes/utils/customPlanDraft.ts']) {
       expect(counts[f] ?? 0).toBe(0);
     }
   });

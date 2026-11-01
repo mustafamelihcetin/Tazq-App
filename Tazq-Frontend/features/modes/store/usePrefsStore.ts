@@ -5,6 +5,22 @@ import { AuthService } from '@/shared/services/api';
 import { swallow } from '@/shared/utils/swallow';
 import { addGoalRecord, removeGoalRecord, type GoalRecord as GoalRecordT } from '@/features/modes/utils/goalHistory';
 
+
+/**
+ * İLK DAKİKA ÖLÇÜMÜ (C0, 2026-10-31) — "Aklındakileri yaz" ekranının sonucu.
+ *
+ * `track()` yalnız Sentry kırıntısı yazar; kırıntı sayılamaz. Bu alan buluta eşitlenir ve sunucuda
+ * toplanır (AnalyticsService.FirstMinuteOf). İÇİNDE METİN YOK — yalnız sayı ve enum.
+ */
+export interface FirstCapture {
+  result: 'wrote' | 'skipped';
+  items: number;
+  habits: number;
+  modeSuggested: string | null;
+  modeAccepted: boolean;
+  at: string;
+}
+
 export interface SeasonalPrefs {
   ramazan: boolean;
   examMode: boolean;
@@ -254,8 +270,6 @@ interface PrefsState {
   sporReviewShown: boolean;
   setSporReviewShown: (v: boolean) => void;
   setExamReviewShown: (v: boolean) => void;
-  dismissedBannerKey: string;
-  setDismissedBannerKey: (key: string) => void;
   motto: string;
   setMotto: (v: string) => void;
   gender: 'male' | 'female' | '';
@@ -294,6 +308,9 @@ interface PrefsState {
   */
   welcomeStatus: 'unknown' | 'pending' | 'done';
   setWelcomeStatus: (v: 'unknown' | 'pending' | 'done') => void;
+  /** Yeni hesap: hoş geldinden sonra "Aklındakileri yaz" bir kez açılacak (welcomeStatus ile aynı kalıp — diske yazılı). */
+  capturePending: boolean;
+  setCapturePending: (v: boolean) => void;
   setOnboardingCompleted: (v: boolean) => void;
   helpTourShown: boolean;
   setHelpTourShown: (v: boolean) => void;
@@ -315,6 +332,9 @@ interface PrefsState {
   setTourCompleted: (page: string, completed: boolean) => void;
   firstWinAt: string | null;
   markFirstWin: () => void;
+  /** "Aklındakileri yaz" sonucu — bir kez yazılır (bkz. FirstCapture). */
+  firstCapture: FirstCapture | null;
+  recordFirstCapture: (v: Omit<FirstCapture, 'at'>) => void;
   setPlanIds: (mode: PlanMode, habitIds: string[], taskIds: number[]) => void;
   clearPlanIds: (mode: PlanMode) => void;
   // Çıkışta cihazdaki kullanıcı-özel tercihleri (dönemsel modlar + plan id'leri) sıfırlar
@@ -332,7 +352,7 @@ interface PrefsState {
 }
 
 // Buluta eşitlenecek tercih alanları. (motto/avatarBorderColor kendi backend kolonlarıyla
-// updateProfile üzerinden gider; soundEffects/dismissedBannerKey/examReviewShown cihaza özeldir.)
+// updateProfile üzerinden gider; soundEffects/examReviewShown cihaza özeldir.)
 const CLOUD_PREF_KEYS = [
   // Hafta kapatma hesap başına anlamlı: cihaz değişince de 'bu haftayı kapattım' bilgisi kalsın.
   'lastClosedWeek',
@@ -347,10 +367,12 @@ const CLOUD_PREF_KEYS = [
   'featureFlags',
   'onboardingCompleted',
   'welcomeStatus',
+  'capturePending',
   'helpTourShown',
   'notifPrimerSeen',
   'completedTours',
   'firstWinAt',
+  'firstCapture',
   'examPlanHabitIds', 'examPlanTaskIds',
   'exam2PlanHabitIds', 'exam2PlanTaskIds',
   'exam3PlanHabitIds', 'exam3PlanTaskIds',
@@ -604,8 +626,6 @@ export const usePrefsStore = create<PrefsState>()(
       setMulakatReviewShown: (v) => set({ mulakatReviewShown: v }),
       sporReviewShown: false,
       setSporReviewShown: (v) => set({ sporReviewShown: v }),
-      dismissedBannerKey: '',
-      setDismissedBannerKey: (key) => set({ dismissedBannerKey: key }),
       motto: '',
       setMotto: (v) => set({ motto: v }),
       gender: '',
@@ -624,6 +644,8 @@ export const usePrefsStore = create<PrefsState>()(
       setOnboardingCompleted: (v) => set({ onboardingCompleted: v }),
       welcomeStatus: 'unknown',
       setWelcomeStatus: (v) => set({ welcomeStatus: v }),
+      capturePending: false,
+      setCapturePending: (v) => set({ capturePending: v }),
       helpTourShown: false,
       setHelpTourShown: (v) => set({ helpTourShown: v }),
       notifPrimerSeen: false,
@@ -632,6 +654,9 @@ export const usePrefsStore = create<PrefsState>()(
       setTourCompleted: (page, completed) => set((s) => ({ completedTours: { ...s.completedTours, [page]: completed } })),
       firstWinAt: null,
       markFirstWin: () => { if (!get().firstWinAt) set({ firstWinAt: new Date().toISOString() }); },
+      firstCapture: null,
+      // İlk dakika bir kez olur: ikinci kayıt (ör. yeniden gösterim) ölçümü ezmez.
+      recordFirstCapture: (v) => { if (!get().firstCapture) set({ firstCapture: { ...v, at: new Date().toISOString() } }); },
       setPlanIds: (mode, habitIds, taskIds) => {
         if (mode === 'exam') return set({ examPlanHabitIds: habitIds, examPlanTaskIds: taskIds });
         if (mode === 'exam2') return set({ exam2PlanHabitIds: habitIds, exam2PlanTaskIds: taskIds });
@@ -693,11 +718,13 @@ export const usePrefsStore = create<PrefsState>()(
         uiMode: 'pro',
         onboardingCompleted: false,
         welcomeStatus: 'unknown',
+        capturePending: false,
         motto: '',
         gender: '',
         productivityHour: 'morning',
         avatarBorderColor: 'transparent',
         firstWinAt: null,
+        firstCapture: null,
         examPlanHabitIds: [], examPlanTaskIds: [],
         exam2PlanHabitIds: [], exam2PlanTaskIds: [],
         exam3PlanHabitIds: [], exam3PlanTaskIds: [],

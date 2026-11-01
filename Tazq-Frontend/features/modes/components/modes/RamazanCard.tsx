@@ -9,14 +9,13 @@ import { ChevronRight, Moon } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '../../store/usePrefsStore';
-import { useHabitStore, fmtDateKey } from '@/features/habits';
+import { useHabitStore } from '@/features/habits';
 import { useTaskStore } from '@/features/tasks';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '../../utils/modeIcons';
 import { retirePlanTask , retireModeTasksByTag} from '@/features/modes/utils/planTaskOps';
 import { getCurrentRamadanStatus, formatRamadanDate } from '@/shared/utils/ramadanDates';
-import { calendarDayOf, toDateKey } from '@/shared/utils/dateKey';
 import { RAMAZAN_HABIT_NAMES } from '../../utils/turkishModes';
 import { isTurkeySeasonalEnabled } from '../../utils/localeGate';
 import { scheduleRamadanStartNotification, cancelRamadanStartNotification } from '@/shared/utils/notifications';
@@ -24,8 +23,8 @@ import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
-import { ProgressRail } from '@/shared/components/ProgressRail';
 import { ModeField } from '../ModeField';
+import { langOf } from '@/shared/utils/lang';
 import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { PlanLifecycleRow } from '@/features/modes/components/PlanPauseRow';
@@ -48,6 +47,9 @@ export function calendarSuggestsRamazan(ramadanStatus = getCurrentRamadanStatus(
 export function isRamazanCardVisible(enabled: boolean, ramadanStatus = getCurrentRamadanStatus()): boolean {
   return enabled || calendarSuggestsRamazan(ramadanStatus);
 }
+
+// Anahtar adsızdı: ekran okuyucu yalnız "anahtar, kapalı" diyordu (denetim 2026-10-31).
+const RAMADAN_SWITCH = { tr: 'Ramazan modu', en: 'Ramadan mode' };
 
 export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   const { theme, isDark } = useAppTheme();
@@ -87,18 +89,12 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   */
   const calendarSuggests = calendarSuggestsRamazan(ramadanStatus);
   if (!(seasonal.ramazan || calendarSuggests)) return null;
-
-  // Bugünkü ilerleme.
-  const todayKey = fmtDateKey();
-  // GÖREV GÜNÜ ≠ ALIŞKANLIK GÜNÜ — todayKey (fmtDateKey) gece-kuşu tamponu içerir,
-  // görev vade tarihi tamponsuz takvim günüyle karşılaştırılmalı (bkz. ExamCard'daki not).
-  const todayCalKey = toDateKey(new Date());
-  const isToday = (d?: string | null) => calendarDayOf(d) === todayCalKey;
-  const planHabits = habits.filter(h => ramazanPlanHabitIds.includes(h.id));
-  const wkTasks = tasks.filter(t => ramazanPlanTaskIds.includes(t.id) && (isToday(t.dueDate) || (t.isCompleted && isToday(t.completedAt))));
-  const progTotal = planHabits.length + wkTasks.length;
-  const progDone = planHabits.filter(h => (h.completedDates ?? []).includes(todayKey)).length + wkTasks.filter(t => t.isCompleted).length;
-  const progPct = progTotal > 0 ? Math.round((progDone / progTotal) * 100) : 0;
+  /*
+    PLAN VAR MI — planın kendisinden (2026-10-31). Eskiden "bugün iş var mı" sayısı bu soruyu
+    da cevaplıyordu: planı olup o gün işi olmayan kullanıcıya "Plan henüz oluşturulmadı" yazıyordu.
+    Bugünün işi bu kartta yok (Y-2): Bugün'ün sahibi Ana sayfa.
+  */
+  const hasPlan = ramazanPlanHabitIds.length > 0 || ramazanPlanTaskIds.length > 0;
 
   const closePlan = () => {
     ramazanPlanHabitIds.forEach(id => removeHabit(id));
@@ -135,6 +131,7 @@ clearPlanIds('ramazan');
             </Text>
           </View>
           <Switch
+            accessibilityLabel={RAMADAN_SWITCH[langOf(language)]}
             value={seasonal.ramazan}
             onValueChange={(v) => {
               haptic.select();
@@ -159,18 +156,13 @@ clearPlanIds('ramazan');
         <View style={{ paddingHorizontal: S.md, paddingBottom: S.md }}>
           <Separator theme={theme} />
           {!ramadanStatus.isActive && ramadanStatus.period ? (
-            <Touchable onPress={onOpenPreview} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }} activeOpacity={0.7}>
+            <Touchable accessibilityRole="button" onPress={onOpenPreview} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }} activeOpacity={0.7}>
               <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: accent }} />
               <Text style={{ color: accentText, fontSize: F.caption, fontWeight: '600', flex: 1 }}>{tr ? 'Planı şimdiden hazırla' : 'Set up your plan in advance'}</Text>
               <ChevronRight size={ICON.xs} color={accent} />
             </Touchable>
-          ) : progTotal > 0 ? (
+          ) : hasPlan ? (
             <View style={{ gap: S.sm }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bugün' : 'Today'}</Text>
-                <Text style={{ color: accentText, fontSize: F.caption, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text>
-              </View>
-              <ProgressRail variant="segments" value={progDone} total={progTotal} color={accent} />
               {/* Ara verme — yedi modun ortak satırı (bkz. PlanPauseRow). Ramazan'ın
                   hedef tarihi yok: ölçü dönemin kendisi, geri sayım kartın üstünde. */}
               <PlanLifecycleRow tr={tr} accent={accent} accentText={accentText} lifecycle={lifecycle} hasPlan />
@@ -185,7 +177,7 @@ clearPlanIds('ramazan');
               />
             </View>
           ) : (
-            <Touchable onPress={onOpenPreview} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }} activeOpacity={0.7}>
+            <Touchable accessibilityRole="button" onPress={onOpenPreview} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }} activeOpacity={0.7}>
               <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: accent }} />
               <Text style={{ color: accentText, fontSize: F.caption, fontWeight: '500', flex: 1 }}>{tr ? 'Plan henüz oluşturulmadı — Oluştur' : 'No plan yet — Create one'}</Text>
               <ChevronRight size={ICON.xs} color={accent} />

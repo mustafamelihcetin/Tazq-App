@@ -15,7 +15,8 @@ import { TaskService } from '@/shared/services/api';
 import { TurkishMode, StudyTemplate, ModeHabit, ModeTask, localizeSporGoal } from '../utils/turkishModes';
 import { getCurrentRamadanStatus } from '@/shared/utils/ramadanDates';
 import { renderModeEmojiIcon } from '../utils/modeIcons';
-import { extractPlanFromText, QUICK_EMOJIS, QUICK_COLORS, DraftHabit, DraftTask } from '@/shared/utils/planExtractor';
+import { draftsFromText, QUICK_EMOJIS, QUICK_COLORS, DraftHabit, DraftTask } from '@/features/modes/utils/customPlanDraft';
+import { langOf } from '@/shared/utils/lang';
 import { ICON, S, R, F, B, HAIRLINE , sheetMaxHeight} from '@/shared/constants/tokens';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useToastStore } from '@/shared/store/useToastStore';
@@ -30,6 +31,7 @@ import { swallow } from '@/shared/utils/swallow';
 import { splitForFirstDay, interleaveStaged } from '@/features/modes/utils/stagedRollout';
 import { useStagedPlanStore } from '@/features/modes/store/useStagedPlanStore';
 import { roomLeft } from '@/features/habits/utils/habitLimit';
+import { dayRatingKey } from '@/features/modes/utils/dayRating';
 
 interface Props {
   mode: TurkishMode;
@@ -310,7 +312,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
     `activeSlot`te. Anahtar bunu içermeyince iki sınavın günlük değerlendirmesi
     aynı AsyncStorage kaydını paylaşıyor, biri diğerini sessizce eziyordu.
   */
-  const ratingKey = `tazq_eval_${activeSlot ?? mode.type}_${todayKey}`;
+  const ratingKey = dayRatingKey(activeSlot ?? mode.type, todayKey);
 
   useEffect(() => {
     if (sheetVisible) {
@@ -778,7 +780,8 @@ export const TurkishModeBanner: React.FC<Props> = ({
         toast(tr ? 'Önce planını birkaç cümleyle yaz' : 'Describe your plan first', 'info');
         return;
       }
-      const { habits: hs, tasks: ts } = extractPlanFromText(customAiText, tr);
+      // Tek ayrıştırıcı (capture) — eski planExtractor kelime içinde arıyordu (bkz. customPlanDraft).
+      const { habits: hs, tasks: ts } = draftsFromText(customAiText, langOf(language));
       if (hs.length) setCustomHabits(prev => [...prev, ...hs].slice(0, 5));
       if (ts.length) setCustomTasks(prev => [...prev, ...ts].slice(0, 7));
       if (hs.length + ts.length > 0) {
@@ -848,7 +851,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
               placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.28)'}
               style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '500', minHeight: 54, lineHeight: 20, textAlignVertical: 'top' }}
             />
-            <Touchable
+            <Touchable accessibilityRole="button"
               onPress={suggest}
               style={{ alignSelf: 'flex-end', backgroundColor: modeAccent, borderRadius: R.full, paddingHorizontal: S.md, paddingVertical: S.xs + 1, marginTop: S.xs }}
               activeOpacity={0.8}
@@ -889,7 +892,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
             </View>
           ))}
           {customHabits.length < 5 && (
-            <Touchable
+            <Touchable accessibilityRole="button"
               onPress={() => setCustomHabits(prev => [...prev, { name: '', nameTr: '', emoji: QUICK_EMOJIS[prev.length % QUICK_EMOJIS.length], color: QUICK_COLORS[prev.length % QUICK_COLORS.length] }])}
               style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingVertical: S.sm }}
               activeOpacity={0.7}
@@ -924,7 +927,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   const pColor = p === 'High' ? '#EF4444' : p === 'Medium' ? '#F59E0B' : (theme.onSurfaceVariant as string);
                   const pLabel = tr ? (p === 'High' ? 'Yüksek' : p === 'Medium' ? 'Orta' : 'Düşük') : p;
                   return (
-                    <Touchable
+                    <Touchable accessibilityRole="button"
                       key={p}
                       onPress={() => { haptic.select(); setCustomTasks(prev => { const n = [...prev]; n[idx] = { ...n[idx], priority: p }; return n; }); }}
                       style={{ paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.sm, backgroundColor: t.priority === p ? pColor + '20' : 'transparent', borderWidth: B.thin, borderColor: t.priority === p ? pColor + '60' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)') }}
@@ -938,7 +941,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
             </View>
           ))}
           {customTasks.length < 7 && (
-            <Touchable
+            <Touchable accessibilityRole="button"
               onPress={() => setCustomTasks(prev => [...prev, { titleTr: '', titleEn: '', priority: 'Medium' }])}
               style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingVertical: S.sm }}
               activeOpacity={0.7}
@@ -954,7 +957,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
               {tr ? 'Günlük odak' : 'Daily focus'}
             </Text>
             {[30, 45, 60, 90, 120].map(m => (
-              <Touchable
+              <Touchable accessibilityRole="button"
                 key={m}
                 onPress={() => setCustomGoal(m)}
                 style={{ paddingHorizontal: S.xs + 2, paddingVertical: S.xs, borderRadius: R.sm, backgroundColor: customGoal === m ? modeAccent + '20' : 'transparent', borderWidth: B.thin, borderColor: customGoal === m ? modeAccent + '60' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)') }}
@@ -966,7 +969,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
           </View>
         </ScrollView>
 
-        <Touchable
+        <Touchable accessibilityRole="button"
           onPress={canProceed ? proceed : undefined}
           activeOpacity={canProceed ? 0.85 : 1}
           style={[styles.applyBtn, { backgroundColor: canProceed ? modeAccent : theme.surfaceContainerHigh, opacity: canProceed ? 1 : 0.5, marginTop: S.lg }]}
@@ -1080,7 +1083,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   {tr ? 'Günlük Çalışma Süresi' : 'Daily Study Duration'}
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.smd }}>
-                  <Touchable
+                  <Touchable accessibilityRole="button"
                     hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                     onPress={() => setEditedMinutes((prev: number) => Math.max(15, prev - 15))}
                     style={{ width: 36, height: 36, borderRadius: R.full, backgroundColor: isDark ? '#2C2C2E' : '#E0E0E4', alignItems: 'center', justifyContent: 'center' }}
@@ -1090,7 +1093,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   <Text style={{ fontSize: 15, fontWeight: '700', color: theme.onSurface, minWidth: 60, textAlign: 'center' }}>
                     {editedMinutes} {tr ? 'dk' : 'min'}
                   </Text>
-                  <Touchable
+                  <Touchable accessibilityRole="button"
                     hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                     onPress={() => setEditedMinutes((prev: number) => Math.min(480, prev + 15))}
                     style={{ width: 36, height: 36, borderRadius: R.full, backgroundColor: isDark ? '#2C2C2E' : '#E0E0E4', alignItems: 'center', justifyContent: 'center' }}
@@ -1102,7 +1105,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
 
               {/* Action Buttons */}
               <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.xs }}>
-                <Touchable
+                <Touchable accessibilityRole="button"
                   onPress={handleSaveTimeline}
                   style={{ flex: 1, backgroundColor: modeAccent, paddingVertical: S.smd, borderRadius: R.sm, alignItems: 'center' }}
                 >
@@ -1110,7 +1113,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                     {tr ? 'Kaydet' : 'Save'}
                   </Text>
                 </Touchable>
-                <Touchable
+                <Touchable accessibilityRole="button"
                   onPress={() => setIsEditingTimeline(false)}
                   style={{ flex: 1, backgroundColor: isDark ? '#2C2C2E' : '#E0E0E4', paddingVertical: S.smd, borderRadius: R.sm, alignItems: 'center' }}
                 >
@@ -1121,7 +1124,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
               </View>
             </MotiView>
           ) : (
-            <Touchable
+            <Touchable accessibilityRole="button"
               onPress={() => setIsEditingTimeline(true)}
               style={{
                 flexDirection: 'row',
@@ -1189,7 +1192,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
             ].map(item => {
               const selected = rating === item.score;
               return (
-                <Touchable
+                <Touchable accessibilityRole="button" accessibilityState={{ selected: selected }}
                   key={item.score}
                   hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
                   onPress={() => saveRating(item.score)}
@@ -1307,7 +1310,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
       <View style={styles.planViewActions}>
         <View style={{ flexDirection: 'row', gap: S.sm }}>
           {onClearPlan && (
-            <Touchable
+            <Touchable accessibilityRole="button"
               onPress={() => { haptic.commit(); onClearPlan(); setSheetVisible(false); }}
               activeOpacity={0.8}
               style={[styles.clearBtn, { flex: 1, borderColor: theme.error + '40' }]}
@@ -1318,7 +1321,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
               </Text>
             </Touchable>
           )}
-          <Touchable
+          <Touchable accessibilityRole="button"
             onPress={() => setSheetVisible(false)}
             activeOpacity={0.8}
             style={[styles.clearBtn, { flex: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }]}
@@ -1367,7 +1370,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
             </View>
           </View>
           <View style={styles.bannerRight}>
-            <Touchable
+            <Touchable accessibilityRole="button"
               onPress={openSheet}
               style={[styles.planBtn, { backgroundColor: planApplied ? modeAccent : modeAccent }]}
               activeOpacity={0.8}
@@ -1449,7 +1452,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   {mode.templates!.map((tpl) => {
                     const isRecommended = defaultTemplateId === tpl.id;
                     return (
-                    <Touchable
+                    <Touchable accessibilityRole="button"
                       key={tpl.id}
                       onPress={() => selectTemplate(tpl)}
                       style={[styles.templateCard, {
@@ -1515,7 +1518,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                     );
                   })}
                   {/* Custom plan card */}
-                  <Touchable
+                  <Touchable accessibilityRole="button"
                     onPress={() => { haptic.select(); setStep('custom'); }}
                     style={[styles.templateCard, {
                       backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
@@ -1571,7 +1574,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                     const exists = existingHabitNames.has(h.name.toLowerCase());
                     const skipped = !exists && deselectedHabits.has(h.name);
                     return (
-                      <Touchable
+                      <Touchable accessibilityRole="button"
                         key={h.name}
                         onPress={() => {
                           if (exists) return;
@@ -1649,7 +1652,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                     </Text>
                   ) : null;
                 })()}
-                <Touchable
+                <Touchable accessibilityRole="button"
                   onPress={applied ? () => setSheetVisible(false) : applyAll}
                   activeOpacity={0.85}
                   disabled={applying || allDone}

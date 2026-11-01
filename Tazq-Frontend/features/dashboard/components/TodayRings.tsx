@@ -79,6 +79,11 @@ export interface TodayRingsProps {
   entrance?: boolean;
   /** Son 7 gün (eskiden yeniye; sonuncusu bugün) — "haftayı kaydır" (bkz. dayHistory). */
   history?: DayStat[];
+  /**
+   * Tarih şeridine dokununca: o günü SAATLERİYLE aç (Gün ekranı — Bugün'ün saat görünümü).
+   * Bugünde anahtar yok; geçmişe kaydırılmışsa o günün anahtarı ('YYYY-MM-DD').
+   */
+  onOpenDay?: (dayKey?: string) => void;
   theme: AppTheme;
   padding: number;
 }
@@ -98,7 +103,7 @@ export const TodayRings = React.memo<TodayRingsProps>(({ tourId, padding, entran
 /** Panelin içi: durum şeridi, plan yuvası, halkalar + okumalar, momentum. */
 const KINDS: DetailKind[] = ['tasks', 'focus', 'habits'];
 const SCRUB_STEP = 34; // bir gün = bu kadar yatay sürükleme (px)
-const BACK_COPY = { tr: { today: 'Bugün', back: 'Bugüne dön', yesterday: 'Dün' }, en: { today: 'Today', back: 'Back to today', yesterday: 'Yesterday' } };
+const BACK_COPY = { tr: { today: 'Bugün', back: 'Bugüne dön', yesterday: 'Dün', openDay: 'Günü saatleriyle aç' }, en: { today: 'Today', back: 'Back to today', yesterday: 'Yesterday', openDay: 'Open the day by the hour' } };
 
 /** Geçmiş günün değerlerini canlı metriklerin biçiminde kurar. */
 function pastMetrics(raw: [Metric, Metric, Metric], d: DayStat): [Metric, Metric, Metric] {
@@ -111,7 +116,7 @@ function pastMetrics(raw: [Metric, Metric, Metric], d: DayStat): [Metric, Metric
   ];
 }
 
-function RingsBody({ label, caption, captionHighlight, metrics: raw, footer, topSlot, onAdd, addLabel, showAdd, onTap, history, greeting, detail, wake = 0 }: Omit<TodayRingsProps, 'tourId' | 'padding' | 'theme'>) {
+function RingsBody({ label, caption, captionHighlight, metrics: raw, footer, topSlot, onAdd, addLabel, showAdd, onTap, history, greeting, detail, wake = 0, onOpenDay }: Omit<TodayRingsProps, 'tourId' | 'padding' | 'theme'>) {
   const { theme } = useAppTheme();
   const language = useLanguageStore(st => st.language);
   const bc = BACK_COPY[language === 'en' ? 'en' : 'tr'];
@@ -164,8 +169,11 @@ function RingsBody({ label, caption, captionHighlight, metrics: raw, footer, top
     <>
         <DisplayStatus
           intro={greeting}
+          tonal={back === 0}
           label={back === 1 ? bc.yesterday : undefined}
           date={pastDate}
+          onPress={onOpenDay ? () => onOpenDay(back > 0 && history ? history[history.length - 1 - back].key : undefined) : undefined}
+          pressLabel={bc.openDay}
           right={back > 0 ? (
             <Touchable onPress={() => go(0)} accessibilityRole="button" accessibilityLabel={bc.back} hitSlop={{ top: S.sm, bottom: S.sm, left: S.sm, right: S.sm }}
               style={[styles.todayPill, { backgroundColor: theme.primary + '1F' }]}>

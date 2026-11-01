@@ -188,15 +188,15 @@ describe('etiket tabloları DOĞRU yerde', () => {
   it('BARDA kısa ad yazar', () => {
     const short = NAV.slice(NAV.indexOf('const TAB_SHORT'), NAV.indexOf('const TAB_LABELS'));
     expect(short).toContain("focus: { tr: 'Odak'");
-    expect(short).toContain("modlar: { tr: 'Modlar'");
+    expect(short).toContain("modlar: { tr: 'Hedefler'");
     expect(short).not.toContain('Derin Odak');
-    expect(short).not.toContain('Yaşam Modları');
+    expect(short).not.toContain('Bu Hafta');
   });
 
   it('EKRAN OKUYUCUYA tam ad okunur', () => {
     const labels = NAV.slice(NAV.indexOf('const TAB_LABELS'));
     expect(labels).toContain("focus: { tr: 'Derin Odak'");
-    expect(labels).toContain("modlar: { tr: 'Yaşam Modları'");
+    expect(labels).toContain("cockpit: { tr: 'Bu Hafta'");
   });
 
   it('görünen metin kısa tablodan, sesli ad tam tablodan geliyor', () => {

@@ -54,10 +54,27 @@ export interface Understanding {
 //  Metin
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Türkçe kuralıyla küçük harf: İ → i, (Türkçede) I → ı. Uzunluk korunur. */
+/*
+  TÜRKÇE KARAKTERSİZ YAZIM (2026-11-01). Telefonda çok yaygın: "yarin disci", "carsamba toplanti",
+  "12 aralikta". Motorun anladığı SÖZCÜKLERİN (tarih, saat, tekrar, öncelik, mod) kökü kelime başında
+  tamamlanır; uzunluk korunur (kanıt konumları ham metinle örtüşür), başlık yazıldığı gibi kalır.
+  Uzun kök önce ("gunluk" > "gun", "ogleden" > "ogle"). Kelime içinde arama yok.
+*/
+const DEASCII: Array<[string, string]> = [
+  ['carsamba', 'çarşamba'], ['persembe', 'perşembe'], ['haftalik', 'haftalık'], ['hatirlat', 'hatırlat'],
+  ['ogleden', 'öğleden'], ['agustos', 'ağustos'], ['mulakat', 'mülakat'], ['gunluk', 'günlük'], ['onemli', 'önemli'],
+  ['aralik', 'aralık'], ['bugun', 'bugün'], ['subat', 'şubat'], ['mayis', 'mayıs'], ['eylul', 'eylül'], ['kasim', 'kasım'],
+  ['aylik', 'aylık'], ['aksam', 'akşam'], ['oglen', 'öğlen'], ['yarin', 'yarın'], ['sinav', 'sınav'],
+  ['ogle', 'öğle'], ['obur', 'öbür'], ['sali', 'salı'], ['gun', 'gün'],
+];
+const DEASCII_RX = new RegExp(`(^|[^\\p{L}])(${DEASCII.map(([a]) => a).join('|')})`, 'gu');
+const DEASCII_MAP = new Map(DEASCII);
+
+/** Türkçe kuralıyla küçük harf: İ → i, (Türkçede) I → ı. Karaktersiz yazım tamamlanır. Uzunluk korunur. */
 export function normalize(text: string, lang: Lang): string {
   const s = text.replace(/[’‘`´]/g, "'").replace(/İ/g, 'i');
-  return (lang === 'tr' ? s.replace(/I/g, 'ı') : s).toLowerCase();
+  const lower = (lang === 'tr' ? s.replace(/I/g, 'ı') : s).toLowerCase();
+  return lower.replace(DEASCII_RX, (_m, pre: string, stem: string) => pre + (DEASCII_MAP.get(stem) ?? stem));
 }
 
 /** Dil verilmediyse metinden: Türkçe harf ya da Türkçeye özgü sık kelime. */

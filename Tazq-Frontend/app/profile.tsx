@@ -324,7 +324,7 @@ export default function ProfileScreen() {
   const handleStreakFreeze = () => {
     if (streakShields <= 0) {
       showToast(
-        language === 'tr' ? 'Hiç kalkanınız kalmadı! Puan toplayarak kalkan kazanın.' : 'No shields left! Earn shields by collecting focus points.',
+        language === 'tr' ? 'Kalkanın kalmadı. Odak puanı topladıkça yenisi gelir.' : 'No shields left! Earn shields by collecting focus points.',
         'error'
       );
       return;

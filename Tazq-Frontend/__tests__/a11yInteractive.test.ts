@@ -256,16 +256,8 @@ const ROLE_CEILING: Record<string, number> = {
   'app/odemeler.tsx': 7, // 8 → 7 (2026-10-24): satırlar PaymentRow'a taşındı (rollü), ekle düğmesi rollü başlık çubuğunda // (2026-10-18): yeni ekran — ekle davetiyesi, ödendi/geri al, sil, vazgeç/ekle // +1 (2026-10-19): para birimi çipi // +1 (2026-10-19): gün gridi çipi (1-31, tek JSX çağrı noktası) // +1 (2026-10-19): sağlayıcı önerisi satırı
   'app/settings.tsx': 3, // 5 → 3 (2026-10-25): hesap bölümü ortak SettingItem / SettingsActionRow satırlarına geçti
   'features/focus/components/FocusIsland.tsx': 1,
-  'features/modes/components/TurkishModeBanner.tsx': 19,
-  'features/modes/components/WeightEntryModal.tsx': 1,
-  'features/modes/components/modes/BirakmaCard.tsx': 7, // +1 (2026-10-19): tetikleyici çipi
-  'features/modes/components/modes/ExamCard.tsx': 15, // 16 → 15 (2026-10-19): WeakTopicPicker çipleri ortak WeakAreaPicker'a taşındı
-  'features/modes/components/modes/MulakatCard.tsx': 11,
-  'features/modes/components/modes/RamazanCard.tsx': 2,
-  'features/modes/components/modes/SporCard.tsx': 16,
-  'features/modes/components/modes/TasarrufCard.tsx': 9, // +1 (2026-10-19): harcama-alanı çipi
-  'features/modes/components/modes/TezCard.tsx': 8, // +2 (2026-10-19): "Bitti" linki, TasarrufCard'daki gibi hep-görünür+nedenli "Planı Seç" butonuna çevrildi (Kapat + Planı Seç/ipucu)
-  'features/modes/components/WeakAreaPicker.tsx': 1, // (2026-10-19): yeni ortak bileşen — zayıf-alan çipi
+  // Yaşam Modları LİSTEDEN ÇIKTI (89 → 0, 2026-10-31): mod kartları, banner, zayıf-alan seçici
+  // ve kilo penceresi rollü; seçim çipleri ayrıca accessibilityState.selected bildiriyor.
   // TaskFormModal LİSTEDEN ÇIKTI (22 → 0, 2026-10-25): Yeni Hedef formu yeniden yazıldı, her kontrol rollü.
   'features/user/components/MomentumPulse.tsx': 3,
   'shared/components/ChromeShell.tsx': 1,
@@ -316,7 +308,6 @@ describe('dokunulabilir öğenin ROLÜ bildiriliyor', () => {
       'features/dashboard/components/MyDayHabits.tsx',
       'features/dashboard/components/MyDayTaskRow.tsx',
       'features/dashboard/components/StatusHub.tsx',
-      'features/dashboard/components/StatusHubModal.tsx',
       'features/habits/components/HabitBubble.tsx',
       'features/focus/components/DynamicIsland.tsx',
     ]) {

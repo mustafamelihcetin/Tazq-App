@@ -14,6 +14,7 @@ import { ProgressRail } from '@/shared/components/ProgressRail';
 import { SubtaskProgressRing } from '@/shared/components/SubtaskProgressRing';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { haptic, hapticsAvailable } from '@/shared/utils/haptics';
+import { CaptureSheet } from '@/features/onboarding/components/CaptureSheet';
 
 /*
   ── BİLEŞEN GALERİSİ (yalnız geliştirme) ─────────────────────────────────────
@@ -34,6 +35,8 @@ function Gallery() {
   const { theme, isDark, setTheme } = useAppTheme();
   const [ring, setRing] = useState(2);
   const [crash, setCrash] = useState(false);
+  // "Aklında ne var?" — yeni hesabın ilk dakikası; burada deneme kipinde (hiçbir şey kaydetmez).
+  const [capture, setCapture] = useState(false);
   // Hata sınırı denemesi (madde 10): render sırasında fırlatır → rota sınırının yedek ekranı.
   if (crash) throw new Error('dev-gallery: yapay çökme');
 
@@ -48,7 +51,11 @@ function Gallery() {
           <Touchable accessibilityRole="button" accessibilityLabel="Yapay çökme" onPress={() => setCrash(true)} style={[styles.chip, { backgroundColor: theme.surfaceField }]}>
             <Text style={{ color: theme.onSurface, fontSize: F.footnote, fontWeight: '600' }}>Çökme testi</Text>
           </Touchable>
+          <Touchable accessibilityRole="button" accessibilityLabel="Aklında ne var ekranını dene" onPress={() => setCapture(true)} style={[styles.chip, { backgroundColor: theme.surfaceField }]}>
+            <Text style={{ color: theme.onSurface, fontSize: F.footnote, fontWeight: '600' }}>İlk dakika</Text>
+          </Touchable>
         </View>
+        <CaptureSheet visible={capture} demo onDone={() => setCapture(false)} />
 
         <SectionHeader title="Tipografi (F)" theme={theme} tr />
         <View style={[styles.card, { backgroundColor: theme.surfaceCard }]}>

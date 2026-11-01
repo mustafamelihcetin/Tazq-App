@@ -1,26 +1,11 @@
 import { langOf } from '@/shared/utils/lang';
 
 /*
-  İÇGÖRÜ MODALININ SAYILARI — saf, test edilmiş (bkz. __tests__/weeklyHub.test.ts).
+  HAFTALIK SAYI BİÇİMLERİ — saf, test edilmiş (bkz. __tests__/weeklyHub.test.ts).
 
-  Kural: modal yalnız ÖLÇTÜĞÜ şeyi söyler. Ölçülemeyen bir karşılaştırma (geçen hafta
-  kayıt yok) yüzdeyle değil cümleyle anlatılır; veri yoksa sayı sıfır değil "yok"tur.
+  Kural: yalnız ÖLÇÜLEN şey söylenir; veri yoksa sayı sıfır değil "yok"tur.
+  (Ana sayfadaki içgörü penceresi 2026-10-31'de kaldırıldı — kıyas ve öneriler Rapor'da.)
 */
-
-export type FocusDelta = { kind: 'none' } | { kind: 'new' } | { kind: 'change'; pct: number };
-
-/** Bu haftanın odak dakikası geçen haftaya göre. Sıfıra göre yüzde tanımsızdır → 'new'. */
-export function focusDelta(thisWeek: number, lastWeek: number): FocusDelta {
-  if (lastWeek <= 0) return thisWeek > 0 ? { kind: 'new' } : { kind: 'none' };
-  return { kind: 'change', pct: Math.round(((thisWeek - lastWeek) / lastWeek) * 100) };
-}
-
-/** 12 → "+%12" / "+12%": Türkçede yüzde işareti sayının önünde. */
-export function formatDeltaPct(pct: number, lang: string): string {
-  const sign = pct >= 0 ? '+' : '-';
-  const n = Math.abs(pct);
-  return langOf(lang) === 'tr' ? `${sign}%${n}` : `${sign}${n}%`;
-}
 
 const UNITS = { tr: { h: ' sa', m: ' dk', sep: ' ' }, en: { h: 'h', m: 'm', sep: ' ' } } as const;
 
@@ -43,12 +28,4 @@ export function bestDayIndex(days: { minutes?: number }[] | undefined): number |
     if (v > max) { max = v; best = i; }
   });
   return best;
-}
-
-/**
- * Geçen haftanın BUGÜNE KADARKİ günlerinin toplamı (Pzt = 0). Bu haftanın yarısını geçen
- * haftanın tamamıyla kıyaslamak, hafta başında trendi hep eksi gösteriyordu.
- */
-export function sameSpanTotal(perDay: number[], todayIndex: number): number {
-  return perDay.slice(0, Math.max(0, todayIndex) + 1).reduce((s, v) => s + (v || 0), 0);
 }

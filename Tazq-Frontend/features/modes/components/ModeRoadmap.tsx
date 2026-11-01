@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Modal, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Compass, Target, Sprout, Unlock, Flag } from 'lucide-react-native';
+import { X, Compass, Map as MapIcon, Target, Sprout, Unlock, Flag } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { AlertHost } from '@/shared/components/CustomAlert';
@@ -11,22 +11,6 @@ import { S, R, F, W, B, ICON } from '@/shared/constants/tokens';
 import { useStagedPlanStore } from '@/features/modes/store/useStagedPlanStore';
 import { modePhase } from '@/features/modes/utils/modePhase';
 import type { ModeSummary, ModeSummaryEntry } from '@/features/modes/hooks/useActiveModeSummary';
-import { fmtDateKey } from '@/features/habits/store/useHabitStore';
-import { useActiveHabitList } from '@/features/habits/hooks/useActiveHabitList';
-
-/*
-  BUGÜN = ALIŞKANLIK + GÖREV — mod kartının "Bugünün planı" sayımıyla aynı tanım.
-  Özet kancasının todayTotal'ı yalnız görev sayıyor; rozet 0/1 derken kart 0/2 diyordu.
-*/
-function useToday() {
-  const habits = useActiveHabitList();
-  const key = fmtDateKey();
-  return (e: ModeSummaryEntry) => {
-    const ids = new Set(e.habitIds);
-    const hDone = habits.filter(h => ids.has(h.id) && (h.completedDates ?? []).includes(key)).length;
-    return { done: e.todayDone + hDone, total: e.todayTotal + e.habitCount };
-  };
-}
 
 /*
   ── MOD DURUM ROZETİ + YOL HARİTASI (madde 7) ────────────────────────────────────
@@ -37,7 +21,7 @@ function useToday() {
 */
 const COPY = {
   tr: {
-    pillA11y: (d: number, t: number) => `Bugün ${t} plan işinden ${d} tamam. Yol haritasını aç`,
+    pillA11y: (n: number) => `${n} hedefin yol haritasını aç`,
     title: 'Yol haritası', sub: 'Hedeflerin, fazları ve bugünün',
     today: 'Bugün', daysLeft: (n: number) => `${n} gün kaldı`, open: 'Süresiz', expired: 'Tarihi geçti',
     phase: (i: number, t: number, name: string) => `Faz ${i}/${t} · ${name}`,
@@ -51,7 +35,7 @@ const COPY = {
     ] as [string, string][],
   },
   en: {
-    pillA11y: (d: number, t: number) => `${d} of ${t} plan tasks done today. Open roadmap`,
+    pillA11y: (n: number) => (n === 1 ? 'Open the roadmap of your goal' : `Open the roadmap of your ${n} goals`),
     title: 'Roadmap', sub: 'Your goals, their phases and today',
     today: 'Today', daysLeft: (n: number) => `${n} days left`, open: 'Ongoing', expired: 'Date passed',
     phase: (i: number, t: number, name: string) => `Phase ${i}/${t} · ${name}`,
@@ -76,7 +60,6 @@ const started = (entries: ModeSummaryEntry[]) => entries.filter(e => e.habitIds.
 export function ModeStatusPill({ summary, onPress }: { summary: ModeSummary; onPress: () => void }) {
   const { theme } = useAppTheme();
   const lang = useLanguageStore(s => (s.language === 'en' ? 'en' : 'tr'));
-  const today = useToday();
   const live = started(summary.entries);
   /*
     Aktif plan yokken sol üst BOŞ kalmıyor (kullanıcı geri bildirimi): pusula düğmesi
@@ -91,18 +74,21 @@ export function ModeStatusPill({ summary, onPress }: { summary: ModeSummary; onP
     );
   }
   const accent = live[0].color ?? theme.primary;
-  const done = live.reduce((n, e) => n + today(e).done, 0);
-  const total = live.reduce((n, e) => n + today(e).total, 0);
+  /*
+    HAP "0/3" YAZMAZ (2026-10-31, Y-2): aynı sayı durum kartında ve mod kartında da vardı — üç kez.
+    Bugün'ün sahibi Ana sayfa; Hedefler'de bugün yalnız durum kartının satırında. Hap ne açıyorsa
+    onu söyler: yol haritası (her hedefin fazı, kalan günü ve bugünü haritanın içinde).
+  */
   return (
     <Touchable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={COPY[lang].pillA11y(done, total)}
+      accessibilityLabel={COPY[lang].pillA11y(live.length)}
       testID="mode-status-pill"
       style={[styles.pill, { backgroundColor: accent + '1A', borderColor: accent + '40' }]}
     >
       <View style={[styles.dot, { backgroundColor: accent }]} />
-      <Text style={[styles.pillText, { color: theme.onSurface }]} numberOfLines={1}>{`${done}/${total}`}</Text>
+      <MapIcon size={ICON.sm} color={theme.onSurface} />
     </Touchable>
   );
 }
@@ -112,7 +98,7 @@ function Row({ e, lang }: { e: ModeSummaryEntry; lang: 'tr' | 'en' }) {
   const c = COPY[lang];
   const staged = useStagedPlanStore(s => s.queues[e.key]?.items.length ?? 0);
   const phase = modePhase(e.key, e.days);
-  const t = useToday()(e);
+  const t = { done: e.todayDone, total: e.todayTotal };
   const pct = t.total > 0 ? t.done / t.total : 0;
   const when = e.days == null ? c.open : e.days < 0 ? c.expired : c.daysLeft(e.days);
   return (
@@ -199,7 +185,6 @@ const styles = StyleSheet.create({
   howIcon: { width: 32, height: 32, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   pill: { flexDirection: 'row', alignItems: 'center', gap: S.xs, alignSelf: 'flex-start', minHeight: 36, paddingHorizontal: S.smd, borderRadius: R.full, borderWidth: B.thin },
   dot: { width: 8, height: 8, borderRadius: R.full },
-  pillText: { fontSize: F.footnote, fontWeight: W.semibold, fontVariant: ['tabular-nums'] },
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: { maxHeight: '80%', borderTopLeftRadius: R.sheet, borderTopRightRadius: R.sheet, paddingHorizontal: S.lg, paddingTop: S.sm, overflow: 'hidden', gap: S.md },
   grabber: { alignItems: 'center' },

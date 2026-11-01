@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Canvas, Circle, Path, Skia } from '@shopify/react-native-skia';
+import { Canvas, Circle, DashPathEffect, Path, Skia } from '@shopify/react-native-skia';
 import Animated, { Easing, useAnimatedStyle, useDerivedValue, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
@@ -67,6 +67,18 @@ function DayCell({ day, selected, onPress, delay }: { day: WeekDay; selected: bo
     <Touchable onPress={onPress} accessibilityRole="button" accessibilityLabel={day.a11y} accessibilityState={{ selected }} style={styles.day}>
       <Text style={[styles.abbr, { color: day.isToday ? theme.primary : dc.label }]}>{day.abbr}</Text>
       <View style={{ width: RING, height: RING, alignItems: 'center', justifyContent: 'center' }}>
+        {/*
+          PLAN YOK (geçmiş/bugün, beklenen iş yok) = KESİK halka. Eskiden halka hiç çizilmiyordu ve
+          "plan yoktu" ile "gelecek gün" aynı görünüyordu; gri halka (planlı ama yapılmadı) da yanında
+          anlamsızlaşıyordu. Gelecek gün yine halkasız: henüz bir şey söylemez.
+        */}
+        {day.ratio == null && !day.isFuture && (
+          <Canvas style={{ position: 'absolute', width: RING, height: RING }}>
+            <Circle cx={RING / 2} cy={RING / 2} r={RING / 2 - STROKE / 2} style="stroke" strokeWidth={1} color={theme.onSurface + (isDark ? '33' : '26')}>
+              <DashPathEffect intervals={[2, 3]} />
+            </Circle>
+          </Canvas>
+        )}
         {day.ratio != null && (
           <Canvas style={{ position: 'absolute', width: RING, height: RING }}>
             <Circle cx={RING / 2} cy={RING / 2} r={RING / 2 - STROKE / 2} style="stroke" strokeWidth={STROKE} color={theme.onSurface + (isDark ? '26' : '1A')} />

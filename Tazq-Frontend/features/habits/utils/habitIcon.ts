@@ -38,6 +38,18 @@ const RULES: Rule[] = [
   { icon: '🧠', tr: ['zeka', 'bulmaca', 'satranç', 'odak', 'düşün'], en: ['puzzle', 'chess', 'brain', 'focus', 'think'] },
 ];
 
+/*
+  FİİL KÖKÜ İSİM GİBİ EKLENMEZ (2026-10-31). matchesTr isim eklerini tanır; fiil köküne uygulanınca
+  "okula" = oku + -la, "arada" = ara + -da, "yaza" = yaz + -a oluyordu ("Okula git" → 📚). Fiil kökü
+  yalnız kendisi ya da FİİL ekiyle tanınır: mastar (okumak, okumaya), şimdiki zaman (okuyor, koşuyorum),
+  geçmiş (okudum), gelecek (okuyacağım), istek (okuyalım).
+*/
+const VERB_TR = new Set(['koş', 'yürü', 'uyu', 'yat', 'oku', 'yaz', 'çiz', 'temizle', 'topla', 'biriktir', 'ara', 'sula', 'kalk', 'düşün']);
+const VERB_SUFFIX = /^(?:m[ae]k|m[ae](?:y[ıiae])?|[ıiuü]?yor\p{L}*|[dt][ıiuü]\p{L}*|y?[ae]c[ae][kğ]\p{L}*|y?[ae]l[ıi]m)$/u;
+const matchesVerbTr = (token: string, lemma: string) =>
+  token === lemma || (token.startsWith(lemma) && VERB_SUFFIX.test(token.slice(lemma.length)));
+const matchTr = (token: string, lemma: string) => (VERB_TR.has(lemma) ? matchesVerbTr(token, lemma) : matchesTr(token, lemma));
+
 const tokenize = (text: string, lang: 'tr' | 'en') =>
   normalize(text, lang).split(/[^\p{L}']+/u).filter(Boolean);
 
@@ -48,7 +60,7 @@ const tokenize = (text: string, lang: 'tr' | 'en') =>
 export function suggestHabitIcon(name: string, lang: 'tr' | 'en'): string | null {
   const tokens = tokenize(name ?? '', lang);
   if (tokens.length === 0) return null;
-  const match = lang === 'tr' ? matchesTr : matchesEn;
+  const match = lang === 'tr' ? matchTr : matchesEn;
   const hit = (token: string, rule: Rule) =>
     (lang === 'tr' ? rule.tr : rule.en).some((l) => match(token, l)) ||
     // Türkçe arayüzde İngilizce ödünç kelimeler de ("gym", "fitness") tanınsın.

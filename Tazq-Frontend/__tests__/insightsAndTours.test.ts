@@ -4,75 +4,20 @@ import path from 'path';
 const read = (rel: string) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
 
 /**
- * TAZQ INSIGHTS — "karmaşık ve çirkin, uygulamayla uyuşmuyor" denetiminin devamı.
+ * İÇGÖRÜ PENCERESİ KALDIRILDI (2026-10-31, yeniden düzenleme A3 · K-3).
  *
- * Mod-ozet'ten beş kat daha fazla ham renk taşıyordu: mavi-mor LinearGradient'lı
- * iki kart, amber/yeşil/indigo üçlüleri elle yazılmış rgba'larla. Bulgular:
- *  · Gradyan kaldırıldı (uygulamanın hiçbir yerinde stat kartı gradyanla çizilmiyor).
- *  · Skor + öneri artık TEK kart (aralarında hairline) — mod-ozet'teki desenle aynı.
- *  · Üç tavsiye tonu (olumlu/uyarı/motive edici) artık theme.success/warning/secondary.
+ * Ana sayfa başlığındaki pencere "bu hafta" sorusunu Bugün ekranında cevaplıyordu. Odak
+ * kıyası, en iyi gün, grafik ve öneriler Rapor'da zaten vardı (aynı generateWeeklyTips).
+ * Başlık düğmesi artık doğrudan Bu Hafta ekranına gider; pencere geri gelmemeli.
  */
-describe('TAZQ Insights — ham renk ve gradyan yok', () => {
-  const SRC = read('features/dashboard/components/StatusHubModal.tsx');
-
-  it('LinearGradient hiç kullanılmıyor', () => {
-    expect(SRC).not.toContain('LinearGradient');
-    expect(SRC).not.toContain("from 'expo-linear-gradient'");
+describe('İçgörü penceresi — kopya geri gelmez', () => {
+  it("bileşen yok, ana sayfa başlığı Bu Hafta'ya götürür", () => {
+    expect(fs.existsSync(path.join(__dirname, '..', 'features/dashboard/components/StatusHubModal.tsx'))).toBe(false);
+    expect(read('app/index.tsx')).toContain("<StatusHub onPress={() => router.push('/cockpit')} />");
   });
 
-  it('mavi-mor / amber / indigo ham rgba üçlüleri temizlendi', () => {
-    expect(SRC).not.toMatch(/rgba\(59,\s*130,\s*246/);
-    expect(SRC).not.toMatch(/rgba\(147,\s*51,\s*234/);
-    expect(SRC).not.toMatch(/rgba\(217,\s*119,\s*6/);
-    expect(SRC).not.toMatch(/#d97706|#34D399|#059669|#818CF8|#2563EB/i);
-  });
-
-  it('üç tavsiye tonu tema token\'larından geliyor', () => {
-    const fn = SRC.slice(SRC.indexOf('weeklyTips.map'), SRC.indexOf('const text ='));
-    expect(fn).toContain('theme.success');
-    expect(fn).toContain('theme.warning');
-    expect(fn).toContain('theme.secondary');
-  });
-
-  it('skor ve öneri TEK kart — aralarında Separator, iki ayrı kutu değil', () => {
-    expect(SRC).toContain('<Separator theme={theme} />');
-  });
-
-  it('elle çizilmiş ayırıcı yok — Separator bileşeni kullanılıyor', () => {
-    expect(SRC).not.toMatch(/height: 1, backgroundColor: theme\.separator/);
-  });
-});
-
-/**
- * İÇGÖRÜ MODALI — impeccable denetimi (2026-10-31), 15/20.
- */
-describe('TAZQ Insights — denetim düzeltmeleri', () => {
-  const SRC = read('features/dashboard/components/StatusHubModal.tsx');
-
-  it('alışkanlık rengi ortak kuraldan (habitColor) — ham habit.color değil', () => {
-    // Modal 30 Ekim renk kararına bağlanmayan TEK yüzeydi: mod alışkanlıkları eski şablon
-    // rengiyle, koyu temada açık tonla çiziliyordu; Haftalık Merkez'le aynı alışkanlık farklı renkti.
-    expect(SRC).toContain('habitColor(habit, isDark)');
-    expect(SRC).not.toMatch(/habit\.color \|\|/);
-  });
-
-  it('ızgara satırı ekran okuyucuya gün gün durumu söylüyor', () => {
-    // Hücrelerin etiketi yoktu: VoiceOver/TalkBack yalnız alışkanlığın adını okuyordu.
-    expect(SRC).toContain('accessibilityLabel={c.habitRow(');
-    expect(SRC).toContain('importantForAccessibility="no-hide-descendants"');
-  });
-
-  it('kapat düğmesi 36 pt ama dokunma alanı 44 pt', () => {
-    expect(SRC).toContain('hitSlop={touchSlop(CLOSE_SIZE)}');
-  });
-
-  it('ızgara da grafikle aynı gün kısaltmasını kullanıyor (Pzt, Pt değil)', () => {
-    expect(SRC).not.toContain("'Pt'");
-    expect(SRC).toContain("'Pzt'");
-  });
-
-  it('değişim yüzdesi dile göre yazılıyor', () => {
-    expect(SRC).toContain('formatDeltaPct(delta.pct, language)');
+  it("öneriler Rapor'da yaşıyor", () => {
+    expect(read('app/report.tsx')).toContain('generateWeeklyTips(');
   });
 });
 

@@ -174,24 +174,53 @@ describe('görsel dil — yaşayan plan bir DURUM, form değil', () => {
     expect(spor).toContain('sporWeekDays');
   });
 
-  it('özet her ihtimali karşılar: tarihsiz, geçmiş, bugün, boş gün', () => {
+  it('özet her ihtimali karşılar: tarihsiz, geçmiş, bugün', () => {
     const sum = read('features/modes/components/ModePlanSummary.tsx');
     expect(sum).toContain('daysLeft == null');      // tarih yok
     expect(sum).toContain('if (past)');             // tarih geçti
     expect(sum).toContain('daysLeft === 0');        // hedef bugün
-    expect(sum).toContain('nothingToday');          // bugün planlı iş yok
     expect(sum).toContain('adjustsFontSizeToFit');  // büyük yazı ayarı
     expect(sum).toContain('accessibilityLabel');    // tek cümle duyuru
   });
 
-  it('durum kartı KAHRAMAN: tek büyük sayı + ortak ilerleme çubuğu', () => {
+  it('durum kartı KAHRAMAN: tek büyük sayı (geri sayım)', () => {
     // Kart artık kendi dosyasında (modlar.tsx 1700 satırı geçmişti).
     const CARD = read('features/modes/components/ModeStatusCard.tsx');
     const hero = CARD.slice(CARD.indexOf('KAHRAMAN SATIRI'), CARD.indexOf('const styles'));
-    expect(hero).toContain('fontSize: F.hero');
-    expect(hero).toContain('<ProgressRail');
-    // Altı nokta yerine kartlarla aynı çubuk kullanılıyor.
+    // Büyük sayı hedef başına GoalCountdown'da (halka + akan sayı kancaları, 2026-10-31).
+    expect(CARD).toContain('fontSize: F.hero');
     expect(hero).not.toContain('Math.min(statusTodayTotal, 6)');
+  });
+
+  it("Hedefler'de BUGÜN TEK YERDE: durum kartının satırı (Y-2, 2026-10-31)", () => {
+    // Cihazda görüldü: aynı "0/3" sol üst hapta, durum kartında ve mod kartında üç kez yazıyordu.
+    // Bugün'ün sahibi Ana sayfa; Hedefler'de yalnız ona götüren satır kalır.
+    const SUMMARY_SRC = read('features/modes/components/ModePlanSummary.tsx');
+    expect(SUMMARY_SRC).not.toContain('todayDone');
+    const PILL = read('features/modes/components/ModeRoadmap.tsx');
+    const pill = PILL.slice(PILL.indexOf('export function ModeStatusPill'), PILL.indexOf('function Row('));
+    expect(pill).not.toContain('${done}/${total}');
+    for (const f of ['ExamCard', 'TezCard', 'MulakatCard', 'SporCard', 'RamazanCard']) {
+      const src = read(`features/modes/components/modes/${f}.tsx`);
+      expect(`${f}: ${src.includes('progDone')}`).toBe(`${f}: false`);
+    }
+  });
+
+  it('Ramazan kartı "plan var mı"yı bugünün iş sayısından değil planın kendisinden okur', () => {
+    // Eskiden planı olup o gün işi olmayan kullanıcıya "Plan henüz oluşturulmadı" yazıyordu.
+    const R = read('features/modes/components/modes/RamazanCard.tsx');
+    expect(R).toContain('const hasPlan = ramazanPlanHabitIds.length > 0 || ramazanPlanTaskIds.length > 0;');
+    expect(R).toContain(') : hasPlan ? (');
+  });
+
+  it("bugünün planı Hedefler'de çizilmez, Bugün'e TEK SATIR bağlantıdır (A3 · K-1, 2026-10-31)", () => {
+    // Bugün = Ana sayfa (ModeTodayCard). Burada aynı ilerleme çubuğu ikinci kez çiziliyordu.
+    const CARD = read('features/modes/components/ModeStatusCard.tsx');
+    expect(CARD).not.toContain('<ProgressRail');
+    expect(CARD).toContain('onPress={onOpenToday}');
+    expect(CARD).toContain('accessibilityRole="link"');
+    // push('/') kökteki ana sayfaya gitmiyordu (cihazda görüldü); replace('/') ana sayfayı ikinci kez kurar (authNavigation kuralı).
+    expect(MODLAR).toContain('onOpenToday={() => goHome(router)}');
   });
 
   it('tarihli hedefi olmayan kullanıcıya da bir cümle var', () => {

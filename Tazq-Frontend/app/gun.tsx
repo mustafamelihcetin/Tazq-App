@@ -331,13 +331,13 @@ export default function GunScreen() {
         <BentoCard index={0} style={{ padding: S.md, flexDirection: 'row', alignItems: 'center', gap: S.md }}>
           <View style={{ flex: 1 }}>
             {/* Panel dilinde dijital rakam: bir iş tamamlanınca sayı SAYARAK değişir (bkz. DisplayValue). */}
-            <DisplayValue value={`${doneCount}/${today.length}`} color={theme.onSurface} style={styles.summaryValue} />
+            <DisplayValue value={`${doneCount}/${today.length}`} color={theme.onSurface} style={styles.summaryValue} seenKey={isToday ? 'day.done' : undefined} />
             <Text style={[styles.summaryLabel, { color: theme.onSurfaceVariant }]}>{isToday ? d.summaryTasks : mode === 'past' ? d.summaryDoneOn : d.summaryPlanned}</Text>
           </View>
           {mode !== 'future' && <View style={{ width: HAIRLINE, alignSelf: 'stretch', backgroundColor: theme.outlineVariant }} />}
           {mode !== 'future' && <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-              <DisplayValue value={String(isToday ? dailyFocusMinutes : otherDayFocus)} color={theme.onSurface} style={styles.summaryValue} />
+              <DisplayValue value={String(isToday ? dailyFocusMinutes : otherDayFocus)} color={theme.onSurface} style={styles.summaryValue} seenKey={isToday ? 'day.focus' : undefined} />
               {isToday && dailyGoalMinutes > 0 && (
                 <Text style={[styles.summaryLabel, { color: theme.onSurfaceMuted }]}>
                   {` / ${dailyGoalMinutes} ${d.goal}`}
