@@ -7,7 +7,7 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
-import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Coffee, Wind, CloudRain, Flame, Waves, Music2, Headphones, AudioLines, SlidersHorizontal, SkipForward } from 'lucide-react-native';
+import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Coffee, Wind, CloudRain, Flame, Waves, Music2, Headphones, AudioLines, SlidersHorizontal, SkipForward, Trees } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore, focusDayKey } from '@/features/focus';
@@ -58,6 +58,11 @@ import { recentFocus } from '@/features/focus/focusStreak';
 import { useFocusHistoryStore } from '@/features/report/useFocusHistoryStore';
 import { goHome } from '@/shared/utils/authNavigation';
 import { useFocusSheetTheme } from '@/features/focus/hooks/useFocusSheetTheme';
+import { ambientAction, shouldResumeOnFocus } from '@/features/focus/utils/ambientPlan';
+import { BreathPreview } from '@/features/breath/components/BreathOrb';
+import { focusTitle } from '@/features/focus/utils/focusTitle';
+import { AmbientStatus } from '@/features/focus/components/AmbientStatus';
+import { SoundIcon, type SoundKind } from '@/features/focus/components/SoundIcon';
 
 
 // ── Saniyeye bağlı izole render'lar ───────────────────────────────────────────
@@ -158,13 +163,14 @@ const PRESETS = [
 ] as const;
 type PresetKey = typeof PRESETS[number]['key'];
 
-type AmbientSound = 'off' | 'rain' | 'cafe' | 'forest' | 'ocean' | 'fireplace' | 'relaxing' | 'binaural' | 'brown';
+type AmbientSound = 'off' | 'rain' | 'wind' | 'cafe' | 'forest' | 'ocean' | 'fireplace' | 'relaxing' | 'binaural' | 'brown';
 
 const SOUND_LABELS: Record<AmbientSound, { icon: React.ComponentType<any> | null; labelTr: string; labelEn: string }> = {
   off:       { icon: null,       labelTr: 'Sessiz',       labelEn: 'Off'       },
   rain:      { icon: CloudRain,  labelTr: 'Yağmur',       labelEn: 'Rain'      },
+  wind:      { icon: Wind,       labelTr: 'Rüzgar',        labelEn: 'Wind'      },
   cafe:      { icon: Coffee,     labelTr: 'Kafe',          labelEn: 'Café'      },
-  forest:    { icon: Wind,       labelTr: 'Orman',         labelEn: 'Forest'    },
+  forest:    { icon: Trees,      labelTr: 'Orman',         labelEn: 'Forest'    },
   ocean:     { icon: Waves,      labelTr: 'Okyanus',       labelEn: 'Ocean'     },
   fireplace: { icon: Flame,      labelTr: 'Şömine',       labelEn: 'Fireplace' },
   relaxing:  { icon: Music2,     labelTr: 'Rahatlatıcı',  labelEn: 'Relaxing'  },
@@ -322,6 +328,8 @@ export default function FocusScreen() {
 
   // Sound
   const soundRef = useRef<AudioPlayer | null>(null);
+  // Ses GERÇEKTEN duyuluyor mu (seçili olmaktan ayrı): düğmedeki çubuklar ve durum satırı buna bakar.
+  const [audible, setAudible] = useState<'off' | 'preview' | 'session'>('off');
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playRequestIdRef = useRef(0);
@@ -493,6 +501,7 @@ export default function FocusScreen() {
     clearFade();
     clearCrossfade();
     currentSoundTypeRef.current = 'off';
+    setAudible('off');
     if (soundRef.current) {
       try { soundRef.current.pause(); soundRef.current.release(); } catch (e) { swallow('focus.stopAmbientSound', e); }
       soundRef.current = null;
@@ -508,23 +517,40 @@ export default function FocusScreen() {
 
   // stepMs: adım aralığı. Varsayılan hızlı (seans geçişleri); önizleme için daha büyük değer =
   // daha uzun/yumuşak "sakin" kapanış.
+  /*
+    GECİKMESİZ (2026-11-01, kullanıcı: "gecikmeli çalma durma"): susturulan çalar BIRAKILMAZ, duraklatılıp
+    yüklü bekler. Aynı ses yeniden istenince (duraklat→devam, önizleme→seans, bitiş→yeni seans) dosya
+    baştan yüklenmez; kaldığı yerden anında sürer. Çalar yalnız ekrandan çıkınca ya da ses değişince bırakılır.
+  */
   const stopAmbientSoundFaded = (stepMs: number = FADE_MS) => {
     clearFade();
     clearCrossfade();
-    currentSoundTypeRef.current = 'off';
     const player = soundRef.current;
-    if (!player) return;
+    if (!player) { setAudible('off'); return; }
     let vol = player.volume;
-    const stepVal = vol / FADE_STEPS;
+    const stepVal = Math.max(vol / FADE_STEPS, 0.001);
     fadeIntervalRef.current = setInterval(() => {
       vol = Math.max(0, vol - stepVal);
       try { player.volume = vol; } catch (e) { swallow('focus.ambientFadeOutVolume', e); }
       if (vol <= 0) {
         clearFade();
-        try { player.pause(); player.release(); } catch (e) { swallow('focus.ambientStopRelease', e); }
-        soundRef.current = null;
+        try { player.pause(); } catch (e) { swallow('focus.ambientPark', e); }
+        setAudible('off');
       }
     }, stepMs);
+  };
+
+  /** Seçili sesin dosyasını önceden yükler (çalmaz): ilk "Başlat"ta yükleme beklemesi olmasın. */
+  const preloadAmbient = (type: AmbientSound) => {
+    if (type === 'off' || (soundRef.current && currentSoundTypeRef.current === type)) return;
+    stopAmbientSound();
+    try {
+      const player = createAudioPlayer(getSoundSource(type));
+      player.loop = true;
+      player.volume = 0;
+      soundRef.current = player;
+      currentSoundTypeRef.current = type;
+    } catch (e) { swallow('focus.ambientPreload', e); }
   };
 
   const getSoundSource = (type: AmbientSound) => {
@@ -540,8 +566,16 @@ export default function FocusScreen() {
       Frekans: 200/240 Hz (40 Hz gama) + pembe gürültü yatağı, 60 sn tam devir. Rahatlatıcı:
       üretilmiş 120 sn evrilen Re majör katman. Derin Gürültü: üretilmiş stereo kahverengi gürültü.
     */
+    /*
+      v2 (2026-11-01, kullanıcı: "rüzgar yağmur sesleri çok amatör"): eskileri mono 97 kbps kayıtlardı.
+      Yağmur, rüzgar, orman (ağaçta rüzgar + kuşlar), okyanus, şömine, kafe artık Moodist'in stereo
+      kayıtlarından (CC0 / Pixabay İçerik Lisansı); aynı kurallarla işlendi (−26 LUFS, ≤ −3 dBTP,
+      eşit güçlü çapraz geçiş, döngü başı en durağan ana kaydırıldı). Rahatlatıcı yeniden üretildi:
+      Re majör çevresinde dört akor, yumuşak tını, 5 sn yankı. Eskileri assets/sounds/archive.
+    */
     const sources: Record<string, any> = {
       rain:      require('../assets/sounds/rain.m4a'),
+      wind:      require('../assets/sounds/wind.m4a'),
       cafe:      require('../assets/sounds/cafe.m4a'),
       forest:    require('../assets/sounds/forest.m4a'),
       ocean:     require('../assets/sounds/ocean.m4a'),
@@ -564,16 +598,21 @@ export default function FocusScreen() {
       return;
     }
     const myId = ++playRequestIdRef.current;
-    stopAmbientSound();
-    if (type === 'off') return;
+    if (type === 'off') { stopAmbientSound(); return; }
+    // Aynı ses zaten yüklü (duraklatılmış ya da önceden yüklenmiş): yeniden yükleme yok.
+    const reuse = soundRef.current && currentSoundTypeRef.current === type ? soundRef.current : null;
+    clearFade();
+    clearCrossfade();
+    if (!reuse) stopAmbientSound();
     try {
-      const player = createAudioPlayer(getSoundSource(type));
+      const player = reuse ?? createAudioPlayer(getSoundSource(type));
       if (myId !== playRequestIdRef.current) {
-        try { player.release(); } catch (e) { swallow('focus.ambientSwapRelease', e); }
+        if (!reuse) { try { player.release(); } catch (e) { swallow('focus.ambientSwapRelease', e); } }
         return;
       }
       player.loop = true; // Use native looping
       currentSoundTypeRef.current = type;
+      setAudible(useFocusStore.getState().isActive ? 'session' : 'preview');
 
       if (fadeIn) {
         player.volume = 0;
@@ -584,7 +623,8 @@ export default function FocusScreen() {
         fadeIntervalRef.current = setInterval(() => {
           if (myId !== playRequestIdRef.current) {
             clearFade();
-            try { player.release(); } catch (e) { swallow('focus.ambientFadeInRelease', e); }
+            // Yeni istek AYNI çaları kullanıyor olabilir (yeniden kullanım): o zaman bırakılmaz.
+            if (player !== soundRef.current) { try { player.release(); } catch (e) { swallow('focus.ambientFadeInRelease', e); } }
             return;
           }
           vol = Math.min(vol + stepVal, ambientVolumeRef.current);
@@ -625,27 +665,26 @@ export default function FocusScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Session and ambient sound transition manager - Unified to prevent double parallel audio loads
+  // Seans ↔ ortam sesi: tek karar yeri (bkz. ambientPlan — duraklatınca susar, tercih kalır).
+  const wasActiveRef = useRef(isActive);
   useEffect(() => {
-    if (isActive) {
-      // Seans başladı → bekleyen önizleme (demo) timer'ını iptal et, sesi tam ele al.
-      if (previewTimerRef.current) {
-        clearTimeout(previewTimerRef.current);
-        previewTimerRef.current = null;
-      }
-      if (ambientSound !== 'off') {
-        playAmbientSound(ambientSound);
-      } else {
-        stopAmbientSound();
-      }
-    } else {
-      // Seans yokken önizleme akışını (kendi 7sn timer'ı + yumuşak fade'i) onPress yönetir;
-      // burada timer'ı SİLMİYORUZ ki demo kesilmesin. Ses kapatıldıysa güvenlik amaçlı durdur.
-      if (ambientSound === 'off') {
-        stopAmbientSound();
-      }
-    }
+    const action = ambientAction({ wasActive: wasActiveRef.current, isActive, sound: ambientSound });
+    wasActiveRef.current = isActive;
+    // Seans başladı → bekleyen önizleme (demo) zamanlayıcısı iptal, sesi seans ele alır.
+    if (isActive && previewTimerRef.current) { clearTimeout(previewTimerRef.current); previewTimerRef.current = null; }
+    if (action === 'play') playAmbientSound(ambientSound);
+    else if (action === 'stop') stopAmbientSound();
+    else if (action === 'fadeOut') stopAmbientSoundFaded();
+    // Seans yokken seçili ses önceden yüklenir; önizleme çalıyorsa (aynı ses) dokunulmaz.
+    else if (action === 'none' && !previewTimerRef.current) preloadAmbient(ambientSound);
   }, [isActive, ambientSound]);
+
+  // Ekrana dönüş: ayrılırken ses durur (aşağıdaki odak etkisi); seans sürüyorsa geri gelir.
+  useFocusEffect(useCallback(() => {
+    const sound = usePrefsStore.getState().focusAmbientSound as AmbientSound;
+    if (shouldResumeOnFocus({ isActive: useFocusStore.getState().isActive, sound, playing: !!soundRef.current?.playing })) playAmbientSound(sound, true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []));
 
   // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => { rehydrateTimer(); }, []);
@@ -745,7 +784,7 @@ export default function FocusScreen() {
         setDuration(activePreset.workMins);
         setPomodoroTransition({ visible: true, type: 'work' });
         setTimeout(() => setPomodoroTransition(p => ({ ...p, visible: false })), 3000);
-        stopAmbientSound();
+        stopAmbientSoundFaded(); // susar ama yüklü kalır: sıradaki seans beklemeden başlar
       } else if (isPomo) {
         setTimeout(() => haptic.commit(), 250);
         setTimeout(() => haptic.commit(), 500);
@@ -804,8 +843,7 @@ export default function FocusScreen() {
         */
         const claimedNow = useFocusStore.getState().claimCommit();
         InteractionManager.runAfterInteractions(() => {
-          stopAmbientSound();
-          setAmbientSound('off');
+          stopAmbientSoundFaded(); // tercih KALIR: sıradaki seans aynı sesle başlar (bkz. finishEarly notu)
           if (claimedNow) commitSession(minutes, true, true);
           track('focus_completed', { minutes, pomodoro: false });
           FocusService.getStats().then(s => {
@@ -867,7 +905,7 @@ export default function FocusScreen() {
     // Titreşim YOK: sayaç gözle görülür biçimde çalışma turuna dönüyor.
     completedRef.current = false;
     setZenMode(false);
-    stopAmbientSound();
+    stopAmbientSoundFaded(); // susar ama yüklü kalır: sıradaki seans beklemeden başlar
     if (pomodoroMode && pomodoroPhase === 'break') nextPomodoroPhase();
     setDuration(activePreset.workMins);
   };
@@ -893,8 +931,7 @@ export default function FocusScreen() {
     if (elapsed > 0) {
       // Mola için commitSession zaten 'not-focus' döner: mola dakikası odak sayılmaz.
       commitSession(Math.round(elapsed / 60), false);
-      stopAmbientSound();
-      setAmbientSound('off');
+      stopAmbientSoundFaded(); // tercih kalır (bkz. ambientPlan)
     }
     completedRef.current = false;
     setZenMode(false);
@@ -903,7 +940,7 @@ export default function FocusScreen() {
 
   const finishEarly = () => {
     haptic.success();
-    stopAmbientSound();
+    stopAmbientSoundFaded(); // susar ama yüklü kalır: sıradaki seans beklemeden başlar
     // Mola erken bitirilirse: kaydedilecek bir şey yok, sıradaki tura hazırlan.
     if (useFocusStore.getState().sessionKind === 'break') {
       setIsActive(false);
@@ -1109,7 +1146,7 @@ export default function FocusScreen() {
             <View style={[styles.badge, { backgroundColor: theme.primary + '15', maxWidth: '44%' }]}>
               <Sparkles size={ICON.xs} color={theme.primary} />
               <Text style={[styles.badgeText, { color: theme.primary, fontSize: F.caption, letterSpacing: 1 }]} numberOfLines={1}>
-                {t.focusLabel || t.deepFocus}
+                {focusTitle({ inBreak, pomodoroMode, language })}
               </Text>
             </View>
           </View>
@@ -1703,6 +1740,27 @@ export default function FocusScreen() {
             </View>
           </MotiView>
 
+          {/*
+            NEFES — yazılı ve görünür (2026-11-01). Modlar sayfasının içindeyken "karıştırmadıkça kimse
+            görmüyordu"; başlıkta yalnız simge olunca da ne olduğu anlaşılmıyordu. Seans başlamadan önce,
+            başlatın hemen altında bir ritüel olarak durur. Yuva sabit yükseklik: seans başlayınca yerleşim kaymaz.
+          */}
+          <View style={{ height: 40, alignItems: 'center', justifyContent: 'center' }}>
+            {!sessionStarted && (
+              /* Ses düğmeleriyle aynı dil: ince çerçeveli kapsül, canlı halka, ad + soluk süre. Doğrudan 1 dk sakinleşme. */
+              <Touchable
+                accessibilityRole="button"
+                accessibilityLabel={language === 'tr' ? 'Başlamadan önce 1 dakika nefes' : 'One minute of breathing before you start'}
+                onPress={() => router.push('/nefes?p=sigh&m=1')}
+                style={[styles.ambientBtn, { minHeight: 36, gap: S.sm, paddingLeft: S.sm, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderColor: theme.primary + '33' }]}
+              >
+                <BreathPreview id="sigh" size={22} still={lowPowerGraphics} />
+                <Text style={[styles.ambientLabel, { color: theme.onSurface }]}>{language === 'tr' ? 'Nefes' : 'Breathe'}</Text>
+                <Text style={[styles.ambientLabel, { color: theme.onSurfaceMuted, fontWeight: '600' }]}>{language === 'tr' ? '1 dk' : '1 min'}</Text>
+              </Touchable>
+            )}
+          </View>
+
           {/* Ambient sound row */}
           <MotiView
             pointerEvents={zenMode && isActive ? "none" : "auto"}
@@ -1717,16 +1775,22 @@ export default function FocusScreen() {
               contentContainerStyle={[styles.ambientRow, { marginTop: 0 }]}
               keyboardShouldPersistTaps="handled"
             >
-              {(['rain', 'cafe', 'forest', 'ocean', 'fireplace', 'relaxing', 'binaural', 'brown'] as AmbientSound[]).map(type => {
+              {(['rain', 'wind', 'forest', 'ocean', 'fireplace', 'cafe', 'relaxing', 'binaural', 'brown'] as AmbientSound[]).map(type => {
                 const active = ambientSound === type;
+                const playing = active && audible !== 'off';
                 const cfg = SOUND_LABELS[type];
                 const IconComp = cfg.icon!;
                 return (
                   <Touchable
                     key={type}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={`${language === 'tr' ? cfg.labelTr : cfg.labelEn}${playing ? (language === 'tr' ? ', çalıyor' : ', playing') : ''}`}
                     onPress={() => {
-                      const next = active ? 'off' : type;
+                      // Seans yokken seçili ama susmuş sese dokunmak önizlemeyi YENİDEN çalar (seçim kalır);
+                      // yalnız çalarken dokunmak kapatır. Seans sürerken düz aç/kapa.
+                      const next = active && (isActive || playing) ? 'off' : type;
                       setAmbientSound(next);
                       haptic.select();
                       if (!isActive) {
@@ -1751,7 +1815,7 @@ export default function FocusScreen() {
                         : { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', borderColor: 'transparent' },
                     ]}
                   >
-                    <IconComp size={14} color={active ? theme.primary : theme.onSurfaceVariant} strokeWidth={active ? 2.2 : 1.8} />
+                    {playing ? <SoundIcon kind={type as SoundKind} size={14} color={theme.primary} /> : <IconComp size={14} color={active ? theme.primary : theme.onSurfaceVariant} strokeWidth={active ? 2.2 : 1.8} />}
                     <Text style={[styles.ambientLabel, { color: active ? theme.primary : theme.onSurfaceVariant, opacity: active ? 1 : 0.7 }]}>
                       {language === 'tr' ? cfg.labelTr : cfg.labelEn}
                     </Text>
@@ -1759,6 +1823,8 @@ export default function FocusScreen() {
                 );
               })}
             </ScrollView>
+            <AmbientStatus sound={ambientSound === 'off' ? null : (language === 'tr' ? SOUND_LABELS[ambientSound].labelTr : SOUND_LABELS[ambientSound].labelEn)}
+              audible={audible} sessionActive={isActive} paused={isPaused} language={language === 'en' ? 'en' : 'tr'} color={theme.onSurfaceVariant} accent={theme.primary} />
 
             {/* Volume Control Stepper */}
             <AnimatePresence>

@@ -101,7 +101,9 @@ const CEILING: Record<string, number> = {
   // dilinin dışında kalır ve tema değişince yerinde çakılı durur.
   // 5 → 3: sayfa zemini cam yüzeye geçti.
   'shared/components/SupportModal.tsx': 3,
-  'app/login.tsx': 4,
+  // Google "G" işaretinin dört marka rengi Google'ın kuralı (değiştirilemez); giriş ve kayıttaki kopyalar
+  // tek yere taşındı (2026-11-01).
+  'features/user/components/AuthParts.tsx': 4,
   'app/register.tsx': 4,
   // DynamicIsland LİSTEDEN ÇIKTI (4 → 0): iOS yeşilleri (#34c759/#30d158) ve düğme
   // yazısının beyazı palet jetonlarına bağlandı. Beyaz yazı ayrıca koyu temada paletin

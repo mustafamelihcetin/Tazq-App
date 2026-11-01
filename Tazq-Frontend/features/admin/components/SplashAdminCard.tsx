@@ -9,6 +9,7 @@ import { SettingsCard, SettingItem, ToggleRow, RowDivider, settingsAccents } fro
 import { useSplashPrefs } from '@/shared/store/useSplashPrefs';
 import { SPLASH_EDITIONS } from '@/shared/components/AnimatedSplash';
 import { haptic } from '@/shared/utils/haptics';
+import { AdminRestartCard } from './AdminRestartCard';
 
 /*
   AÇILIŞ EKRANI — YALNIZ SÜPER ADMIN (2026-10-31, kullanıcı: "sadece adminlere splash'i tetikleme,
@@ -66,6 +67,8 @@ export function SplashAdminCard({ lang }: { lang: 'tr' | 'en' }) {
         <ToggleRow icon={<Sparkles size={ICON.md} color="#FFFFFF" />} bg={A.legal} title={c.enabled} subtitle={c.enabledSub}
           value={enabled} onValueChange={(v: boolean) => { haptic.select(); setEnabled(v); }} theme={theme} isDark={isDark} />
       </SettingsCard>
+      {/* Yeniden başlatma da yalnız süper admin: bu kartla aynı kapıdan çizilir (settings.tsx büyümesin). */}
+      <AdminRestartCard lang={lang} />
     </View>
   );
 }

@@ -138,7 +138,8 @@ const CORPUS: Array<[string, Row, Lang?]> = [
   ['sonra halledebilirim bunu', { pri: 'Low' }],
   ['daha sonra bak', { pri: 'Low' }],
   ['yemekten sonra ilaç iç', { cat: 'health' }],
-  ['öğleden sonra ara', {}],
+  // "sonra" burada öncelik DEĞİL; 2026-11-01'den beri "öğleden sonra" bir saat (15:00).
+  ['öğleden sonra ara', { time: '15:00' }],
   ['toplantı', { cat: 'meeting' }],
 
   // ── Kategori: TUZAKLAR (eski motorun yanlışları) ─────────────────────────

@@ -221,7 +221,8 @@ export default function HomeScreen() {
       usePrefsStore.getState().setCapturePending(true); // hoş geldinden sonra "Aklındakileri yaz" (bkz. captureFlow)
     }
 
-    if (welcomeStatus === 'pending' && !welcomeSetupShown) {
+    // Açılış animasyonu bitmeden açılmaz: Modal kendi penceresinde çizildiği için açılışın ÜSTÜNE biniyordu (2026-11-01).
+    if (welcomeStatus === 'pending' && !welcomeSetupShown && splashDone) {
       welcomeSetupShown = true;
       setProfileSetupVisible(true);
       /*
@@ -231,7 +232,7 @@ export default function HomeScreen() {
         Tur, hoş geldin kapanınca kendiliğinden açılır (bkz. useTourGate → blocked).
       */
     }
-  }, [user, isGuest, prefsHydrated, welcomeStatus, isFirstLogin]);
+  }, [user, isGuest, prefsHydrated, welcomeStatus, isFirstLogin, splashDone]);
 
   /*
     MİSAFİRDEN HESABA — hoş geldinde seçilen avatar/çerçeve/motto hesaba yazılır.

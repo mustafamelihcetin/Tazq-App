@@ -14,6 +14,7 @@
         "expo-splash-screen",
         {
           "image": "./assets/brand/splash_logo_dark.png",
+          "imageWidth": 113,
           "resizeMode": "contain",
           "backgroundColor": "#F4F4F5",
           "dark": {
@@ -81,6 +82,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.tazqapp.tazq",
+      "icon": {
+        "light": "./assets/brand/icon.png",
+        "dark": "./assets/brand/ios-dark.png",
+        "tinted": "./assets/brand/ios-tinted.png"
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSMicrophoneUsageDescription": "TAZQ needs access to the microphone to record your tasks.",
@@ -97,7 +103,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/brand/adaptive_foreground.png",
         "monochromeImage": "./assets/brand/adaptive_monochrome.png",
-        "backgroundColor": "#0B0E1C"
+        "backgroundImage": "./assets/brand/adaptive_background.png",
+        "backgroundColor": "#04060E"
       },
       "package": "com.tazqapp.tazq",
       "permissions": [

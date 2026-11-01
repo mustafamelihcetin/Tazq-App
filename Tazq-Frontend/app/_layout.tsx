@@ -153,6 +153,7 @@ import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { swallow } from '@/shared/utils/swallow';
 import { httpStatusOf } from '@/shared/utils/errors';
 import { goHome } from '@/shared/utils/authNavigation';
+import { shouldAbandonGuest } from '@/features/onboarding/utils/guestResume';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -176,7 +177,24 @@ export default function RootLayout() {
   const systemScheme = useColorScheme();
   const { isLoggedIn, token, setUser, logout, _hasHydrated } = useAuthStore();
   const isGuest = useSessionStore(s => s.isGuest);
+  const sessionHydrated = useSessionStore(s => s._hasHydrated);
   const currentUser = useAuthStore((s) => s.user);
+
+  // Yarım kalan misafirlik: hoş geldini bitirmeden kapatan misafir giriş ekranından başlar (bkz. guestResume).
+  // Yalnız soğuk açılışta, bir kez — aynı oturumda "göz at"a yeni basan kişi etkilenmez.
+  const guestResumeChecked = useRef(false);
+  const prefsReadyForGuest = usePrefsStore(s => s._hasHydrated);
+  useEffect(() => {
+    const prefs = usePrefsStore.getState();
+    if (guestResumeChecked.current || !_hasHydrated || !sessionHydrated || !prefsReadyForGuest) return;
+    guestResumeChecked.current = true;
+    if (shouldAbandonGuest({ isGuest: useSessionStore.getState().isGuest, isLoggedIn: useAuthStore.getState().isLoggedIn, welcomeStatus: prefs.welcomeStatus })) {
+      useSessionStore.getState().setGuest(false);
+      useSessionStore.getState().setGuestProfile(null);
+      prefs.setWelcomeStatus('unknown');
+      prefs.setCapturePending(false);
+    }
+  }, [_hasHydrated, sessionHydrated, prefsReadyForGuest]);
 
   // Sentry kullanıcı bağlamı: giriş/çıkış ve açılışta oturum geri yüklemesinin hepsi `user`'a
   // yansıdığından, tek effect tüm durumları kapsar. Yalnız id + role (PII yok) → hatalar kime ait belli olur.

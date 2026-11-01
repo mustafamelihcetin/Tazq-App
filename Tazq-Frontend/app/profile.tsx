@@ -47,6 +47,7 @@ import { UserAvatar } from '@/features/user/components/UserAvatar';
 import { upperFor } from '@/shared/utils/localeCase';
 import { hasRing } from '@/features/user/utils/avatarRings';
 import { productivityHint } from '@/shared/utils/productivityHour';
+import { fitMaxLength } from '@/shared/utils/fitMaxLength';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
 
@@ -544,7 +545,7 @@ export default function ProfileScreen() {
                         placeholder={t.namePlaceholder || 'Your name'}
                         placeholderTextColor={theme.onSurfaceVariant + '99'}
                         style={[styles.nameInput, { color: theme.onSurface, flex: 1, height: '100%', textAlignVertical: 'center' }]}
-                        maxLength={50}
+                        maxLength={fitMaxLength(50, newName)}
                         underlineColorAndroid="transparent"
                       />
                     </View>
@@ -665,7 +666,7 @@ export default function ProfileScreen() {
                       onChangeText={setNewMotto}
                       placeholder={language === 'tr' ? 'Seni motive eden bir cümle…' : 'A sentence that motivates you…'}
                       placeholderTextColor={theme.onSurfaceVariant + '60'}
-                      maxLength={60}
+                      maxLength={fitMaxLength(60, newMotto)}
                       style={{ fontSize: F.body, color: theme.onSurface, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm, marginTop: S.xs }}
                     />
                     <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, textAlign: 'right', marginTop: S.xs }}>{newMotto.length}/60</Text>

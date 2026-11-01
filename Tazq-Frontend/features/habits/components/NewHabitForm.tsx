@@ -10,6 +10,7 @@ import { planSummary } from '@/features/habits/utils/planCopy';
 import type { PlanFields } from '@/features/habits/utils/habitSchedule';
 import { habitColor, HABIT_PALETTE, type PaletteColor } from '@/features/habits/utils/habitColor';
 import { S, R, F, ICON, MIN_TOUCH } from '@/shared/constants/tokens';
+import { fitMaxLength } from '@/shared/utils/fitMaxLength';
 
 /*
   YENİ ALIŞKANLIK FORMU — Yeni Hedef formuyla AYNI dil (2026-10-25, kullanıcı: "çok çirkin,
@@ -121,7 +122,7 @@ export function NewHabitForm({
               placeholder={c.placeholder}
               placeholderTextColor={theme.onSurfaceMuted}
               style={[styles.nameInput, { color: theme.onSurface }]}
-              maxLength={40}
+              maxLength={fitMaxLength(40, name)}
               returnKeyType="done"
               onSubmitEditing={() => { if (canAdd) onAdd(); }}
               accessibilityLabel={c.placeholder}

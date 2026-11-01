@@ -95,82 +95,81 @@ function inkBox(rel: string) {
   };
 }
 
-const LOGOS = ['assets/images/tazq_text_dark.png', 'assets/images/tazq_text_white.png'];
+/*
+  2026-11-01: imza artık SİSTEM SPLASH'İNİN logosu (kullanıcı: "yazı kayarak imzaya dönsün").
+  Eski imza (tazq_text_*.png) ile sistem logosunun oranı farklıydı; birinden ötekine geçiş göze
+  batardı. Ölçüm artık sistem splash'inin görseline bağlı.
+*/
+const LOGOS = ['assets/brand/splash_logo_dark.png', 'assets/brand/splash_logo.png'];
+const APP_JSON = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8'));
+const splashPlugin = APP_JSON.expo.plugins.find((p: unknown) => Array.isArray(p) && p[0] === 'expo-splash-screen')[1];
 
-describe('açılış ekranı kelime işaretine bağlı', () => {
-  it('iki logo varyantı AYNI ölçüde — biri değişip öteki kalamaz', () => {
-    // Açık ve koyu varyant aynı kutuyu paylaşmalı; ayrışırsa tema değiştirince
-    // logo yerinden oynar ve aralık iki temada FARKLI çıkar.
-    const [a, b] = LOGOS.map(inkBox);
-    expect(a).toEqual(b);
-  });
+/*
+  Harf gövdesi (efektsiz ölçü): splash logoları malzemeli (gölge + kenar ışığı), görselin dış
+  sınırı bu yüzden harften birkaç piksel taşar ve iki temada farklıdır. Yerleşim HARF gövdesine
+  göre yapılır; test efektlerin harfi kaydırmadığını, görsel sınırının gövdeye yakın kaldığını
+  kontrol eder.
+*/
+const BODY = { inkW: 943, inkH: 303, inkTopPad: 374, inkBottomPad: 347, width: 1024 };
+const EFFECT_PX = 20;
 
-  it('koddaki dört sabit, GÖRSELDEN ölçülenle birebir aynı', () => {
-    /*
-      Sabitler `282 / 153` gibi ÇİĞ oranlar olarak yazılı (sadeleştirilmiş bir ondalık
-      değil) — tam da buradan karşılaştırılabilsinler diye. Sadeleştiren biri testi
-      kırar ve nedenini burada okur.
-    */
-    const m = inkBox(LOGOS[0]);
-    expect(SPLASH).toContain(`const LOGO_ASPECT = ${m.width} / ${m.height};`);
-    expect(SPLASH).toContain(`const LOGO_INK_W = ${m.inkW} / ${m.width};`);
-    expect(SPLASH).toContain(`const LOGO_INK_BOTTOM = ${m.inkBottomPad} / ${m.height};`);
-    expect(SPLASH).toContain(`const LOGO_INK_TOP = ${m.inkTopPad} / ${m.height};`);
-  });
-
-  it('görselin ALT PAYI hâlâ göz ardı edilemeyecek kadar büyük', () => {
-    /*
-      Bütün düzeltmenin dayandığı olgu: resmin altında ciddi bir şeffaf pay var
-      (ölçüm: %18.3). Biri logoyu kırpılmış hâliyle değiştirirse bu pay sıfıra iner
-      ve ÇIKARMA aralığı olduğundan dar bırakır — yani kusur ters yönden geri gelir.
-      O gün bu test düşer ve LOGO_GAP_RATIO'nun yeniden bakılması gerektiğini söyler.
-    */
-    const m = inkBox(LOGOS[0]);
-    expect(m.inkBottomPad / m.height).toBeGreaterThan(0.1);
-  });
-
-  it('imza konumu resmin GÖRÜNMEZ payları hesaba katılarak veriliyor', () => {
-    /*
-      Hizalanan şey resim kutusu değil MÜREKKEP: alttan uzaklık alt şeffaf pay düşülerek,
-      dikey denge üst/alt pay farkının yarısı kadar kaydırılarak verilir.
-    */
-    expect(SPLASH).toContain('const signBottom = Math.round(height * 0.045 - boxHeight * LOGO_INK_BOTTOM);');
-    expect(SPLASH).toContain('const signLift = Math.round((boxHeight * (LOGO_INK_TOP - LOGO_INK_BOTTOM)) / 2);');
-    expect(SPLASH).not.toMatch(/marginTop: S\./);
-  });
-
-  it('her ölçü EKRANDAN türüyor — hiçbir şey sabit yazılmamış', () => {
-    /*
-      Açılış tek ölçüden (`width`) türemeli: küçük telefondan yatay tablete kadar
-      aynı oran korunsun. `Dimensions.get()` modül yüklenirken donar; döndürmede ve
-      bölünmüş ekranda yanlış ölçüde kalır.
-    */
-    expect(SPLASH).toContain('useWindowDimensions()');
-    expect(SPLASH).not.toContain("Dimensions.get('window')");
-    expect(SPLASH).toContain('const markWidth = Math.min(width * 0.22, 110);');
-    expect(SPLASH).toContain('const fontSize = Math.round(Math.min(64, Math.max(34, width * 0.115)));');
-    for (const derived of [
-      'const boxWidth = markWidth / LOGO_INK_W;',
-      'const boxHeight = boxWidth / LOGO_ASPECT;',
-      'const ribbonW = Math.round(Math.min(72, Math.max(36, width * 0.12)));',
-    ]) {
-      expect(SPLASH).toContain(derived);
+describe('açılış: sistem splash logosu kayarak imzaya döner', () => {
+  it('iki tema logosunda harf AYNI yerde — efektler gövdeyi kaydırmıyor', () => {
+    for (const m of LOGOS.map(inkBox)) {
+      expect(m.width).toBe(BODY.width);
+      expect(Math.abs(m.inkW - BODY.inkW)).toBeLessThanOrEqual(EFFECT_PX);
+      expect(Math.abs(m.inkH - BODY.inkH)).toBeLessThanOrEqual(EFFECT_PX);
+      expect(Math.abs(m.inkTopPad - BODY.inkTopPad)).toBeLessThanOrEqual(EFFECT_PX);
+      expect(Math.abs(m.inkBottomPad - BODY.inkBottomPad)).toBeLessThanOrEqual(EFFECT_PX);
     }
   });
 
-  it('kap oranı resmin oranına EŞİT — contain ölü alan bırakmıyor', () => {
+  it('koddaki ölçüler harf gövdesininkiyle birebir aynı', () => {
+    expect(SPLASH).toContain(`const NATIVE_INK_W = ${BODY.inkW} / ${BODY.width};`);
+    expect(SPLASH).toContain(`const NATIVE_INK_H = ${BODY.inkH} / ${BODY.width};`);
+    expect(SPLASH).toContain(`const NATIVE_INK_TOP = ${BODY.inkTopPad} / ${BODY.width};`);
+    expect(SPLASH).toContain(`const NATIVE_INK_BOTTOM = ${BODY.inkBottomPad} / ${BODY.width};`);
+  });
+
+  it('ilk karedeki boyut sistem splash’ininkiyle aynı (app.json imageWidth = NATIVE_LOGO)', () => {
     /*
-      boxWidth = markWidth / LOGO_INK_W ve boxHeight = boxWidth / LOGO_ASPECT olduğu
-      için kabın oranı tam LOGO_ASPECT. Eski hâlde kap 3.2 idi ve `contain` resmi
-      yükseklikten sığdırıp yanlarda ~%43 boş alan bırakıyordu; altındaki çizgi de o
-      hayalî genişliğe göre hesaplanıyordu.
+      expo-splash-screen logoyu imageWidth karesinde çizer. Kod ile app.json ayrışırsa ilk karede
+      logo büyüyüp küçülür — bu test düşer.
     */
-    const A = 282 / 153, INK_W = 245 / 282;
-    const markWidth = 393 * 0.22;
-    const boxWidth = markWidth / INK_W;
-    const boxHeight = boxWidth / A;
-    expect(boxWidth / boxHeight).toBeCloseTo(A, 6);
-    // Görünen kelime genişliği tam markWidth: kutu mürekkepten geri hesaplanıyor.
-    expect(Math.round(markWidth)).toBe(Math.round(boxWidth * INK_W));
+    const size = Number(/const NATIVE_LOGO = (\d+);/.exec(SPLASH)?.[1]);
+    expect(splashPlugin.imageWidth).toBe(size);
+    expect(splashPlugin.image).toBe('./assets/brand/splash_logo_dark.png');
+    expect(splashPlugin.dark.image).toBe('./assets/brand/splash_logo.png');
+  });
+
+  it('Android 12+ dairesine sığar — görselin köşegeni 192 dp güvenli çapın içinde', () => {
+    // Sistem simgeyi 288 dp tuvalde 192 dp daireyle kırpar; taşan harf köşesi kesilir.
+    for (const m of LOGOS.map(inkBox)) {
+      const k = splashPlugin.imageWidth / m.width;
+      expect(Math.hypot(m.inkW * k, m.inkH * k)).toBeLessThan(192);
+    }
+  });
+
+  it('beklemedeki logo ölçülü — 360 dp ekranda %25 ile %38 arası', () => {
+    // Kullanıcı (2026-11-01): 42 dp "çok küçük", 160 dp "devasa", 120 dp "bir tık küçült".
+    const share = (BODY.inkW * splashPlugin.imageWidth) / BODY.width / 360;
+    expect(share).toBeGreaterThan(0.25);
+    expect(share).toBeLessThan(0.38);
+  });
+
+  it('her ölçü EKRANDAN türüyor — imza genişliği ve konumu sabit değil', () => {
+    expect(SPLASH).toContain('useWindowDimensions()');
+    expect(SPLASH).not.toContain("Dimensions.get('window')");
+    expect(SPLASH).toContain('const markWidth = Math.min(width * 0.245, 122);');
+    expect(SPLASH).toContain('const signScale = markWidth / (NATIVE_LOGO * NATIVE_INK_W);');
+    expect(SPLASH).toContain('const fontSize = Math.round(Math.min(64, Math.max(34, width * 0.115)));');
+    expect(SPLASH).toContain('const ribbonW = Math.round(Math.min(72, Math.max(36, width * 0.12)));');
+  });
+
+  it('imzada görünen kelime genişliği tam markWidth', () => {
+    const INK_W = 943 / 1024;
+    const markWidth = 393 * 0.245;
+    const signScale = markWidth / (113 * INK_W);
+    expect(113 * INK_W * signScale).toBeCloseTo(markWidth, 6);
   });
 });

@@ -35,6 +35,7 @@ import { SegmentedControl } from '@/shared/components/SegmentedControl';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
 import { productivityHint } from '@/shared/utils/productivityHour';
+import { fitMaxLength } from '@/shared/utils/fitMaxLength';
 
 type Hour = 'morning' | 'afternoon' | 'evening' | 'night';
 
@@ -222,7 +223,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                   placeholder={c.namePh}
                   placeholderTextColor={theme.onSurfaceMuted}
                   style={[styles.input, { color: theme.onSurface, backgroundColor: theme.surfaceField }]}
-                  maxLength={30}
+                  maxLength={fitMaxLength(30, name)}
                   underlineColorAndroid="transparent"
                 />
               </View>

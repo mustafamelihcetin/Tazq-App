@@ -43,6 +43,9 @@ import { buildNlpChips } from '@/features/tasks/utils/nlpChips';
 import { EMPTY_DRAFT, applyHint, markManual, rejectTag, visibleHint, type DraftControl, type OwnedField } from '@/features/tasks/nlp/draft';
 import { CATEGORY_TAGS, type CategoryId } from '@/features/tasks/nlp/lexicon';
 import { understand, titleOf } from '@/features/tasks/nlp/understand';
+import { clampTitle } from '@/features/tasks/nlp/capture';
+import { TASK_LIMITS } from '@/features/tasks/limits';
+import { FieldLimitNote } from './FieldLimitNote';
 import { langOf, localeOf } from '@/shared/utils/lang';
 import { NlpHintRow, hasNlpHint, EMPTY_NLP_HINT, type NlpHint } from '@/features/tasks/components/NlpHintRow';
 /*
@@ -63,6 +66,7 @@ import { SegmentedControl } from '@/shared/components/SegmentedControl';
 import { ScheduleSection } from '@/features/tasks/components/form/ScheduleSection';
 import { workHourOf } from '@/shared/utils/productivityHour';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
+import { fitMaxLength } from '@/shared/utils/fitMaxLength';
 
 interface TaskForm {
   title: string;
@@ -428,13 +432,13 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
       const safeDueDate = !form.dueDate && form.dueTime ? toDateKey(new Date()) : form.dueDate;
       // YENİ görevde cümleden alana aktarılan kısımlar başlıktan çıkar ("Sunumu bitir yarın
       // 15:00 acil" → "Sunumu bitir"; cihazda görüldü). Düzenlemede motor çalışmaz, başlık olduğu gibi.
-      // Mod görevinde başlık + iki dilli yük olduğu gibi korunur (bkz. modeTaskEdit).
+      // Mod görevinde başlık + iki dilli yük olduğu gibi korunur (bkz. modeTaskEdit). Sunucu 100'ü aşanı reddeder: sesle yazılan da kısaltılır.
       const kept = protectModeContent(task, form);
-      const title = task ? kept.title : titleOf(form.title.trim(), understand(form.title.trim(), langOf(language)));
+      const title = isModeContentTask(task) ? kept.title : clampTitle(task ? kept.title : titleOf(form.title.trim(), understand(form.title.trim(), langOf(language))), TASK_LIMITS.title);
       await onSave({
         ...form,
         title,
-        description: kept.description,
+        description: isModeContentTask(task) ? kept.description : kept.description.slice(0, TASK_LIMITS.description),
         dueDate: safeDueDate,
       });
       onClose();
@@ -569,7 +573,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     onChangeText={handleTitleChange}
                     onFocus={() => setFocusedField('title')}
                     onBlur={() => setFocusedField(null)}
-                    maxLength={150}
+                    maxLength={fitMaxLength(TASK_LIMITS.title, form.title)}
                     multiline
                     submitBehavior="blurAndSubmit"
                     returnKeyType="done"
@@ -604,7 +608,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     onFocus={() => setFocusedField('desc')}
                     onBlur={() => setFocusedField(null)}
                     multiline
-                    maxLength={500}
+                    maxLength={fitMaxLength(TASK_LIMITS.description, form.description)}
                     accessibilityLabel={t.taskDescription}
                     underlineColorAndroid="transparent"
                   />
@@ -619,6 +623,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                   </Touchable>}
                 </Pressable>
               </View>
+              <FieldLimitNote title={form.title} description={form.description} language={language} color={theme.onSurfaceMuted} warn={theme.warning} />
 
               {locked ? (
                 <View style={styles.smartHint}>

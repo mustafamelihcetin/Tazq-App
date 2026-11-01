@@ -228,7 +228,9 @@ export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
                         <View style={[styles.body, { borderBottomWidth: grouped && !isBottom && !isExpanded ? HAIRLINE : 0, borderBottomColor: theme.separator }]}>
                             <MotiView animate={{ opacity: done ? 0.45 : 1 }} transition={{ type: 'timing', duration: 220 }} style={{ flex: 1, gap: S.xxs }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+                                    {/* key: iOS satır sınırı 1 → sınırsız değişince metni yeniden ölçmüyordu (açılan görevde başlık kesik kaldı). */}
                                     <Text
+                                        key={isExpanded ? 'open' : 'closed'}
                                         style={[styles.title, { color: theme.onSurface }, done && { textDecorationLine: 'line-through' }]}
                                         numberOfLines={isExpanded ? 0 : 1}
                                     >

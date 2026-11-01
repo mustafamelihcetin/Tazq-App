@@ -1,3 +1,4 @@
+import { TASK_LIMITS } from '@/features/tasks/limits';
 import { suggestHabitIcon } from '@/features/habits/utils/habitIcon';
 import type { HabitSchedule } from '@/features/habits/utils/habitSchedule';
 import type { CategoryId } from './lexicon';
@@ -79,7 +80,7 @@ export interface CaptureResult {
  *  · habitTitle 40  — alışkanlık formunun sınırı (NewHabitForm)
  * Başlıklar kelime sınırından kısalır.
  */
-export const CAPTURE_LIMITS = { inputChars: 600, items: 12, taskTitle: 100, habitTitle: 40 } as const;
+export const CAPTURE_LIMITS = { inputChars: 600, items: 12, taskTitle: TASK_LIMITS.title, habitTitle: 40 } as const;
 export const CAPTURE_MAX_ITEMS = CAPTURE_LIMITS.items;
 
 /** Başlığı kelime sınırından `max` karaktere kısaltır (kelime ortasından kesmez). */
@@ -87,7 +88,7 @@ export function clampTitle(title: string, max: number): string {
   if (title.length <= max) return title;
   const cut = title.slice(0, max + 1);
   const at = cut.lastIndexOf(' ');
-  return (at > max * 0.5 ? cut.slice(0, at) : title.slice(0, max)).replace(/[s,;:.-–—]+$/, '');
+  return (at > max * 0.5 ? cut.slice(0, at) : title.slice(0, max)).replace(/[\s,;:.\-–—]+$/u, '');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -158,6 +159,34 @@ const STATEMENT_WORDS = new Set([
 
 /** Kesilen bir kanıtın yanında yetim kalan bağlaçlar. */
 const CONNECTORS = new Set(['ve', 'and', 'on', 'every', 'her', 'günleri', 'at', 'saat']);
+
+/*
+  SIRALAYICI ("markete git sonra eczaneye uğra"). "daha sonra" düşük önceliktir, "-den sonra" bir
+  zamandır ("işten sonra"), "2 gün sonra" bir tarihtir — bunlar bölmez.
+*/
+const SEQUENCER = /(^|\s)(sonra|ardından|sonrasında|akabinde|bir\s+de|ayrıca|then|afterwards|after\s+that|also)(?=\s)/giu;
+const LEAD_SEQUENCER = /^(?:sonra|ardından|sonrasında|akabinde|bir\s+de|ayrıca|then|afterwards|after\s+that|also)\s+/iu;
+const LEAD_FIRST = /^(?:önce|ilk\s+olarak|first)\s+/iu;
+
+/*
+  EMİR ZİNCİRİ ("kira öde elektrik faturası öde"). Türkçede emir cümle sonundadır: bir emir
+  kelimesinden sonra, en az bir kelime ve yine bir emirle biten parça yeni bir iştir. Sözlük
+  yalnız yalın emir kökleri; tek kelimelik baş ("yaz tatilini planla" → "yaz" mevsim) bölmez.
+*/
+const IMPERATIVE_TR = new Set([
+  'al', 'ver', 'git', 'gel', 'öde', 'ara', 'yap', 'gönder', 'at', 'yaz', 'oku', 'bitir', 'hazırla', 'getir', 'götür',
+  'temizle', 'topla', 'yıka', 'yıkat', 'ütüle', 'uğra', 'çıkar', 'sor', 'bak', 'izle', 'dinle', 'iç', 'ye', 'koş', 'yürü',
+  'çalış', 'planla', 'ayarla', 'et', 'düzenle', 'yenile', 'bul', 'seç', 'sat', 'kur', 'değiştir', 'onayla', 'imzala',
+  'doldur', 'boşalt', 'paylaş', 'kaydet', 'indir', 'yükle', 'sil', 'söyle', 'konuş', 'tamamla', 'geçir', 'araştır',
+  'öğren', 'tekrarla', 'çöz', 'başla', 'bırak', 'as', 'yerleştir', 'sula', 'besle', 'kes', 'pişir', 'kapat', 'aç',
+  'iste', 'gör', 'yatır', 'çek', 'tak', 'bağla', 'ekle', 'çiz', 'ölç', 'dök', 'giy', 'sık', 'sar', 'yolla', 'ilet',
+]);
+/* İngilizcede emir başta: emirle başlayan parçada yeni bir emir (ardından en az bir kelime) yeni iştir. */
+const IMPERATIVE_EN = new Set([
+  'buy', 'call', 'pay', 'send', 'email', 'finish', 'write', 'read', 'clean', 'book', 'pick', 'take', 'go', 'get', 'fix',
+  'check', 'order', 'cancel', 'renew', 'submit', 'print', 'text', 'reply', 'schedule', 'visit', 'return', 'wash', 'cook',
+  'make', 'prepare', 'review', 'update', 'sign', 'mail', 'drop', 'bring', 'meet', 'ask', 'water', 'feed', 'walk', 'pack',
+]);
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  1–2. Bölme ve birleştirme
@@ -239,6 +268,77 @@ function splitByDates(text: string, sp: Span, lang: Lang, now: Date): Span[] {
   return out;
 }
 
+/** understand'ın bulduğu tarih/saat/tekrar aralıkları (mutlak konum): bunların içinde bölünmez. */
+function factSpans(text: string, sp: Span, lang: Lang, now: Date): Span[] {
+  return understand(text.slice(sp.a, sp.b), lang, now).facts
+    .filter((f) => f.at).map((f) => ({ a: sp.a + f.at![0], b: sp.a + f.at![1] }));
+}
+
+function splitSequencers(text: string, sp: Span, lang: Lang, now: Date): Span[] {
+  const piece = text.slice(sp.a, sp.b);
+  const s = normalize(piece, lang);
+  const facts = factSpans(text, sp, lang, now);
+  const out: Span[] = [];
+  let segStart = sp.a;
+  for (const m of s.matchAll(SEQUENCER)) {
+    const a = sp.a + (m.index ?? 0) + m[1].length;
+    const b = sp.a + (m.index ?? 0) + m[0].length;
+    const word = m[2].toLowerCase();
+    const before = s.slice(0, a - sp.a);
+    if (/(?:^|\s)daha\s*$/u.test(before)) continue;                                      // "daha sonra" → öncelik
+    if (/^(sonra|ardından|sonrasında)$/.test(word) && /(dan|den|tan|ten)\s*$/u.test(before)) continue; // "işten sonra"
+    if (facts.some((f) => a < f.b && b > f.a)) continue;                                 // "2 gün sonra"
+    const left = text.slice(segStart, a).replace(LEAD_FIRST, '');
+    if (words(left) < 2 || words(text.slice(b, sp.b)) < 1) continue;
+    out.push({ a: segStart, b: a });
+    segStart = b;
+  }
+  out.push({ a: segStart, b: sp.b });
+  return out;
+}
+
+function splitImperatives(text: string, sp: Span, lang: Lang, now: Date): Span[] {
+  const s = normalize(text.slice(sp.a, sp.b), lang);
+  const facts = factSpans(text, sp, lang, now);
+  const toks = [...s.matchAll(/[\p{L}\p{N}]+(?:'[\p{L}]+)?/gu)]
+    .map((m) => ({ w: m[0], a: sp.a + (m.index ?? 0), b: sp.a + (m.index ?? 0) + m[0].length }))
+    .filter((t) => !facts.some((f) => t.a < f.b && t.b > f.a));
+  const out: Span[] = [];
+  let segStart = 0;
+  let cutAt = sp.a;
+  // Dil parçadan okunur: Türkçe karaktersiz kısa yazım ("kitap oku not al") İngilizce sanılabiliyor.
+  if (toks.length && IMPERATIVE_EN.has(toks[0].w)) {
+    for (let j = 2; j < toks.length - 1; j++) {
+      if (IMPERATIVE_EN.has(toks[j].w) && IMPERATIVE_EN.has(toks[segStart].w) && j - segStart >= 2) {
+        out.push({ a: cutAt, b: toks[j].a });
+        cutAt = toks[j].a;
+        segStart = j;
+      }
+    }
+  } else {
+    for (let i = 1; i < toks.length - 2; i++) {
+      if (!IMPERATIVE_TR.has(toks[i].w) || i - segStart < 1) continue;
+      const nextImp = toks.findIndex((t, k) => k > i + 1 && IMPERATIVE_TR.has(t.w));
+      if (nextImp < 0) continue;
+      out.push({ a: cutAt, b: toks[i].b });
+      cutAt = toks[i].b;
+      segStart = i + 1;
+    }
+  }
+  out.push({ a: cutAt, b: sp.b });
+  return out;
+}
+
+/** Bölünmüş parçaların başındaki yetim sıralayıcı ("ve sonra kuaför" → "kuaför"), ilkinde "önce". */
+function stripLeads(text: string, parts: Span[]): Span[] {
+  return parts.map((p, k) => {
+    const piece = text.slice(p.a, p.b);
+    const re = k > 0 ? LEAD_SEQUENCER : parts.length > 1 ? LEAD_FIRST : null;
+    const m = re?.exec(piece);
+    return m ? { a: p.a + m[0].length, b: p.b } : p;
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  3. Parçayı anlama
 // ─────────────────────────────────────────────────────────────────────────────
@@ -257,6 +357,11 @@ interface Analysis {
   signals: Array<{ mode: CaptureModeId; text: string }>;
   /** Hiçbir kanıta, sinyale ya da bağlaca ait olmayan kelimeler. */
   residue: string[];
+  /** Başka parçaya aktarılabilecek zamanlama: tarih, tekrar, gün listesi, sıklık (saat ve öncelik DEĞİL). */
+  timing: string[];
+  /** Yalnız tarih kelimeleri (saat-only parça bunu devralır). */
+  dateText?: string;
+  hasTime: boolean;
 }
 
 function analyze(piece: string, lang: Lang, now: Date): Analysis {
@@ -264,21 +369,27 @@ function analyze(piece: string, lang: Lang, now: Date): Analysis {
   const u = understand(piece, lang, now);
   const cuts: Span[] = [];
   const evidence: string[] = [];
-  const cover = (sp: Span) => { cuts.push(sp); evidence.push(s.slice(sp.a, sp.b)); };
+  const timing: string[] = [];
+  const cover = (sp: Span, transferable = false) => {
+    cuts.push(sp);
+    evidence.push(s.slice(sp.a, sp.b));
+    if (transferable) timing.push(s.slice(sp.a, sp.b));
+  };
 
   for (const f of u.facts) {
     if (!f.at) continue;
     if (f.kind === 'date' || f.kind === 'time' || f.kind === 'recurrence' || (f.kind === 'priority' && u.priority === 'High')) {
-      cover({ a: f.at[0], b: f.at[1] });
+      cover({ a: f.at[0], b: f.at[1] }, f.kind === 'date' || f.kind === 'recurrence');
     }
   }
+  const dateFact = u.facts.find((f) => f.kind === 'date' && f.at);
 
   const days = new Set<number>();
   let daysRepeat = false;
   for (const h of scan(WEEKDAY_LIST, s)) {
     days.add(WEEKDAY[h.g[0]]);
     if (h.g[1] || h.g[2]) daysRepeat = true;
-    if (!cuts.some((c) => h.a >= c.a && h.b <= c.b)) cover(h);
+    if (!cuts.some((c) => h.a >= c.a && h.b <= c.b)) cover(h, true);
   }
   if (u.recurrence === 'Weekly' && u.recurrenceDay != null) {
     days.add((u.recurrenceDay + 6) % 7);
@@ -289,7 +400,7 @@ function analyze(piece: string, lang: Lang, now: Date): Analysis {
   let weeklyTimes: number | undefined;
   for (const re of WEEKLY_TIMES) {
     const [h] = scan(re, s);
-    if (h && weeklyTimes == null) { weeklyTimes = Math.min(7, toNum(h.g[0])); cover(h); }
+    if (h && weeklyTimes == null) { weeklyTimes = Math.min(7, toNum(h.g[0])); cover(h, true); }
   }
 
   // Aralık ("gün aşırı", "iki günde bir"): understand tekrar olarak tüketir ama tekrar türü 'None'.
@@ -304,7 +415,7 @@ function analyze(piece: string, lang: Lang, now: Date): Analysis {
   }
 
   const cueHits = scan(HABIT_CUE, s);
-  cueHits.forEach(cover);
+  cueHits.forEach((h) => cover(h, true));
 
   const signalSpans: Span[] = [];
   const signals: Analysis['signals'] = [];
@@ -326,7 +437,10 @@ function analyze(piece: string, lang: Lang, now: Date): Analysis {
   const covered = (t: Span) => [...cuts, ...signalSpans].some((c) => t.a < c.b && t.b > c.a);
   const residue = tokens.filter((t) => !covered(t) && !CONNECTORS.has(t.w)).map((t) => t.w);
 
-  return { u, cuts, evidence, days: [...days].sort((x, y) => x - y), daysRepeat, weeklyTimes, intervalDays, cue: cueHits.length > 0, signals, residue };
+  return {
+    u, cuts, evidence, days: [...days].sort((x, y) => x - y), daysRepeat, weeklyTimes, intervalDays, cue: cueHits.length > 0, signals, residue,
+    timing, dateText: dateFact?.text, hasTime: u.facts.some((f) => f.kind === 'time'),
+  };
 }
 
 /** Kendi başına iş olmayan parça: yalnız tarih/saat/tekrar/gün kelimelerinden ibaret. */
@@ -406,25 +520,28 @@ export function capture(text: string, preferredLang?: Lang, now: Date = new Date
   const out: CaptureResult = { lang, items: [], modes: [], dropped: 0 };
   if (!text?.trim()) return out;
 
-  // 1. Böl
-  let spans: Span[] = [];
-  for (const sp of sentenceSpans(text)) {
+  // 1. Böl. Aynı cümleden (noktalama arası) çıkan parçalar bir GRUP: bağlamı paylaşır.
+  type Piece = { sp: Span; an: Analysis; group: number; line: number };
+  const lineOf = (pos: number) => (text.slice(0, pos).match(/\n/g) ?? []).length;
+  const raw: Array<{ sp: Span; group: number }> = [];
+  sentenceSpans(text).forEach((sp, group) => {
     const t = trimSpan(text, sp);
-    if (t) {
-      spans.push(...splitConjunctions(text, t)
-        .flatMap((x) => splitByDates(text, x, lang, now))
-        .map((x) => trimSpan(text, x)).filter((x): x is Span => !!x));
-    }
-  }
-  spans = spans.filter((sp) => words(text.slice(sp.a, sp.b)) > 0);
+    if (!t) return;
+    const parts = splitConjunctions(text, t)
+      .flatMap((x) => splitByDates(text, x, lang, now))
+      .flatMap((x) => splitSequencers(text, x, lang, now))
+      .flatMap((x) => splitImperatives(text, x, lang, now))
+      .map((x) => trimSpan(text, x)).filter((x): x is Span => !!x);
+    stripLeads(text, parts).forEach((x) => { if (words(text.slice(x.a, x.b)) > 0) raw.push({ sp: x, group }); });
+  });
 
   // 2. Birleştir: uydu parça sonrakine (son parçaysa öncekine) katılır.
-  const pieces: Array<{ sp: Span; an: Analysis }> = spans.map((sp) => ({ sp, an: analyze(text.slice(sp.a, sp.b), lang, now) }));
+  const pieces: Piece[] = raw.map(({ sp, group }) => ({ sp, group, line: lineOf(sp.a), an: analyze(text.slice(sp.a, sp.b), lang, now) }));
   for (let i = 0; i < pieces.length;) {
     if (pieces.length > 1 && isSatellite(pieces[i].an)) {
       const j = i + 1 < pieces.length ? i + 1 : i - 1;
       const sp = { a: Math.min(pieces[i].sp.a, pieces[j].sp.a), b: Math.max(pieces[i].sp.b, pieces[j].sp.b) };
-      pieces[j] = { sp, an: analyze(text.slice(sp.a, sp.b), lang, now) };
+      pieces[j] = { ...pieces[j], sp, an: analyze(text.slice(sp.a, sp.b), lang, now) };
       pieces.splice(i, 1);
       if (j < i) i = Math.max(0, i - 1);
       continue;
@@ -432,10 +549,44 @@ export function capture(text: string, preferredLang?: Lang, now: Date = new Date
     i++;
   }
 
+  /*
+    BAĞLAM (D). Kendi zamanlaması olmayan parça şunları devralır, bu sırayla:
+      · satır başlığı: "bugün: market, postane" → başlıktaki zamanlama satırın her maddesine;
+      · aynı cümledeki önceki parça: "her gün kitap oku ve yürüyüş yap", "yarın X sonra Y";
+      · yalnız saati olan parça önceki parçanın TARİHİNİ: "yarın sabah hastane, öğleden sonra ders".
+    Virgülle ayrılmış düz liste bağlam paylaşmaz ("yarın dişçi, kitap oku" → kitap yarın değil).
+  */
+  const headers = new Map<number, string[]>();
+  text.split('\n').forEach((lineText, line) => {
+    const m = /^\s*([^:\n]{1,40}?)\s*:(?=\s|$)/.exec(lineText);
+    if (!m) return;
+    const h = analyze(m[1], lang, now);
+    if (isSatellite(h) && h.timing.length) headers.set(line, h.timing);
+  });
+  const contextOf = (k: number): string[] | null => {
+    const { an, group, line } = pieces[k];
+    if (an.timing.length) return null;
+    const header = headers.get(line);
+    if (header) return header;
+    for (let p = k - 1; p >= 0 && pieces[p].group === group; p--) if (pieces[p].an.timing.length) return pieces[p].an.timing;
+    // Saat-only parça ya da gün parçasıyla başlayan madde ("yarın sabah X, akşam Y") önceki tarihi devralır;
+    // devralınca "yarın akşam Y" olarak okunur ve gün parçası saate döner.
+    const startsWithPart = /^(sabah|akşam|morning|evening)\s/u.test(normalize(text.slice(pieces[k].sp.a, pieces[k].sp.b), lang));
+    if ((an.hasTime || startsWithPart) && !an.dateText) {
+      for (let p = k - 1; p >= 0 && pieces[p].line === line; p--) if (pieces[p].an.dateText) return [pieces[p].an.dateText!];
+    }
+    return null;
+  };
+
   // 3–5. Anla, sınıfla, mod sinyali
   const seen = new Set<string>();
-  for (const { sp, an } of pieces) {
+  for (let k = 0; k < pieces.length; k++) {
+    const { sp } = pieces[k];
     const source = text.slice(sp.a, sp.b);
+    const ctx = contextOf(k);
+    // Bağlam devralınırsa parça, bağlamın kelimeleriyle birlikte yeniden okunur; başlıktan yine kesilir.
+    const read = ctx ? `${ctx.join(' ')} ${source}` : source;
+    const an = ctx ? analyze(read, lang, now) : pieces[k].an;
     const statement = opts.statements !== false && isStatement(an);
 
     for (const sig of an.signals) {
@@ -447,7 +598,7 @@ export function capture(text: string, preferredLang?: Lang, now: Date = new Date
     if (statement || isSatellite(an)) continue;
 
     const schedule = scheduleOf(an);
-    const title = clampTitle(cap(cutTitle(source, an.cuts, lang) || source.trim(), lang), schedule ? CAPTURE_LIMITS.habitTitle : CAPTURE_LIMITS.taskTitle);
+    const title = clampTitle(cap(cutTitle(read, an.cuts, lang) || source.trim(), lang), schedule ? CAPTURE_LIMITS.habitTitle : CAPTURE_LIMITS.taskTitle);
     const key = `${schedule ? 'h' : 't'}:${title.toLocaleLowerCase(lang)}`;
     if (seen.has(key)) continue;
     seen.add(key);

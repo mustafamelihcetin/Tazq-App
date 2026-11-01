@@ -307,7 +307,19 @@ function times(s: string, lang: Lang): Candidate<Clock | null>[] {
   // "at 9" yalnız İngilizcede: Türkçede "at" bir fiil ("çöpü at 3 kere").
   if (lang === 'en') add(rx('at\\s+(\\d{1,2})(?::(\\d{2}))?'), (g) => toClock(g[0], g[1], undefined));
   add(rx(`öğlen${TSFX}|noon`), () => ({ h: 12, m: 0 }));
+  // "öğleden sonra" tek başına da saattir (birleşik ad değildir). "sabah/akşam" ise yalnız bir
+  // tarihin ardından (bkz. understand → dayPartAfterDate): "akşam yemeği" bir saat değil.
+  add(rx('öğleden\\s+sonra|in\\s+the\\s+afternoon|afternoon'), () => ({ h: 15, m: 0 }));
   return c;
+}
+
+/** "yarın sabah", "cuma akşam", "bu akşam": saat yazılmamışsa gün parçasının varsayılanı. */
+const DAY_PART: Record<string, Clock> = { sabah: { h: 9, m: 0 }, morning: { h: 9, m: 0 }, akşam: { h: 19, m: 0 }, evening: { h: 19, m: 0 } };
+function dayPartAfterDate(s: string, dateEnd: number): { hit: Hit; value: Clock } | undefined {
+  const m = /^\s+(sabah|akşam|morning|evening)(?![\p{L}\p{N}])/u.exec(s.slice(dateEnd));
+  if (!m) return undefined;
+  const start = dateEnd + m[0].length - m[1].length;
+  return { hit: { start, end: start + m[1].length, g: [m[1]] }, value: DAY_PART[m[1]] };
 }
 
 const HIGH = 'acil(?:en)?|hemen|ivedi(?:en)?|kritik|önemli|mühim|en\\s+kısa\\s+sürede|asap|urgent(?:ly)?|important|critical|high\\s+priority|top\\s+priority';
@@ -390,8 +402,12 @@ export function understand(text: string, preferredLang?: Lang, now: Date = new D
   if (date?.value) fact('date', date.hit);
   if (due) out.dueDate = toDateKey(due);
 
-  // 3. Saat
-  const time = pick(times(s, lang), taken);
+  // 3. Saat — yazılmamışsa tarihin ardındaki gün parçası ("yarın sabah" → 09:00).
+  let time: { hit: Hit; value: Clock | null } | undefined = pick(times(s, lang), taken);
+  if (!time?.value && date?.value) {
+    const part = dayPartAfterDate(s, date.hit.end);
+    if (part && taken.free(part.hit)) { taken.take(part.hit); time = part; }
+  }
   if (time?.value) {
     const base = due ?? now;
     out.dueTime = new Date(base.getFullYear(), base.getMonth(), base.getDate(), time.value.h, time.value.m).toISOString();

@@ -456,7 +456,8 @@ describe('Odak ekranı — seans kaydı', () => {
     const finishEarlyStart = FOCUS.indexOf('const finishEarly = ()');
     const finishEarlyEnd = FOCUS.indexOf('\n  };', finishEarlyStart) + 4;
     const finishEarlyBody = FOCUS.slice(finishEarlyStart, finishEarlyEnd);
-    expect(finishEarlyBody).toContain('stopAmbientSound()');
+    // 2026-11-01: ses susar ama çalar yüklü kalır (stopAmbientSoundFaded) — sıradaki seans beklemeden başlar.
+    expect(finishEarlyBody).toContain('stopAmbientSoundFaded()');
     expect(finishEarlyBody).not.toContain("setAmbientSound('off')");
   });
 });

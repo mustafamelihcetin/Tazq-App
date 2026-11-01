@@ -79,7 +79,9 @@ describe('açılış — sistem splash\'i ile aynı zemin', () => {
     */
     expect(SPLASH).toContain('<SilkRibbon');
     expect(SPLASH).toContain('<SplashGlyph');
-    expect(SPLASH).toContain('<TazqLogo');
+    // 2026-11-01: TAZQ imzası sistem splash'inin logosu — ortadan kayarak yerine oturur (bkz. splashGeometry).
+    expect(SPLASH).toContain('NATIVE_LOGO_DARK');
+    expect(SPLASH).not.toContain('<TazqLogo');
     expect(SPLASH).toContain('withSpring(1, RIBBON_SPRING)');
     // Renk sürümün küratörlü seti — kişinin vurgusu DEĞİL.
     expect(SPLASH).toContain('SplashEditionColors.');
@@ -148,7 +150,9 @@ describe('açılış bir KÖPRÜ: sistemde başlar, uygulamada biter', () => {
   });
 
   it('mürekkep VARILAN renge göre — açık zemine beyaz yazı düşmesin', () => {
-    expect(SPLASH).toContain("variant={isDark ? 'white' : 'dark'}");
+    // İmza sistem temasının logosuyla başlar (sistem splash'iyle aynı kare), zemin köprüsüyle uygulamanınkine geçer.
+    expect(SPLASH).toContain("const appLogo = isDark ? NATIVE_LOGO_WHITE : NATIVE_LOGO_DARK;");
+    expect(SPLASH).toContain("const systemLogo = systemScheme === 'dark' ? NATIVE_LOGO_WHITE : NATIVE_LOGO_DARK;");
     expect(SPLASH).toContain("const isDark = colorScheme === 'dark';");
   });
 
@@ -186,6 +190,17 @@ describe('açılış — süre ve erişilebilirlik', () => {
     expect(SPLASH).toContain('EDITIONS.find(e => e.id === forced)');
     expect(SPLASH).toContain('{shown && enabled && (');
     expect(LAYOUT).toContain('key={previewNonce}');
+  });
+
+  it('yeniden başlatma yalnız süper admine görünür ve dev/release ikisinde de çalışan yolu kullanır', () => {
+    // Kullanıcı (2026-11-01): "admin yetkililer için özel yeniden başlatma, userlar görmesin".
+    // Kart yalnız süper admine çizilen SplashAdminCard'ın içinde — aynı kapı.
+    expect(read('app/settings.tsx')).toContain("{canStaff(user?.role, 'super') && <SplashAdminCard");
+    expect(read('features/admin/components/SplashAdminCard.tsx')).toContain('<AdminRestartCard lang={lang} />');
+    const card = read('features/admin/components/AdminRestartCard.tsx');
+    // Updates.reloadAsync dev'de reddeder ve expo-updates ister; reloadAppAsync ikisinde de çalışır.
+    expect(card).toContain("import { reloadAppAsync } from 'expo';");
+    expect(card).not.toMatch(/from 'expo-updates'/);
   });
 
   it('zayıf Android: kuşak daha az parçayla ve bulanık gölgesiz çizilir', () => {

@@ -1,12 +1,11 @@
 import React, { useEffect, useMemo } from 'react';
-import { StyleSheet, Text, useColorScheme, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, useColorScheme, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 import { Canvas } from '@shopify/react-native-skia';
 import Animated, {
   Easing, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, type SharedValue,
 } from 'react-native-reanimated';
 import { DottedBackground } from './DottedBackground';
 import { SilkRibbon, type RibbonPath } from './SilkRibbon';
-import { TazqLogo } from './TazqLogo';
 import { SplashGlyph, type GlyphKind } from './SplashGlyph';
 import { haptic } from '@/shared/utils/haptics';
 import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
@@ -60,14 +59,32 @@ const rgbOf = (hex: string): [number, number, number] => [1, 3, 5].map(i => pars
 const WORD_SPRING = { mass: 0.7, damping: 15, stiffness: 220 } as const;
 
 /**
- * İMZA (TAZQ) GEOMETRİSİ — ölçülmüş (bkz. __tests__/splashGeometry). tazq_text_*.png 282×153;
- * mürekkep 245×82, üstte 43, altta 28 piksel şeffaf pay. Boyut ve hiza MÜREKKEPTEN türer.
- * (Kullanıcı: "TAZQ logosu eksik, boş kalmış gibi" — imza kompozisyonu kapatır.)
+ * İMZA = SİSTEM SPLASH'İNİN LOGOSU (2026-11-01, kullanıcı: "yazı kayarak imzaya dönsün").
+ * Sistem splash'i ortada TAZQ çiziyor, bu ekran ise boş zeminle açılıyordu: yazı bir anda
+ * kayboluyordu. Artık ilk karede AYNI görsel AYNI yerde durur, sonra küçülerek alttaki imza
+ * yerine kayar — tek, kesintisiz bir açılış. Ayrı bir imza logosu (TazqLogo) yok: iki logonun
+ * oranı farklıydı, birinden ötekine geçiş göze batardı.
+ *
+ * Ölçüler (bkz. __tests__/splashGeometry):
+ *  · expo-splash-screen logoyu app.json imageWidth (113 dp) karesinde, ekranın tam ortasına çizer
+ *    (iOS: storyboard kare, Android: 288 dp tuvalin ortasında). Cihazda doğrulandı (MRD-LX1).
+ *  · splash_logo*.png 1024×1024, simgedeki işçilikli kelime işaretinin MALZEMELİ hâli: açıkta
+ *    kâğıda basılmış grafit, koyuda simgenin gümüşü. Harf gövdesi 943×303 → ekranda 104 dp
+ *    (42 "çok küçük", 160 "devasa", 120 "bir tık büyük"; düz siyah dokuyu bozdu, düz gri ucuz durdu).
+ *    Ölçüler HARF gövdesinin; gölge/ışık katmanları kutuyu birkaç piksel taşar, yerleşimi kaydırmaz.
+ *  · Büyük harfler karenin dikey ortasında; Q'nun kuyruğu aşağı sarktığı için mürekkep kutusu
+ *    ortadan biraz aşağıda (üst pay 374, alt pay 347) — imza konumu bunu hesaba katar.
  */
-const LOGO_ASPECT = 282 / 153;
-const LOGO_INK_W = 245 / 282;
-const LOGO_INK_TOP = 43 / 153;
-const LOGO_INK_BOTTOM = 28 / 153;
+const NATIVE_LOGO = 113;
+const NATIVE_INK_W = 943 / 1024;
+const NATIVE_INK_H = 303 / 1024;
+const NATIVE_INK_TOP = 374 / 1024;
+const NATIVE_INK_BOTTOM = 347 / 1024;
+const NATIVE_LOGO_DARK = require('../../assets/brand/splash_logo_dark.png');
+const NATIVE_LOGO_WHITE = require('../../assets/brand/splash_logo.png');
+/** Sistem splash'i kapandıktan sonra logonun yerinde durduğu kısa an, sonra kayış. */
+const GLIDE_DELAY = 90;
+const GLIDE = 760;
 
 const GREET = {
   tr: { locale: 'tr-TR', greet: (h: number) => (h < 5 ? 'İyi geceler' : h < 12 ? 'Günaydın' : h < 18 ? 'İyi günler' : h < 23 ? 'İyi akşamlar' : 'İyi geceler') },
@@ -214,12 +231,19 @@ export const AnimatedSplash = ({
   const pathB: RibbonPath = edition.mirror
     ? { x0: L0, y0: height * 0.79, x1: R0, y1: height * 0.88, amp: height * 0.022, waves: 0.75, twists: 1.0, width: ribbonW }
     : { x0: R0, y0: height * 0.79, x1: L0, y1: height * 0.88, amp: height * 0.022, waves: 0.75, twists: 1.1, width: ribbonW };
-  /* İmza: genişliğin %22'si (tavanlı), alt kuşağın altında; kutu mürekkepten geri hesaplanır. */
-  const markWidth = Math.min(width * 0.22, 110);
-  const boxWidth = markWidth / LOGO_INK_W;
-  const boxHeight = boxWidth / LOGO_ASPECT;
-  const signBottom = Math.round(height * 0.045 - boxHeight * LOGO_INK_BOTTOM);
-  const signLift = Math.round((boxHeight * (LOGO_INK_TOP - LOGO_INK_BOTTOM)) / 2);
+  /*
+    İmza: mürekkep genişliğin %22'si (tavanlı), alt kuşağın altında; mürekkebin altı ekranın
+    dibinden %4.5 yukarıda. Logo ekranın ortasından (sistem splash'inin yeri) buraya kayar.
+    Kap yüksekliği yerleşimden ölçülür: sistem splash'i TAM ekranın ortasına çizer.
+  */
+  const [boxH, setBoxH] = React.useState(height);
+  const onBoxLayout = (e: LayoutChangeEvent) => setBoxH(e.nativeEvent.layout.height);
+  const markWidth = Math.min(width * 0.245, 122);
+  const signScale = markWidth / (NATIVE_LOGO * NATIVE_INK_W);
+  const signInkH = NATIVE_LOGO * NATIVE_INK_H * signScale;
+  // Mürekkep merkezinin resim merkezinden aşağı kayması (ölçek merkezden uygulanır, kayma da ölçeklenir).
+  const inkOffset = ((NATIVE_INK_TOP - NATIVE_INK_BOTTOM) / 2) * NATIVE_LOGO;
+  const signY = Math.round(boxH - boxH * 0.045 - signInkH / 2 - boxH / 2 - inkOffset * signScale);
   const rgbA = rgbOf(brand);
   const rgbB = rgbOf(ink);
 
@@ -248,6 +272,9 @@ export const AnimatedSplash = ({
   const draws = [d0, d1, d2];
   const content = useSharedValue(1);
   const screen = useSharedValue(1);
+  const glide = useSharedValue(0);
+  // Nokta dokusu sistem splash'inde yok: bir anda belirmesin, logo kayarken gelsin.
+  const dots = useSharedValue(0);
 
   const shown = themeReady && langReady && prefsReady && canStart;
 
@@ -277,11 +304,14 @@ export const AnimatedSplash = ({
   useEffect(() => {
     if (!shown) return;
     onReady();
+    dots.value = withTiming(1, { duration: reduceMotion ? 0 : GLIDE });
     // Hareketi Azalt: her şey yerinde. Admin açılışı kapattıysa: hiçbir şey çizilmez, hazır olunca geçilir.
+    // İkisinde de logo sistem splash'indeki yerinde kalır ve ekranla birlikte söner.
     if (reduceMotion || !enabled) {
       setIntroDone(true);
       return;
     }
+    glide.value = withDelay(GLIDE_DELAY, withTiming(1, { duration: GLIDE, easing: Easing.out(Easing.cubic) }));
     // Kuşaklar açılarak gelir (uç yol boyunca ilerler); dalga ve bükülme süre boyunca akar.
     headA.value = withSpring(1, RIBBON_SPRING);
     headB.value = withDelay(RIBBON_B_DELAY, withSpring(1, RIBBON_SPRING));
@@ -318,21 +348,32 @@ export const AnimatedSplash = ({
   const bridgeStyle = useAnimatedStyle(() => ({ opacity: bridge.value }));
   const contentStyle = useAnimatedStyle(() => ({ opacity: content.value, transform: [{ scale: 0.97 + content.value * 0.03 }] }));
   const greetStyle = useAnimatedStyle(() => ({ opacity: w0.value }));
-  // İmza son sözcükle birlikte belirir; çıkışta içerikle söner.
-  const signStyle = useAnimatedStyle(() => ({ opacity: Math.min(w2.value, content.value), transform: [{ translateY: -signLift + (1 - w2.value) * 8 }] }));
+  // Logo sistem splash'inin yerinden imzaya kayar; çıkışta içerikle söner.
+  const signStyle = useAnimatedStyle(() => ({
+    opacity: content.value,
+    transform: [{ translateY: glide.value * signY }, { scale: 1 + glide.value * (signScale - 1) }],
+  }));
+  // Sistem logosu (sistem temasının rengi) uygulamanın temasına zemin köprüsüyle birlikte geçer.
+  const systemLogoStyle = useAnimatedStyle(() => ({ opacity: needsBridge ? 1 - bridge.value : 1 }));
+  const appLogoStyle = useAnimatedStyle(() => ({ opacity: needsBridge ? bridge.value : 0 }));
+  const dotsStyle = useAnimatedStyle(() => ({ opacity: dots.value }));
+  const systemLogo = systemScheme === 'dark' ? NATIVE_LOGO_WHITE : NATIVE_LOGO_DARK;
+  const appLogo = isDark ? NATIVE_LOGO_WHITE : NATIVE_LOGO_DARK;
 
   return (
-    <Animated.View style={[styles.container, { backgroundColor: systemBg }, screenStyle]}>
+    <Animated.View onLayout={onBoxLayout} style={[styles.container, { backgroundColor: systemBg }, screenStyle]}>
       {/* Uygulamanın rengi: sistem renginin üstünde açılır (zemin köprüsü). */}
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: bg }, bridgeStyle]} />
 
       {/* Ana ekranın kendi zemin dokusu — değerler BİREBİR aynı (bkz. app/index.tsx). */}
-      <DottedBackground
-        color={isDark ? Colors.dark.onBackground : Colors.light.onBackground}
-        opacity={isDark ? 0.05 : 0.08}
-        size={24}
-        dotSize={1}
-      />
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, dotsStyle]}>
+        <DottedBackground
+          color={isDark ? Colors.dark.onBackground : Colors.light.onBackground}
+          opacity={isDark ? 0.05 : 0.08}
+          size={24}
+          dotSize={1}
+        />
+      </Animated.View>
 
       {/*
         Süs kuşakları — yazısız, 3B ışıklı ipek (bkz. SilkRibbon). Tuval EN BAŞTAN kurulur (kuşaklar
@@ -356,12 +397,19 @@ export const AnimatedSplash = ({
             ))}
           </Animated.View>
 
-          {/* İMZA — ekranın dibinde, alt kuşağın altında. Mürekkep VARILAN zemine göre. */}
-          <Animated.View style={[styles.sign, { bottom: signBottom }, signStyle]}>
-            <TazqLogo height={boxHeight} width={boxWidth} variant={isDark ? 'white' : 'dark'} />
-          </Animated.View>
         </>
       )}
+
+      {/*
+        İMZA — ilk karede sistem splash'inin logosuyla AYNI yer ve boyut (ekranın ortası, 100 dp kare),
+        sonra alt kuşağın altına kayar. Koşulsuz çizilir: tema/dil okunurken de ekranda kalır.
+      */}
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.signLayer]}>
+        <Animated.View style={[styles.sign, signStyle]}>
+          <Animated.Image source={systemLogo} style={[styles.signImage, systemLogoStyle]} />
+          <Animated.Image source={appLogo} style={[styles.signImage, appLogoStyle]} />
+        </Animated.View>
+      </Animated.View>
     </Animated.View>
   );
 };
@@ -378,8 +426,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  signLayer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   sign: {
+    width: NATIVE_LOGO,
+    height: NATIVE_LOGO,
+  },
+  signImage: {
     position: 'absolute',
-    alignSelf: 'center',
+    top: 0,
+    left: 0,
+    width: NATIVE_LOGO,
+    height: NATIVE_LOGO,
   },
 });

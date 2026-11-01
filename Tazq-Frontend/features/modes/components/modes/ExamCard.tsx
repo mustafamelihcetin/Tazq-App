@@ -34,6 +34,7 @@ import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
+import { fitMaxLength } from '@/shared/utils/fitMaxLength';
 
 // Vurgu merkezi paletten (bkz. Colors.ModeAccents) — tema-duyarlı + kontrast güvenli.
 const BASE_CALENDAR_WIDTH = 340;
@@ -120,7 +121,7 @@ function PresetEditor({ name, onName, preset, onPreset, suggestions, onSuggestio
             }
           }}
           placeholder={placeholder}
-          returnKeyType="done" maxLength={60}
+          returnKeyType="done" maxLength={fitMaxLength(60, name)}
           onSubmitEditing={() => { if (suggestions.length > 0) { const top = suggestions[0]; onName(top.shortName); onPreset(top); onSuggestions([]); } }}
         />
       {(suggestions.length > 0 || (name.trim().length > 0 && !preset)) && (
