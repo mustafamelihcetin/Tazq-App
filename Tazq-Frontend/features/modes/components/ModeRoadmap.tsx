@@ -4,10 +4,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Compass, Map as MapIcon, Target, Sprout, Unlock, Flag } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
+import { SheetGrabber } from '@/shared/components/DragToClose';
 import { AlertHost } from '@/shared/components/CustomAlert';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
-import { S, R, F, W, B, ICON } from '@/shared/constants/tokens';
+import { S, R, F, W, B, ICON, SCRIM } from '@/shared/constants/tokens';
 import { useStagedPlanStore } from '@/features/modes/store/useStagedPlanStore';
 import { modePhase } from '@/features/modes/utils/modePhase';
 import type { ModeSummary, ModeSummaryEntry } from '@/features/modes/hooks/useActiveModeSummary';
@@ -142,12 +143,12 @@ export function ModeRoadmapSheet({ visible, summary, onClose }: { visible: boole
   const c = COPY[lang];
   const live = started(summary.entries);
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal supportedOrientations={['portrait', 'landscape']} visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <Touchable accessibilityRole="button" accessibilityLabel={c.close} style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
         <View style={[styles.sheet, { paddingBottom: insets.bottom + S.lg }]}>
           <GlassSurface corners="top" />
-          <View style={styles.grabber}><View style={[styles.grabberBar, { backgroundColor: theme.onSurface + '1F' }]} /></View>
+          <SheetGrabber onClose={onClose} color={theme.onSurface + '1F'} />
           <View style={styles.header}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.title, { color: theme.onSurface }]} accessibilityRole="header">{live.length > 0 ? c.title : c.howTitle}</Text>
@@ -185,7 +186,7 @@ const styles = StyleSheet.create({
   howIcon: { width: 32, height: 32, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   pill: { flexDirection: 'row', alignItems: 'center', gap: S.xs, alignSelf: 'flex-start', minHeight: 36, paddingHorizontal: S.smd, borderRadius: R.full, borderWidth: B.thin },
   dot: { width: 8, height: 8, borderRadius: R.full },
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: SCRIM },
   sheet: { maxHeight: '80%', borderTopLeftRadius: R.sheet, borderTopRightRadius: R.sheet, paddingHorizontal: S.lg, paddingTop: S.sm, overflow: 'hidden', gap: S.md },
   grabber: { alignItems: 'center' },
   grabberBar: { width: 36, height: 4, borderRadius: R.xs },

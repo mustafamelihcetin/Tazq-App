@@ -62,7 +62,7 @@ function resolveIsDark(): boolean {
  * Widget'ın kendi sıralama mantığı YOK; aynı kuralı burada tekrarlamak, ikisinin
  * zamanla ayrışması demekti — sırayı olduğu gibi devralıp yalnız FİLTRELİYORUZ.
  */
-function todayTasks(): { done: number; total: number; titles: string[] } {
+function todayTasks(): { done: number; total: number; titles: string[]; items: { id: string; title: string; done: boolean }[] } {
   // `tasks` HAM dizi arşivlenmişleri de içerir (arşiv ayrı bir sütun değil,
   // `isArchived` bayrağıyla yaşıyor — bkz. useTaskStore.useActiveTasks). Süzülmeseydi
   // arşivlenmiş ama tarihi geçmemiş bir görev widget'ta yanlışlıkla görünürdü.
@@ -81,7 +81,9 @@ function todayTasks(): { done: number; total: number; titles: string[] } {
   const titles = open.slice(0, WIDGET_MAX_TASK_TITLES).map(t =>
     t.title.length > WIDGET_TASK_TITLE_MAX_CHARS ? `${t.title.slice(0, WIDGET_TASK_TITLE_MAX_CHARS - 1)}…` : t.title
   );
-  return { done: doneToday, total: open.length + doneToday, titles };
+  // Dokunulabilir liste (widget görevi tamamlar; bkz. targets/tazq-widget/intents.swift).
+  const items = open.slice(0, WIDGET_MAX_TASK_TITLES).map((t, i) => ({ id: String(t.id), title: titles[i], done: false }));
+  return { done: doneToday, total: open.length + doneToday, titles, items };
 }
 
 interface ModeCountdownEntry {
@@ -200,6 +202,10 @@ export function pushWidgetSummary(force = false): void {
     // Widget listeyi kendi biçiminde ister; JSON.stringify edilmiş dizi olarak
     // yazılıyor (UserDefaults düz tipleri tercih eder), Swift tarafı çözüyor.
     taskTitlesJson: JSON.stringify(tasks.titles),
+    // Dokunulabilir widget listeleri — JSON METİN (iç içe sözlüğü UserDefaults'a ham yazmak, içinde null varsa
+    // yerel istisnayla çöker; metin her zaman güvenli). Swift: widgets.swift TazqProvider.items.
+    widgetTasksJson: JSON.stringify(tasks.items),
+    widgetHabitsJson: JSON.stringify(watchHabits.slice(0, 7).map(h => ({ id: h.id, title: h.name || '', emoji: h.emoji || '', color: h.color || null, done: h.completedToday }))),
     // DÜZ DİZİ — `taskTitlesJson`'ın aksine string'e ÇEVRİLMİYOR. Watch tarafı bu dict'i
     // doğrudan `JSONDecoder`'a veriyor (bkz. SessionStore.swift `applyData`); widget ise
     // UserDefaults'tan okuyor. Alan adı ve alt-alan adları `WatchHabit` Codable struct'ıyla
@@ -278,4 +284,39 @@ export function initWatchBridge(): () => void {
   });
 
   return () => sub.remove();
+}
+
+/**
+ * WIDGET'TAN GELEN İŞARETLEMELER (2026-11-01). Widget görevi/alışkanlığı kendi sürecinde işaretler ve App Group
+ * kuyruğuna yazar; burada uygulama öne gelince GERÇEK yoldan uygulanır:
+ *  · görev → completeTask (sunucu + çevrimdışı kuyruk; bildirim eylemiyle aynı tek yol), yalnız tamamlama;
+ *  · alışkanlık → toggleDate, istenen son duruma getirir (zaten öyleyse dokunmaz — çift dokunuş geri almaz).
+ * Eski derlemede native fonksiyon yoksa sessizce hiçbir şey yapmaz.
+ */
+export async function applyWidgetActions(): Promise<void> {
+  const bridge = getBridge();
+  if (!bridge?.takeWidgetActions) return;
+  let list: { kind?: string; id?: string; done?: boolean }[] = [];
+  try { list = JSON.parse(await bridge.takeWidgetActions()) ?? []; } catch (e) { swallow('widgetBridge.takeActions', e); return; }
+  if (!Array.isArray(list) || list.length === 0) return;
+  const todayKey = fmtDateKey(new Date());
+  for (const a of list) {
+    if (!a || typeof a.id !== 'string') continue;
+    if (a.kind === 'task' && a.done) {
+      const id = Number(a.id);
+      const task = useTaskStore.getState().tasks.find(t => t.id === id);
+      if (!task || task.isCompleted) continue;
+      try {
+        const { completeTask } = require('@/features/tasks/utils/taskActions');
+        await completeTask(id);
+      } catch (e) { swallow('widgetBridge.completeTask', e, { capture: true }); }
+    } else if (a.kind === 'habit') {
+      const { toggleDate, habits } = useHabitStore.getState();
+      const habit = habits.find(h => h.id === a.id);
+      if (!habit) continue;
+      const isDone = (habit.completedDates ?? []).includes(todayKey);
+      if (isDone !== !!a.done) toggleDate(a.id, todayKey);
+    }
+  }
+  pushWidgetSummary(true); // widget'ın iyimser listesini gerçek durumla eşitle
 }

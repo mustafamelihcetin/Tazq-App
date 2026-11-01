@@ -48,6 +48,14 @@ public class TazqWidgetBridgeModule: Module {
     // JSON string olarak alınır — Expo Modules'ın [String: Any] dönüştürmesi
     // Watch tarafındaki JSONDecoder ile aynı şemayı zorlamak yerine burada
     // tek noktadan kontrol edilsin diye.
+    // Widget'tan dokunarak yapılan işaretlemeler (bkz. targets/tazq-widget/intents.swift) — okunur ve SİLİNİR.
+    AsyncFunction("takeWidgetActions") { () -> String in
+      guard let defaults = UserDefaults(suiteName: appGroupID) else { return "[]" }
+      let json = defaults.string(forKey: "widgetActionsJson") ?? "[]"
+      defaults.removeObject(forKey: "widgetActionsJson")
+      return json
+    }
+
     AsyncFunction("updateSharedData") { (json: String) in
       guard let defaults = UserDefaults(suiteName: appGroupID),
             let data = json.data(using: .utf8),

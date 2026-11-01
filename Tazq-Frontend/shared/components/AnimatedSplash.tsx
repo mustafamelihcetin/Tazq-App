@@ -279,11 +279,20 @@ export const AnimatedSplash = ({
   const shown = themeReady && langReady && prefsReady && canStart;
 
   // Zemin köprüsü: tema diskten okunur okunmaz, ekran hâlâ boşken.
+  /*
+    ZEMİN HER ZAMAN YAZIYLA AYNI TEMADA (2026-11-01, kullanıcı: "iPad'de tema aydınlık, splash koyu geldi, yazılar
+    siyahtı — ciddi açık"). Yazı rengi uygulamanın temasından, zemin ise köprü katmanından geliyor; köprü bir
+    sebeple 1'e varmazsa (ilk değer ilk karede donuyor, animasyon yeniden yüklemede düşebiliyor) koyu zeminde koyu
+    yazı kalıyordu. Artık: tema okununca köprü kesin 1'e gider; animasyon düşerse süre sonunda doğrudan yazılır.
+  */
   useEffect(() => {
-    if (!needsBridge || !themeReady) return;
-    bridge.value = withTiming(1, { duration: reduceMotion ? 0 : BG_BRIDGE, easing: Easing.inOut(Easing.quad) });
+    if (!themeReady) return;
+    if (!needsBridge || reduceMotion) { bridge.value = 1; return; }
+    bridge.value = withTiming(1, { duration: BG_BRIDGE, easing: Easing.inOut(Easing.quad) });
+    const t = setTimeout(() => { bridge.value = 1; }, BG_BRIDGE + 80);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [needsBridge, themeReady, reduceMotion]);
+  }, [needsBridge, themeReady, reduceMotion, bg]);
 
   const startOutro = (delay: number) => {
     if (outroStarted.current) return;
@@ -361,7 +370,9 @@ export const AnimatedSplash = ({
   const appLogo = isDark ? NATIVE_LOGO_WHITE : NATIVE_LOGO_DARK;
 
   return (
-    <Animated.View onLayout={onBoxLayout} style={[styles.container, { backgroundColor: systemBg }, screenStyle]}>
+    // Tema okununca kabın KENDİ zemini de uygulamanın temasına geçer (köprü katmanına bağlı kalmadan) — iPad'de
+    // köprü üstte görünmediğinde koyu zemin + açık tema yazısı kalıyordu (2026-11-01, ikinci rapor).
+    <Animated.View onLayout={onBoxLayout} style={[styles.container, { backgroundColor: themeReady && shown ? bg : systemBg }, screenStyle]}>
       {/* Uygulamanın rengi: sistem renginin üstünde açılır (zemin köprüsü). */}
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: bg }, bridgeStyle]} />
 

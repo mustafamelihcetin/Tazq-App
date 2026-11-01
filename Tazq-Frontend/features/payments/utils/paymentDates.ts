@@ -87,6 +87,21 @@ export interface PaymentView {
   days: number;
   /** "Bu ay" bölümüne mi düşer — bu ayın dönemi ya da gecikmiş. */
   thisMonth: boolean;
+  /** Taksitliyse satırdaki dönemin kaçıncı taksit olduğu ("3/12"). */
+  installment?: { no: number; total: number };
+}
+
+/**
+ * TAKSİT NUMARASI (2026-11-01): dönem anahtarının başlangıçtan kaçıncı dönem olduğu (1'den). Taksitsizse null.
+ * Aylık "YYYY-MM", yıllık "YYYY" — ikisi de aynı formülle (ay/yıl farkı + 1).
+ */
+export function installmentNo(p: Payment, cycleKey: string): number | null {
+  if (!p.installmentCount || !p.installmentStart || p.recurrence === 'Once') return null;
+  const idx = (k: string) => {
+    const [y, m] = k.split('-').map(Number);
+    return p.recurrence === 'Yearly' ? y : y * 12 + (m - 1);
+  };
+  return idx(cycleKey) - idx(p.installmentStart) + 1;
 }
 
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -105,12 +120,20 @@ export function paymentView(p: Payment, today: Date = new Date()): PaymentView |
   const sameMonth = (d: Date) => d.getFullYear() === t0.getFullYear() && d.getMonth() === t0.getMonth();
   const daysTo = (d: Date) => Math.round((startOfDay(d).getTime() - t0.getTime()) / 86400000);
 
+  const inst = (d: Date) => {
+    const no = installmentNo(p, cycleKeyOf(p, d));
+    return no == null ? undefined : { no, total: p.installmentCount as number };
+  };
+
   if (paid && sameMonth(cycle)) {
-    return { p, date: cycle, status: 'paid', days: daysTo(cycle), thisMonth: true };
+    return { p, date: cycle, status: 'paid', days: daysTo(cycle), thisMonth: true, installment: inst(cycle) };
   }
   const next = nextDueDateOf(p, today);
   if (!next) return null;
+  const installment = inst(next);
+  // Taksitler bitti → ödeme kapanır (son taksit ödendiği ay "ödendi" olarak yukarıda kalır).
+  if (installment && installment.no > installment.total) return null;
   const days = daysTo(next);
   const status: PaymentStatus = days < 0 ? 'overdue' : 'due';
-  return { p, date: next, status, days, thisMonth: status === 'overdue' || sameMonth(next) };
+  return { p, date: next, status, days, thisMonth: status === 'overdue' || sameMonth(next), installment };
 }

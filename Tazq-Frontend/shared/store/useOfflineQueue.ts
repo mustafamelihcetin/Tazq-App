@@ -32,7 +32,7 @@ export type OfflineOp =
   | { type: 'create-payment'; tempId: number; payload: Record<string, any> }
   | { type: 'update-payment'; id: number; payload: Record<string, any> }
   | { type: 'delete-payment'; id: number }
-  | { type: 'mark-paid-payment'; id: number; cycleKey: string }
+  | { type: 'mark-paid-payment'; id: number; cycleKey: string; amount?: number }
   | { type: 'unmark-paid-payment'; id: number };
 
 interface OfflineQueueState {

@@ -31,12 +31,12 @@ describe('buildWeekSentence — sıfırlar cümleye girmez', () => {
     expect(plain(buildWeekSentence(W({ tasks: 3 }), 'tr'))).toBe('Bu hafta ⟨3 görev⟩ bitirdin.');
   });
   it('yalnız alışkanlık', () => {
-    expect(plain(buildWeekSentence(W({ habitPct: 40, hasHabits: true }), 'tr'))).toBe('Bu hafta alışkanlıklarda ⟨%40⟩.');
+    expect(plain(buildWeekSentence(W({ habitPct: 40, hasHabits: true }), 'tr'))).toBe("Bu hafta alışkanlıklarının ⟨%40'ını⟩ yaptın.");
   });
   it('hepsi dolu — süre boşluklu', () => {
     expect(plain(buildWeekSentence(W({ focusMin: 375, tasks: 9, habitPct: 54, hasHabits: true }), 'tr')))
-      .toBe('Bu hafta ⟨6 sa 15 dk⟩ odaklandın, ⟨9 görev⟩ bitirdin; alışkanlıklarda ⟨%54⟩.');
+      .toBe("Bu hafta ⟨6 sa 15 dk⟩ odaklandın, ⟨9 görev⟩ bitirdin ve alışkanlıklarının ⟨%54'ünü⟩ yaptın.");
     expect(plain(buildWeekSentence(W({ focusMin: 375, tasks: 1, habitPct: 54, hasHabits: true }), 'en')))
-      .toBe('This week you focused ⟨6h 15m⟩ and finished ⟨1 task⟩; habits at ⟨54%⟩.');
+      .toBe('This week you focused ⟨6h 15m⟩, finished ⟨1 task⟩ and kept ⟨54%⟩ of your habits.');
   });
 });

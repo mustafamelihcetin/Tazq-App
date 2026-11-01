@@ -87,7 +87,12 @@ function mergeSpeechText(existing: string, incoming: string): string {
 class VoiceService {
   private _isListening = false;
   private _options: VoiceOptions | null = null;
-  private _ended = false;
+  /*
+    BAŞLANGIÇTA "OTURUM YOK" (2026-11-01, kullanıcı: "mikrofonla kaydet dedim, uygulama komple kapandı"). false idi:
+    hiç başlatılmamış oturumu durdurmak bile yerel Voice.stop()'a iniyordu; iOS'ta ses motoru çalışmıyorken ya da
+    yeniden başlatma zamanlayıcısıyla aynı anda durdurulunca uygulama çöküyordu. Artık çalışmayan oturum = no-op.
+  */
+  private _ended = true;
   private _timeout: ReturnType<typeof setTimeout> | null = null;
   private _restartHandle: ReturnType<typeof setTimeout> | null = null;
   private _committedText = '';

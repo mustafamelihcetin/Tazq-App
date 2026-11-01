@@ -48,7 +48,7 @@ export async function completeTask(taskId: number): Promise<CompleteResult> {
   try {
     const { getModeInfoForTask } = require('@/features/modes/utils/modeHelpers');
     const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
-    const { useCompletionStore } = require('@/features/user/store/useCompletionStore');
+    const { useCompletionStore } = require('@/shared/store/useCompletionStore');
     const prefsState = usePrefsStore.getState();
     if (getModeInfoForTask(task, prefsState, null)) {
       const planMode = task.tags?.find(tag =>

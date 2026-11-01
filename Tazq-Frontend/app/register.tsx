@@ -1,20 +1,18 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, useWindowDimensions, KeyboardAvoidingView, Platform, ActivityIndicator, TouchableWithoutFeedback, Keyboard, ScrollView } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, TouchableWithoutFeedback, Keyboard, ScrollView } from 'react-native';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MotiView, MotiText } from 'moti';
+import { MotiView } from 'moti';
 import { useRouter } from 'expo-router';
-import { Mail, Lock, User, ArrowRight, AlertCircle, Eye, EyeOff, Check, Sparkles } from 'lucide-react-native';
-import Svg, { Path } from 'react-native-svg';
+import { Mail, Lock, User, AlertCircle, Eye, EyeOff, Check } from 'lucide-react-native';
 import { AuthService } from '@/shared/services/api';
 import { useAuthStore } from '@/features/user';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
-import { GlassCard } from '@/shared/components/GlassCard';
 import { AnimatedBackground } from '@/shared/components/AnimatedBackground';
-import { TazqLogo } from '@/shared/components/TazqLogo';
-import { ICON, S, R, F, scale, verticalScale, moderateScale, B } from '@/shared/constants/tokens';
+import { AUTH_COPY, AuthBrand, AuthDivider, AuthField, SocialButton } from '@/features/user/components/AuthParts';
+import { ICON, S, R, F, scale, verticalScale } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { BackButton } from '@/shared/components/BackButton';
 import { validateRegister } from '@/shared/utils/validation';
@@ -25,30 +23,40 @@ import { swallow } from '@/shared/utils/swallow';
 import { useSessionStore } from '@/shared/store/useSessionStore';
 import { goHomeAfterAuth } from '@/shared/utils/authNavigation';
 
-const GoogleIcon = ({ color }: { color: string }) => (
-  <Svg width={20} height={20} viewBox="0 0 24 24">
-    <Path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-    <Path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-1 .67-2.28 1.07-3.71 1.07-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-    <Path d="M5.84 14.11c-.22-.67-.35-1.39-.35-2.11s.13-1.44.35-2.11V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.83z" fill="#FBBC05" />
-    <Path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
-  </Svg>
-);
+/*
+  KAYIT — giriş ekranıyla aynı dil (2026-11-01; bkz. AuthParts): marka, sosyal önce, e-posta formu,
+  onay kutusu, tek birincil düğme. "Uygulamayı keşfet" soluk bir bağlantıya indi (özendirilmez).
+*/
+const REGISTER_COPY = {
+  tr: {
+    name: 'Adın', password: 'Şifre (en az 8 karakter)', create: 'Hesap oluştur',
+    showPassword: 'Şifreyi göster', hidePassword: 'Şifreyi gizle',
+    consentA11y: 'Kullanım koşullarını, gizlilik politikasını ve KVKK aydınlatma metnini okudum, kabul ediyorum',
+    consentLead: '13 yaşından büyüğüm; ', terms: 'Kullanıcı Sözleşmesi', sep1: ', ', privacy: 'Gizlilik Politikası',
+    sep2: ' ve ', kvkk: 'KVKK Aydınlatma Metni', consentTail: "'ni okudum, kabul ediyorum.",
+    socialLegal: 'Google veya Apple ile devam ederek aynı koşulları kabul etmiş olursun.',
+    haveAccount: 'Zaten hesabın var mı?', haveAccountA11y: 'Zaten hesabın var mı? Giriş yap',
+    explore: 'Önce uygulamayı tanı',
+  },
+  en: {
+    name: 'Your name', password: 'Password (8+ characters)', create: 'Create account',
+    showPassword: 'Show password', hidePassword: 'Hide password',
+    consentA11y: 'I have read and accept the terms, privacy policy and data notice',
+    consentLead: "I'm 13 or older and accept the ", terms: 'Terms of Service', sep1: ', ', privacy: 'Privacy Policy',
+    sep2: ' and ', kvkk: 'Data Protection Notice', consentTail: '.',
+    socialLegal: 'By continuing with Google or Apple you accept the same terms.',
+    haveAccount: 'Already have an account?', haveAccountA11y: 'Already have an account? Sign in',
+    explore: 'See the app first',
+  },
+};
 
-const AppleIcon = ({ color }: { color: string }) => (
-  <Svg width={20} height={20} viewBox="0 0 24 24">
-    <Path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.78 1.18-.19 2.31-.88 3.5-.84 1.58.11 2.81.7 3.56 1.81-3.33 1.94-2.76 6.5.42 7.79-.81 1.6-1.57 3.12-2.56 3.43zM12.03 7.25C11.83 4.2 14.16 1.5 17 1c.29 3.22-2.51 5.92-4.97 6.25z" fill={color} />
-  </Svg>
-);
 
 export default function RegisterScreen() {
   const { theme, isDark } = useAppTheme();
   const { t, language } = useLanguageStore();
   const tr = language === 'tr';
   const router = useRouter();
-  const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const isSmallScreen = height < 750;
-  const isMediumScreen = height < 850;
 
   const setAuth = useAuthStore(state => state.setAuth);
 
@@ -265,284 +273,151 @@ export default function RegisterScreen() {
     }
   };
 
+  const c = REGISTER_COPY[language === 'en' ? 'en' : 'tr'];
+  const a = AUTH_COPY[language === 'en' ? 'en' : 'tr'];
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const goLegal = (doc: 'terms' | 'privacy' | 'kvkk') => router.push({ pathname: '/legal', params: { doc } });
+
   // Klavyeyi kapatan sarmalayıcı `accessible={false}`: kendisi ekran okuyucu ağacının
   // dışında kalır, İÇERİĞİ değil (no-hide-descendants tüm ekranı susturur).
   return (
     <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
         <AnimatedBackground />
 
         <SafeAreaView style={styles.safeArea}>
           <BackButton onPress={() => router.back()} style={[styles.backButton, { top: insets.top + 12 }]} />
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior="padding"
-          >
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
           <ScrollView
-            style={styles.keyboardView}
-            contentContainerStyle={[styles.scrollContent, { justifyContent: 'space-between', paddingVertical: isSmallScreen ? 16 : 32 }]}
+            contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <View style={{ gap: isSmallScreen ? 8 : isMediumScreen ? 12 : 20, width: '100%' }}>
-              <MotiView
-                from={{ opacity: 0, scale: 0.8, translateY: -20 }}
-                animate={{ opacity: 1, scale: 1, translateY: 0 }}
-                style={styles.header}
-              >
-                <TazqLogo size={isSmallScreen ? 36 : isMediumScreen ? 46 : 56} />
-                <MotiText
-                  from={{ opacity: 0, translateY: 10 }}
-                  animate={{ opacity: 1, translateY: 0 }}
-                  transition={{ delay: 200 }}
-                  style={[styles.title, { color: theme.onSurface, fontSize: isSmallScreen ? 18 : isMediumScreen ? 22 : 26, marginTop: isSmallScreen ? 4 : 8 }]}
-                >
-                  {t.login.signUp}
-                </MotiText>
-                <Text style={[styles.subtitle, { color: theme.onSurfaceMuted, fontSize: isSmallScreen ? 11 : 13, marginTop: isSmallScreen ? 2 : 4 }]}>
-                  {t.registerSub}
-                </Text>
-              </MotiView>
+            <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 320 }} style={styles.stack}>
+              <AuthBrand title={t.login.signUp} sub={t.registerSub} theme={theme} markHeight={56} />
 
-              <MotiView
-                from={{ opacity: 0, translateY: 20 }}
-                animate={{ opacity: 1, translateY: 0 }}
-                transition={{ delay: 400 }}
-                style={styles.cardContainer}
-              >
-                <GlassCard style={[styles.glassCard, { padding: isSmallScreen ? 12 : isMediumScreen ? 18 : 24 }]}>
-                  {error && (
-                    <MotiView 
-                      from={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      style={[styles.errorContainer, { backgroundColor: theme.error + '15' }]}
-                    >
-                      <AlertCircle size={ICON.sm} color={theme.error} />
-                      <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
-                    </MotiView>
-                  )}
-
-                  <View style={[styles.form, { gap: isSmallScreen ? 6 : 12 }]}>
-                    <View style={[styles.inputGroup, { gap: isSmallScreen ? 2 : 6 }]}>
-                      <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, height: isSmallScreen ? 38 : 48 }]}>
-                        <User size={ICON.md} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
-                        <TextInput
-                          placeholder={t.login.name}
-                          placeholderTextColor={isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)'}
-                          style={[styles.input, { color: theme.onSurface }]}
-                          value={name}
-                          onChangeText={setName}
-                          maxLength={50}
-                          underlineColorAndroid="transparent"
-                        />
-                      </View>
-                    </View>
-
-                    <View style={[styles.inputGroup, { gap: isSmallScreen ? 2 : 6 }]}>
-                      <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, height: isSmallScreen ? 38 : 48 }]}>
-                        <Mail size={ICON.md} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
-                        <TextInput
-                          placeholder={t.login.email}
-                          placeholderTextColor={isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)'}
-                          style={[styles.input, { color: theme.onSurface }]}
-                          value={email}
-                          onChangeText={setEmail}
-                          autoCapitalize="none"
-                          autoCorrect={false}
-                          spellCheck={false}
-                          autoComplete="email"
-                          textContentType="emailAddress"
-                          keyboardType="email-address"
-                          underlineColorAndroid="transparent"
-                        />
-                      </View>
-                    </View>
-
-                    <View style={[styles.inputGroup, { gap: isSmallScreen ? 2 : 6 }]}>
-                      <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, height: isSmallScreen ? 38 : 48 }]}>
-                        <Lock size={ICON.md} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
-                        <TextInput
-                          placeholder="••••••••"
-                          placeholderTextColor={isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)'}
-                          style={[styles.input, { color: theme.onSurface }]}
-                          value={password}
-                          onChangeText={setPassword}
-                          secureTextEntry={!showPassword}
-                          underlineColorAndroid="transparent"
-                        />
-                        <Touchable onPress={() => setShowPassword(!showPassword)} accessibilityRole="button" accessibilityLabel={showPassword ? (language === 'tr' ? 'Şifreyi gizle' : 'Hide password') : (language === 'tr' ? 'Şifreyi göster' : 'Show password')}>
-                          {showPassword ? <EyeOff size={ICON.md} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} /> : <Eye size={ICON.md} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />}
-                        </Touchable>
-                      </View>
-                    </View>
-
-                    {/* Legal consent */}
-                    <Touchable
-                      onPress={() => { haptic.select(); setConsentChecked(v => !v); }}
-                      accessibilityRole="checkbox"
-                      accessibilityLabel={language === 'tr' ? 'Kullanım koşullarını, gizlilik politikasını ve KVKK aydınlatma metnini okudum, kabul ediyorum' : 'I have read and accept the terms, privacy policy and data notice'}
-                      accessibilityState={{ checked: consentChecked }}
-                      activeOpacity={0.7}
-                      style={[styles.consentRow, { marginVertical: isSmallScreen ? 2 : 4 }]}
-                    >
-                      {/*
-                        GERÇEK ONAY KUTUSU (kullanıcı geri bildirimi: koyu temada görünmüyordu).
-                        İşaretsiz çerçeve outlineVariant'tı — koyu temada %3 beyaz, yani görünmez.
-                        Artık iki temada da okunur çerçeve (onSurfaceMuted), işaretlenince dolu + ✓.
-                      */}
-                      <View
-                        style={{
-                          marginTop: Platform.OS === 'ios' ? 1 : 2,
-                          width: 22, height: 22, borderRadius: R.xs,
-                          borderWidth: consentChecked ? 0 : 2,
-                          borderColor: theme.onSurfaceMuted,
-                          backgroundColor: consentChecked ? theme.primary : 'transparent',
-                          alignItems: 'center', justifyContent: 'center',
-                        }}
-                      >
-                        {consentChecked && <Check size={ICON.sm} color={theme.onPrimary} strokeWidth={3} />}
-                      </View>
-                      <Text style={[styles.consentText, { color: theme.onSurfaceVariant }]}>
-                        {tr 
-                          ? '13 yaş ve üzeri olduğumu (COPPA/GDPR/KVKK uyumluluk sınırıdır), '
-                          : 'I declare that I am 13 years or older (required for COPPA/GDPR/KVKK compliance) and agree to the '}
-                        <Text
-                          style={{ color: theme.primary, fontFamily: 'Jakarta-Bold' }}
-                          onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })}
-                        >
-                          {tr ? 'Kullanıcı Sözleşmesi' : 'Terms of Service'}
-                        </Text>
-                        {tr ? ', ' : ', '}
-                        <Text
-                          style={{ color: theme.primary, fontFamily: 'Jakarta-Bold' }}
-                          onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacy' } })}
-                        >
-                          {tr ? 'Gizlilik Politikası' : 'Privacy Policy'}
-                        </Text>
-                        {tr ? ' ve ' : ' and '}
-                        <Text
-                          style={{ color: theme.primary, fontFamily: 'Jakarta-Bold' }}
-                          onPress={() => router.push({ pathname: '/legal', params: { doc: 'kvkk' } })}
-                        >
-                          {tr ? 'KVKK Aydınlatma Metni' : 'Data Protection Notice'}
-                        </Text>
-                        {tr ? "'ni okudum ve kabul ediyorum." : '.'}
-                      </Text>
-                    </Touchable>
-
-                    <Touchable
-                      onPress={handleRegister}
-                      accessibilityRole="button"
-                      accessibilityLabel={language === 'tr' ? 'Hesap oluştur' : 'Create account'}
-                      disabled={isLoading}
-                      style={[styles.registerButton, { height: isSmallScreen ? 38 : 48 }]}
-                    >
-                      <MotiView 
-                        animate={{ backgroundColor: theme.primary }}
-                        style={styles.buttonInner}
-                      >
-                        {isLoading ? (
-                          <ActivityIndicator color={theme.onPrimary} />
-                        ) : (
-                          <>
-                            <Text style={[styles.buttonText, { color: theme.onPrimary }]}>{t.login.signUp}</Text>
-                            <ArrowRight size={ICON.md} color={theme.onPrimary} />
-                          </>
-                        )}
-                      </MotiView>
-                    </Touchable>
-
-                    <View style={[styles.dividerRow, { marginVertical: isSmallScreen ? 2 : 8 }]}>
-                      <View style={[styles.divider, { backgroundColor: theme.outlineVariant }]} />
-                      <Text style={[styles.dividerText, { color: theme.onSurfaceMuted }]}>{t.login.orDivider}</Text>
-                      <View style={[styles.divider, { backgroundColor: theme.outlineVariant }]} />
-                    </View>
-
-                    <View style={styles.socialRow}>
-                      <Touchable
-                        style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant, height: isSmallScreen ? 36 : 44 }]}
-                        onPress={handleGoogleSignIn}
-                        accessibilityRole="button"
-                        accessibilityLabel={language === 'tr' ? 'Google ile kaydol' : 'Sign up with Google'}
-                        activeOpacity={0.7}
-                        disabled={isLoading}
-                      >
-                        <GoogleIcon color={theme.onSurface} />
-                        <Text style={[styles.socialText, { color: theme.onSurface }]}>Google</Text>
-                      </Touchable>
-                      {Platform.OS === 'ios' && (
-                        <Touchable
-                          style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant, height: isSmallScreen ? 36 : 44 }]}
-                          onPress={handleAppleSignIn}
-                          accessibilityRole="button"
-                          accessibilityLabel={language === 'tr' ? 'Apple ile kaydol' : 'Sign up with Apple'}
-                          activeOpacity={0.7}
-                          disabled={isLoading}
-                        >
-                          <AppleIcon color={theme.onSurface} />
-                          <Text style={[styles.socialText, { color: theme.onSurface }]}>Apple</Text>
-                        </Touchable>
-                      )}
-                    </View>
-
-                    <Text style={[styles.disclaimerText, { color: theme.onSurfaceMuted, marginTop: isSmallScreen ? 4 : 8 }]}>
-                      {language === 'tr' ? 'Google veya Apple ile devam ederek, ' : 'By continuing with Google or Apple, you agree to our '}
-                      <Text
-                        style={{ color: theme.primary, fontWeight: '700' }}
-                        onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })}
-                      >
-                        {language === 'tr' ? 'Kullanıcı Sözleşmesi' : 'Terms of Service'}
-                      </Text>
-                      {language === 'tr' ? "'ni, " : ', '}
-                      <Text
-                        style={{ color: theme.primary, fontWeight: '700' }}
-                        onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacy' } })}
-                      >
-                        {language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy'}
-                      </Text>
-                      {language === 'tr' ? ' ve ' : ' and '}
-                      <Text
-                        style={{ color: theme.primary, fontWeight: '700' }}
-                        onPress={() => router.push({ pathname: '/legal', params: { doc: 'kvkk' } })}
-                      >
-                        {language === 'tr' ? 'KVKK Metni' : 'Data Notice'}
-                      </Text>
-                      {language === 'tr' ? "'ni kabul etmiş olursunuz." : '.'}
-                    </Text>
-                  </View>
-                </GlassCard>
-              </MotiView>
-            </View>
-
-              <MotiView
-                from={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 600 }}
-                style={[styles.footer, { marginTop: error ? (Platform.OS === 'android' ? 6 : 12) : (Platform.OS === 'android' ? 12 : 24) }]}
-              >
-                <View style={styles.footerRow}>
-                  <Text style={[styles.footerText, { color: theme.onSurfaceVariant }]}>
-                    {t.login.alreadyHaveAccount} 
-                  </Text>
-                  <Touchable onPress={() => router.push('/login')} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Zaten hesabın var mı? Giriş yap' : 'Already have an account? Sign in'}>
-                    <Text style={[styles.link, { color: theme.primary }]}> {t.login.title}</Text>
-                  </Touchable>
+              {error && (
+                <View accessibilityLiveRegion="polite" style={[styles.errorContainer, { backgroundColor: theme.error + '15' }]}>
+                  <AlertCircle size={ICON.sm} color={theme.error} style={{ marginTop: S.xxs }} />
+                  <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
                 </View>
+              )}
 
-                <TouchableOpacity
-                  onPress={() => router.push('/onboarding')}
-                  accessibilityRole="button"
-                  accessibilityLabel={language === 'tr' ? 'Uygulamayı keşfet' : 'Explore the app'}
+              {/* Sosyal kayıt önce ve tam genişlik (bkz. AuthParts). */}
+              <View style={styles.socialStack}>
+                {Platform.OS === 'ios' && (
+                  <SocialButton provider="apple" label={a.apple} onPress={handleAppleSignIn} disabled={isLoading} theme={theme} isDark={isDark} />
+                )}
+                <SocialButton provider="google" label={a.google} onPress={handleGoogleSignIn} disabled={isLoading} theme={theme} isDark={isDark} />
+                <Text style={[styles.disclaimerText, { color: theme.onSurfaceMuted }]}>{c.socialLegal}</Text>
+              </View>
+
+              <AuthDivider text={a.orEmail} theme={theme} />
+
+              <View style={styles.form}>
+                <AuthField
+                  icon={User}
+                  theme={theme}
+                  accessibilityLabel={c.name}
+                  placeholder={c.name}
+                  value={name}
+                  onChangeText={setName}
+                  maxLength={50}
+                  autoComplete="name"
+                  textContentType="name"
+                  returnKeyType="next"
+                  onSubmitEditing={() => emailRef.current?.focus()}
+                />
+                <AuthField
+                  ref={emailRef}
+                  icon={Mail}
+                  theme={theme}
+                  accessibilityLabel={a.email}
+                  placeholder={a.email}
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  spellCheck={false}
+                  autoComplete="email"
+                  textContentType="emailAddress"
+                  keyboardType="email-address"
+                  returnKeyType="next"
+                  onSubmitEditing={() => passwordRef.current?.focus()}
+                />
+                <AuthField
+                  ref={passwordRef}
+                  icon={Lock}
+                  theme={theme}
+                  accessibilityLabel={c.password}
+                  placeholder={c.password}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoComplete="new-password"
+                  textContentType="newPassword"
+                  returnKeyType="done"
+                  right={
+                    <Touchable onPress={() => setShowPassword(!showPassword)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={showPassword ? c.hidePassword : c.showPassword}>
+                      {showPassword ? <EyeOff size={ICON.sm} color={theme.onSurfaceMuted} /> : <Eye size={ICON.sm} color={theme.onSurfaceMuted} />}
+                    </Touchable>
+                  }
+                />
+
+                {/* Onay kutusu: iki temada okunur çerçeve (onSurfaceMuted), işaretlenince dolu + ✓. */}
+                <Touchable
+                  onPress={() => { haptic.select(); setConsentChecked(v => !v); }}
+                  accessibilityRole="checkbox"
+                  accessibilityLabel={c.consentA11y}
+                  accessibilityState={{ checked: consentChecked }}
                   activeOpacity={0.7}
-                  style={{ marginTop: isSmallScreen ? 6 : isMediumScreen ? 10 : 14, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: isSmallScreen ? 3 : 6, paddingHorizontal: S.sm }}
+                  style={styles.consentRow}
                 >
-                  <Sparkles size={ICON.sm} color={theme.primary} strokeWidth={2.2} />
-                  <Text style={{ fontSize: 13.5, fontWeight: '700', color: theme.primary, letterSpacing: 0.2 }}>
-                    {language === 'tr' ? 'Uygulamayı keşfet' : 'Explore the app'}
+                  <View style={[styles.checkbox, { borderWidth: consentChecked ? 0 : 2, borderColor: theme.onSurfaceMuted, backgroundColor: consentChecked ? theme.primary : 'transparent' }]}>
+                    {consentChecked && <Check size={ICON.xs} color={theme.onPrimary} strokeWidth={3} />}
+                  </View>
+                  <Text style={[styles.consentText, { color: theme.onSurfaceVariant }]}>
+                    {c.consentLead}
+                    <Text style={[styles.legalLink, { color: theme.onSurface }]} onPress={() => goLegal('terms')} accessibilityRole="link">{c.terms}</Text>
+                    {c.sep1}
+                    <Text style={[styles.legalLink, { color: theme.onSurface }]} onPress={() => goLegal('privacy')} accessibilityRole="link">{c.privacy}</Text>
+                    {c.sep2}
+                    <Text style={[styles.legalLink, { color: theme.onSurface }]} onPress={() => goLegal('kvkk')} accessibilityRole="link">{c.kvkk}</Text>
+                    {c.consentTail}
                   </Text>
-                  <ArrowRight size={ICON.sm} color={theme.primary} strokeWidth={2.4} />
-                </TouchableOpacity>
-              </MotiView>
+                </Touchable>
+
+                <Touchable
+                  onPress={handleRegister}
+                  disabled={isLoading}
+                  accessibilityRole="button"
+                  accessibilityLabel={c.create}
+                  accessibilityState={{ disabled: isLoading, busy: isLoading }}
+                  style={[styles.registerButton, { backgroundColor: theme.primary, opacity: isLoading ? 0.75 : 1 }]}
+                >
+                  {isLoading ? <ActivityIndicator color={theme.onPrimary} /> : <Text style={[styles.buttonText, { color: theme.onPrimary }]}>{c.create}</Text>}
+                </Touchable>
+              </View>
+            </MotiView>
+
+            <View style={styles.footer}>
+              <Text style={[styles.footerText, { color: theme.onSurfaceVariant }]}>
+                {c.haveAccount}{' '}
+                <Text style={[styles.link, { color: theme.primary }]} onPress={() => router.push('/login')} accessibilityRole="link" accessibilityLabel={c.haveAccountA11y}>{t.login.title}</Text>
+              </Text>
+
+              {/* Tanıtım — özendirilmez: soluk, küçük, simgesiz (bkz. login.tsx hesapsız bağlantısı). */}
+              <TouchableOpacity
+                onPress={() => router.push('/onboarding')}
+                activeOpacity={0.6}
+                style={styles.explore}
+                accessibilityRole="button"
+                accessibilityLabel={c.explore}
+              >
+                <Text style={[styles.exploreText, { color: theme.onSurfaceMuted }]}>{c.explore}</Text>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
@@ -555,36 +430,24 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
   backButton: { position: 'absolute', left: scale(20), zIndex: 10 },
-  keyboardView: { flex: 1 },
-  scrollContent: { flexGrow: 1, paddingHorizontal: scale(24), width: '100%', maxWidth: 480, alignSelf: 'center' },
-  header: { alignItems: 'center' },
-  title: { fontSize: F.title + 6, fontFamily: 'Jakarta-ExtraBold', marginTop: verticalScale(10), letterSpacing: -0.5 },
-  subtitle: { fontSize: F.body, fontWeight: '500', marginTop: verticalScale(4), textAlign: 'center' },
-  cardContainer: { width: '100%' },
-  glassCard: { width: '100%' },
-  errorContainer: { flexDirection: 'row', alignItems: 'center', gap: S.sm, padding: S.sm + 4, borderRadius: R.sm + 4, marginBottom: S.md },
-  errorText: { fontSize: F.caption + 2, fontWeight: '600' },
-  form: { gap: Platform.OS === 'android' ? moderateScale(12) : moderateScale(16) },
-  inputGroup: { gap: S.sm + 4 },
-  label: { fontSize: F.caption, fontWeight: '700', letterSpacing: 1 },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, height: Platform.OS === 'android' ? verticalScale(50) : verticalScale(56), borderRadius: R.md, borderWidth: B.thin, gap: S.sm + 4 },
-  input: { flex: 1, fontSize: F.body + 1, fontWeight: '600', height: '100%', textAlignVertical: 'center' },
-  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: S.sm + 2, paddingHorizontal: S.xs, marginTop: verticalScale(2), marginBottom: verticalScale(2) },
-  consentText: { flex: 1, fontSize: F.caption, fontFamily: 'Jakarta-SemiBold', lineHeight: verticalScale(16) },
-  registerButton: { height: Platform.OS === 'android' ? verticalScale(50) : verticalScale(56), borderRadius: R.md, overflow: 'hidden', marginTop: verticalScale(4) },
-  buttonInner: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(10) },
-  buttonText: { fontSize: F.subhead + 1, fontWeight: '700' },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: S.md, marginVertical: S.xs },
-  divider: { flex: 1, height: 1 },
-  dividerText: { fontSize: F.caption + 1, fontWeight: '700' },
-  socialRow: { flexDirection: 'row', gap: S.md },
-  socialButton: { flex: 1, height: Platform.OS === 'android' ? verticalScale(46) : verticalScale(56), borderRadius: R.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(10), borderWidth: B.thin },
-  socialText: { fontSize: moderateScale(15), fontWeight: '700' },
-  disclaimerText: { fontSize: moderateScale(11), lineHeight: verticalScale(16), textAlign: 'center', marginTop: S.sm + 2, paddingHorizontal: S.xs },
-  footer: { alignItems: 'center', marginTop: Platform.OS === 'android' ? verticalScale(12) : verticalScale(24) },
-  footerRow: { flexDirection: 'row', alignItems: 'center' },
-  footerText: { fontSize: moderateScale(15), fontWeight: '500' },
-  link: { fontSize: moderateScale(15), fontWeight: '700' },
+  scrollContent: { flexGrow: 1, justifyContent: 'space-between', paddingHorizontal: scale(24), paddingTop: S.xxl, paddingBottom: S.xl, width: '100%', maxWidth: 440, alignSelf: 'center', gap: S.xl },
+  stack: { gap: S.lg, width: '100%' },
+  errorContainer: { flexDirection: 'row', alignItems: 'flex-start', gap: S.sm, padding: S.smd, borderRadius: R.md },
+  errorText: { flex: 1, fontSize: F.footnote, fontWeight: '600', lineHeight: verticalScale(18), flexWrap: 'wrap' },
+  socialStack: { gap: S.smd },
+  form: { gap: S.smd },
+  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: S.smd, paddingVertical: S.xs },
+  checkbox: { width: 20, height: 20, borderRadius: R.xs, alignItems: 'center', justifyContent: 'center', marginTop: S.xxs },
+  consentText: { flex: 1, fontSize: F.caption, fontWeight: '500', lineHeight: 18 },
+  registerButton: { height: 52, borderRadius: R.md, alignItems: 'center', justifyContent: 'center', marginTop: S.xs },
+  buttonText: { fontSize: F.body, fontWeight: '700' },
+  disclaimerText: { fontSize: F.caption, lineHeight: 17, textAlign: 'center', paddingHorizontal: S.sm },
+  legalLink: { fontWeight: '600', textDecorationLine: 'underline' },
+  footer: { alignItems: 'center', gap: S.md },
+  footerText: { fontSize: F.body, fontWeight: '500' },
+  link: { fontSize: F.body, fontWeight: '700' },
+  explore: { paddingVertical: S.sm, paddingHorizontal: S.md },
+  exploreText: { fontSize: F.footnote, fontWeight: '500' },
 });
 
 export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

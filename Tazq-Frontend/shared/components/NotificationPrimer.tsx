@@ -3,7 +3,7 @@ import { View, Text, Modal, StyleSheet } from 'react-native';
 import { GlassSheet } from '@/shared/components/GlassSheet';
 import { Bell, Sunrise, Sunset, ListChecks } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
-import { S, R, F, ICON } from '@/shared/constants/tokens';
+import { S, R, F, ICON, SCRIM } from '@/shared/constants/tokens';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { haptic } from '@/shared/utils/haptics';
@@ -54,7 +54,7 @@ export function NotificationPrimer({ visible, onEnable, onDismiss }: Notificatio
   ];
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
+    <Modal supportedOrientations={['portrait', 'landscape']} visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
       <View style={styles.backdrop}>
         <GlassSheet>
           <View style={[styles.badge, { backgroundColor: theme.primary + '18' }]}>
@@ -110,7 +110,7 @@ export function NotificationPrimer({ visible, onEnable, onDismiss }: Notificatio
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: S.lg },
+  backdrop: { flex: 1, backgroundColor: SCRIM, justifyContent: 'center', alignItems: 'center', paddingHorizontal: S.lg },
   badge: { width: 52, height: 52, borderRadius: R.full, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   title: { fontSize: F.title3, fontWeight: '700', textAlign: 'center', letterSpacing: -0.3 },
   sub: { fontSize: F.body, textAlign: 'center', lineHeight: 20 },

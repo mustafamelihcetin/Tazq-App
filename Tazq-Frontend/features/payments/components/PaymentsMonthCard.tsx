@@ -6,7 +6,7 @@ import { ICON, S, R, F, W, B, RSPRING } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 import type { TranslationKeys } from '@/shared/constants/i18n';
 import { upperFor } from '@/shared/utils/localeCase';
-import { DisplayPanel, DisplayValue, DisplayDivider, useDisplayColors } from '@/shared/components/DisplayPanel';
+import { DisplayPanel, DisplayValue, useDisplayColors } from '@/shared/components/DisplayPanel';
 
 /*
   ── AY ÖZETİ — Tremor "KPI card with progress bar" ───────────────────────────────
@@ -62,11 +62,11 @@ function Body({ theme, t, language, remaining, paid, total, progress, allPaid, o
       accessibilityLabel={allPaid ? t.allPaid : `${t.leftThisMonth}: ${remaining}. ${t.paidOfTotal(paid, total)}`}
       style={{ gap: S.sm }}
     >
+      {/* Tek başlık satırı: ay · kalan etiketi solda, ay sonuna kalan sağda (iki ayrı satırdı). */}
       <View style={styles.status}>
-        <Text style={[styles.label, { color: dc.label }]}>{upperFor(month, language)}</Text>
+        <Text style={[styles.label, { color: dc.label }]}>{upperFor(`${month} · ${t.leftThisMonth}`, language)}</Text>
         <Text style={[styles.label, { color: dc.label }]}>{upperFor(c.endIn(daysToEnd), language)}</Text>
       </View>
-      <Text style={[styles.label, { color: theme.onSurfaceMuted }]}>{upperFor(t.leftThisMonth, language)}</Text>
       {allPaid ? (
         <View style={styles.doneRow}>
           <CheckCircle2 size={ICON.lg} color={theme.success} />
@@ -96,14 +96,11 @@ function Body({ theme, t, language, remaining, paid, total, progress, allPaid, o
         </View>
       )}
 
+      {/* Sıradaki ödeme tek satır (eskiden ayraçlı üç satırlık blok; liste zaten hemen altta). */}
       {next && !allPaid && (
-        <>
-          <DisplayDivider spacing={S.xs} />
-          {/* Ad bir METİN: mono yazı rakamlar içindir, isimde yabancı duruyordu. */}
-          <Text style={[styles.label, { color: dc.label }]}>{upperFor(c.next, language)}</Text>
-          <Text style={{ color: theme.onSurface, fontSize: F.title3, fontWeight: W.semibold }} numberOfLines={1}>{next.title}</Text>
-          <Text style={[styles.sub, { color: next.days < 0 ? theme.error : dc.muted, marginTop: -S.xs }]}>{c.when(next.days)}</Text>
-        </>
+        <Text style={[styles.sub, { color: next.days < 0 ? theme.error : dc.muted }]} numberOfLines={1}>
+          {`${c.next}: ${next.title} · ${c.when(next.days)}`}
+        </Text>
       )}
     </View>
   );
@@ -112,7 +109,7 @@ function Body({ theme, t, language, remaining, paid, total, progress, allPaid, o
 PaymentsMonthCard.displayName = 'PaymentsMonthCard';
 
 const styles = StyleSheet.create({
-  status: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S.xs },
+  status: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: S.sm },
   label: { fontSize: F.caption, fontWeight: W.semibold, letterSpacing: 0.6 },
   amount: { fontSize: F.hero, fontWeight: W.bold, letterSpacing: -0.8, fontVariant: ['tabular-nums'] },
   doneRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: S.xs },

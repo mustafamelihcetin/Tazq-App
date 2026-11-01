@@ -7,10 +7,17 @@ namespace Tazq_App.Services
     public class FocusSessionService : IFocusSessionService
     {
         private readonly AppDbContext _db;
+        private readonly ICryptoService? _crypto;
 
-        public FocusSessionService(AppDbContext db)
+        /// <param name="crypto">
+        /// 2026-11-01: görev adı (TaskName) ŞİFRELİ yazılır — görevin kendi başlığı şifreliyken aynı ad odak
+        /// kaydında düz metin duruyordu (korumayı deliyordu). Kullanıcıya dönen seans listesi adı hiç
+        /// içermez; admin/ihraç görevlerdeki gibi saklandığı hâliyle görür. Testler crypto'suz kurabilir.
+        /// </param>
+        public FocusSessionService(AppDbContext db, ICryptoService? crypto = null)
         {
             _db = db;
+            _crypto = crypto;
         }
 
         /*
@@ -42,10 +49,13 @@ namespace Tazq_App.Services
             var name = (taskName ?? string.Empty).Trim();
             if (name.Length > MaxTaskNameLength) name = name[..MaxTaskNameLength];
 
+            // Boş ad şifrelenmez (anlamsız, ve "boş mu" bilgisini gizlemeye değmez).
+            var stored = _crypto != null && name.Length > 0 ? _crypto.Encrypt(name, _crypto.GetKeyForUser(userId)) : name;
+
             var session = new FocusSession
             {
                 UserId = userId,
-                TaskName = name,
+                TaskName = stored,
                 DurationMinutes = Math.Clamp(durationMinutes, 0, MaxDurationMinutes),
                 Completed = completed,
                 StartedAt = DateTime.UtcNow

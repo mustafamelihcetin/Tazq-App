@@ -223,7 +223,7 @@ export function CaptureSheet({ visible, onDone, demo = false }: { visible: boole
   const KindIcon = (kind: 'task' | 'habit') => (kind === 'habit' ? Repeat : CheckSquare);
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={() => (step === 'review' ? setStep('write') : finish(true))}>
+    <Modal supportedOrientations={['portrait', 'landscape']} visible={visible} animationType="slide" onRequestClose={() => (step === 'review' ? setStep('write') : finish(true))}>
       <KeyboardAvoidingView behavior="padding" style={[styles.page, { paddingTop: insets.top + S.lg }]}>
         {/* Uygulamanın tek modal zemini (cam yüzey) — tam sayfada köşesiz. */}
         <GlassSurface radius={0} />

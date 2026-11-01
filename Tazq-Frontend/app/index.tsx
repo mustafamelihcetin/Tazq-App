@@ -10,11 +10,18 @@ import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore, useAchievementStore, useMomentumStore, checkStreakAchievement, checkMomentumAchievement, ACHIEVEMENTS, AVATAR_CONFIGS } from '@/features/user';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { BentoCard } from '@/shared/components/BentoCard';
-import { DynamicIsland } from '@/features/focus';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { TriageModal } from '@/features/dashboard/components/TriageModal';
 import { TazqZenCard } from '@/features/dashboard/components/TazqZenCard';
+import { TodayBelow } from '@/features/dashboard/components/TodayBelow';
+import { InboxButton, InboxSheet } from '@/features/dashboard/components/InboxSheet';
+import { buildInbox, AUTO_CLEAR_ON_SEEN, clearsOnOpen, type InboxItem } from '@/features/dashboard/utils/inboxItems';
+import { useInboxStore } from '@/shared/store/useInboxStore';
+import { usePaymentsStore } from '@/features/payments/store/usePaymentsStore';
+import { scopeOtherDay } from '@/features/dashboard/utils/dayScope';
+import { SupportService, type MySupportMessage } from '@/shared/services/api';
+import { INBOX_COPY } from '@/features/dashboard/utils/inboxCopy';
 import { CommandPortal } from '@/features/dashboard/components/CommandPortal';
 import { SomedayNudge } from '@/features/dashboard/components/SomedayNudge';
 import { useZen } from '@/features/dashboard/hooks/useZen';
@@ -38,7 +45,6 @@ import { PremiumStatChip } from '@/shared/components/PremiumStatChip';
 import { useFocusStore } from '@/features/focus';
 import { useSporStore } from '@/features/modes/store/useSporStore';
 import { useSessionStore } from '@/shared/store/useSessionStore';
-import { StatusHub } from '@/features/dashboard/components/StatusHub';
 import { LinearGradient } from 'expo-linear-gradient';
 import { understand, titleOf } from '@/features/tasks/nlp/understand';
 import { computeMomentum } from '@/shared/utils/momentum';
@@ -189,6 +195,11 @@ export default function HomeScreen() {
   const isNamePlaceholder = user?.name === 'TAZQ Kullanıcısı' || !!(user?.email && user?.name && user?.name === user?.email.split('@')[0]);
 
   const scrollViewRef = useRef<ScrollView>(null);
+  // Odaktan seans sürerken dönülünce sayfa EN ÜSTTEN açılır (kullanıcı: "en aşağıya attı"); seans altta yüzen kapsülde.
+  useFocusEffect(useCallback(() => {
+    const f = useFocusStore.getState();
+    if (f.isActive || f.totalSeconds - f.seconds > 0) scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+  }, []));
 
   useEffect(() => {
     if (!profileSetupVisible && completedTours?.dashboard !== true) {
@@ -221,8 +232,7 @@ export default function HomeScreen() {
       usePrefsStore.getState().setCapturePending(true); // hoş geldinden sonra "Aklındakileri yaz" (bkz. captureFlow)
     }
 
-    // Açılış animasyonu bitmeden açılmaz: Modal kendi penceresinde çizildiği için açılışın ÜSTÜNE biniyordu (2026-11-01).
-    if (welcomeStatus === 'pending' && !welcomeSetupShown && splashDone) {
+    if (welcomeStatus === 'pending' && !welcomeSetupShown && splashDone) { // açılış bitmeden değil: Modal açılışın ÜSTÜNE biniyordu
       welcomeSetupShown = true;
       setProfileSetupVisible(true);
       /*
@@ -1538,6 +1548,69 @@ export default function HomeScreen() {
   // Plan, dijital panelin EN ÜSTÜ (aktif mod yoksa null → turun "aktif plan" adımı atlanır).
   // Tarih şeridi → o günü saatleriyle aç (Gün ekranı = Bugün'ün saat görünümü; E-1).
   const openDay = useLatestCallback((key?: string) => router.push(key ? { pathname: '/gun', params: { date: key } } : { pathname: '/gun' }));
+
+  // ── GELEN KUTUSU (bkz. features/dashboard/utils/inboxItems.ts) ─────────────────────────────────────────
+  const [inboxOpen, setInboxOpen] = useState(false);
+  const [supportThreads, setSupportThreads] = useState<MySupportMessage[]>([]);
+  const payments = usePaymentsStore(st => st.payments);
+  const unlockedAt = useAchievementStore(st => st.unlockedAt);
+  const inboxSeen = useInboxStore(st => st.seen);
+  // Destek yanıtları sunucuda: açılışta ve sayfaya her dönüşte bir kez (sessiz; misafirde istek yok).
+  useFocusEffect(useCallback(() => {
+    if (isGuest) return;
+    SupportService.getMyMessages().then(r => setSupportThreads(r.messages ?? [])).catch(e => swallow('inbox.support', e));
+  }, [isGuest]));
+  const inboxItems = React.useMemo(() => {
+    const now = new Date();
+    const tmr = new Date(now); tmr.setDate(tmr.getDate() + 1);
+    const ic = INBOX_COPY[language === 'en' ? 'en' : 'tr'];
+    return buildInbox({
+      now,
+      dayKey: dateKeyFromNow(0),
+      zen: { visible: !isLite && ((zen.cardVisible && zen.overduePlan.moves.length > 0) || zen.overloadVisible), overload: !zen.cardVisible && zen.overloadVisible },
+      someday: { visible: !isLite && zen.somedayNudgeVisible, count: zen.somedayCount },
+      payments,
+      support: supportThreads,
+      unlockedAt,
+      achievementTitle: (id) => { const a = ACHIEVEMENTS[id]; return a ? `${a.emoji} ${language === 'en' ? a.titleEn : a.titleTr}` : null; },
+      tomorrowCount: scopeOtherDay(tasks, tmr).incomplete.length,
+      copy: ic,
+    });
+  }, [isLite, zen.cardVisible, zen.overduePlan, zen.overloadVisible, zen.somedayNudgeVisible, zen.somedayCount, payments, supportThreads, unlockedAt, tasks, language]);
+  // Admin önizlemesi: her türden örnek kalem (gerçek verinin yanına; dokununca gerçek ekranlar açılır).
+  const inboxDemo = useInboxStore(st => st.demo);
+  const shownInbox = React.useMemo<InboxItem[]>(() => {
+    if (!inboxDemo) return inboxItems;
+    const ic = INBOX_COPY[language === 'en' ? 'en' : 'tr'];
+    return [...inboxItems,
+      { id: 'demo:pay1', kind: 'payment', rank: 1, title: language === 'en' ? 'Rent' : 'Kira', sub: ic.paymentOverdue(2), tone: 'error' },
+      { id: 'demo:pay2', kind: 'payment', rank: 2, title: language === 'en' ? 'Electricity' : 'Elektrik', sub: ic.paymentIn(1), tone: 'warning' },
+      { id: 'demo:sup', kind: 'support', rank: 1, title: ic.supportReply, sub: ic.supportSub(language === 'en' ? 'Thanks, we fixed it in the latest update.' : 'Teşekkürler, son güncellemede düzelttik.') },
+      { id: 'demo:ach', kind: 'badge', rank: 4, title: language === 'en' ? '7-Day Streak!' : '7 Günlük Seri!', sub: ic.badge },
+      { id: 'demo:tmr', kind: 'tomorrow', rank: 5, title: ic.tomorrow(5), sub: ic.tomorrowSub },
+    ].sort((a, b) => a.rank - b.rank) as InboxItem[];
+  }, [inboxDemo, inboxItems, language]);
+  const inboxDismissed = useInboxStore(st => st.dismissed);
+  const visibleInbox = React.useMemo(() => shownInbox.filter(it => !inboxDismissed.includes(it.id)), [shownInbox, inboxDismissed]);
+  const inboxUnread = visibleInbox.filter(it => !inboxSeen.includes(it.id)).length;
+  const openInbox = () => {
+    haptic.select();
+    setInboxOpen(true);
+    useInboxStore.getState().markSeen(visibleInbox.map(it => it.id));
+  };
+  // Kapanırken: görülmüş bilgi kalemleri kendiliğinden gider (bkz. inboxItems AUTO_CLEAR_ON_SEEN).
+  const closeInbox = () => {
+    setInboxOpen(false);
+    useInboxStore.getState().dismiss(visibleInbox.filter(it => AUTO_CLEAR_ON_SEEN.includes(it.kind)).map(it => it.id));
+  };
+  const onInboxItem = (item: InboxItem) => {
+    closeInbox();
+    if (clearsOnOpen(item.kind)) useInboxStore.getState().dismiss([item.id]);
+    if (item.kind === 'payment') router.push('/odemeler');
+    else if (item.kind === 'support') router.push({ pathname: '/settings', params: { section: 'legal', support: '1' } });
+    else if (item.kind === 'badge') router.push('/achievements');
+    else if (item.kind === 'tomorrow') openDay(dateKeyFromNow(1));
+  };
   const todayTopSlot = React.useMemo(() => <ModeTodayCard bare onOpen={() => router.push('/modlar')} />, [router]);
 
   const todayFooter = React.useMemo(() => (!isLite ? (
@@ -1634,7 +1707,7 @@ export default function HomeScreen() {
                   }
               ]}
           >
-              <UserAvatar avatar={user?.avatar ?? guestProfile?.avatar} size={TOP_AVATAR_SIZE} iconSize={ICON.sm} theme={theme} style={styles.avatar} />
+              <UserAvatar avatar={user?.avatar ?? guestProfile?.avatar} size={TOP_AVATAR_SIZE - 2 * B.thin} iconSize={ICON.sm} theme={theme} />
           </Touchable>
         }
         /*
@@ -1695,14 +1768,11 @@ export default function HomeScreen() {
         title={getGreeting()}
         scrollY={scrollY}
         collapseAt={titleCollapseAt}
-        right={
-          // Sade modda gizli; erişim Ayarlar → MERKEZ satırından sürüyor.
-          isLite ? undefined : (
-            <TourTarget id="cockpit" spotRadius={R.full}>
-              <StatusHub onPress={() => router.push('/cockpit')} />
-            </TourTarget>
-          )
-        }
+        /*
+          SAĞ ÜST = GELEN KUTUSU (2026-11-01). Eski düğme Hafta'ya götürüyordu (sekme çubuğunda zaten var — kullanıcı:
+          "işlevini yitirmiş"). Gelen kutusu yeni bir şey: dağınık uyarıları toplar; rozet yalnız yeni bir şey varken.
+        */
+        right={<InboxButton count={inboxUnread} onPress={openInbox} theme={theme} language={language === 'en' ? 'en' : 'tr'} />}
       />
 
       <View style={{ flex: 1 }}>
@@ -1738,26 +1808,6 @@ export default function HomeScreen() {
             refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={onPullRefresh} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surfaceContainer} progressViewOffset={insets.top + S.sm + 44 + S.sm} />}
         >
 
-            {!isLite && (<>
-              <TazqZenCard
-                visible={zen.cardVisible}
-                plan={zen.overduePlan}
-                overdueTotal={zen.analysis.overdue.length}
-                onRebalance={zen.rebalanceOverdue}
-                onDismiss={zen.dismissCard}
-                overload={zen.overloadVisible ? { count: zen.analysis.todayLoad, onOpen: zen.openTriage } : null}
-                theme={theme}
-                tr={tr}
-              />
-              <SomedayNudge
-                visible={zen.somedayNudgeVisible}
-                count={zen.somedayCount}
-                onOpen={() => { zen.markSomedayNudge(); router.push({ pathname: '/tasks', params: { filter: 'someday' } }); }}
-                onLater={zen.markSomedayNudge}
-                theme={theme}
-                tr={tr}
-              />
-            </>)}
 
 
             {/*
@@ -1849,6 +1899,7 @@ export default function HomeScreen() {
 
             {/* Unified My Day Bento Card — geniş ekranda SAĞ sütunun tepesi. */}
             <WideCol col="right">
+            {/* Zen önerisi ve raf hatırlatması sayfadan çıktı → sağ üstteki GELEN kutusunda (bkz. InboxSheet). */}
             {(myDayTasks.length > 0 || myDayHabits.length > 0) && (
               <EntranceStage order={1} enabled={!tourOn} style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 {overdueCount > 0 && (
@@ -2025,7 +2076,7 @@ export default function HomeScreen() {
               Odak kartı YALNIZ SEANS SÜRERKEN (canlı sayaç + görev). Boştaki hâli ("Başlamaya
               hazır · Başlat") aşağıdaki Sıradaki kartının "Odaklan"ıyla aynı niyetti — iki çağrı.
             */}
-            <WideCol>{isActive && <DynamicIsland />}</WideCol>
+            {/* Süren seans listenin içinde değil: tüm uygulamada altta yüzen tek canlı kapsül (bkz. FocusIsland). */}
 
             {/* İlk açılış — soğuk başlangıç kartı: görev ve alışkanlık yokken kullanıcıya net 3 giriş noktası sunar */}
             {/*
@@ -2087,7 +2138,52 @@ export default function HomeScreen() {
 
             </WideSplit>
 
+            {/* Sayfanın altı: önümüzdeki günler · bu hafta · günün göğü (bkz. TodayBelow). Örnek veri varken çizilmez. */}
+            {!demoActive && (
+              <TodayBelow
+                tasks={tasks} habits={habits} sessions={focusSessions}
+                today={dayHistory[dayHistory.length - 1]}
+                dayClosed={todayTasksIncomplete.length === 0}
+                theme={theme} isDark={isDark} language={language === 'en' ? 'en' : 'tr'} padding={bentoPad}
+                onOpenDay={openDay} onOpenWeek={() => router.push('/cockpit')}
+              />
+            )}
+
         </Animated.ScrollView>
+
+
+        {/* Gelen kutusu — Zen ve raf kendi eylemli kartlarıyla; eylem önce kutuyu kapatır (pencere içinde pencere yok). */}
+        <InboxSheet
+          visible={inboxOpen}
+          onClose={closeInbox}
+          items={visibleInbox}
+          onDismiss={(ids) => useInboxStore.getState().dismiss(ids)}
+          language={language === 'en' ? 'en' : 'tr'}
+          theme={theme}
+          onItem={onInboxItem}
+          zenCard={
+            <TazqZenCard
+              visible={zen.cardVisible}
+              plan={zen.overduePlan}
+              overdueTotal={zen.analysis.overdue.length}
+              onRebalance={zen.rebalanceOverdue}
+              onDismiss={zen.dismissCard}
+              overload={zen.overloadVisible ? { count: zen.analysis.todayLoad, onOpen: () => { setInboxOpen(false); setTimeout(zen.openTriage, 350); } } : null}
+              theme={theme}
+              tr={tr}
+            />
+          }
+          somedayCard={
+            <SomedayNudge
+              visible={zen.somedayNudgeVisible}
+              count={zen.somedayCount}
+              onOpen={() => { zen.markSomedayNudge(); setInboxOpen(false); router.push({ pathname: '/tasks', params: { filter: 'someday' } }); }}
+              onLater={zen.markSomedayNudge}
+              theme={theme}
+              tr={tr}
+            />
+          }
+        />
 
         {/* Hızlı ekleme — + düğmesinin varsayılanı (bkz. QuickAddSheet) */}
         <QuickAddSheet
@@ -2214,7 +2310,6 @@ const styles = StyleSheet.create({
   // Zemin rengi BURADA YOK, kullanım yerinde temadan: sabit beyazdı ve koyu temada yuvarlak
   // kırpmanın kenarlarından (üst/alt/sol/sağ) ince beyaz çizgiler olarak sızıyordu.
   avatarContainer: { width: TOP_AVATAR_SIZE, height: TOP_AVATAR_SIZE, borderRadius: R.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  avatar: { width: '100%', height: '100%' },
   scrollContent: { flexGrow: 1 },
 });
 

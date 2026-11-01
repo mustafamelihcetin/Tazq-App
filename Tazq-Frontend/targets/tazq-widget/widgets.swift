@@ -5,8 +5,19 @@ import SwiftUI
 // modules/tazq-widget-bridge/ios/TazqWidgetBridgeModule.swift (yazan taraf).
 private let appGroupID = "group.com.tazqapp.tazq"
 
+/// Dokunulabilir kalem — görev ya da alışkanlık (bkz. intents.swift, widgetBridge.ts widgetTasksJson/widgetHabitsJson).
+struct WItem: Hashable {
+  let id: String
+  let title: String
+  let emoji: String
+  let colorHex: String?
+  let done: Bool
+}
+
 struct TazqEntry: TimelineEntry {
   let date: Date
+  var tasks: [WItem] = []
+  var habits: [WItem] = []
   let streak: Int
   let habitsCompleted: Int
   let habitsTotal: Int
@@ -48,6 +59,15 @@ struct TazqProvider: TimelineProvider {
                bgHex: nil, taskHex: nil, habitHex: nil, streakHex: nil, isDark: true)
   }
 
+  private static func items(_ d: UserDefaults?, _ key: String) -> [WItem] {
+    guard let s = d?.string(forKey: key), let data = s.data(using: .utf8),
+          let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
+    return arr.compactMap { o in
+      guard let id = o["id"] as? String, let title = o["title"] as? String else { return nil }
+      return WItem(id: id, title: title, emoji: o["emoji"] as? String ?? "", colorHex: o["color"] as? String, done: o["done"] as? Bool ?? false)
+    }
+  }
+
   func getSnapshot(in context: Context, completion: @escaping (TazqEntry) -> Void) {
     completion(loadEntry())
   }
@@ -69,6 +89,8 @@ struct TazqProvider: TimelineProvider {
     }
     return TazqEntry(
       date: .now,
+      tasks: TazqProvider.items(d, "widgetTasksJson"),
+      habits: TazqProvider.items(d, "widgetHabitsJson"),
       streak: d?.integer(forKey: "streak") ?? 0,
       habitsCompleted: d?.integer(forKey: "habitsCompletedToday") ?? 0,
       habitsTotal: d?.integer(forKey: "habitsTotal") ?? 0,
@@ -175,6 +197,86 @@ private struct TaskRow: View {
         .font(.system(size: 12, weight: .medium))
         .foregroundColor(onBg(isDark, 0.85))
         .lineLimit(1)
+    }
+  }
+}
+
+/// Dokunulabilir görev satırı (iOS 17+). Halkaya ya da satıra dokun → tamamlandı; eski iOS'ta salt-okunur.
+private struct TaskCheckRow: View {
+  let item: WItem
+  let color: Color
+  let isDark: Bool
+  var size: CGFloat = 12.5
+
+  var body: some View {
+    if #available(iOS 17.0, *), !item.done {
+      Button(intent: CompleteTaskIntent(taskId: item.id)) { face }.buttonStyle(.plain)
+    } else {
+      face
+    }
+  }
+
+  private var face: some View {
+    HStack(spacing: 8) {
+      ZStack {
+        Circle().stroke(color.opacity(item.done ? 0 : 0.6), lineWidth: 1.6)
+        if item.done {
+          Circle().fill(color)
+          Image(systemName: "checkmark").font(.system(size: 8, weight: .heavy)).foregroundColor(.white)
+        }
+      }
+      .frame(width: 17, height: 17)
+      Text(item.title)
+        .font(.system(size: size, weight: .medium))
+        .foregroundColor(onBg(isDark, item.done ? 0.38 : 0.88))
+        .lineLimit(1)
+      Spacer(minLength: 0)
+    }
+    .contentShape(Rectangle())
+  }
+}
+
+/// Alışkanlık düğmesi: simgesi olan yuvarlak; yapıldıysa kendi rengiyle dolu. Dokun → yapıldı / geri al.
+private struct HabitButton: View {
+  let item: WItem
+  let fallback: Color
+  let isDark: Bool
+  var diameter: CGFloat = 32
+
+  private var tint: Color { item.colorHex != nil ? Color(hexOrNil: item.colorHex) : fallback }
+
+  var body: some View {
+    if #available(iOS 17.0, *) {
+      Button(intent: ToggleHabitIntent(habitId: item.id, done: !item.done)) { face }.buttonStyle(.plain)
+    } else {
+      face
+    }
+  }
+
+  private var face: some View {
+    ZStack {
+      Circle().fill(item.done ? tint.opacity(0.9) : onBg(isDark, 0.07))
+      Circle().stroke(item.done ? tint : onBg(isDark, 0.14), lineWidth: 1.2)
+      if item.emoji.isEmpty {
+        Text(String(item.title.prefix(1))).font(.system(size: diameter * 0.42, weight: .semibold, design: .rounded))
+          .foregroundColor(item.done ? .white : onBg(isDark, 0.7))
+      } else {
+        Text(item.emoji).font(.system(size: diameter * 0.46))
+      }
+    }
+    .frame(width: diameter, height: diameter)
+  }
+}
+
+private struct HabitStrip: View {
+  let items: [WItem]
+  let fallback: Color
+  let isDark: Bool
+  var diameter: CGFloat = 32
+  var body: some View {
+    HStack(spacing: 8) {
+      ForEach(items, id: \.id) { h in HabitButton(item: h, fallback: fallback, isDark: isDark, diameter: diameter) }
+      Spacer(minLength: 0)
     }
   }
 }
@@ -305,7 +407,17 @@ struct TazqTodayView: View {
         Text(entry.tr ? "Bugün" : "Today")
           .font(.system(size: 12, weight: .semibold))
           .foregroundColor(onBg(entry.isDark, 0.55))
-        if !entry.taskTitles.isEmpty {
+        if !entry.tasks.isEmpty {
+          // Görev + alışkanlık birlikte sığsın: alışkanlık varsa 2 görev + simge şeridi, yoksa 3 görev.
+          ForEach(entry.tasks.prefix(entry.habits.isEmpty ? 3 : 2), id: \.id) { t in
+            TaskCheckRow(item: t, color: taskColor, isDark: entry.isDark)
+          }
+          if !entry.habits.isEmpty {
+            HabitStrip(items: Array(entry.habits.prefix(5)), fallback: habitColor, isDark: entry.isDark, diameter: 26)
+          }
+        } else if !entry.habits.isEmpty {
+          HabitStrip(items: Array(entry.habits.prefix(5)), fallback: habitColor, isDark: entry.isDark, diameter: 30)
+        } else if !entry.taskTitles.isEmpty {
           ForEach(entry.taskTitles.prefix(3), id: \.self) { title in
             TaskRow(title: title, color: taskColor, isDark: entry.isDark)
           }
@@ -326,7 +438,23 @@ struct TazqTodayView: View {
     VStack(alignment: .leading, spacing: 10) {
       header
 
-      if !entry.taskTitles.isEmpty {
+      if !entry.tasks.isEmpty || !entry.habits.isEmpty {
+        VStack(alignment: .leading, spacing: 10) {
+          ForEach(entry.tasks.prefix(entry.habits.isEmpty ? 7 : 5), id: \.id) { t in
+            TaskCheckRow(item: t, color: taskColor, isDark: entry.isDark, size: 13.5)
+          }
+          if entry.tasks.isEmpty {
+            EmptyTodayNote(tr: entry.tr, isDark: entry.isDark)
+          }
+        }
+        Spacer(minLength: 0)
+        if !entry.habits.isEmpty {
+          Text(entry.tr ? "Alışkanlıklar" : "Habits")
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundColor(onBg(entry.isDark, 0.5))
+          HabitStrip(items: Array(entry.habits.prefix(7)), fallback: habitColor, isDark: entry.isDark, diameter: 34)
+        }
+      } else if !entry.taskTitles.isEmpty {
         VStack(alignment: .leading, spacing: 9) {
           ForEach(entry.taskTitles.prefix(6), id: \.self) { title in
             TaskRow(title: title, color: taskColor, isDark: entry.isDark)
@@ -350,7 +478,7 @@ struct TazqTodayView: View {
         Spacer(minLength: 0)
       }
 
-      if !entry.taskTitles.isEmpty && entry.habitsTotal > 0 {
+      if entry.tasks.isEmpty && entry.habits.isEmpty && !entry.taskTitles.isEmpty && entry.habitsTotal > 0 {
         HabitsOnlyNote(entry: entry, color: habitColor)
       }
       Divider().background(onBg(entry.isDark, 0.1))

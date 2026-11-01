@@ -16,6 +16,7 @@ namespace Tazq_App.Data
 		public DbSet<ContentDocument> ContentDocuments { get; set; }
 		public DbSet<SupportMessage> SupportMessages { get; set; }
 		public DbSet<SupportReply> SupportReplies { get; set; }
+		public DbSet<SupportAttachment> SupportAttachments { get; set; }
 		public DbSet<ClientCrash> ClientCrashes { get; set; }
 		public DbSet<BanHistory> BanHistories { get; set; }
 		public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }

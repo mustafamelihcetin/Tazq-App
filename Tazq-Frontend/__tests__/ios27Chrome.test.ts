@@ -226,7 +226,7 @@ describe('odak hapı sekme çubuğunun üstünde', () => {
   });
 
   it('aşağıdan doğar — tepeden inmiyor', () => {
-    expect(ISLAND).toMatch(/from=\{\{ translateY: 24/);
+    expect(stripComments(read('features/focus/components/LiveFocusPill.tsx'))).toMatch(/from=\{\{ opacity: 0, translateY: 24/);
   });
 });
 
@@ -264,7 +264,6 @@ describe('Android: M3 yüzen çubuk — cam yalnız iOS\'ta', () => {
       bilmek zorunda.
     */
     expect(NAV).toContain('radius={NAV_BAR_RADIUS}');
-    expect(read('features/dashboard/components/StatusHub.tsx')).toContain('radius={HUB / 2}');
     expect(BLUR).toContain('radius != null && { borderRadius: radius }');
   });
 });
@@ -449,13 +448,11 @@ describe('renkli cam — süren iş durgun yüzeyle aynı renkte olmaz', () => {
     expect(BLUR).toMatch(/TINT_FALLBACK_OPACITY = 0\.\d+/);
   });
 
-  it('odak hapı seansın rengini taşır', () => {
-    expect(ISLAND).toContain('glassTint={theme.primary}');
-  });
-
-  it('Android hapı OPAK kalır — cam yalnız iOS', () => {
-    expect(ISLAND).toMatch(/Platform\.OS === 'ios' \? 'transparent' :/);
-    expect(ISLAND).toMatch(/\{Platform\.OS === 'ios' && \(\s*<AppBlur material="chrome"/);
+  it('odak kapsülü OPAK ve seansın rengini taşır (2026-11-01: şeffaf cam "uyumsuz" bulundu)', () => {
+    const PILL = stripComments(read('features/focus/components/LiveFocusPill.tsx'));
+    expect(ISLAND).toContain('<LiveFocusPill />');
+    expect(PILL).not.toContain('AppBlur');
+    expect(PILL).toContain("borderColor: tint + '40'");
   });
 });
 
@@ -622,9 +619,9 @@ describe('üst bar düğmeleri TEK bant — ekranlar ayrışamaz', () => {
     }
   });
 
-  it('durum düğmesi de aynı bantta — referans bozulmasın', () => {
-    const hub = stripComments(read('features/dashboard/components/StatusHub.tsx'));
+  it('gelen kutusu düğmesi de aynı bantta — referans bozulmasın (2026-11-01: durum düğmesinin yerine)', () => {
+    const hub = stripComments(read('features/dashboard/components/InboxSheet.tsx'));
     expect(hub).toContain('size={ICON.md}');
-    expect(hub).toContain('const HUB = TOP_ITEM_SIZE;');
+    expect(hub).toContain('width: TOP_ITEM_SIZE, height: TOP_ITEM_SIZE');
   });
 });

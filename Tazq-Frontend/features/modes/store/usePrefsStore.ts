@@ -5,6 +5,8 @@ import { AuthService } from '@/shared/services/api';
 import { swallow } from '@/shared/utils/swallow';
 import { addGoalRecord, removeGoalRecord, type GoalRecord as GoalRecordT } from '@/features/modes/utils/goalHistory';
 
+export type AuraMark = 'initial' | 'none' | 'star' | 'moon' | 'sun' | 'leaf' | 'drop' | 'spark' | 'mountain' | 'wave' | 'heart' | 'bolt' | 'flame' | 'arrow';
+
 
 /**
  * İLK DAKİKA ÖLÇÜMÜ (C0, 2026-10-31) — "Aklındakileri yaz" ekranının sonucu.
@@ -275,6 +277,13 @@ interface PrefsState {
   gender: 'male' | 'female' | '';
   setGender: (v: 'male' | 'female' | '') => void;
   productivityHour: 'morning' | 'afternoon' | 'evening' | 'night';
+  /**
+   * Auranın ortasındaki işaret (2026-11-01: "herkes isminin başını koymak istemeyebilir · harfin alternatifleri olmalı").
+   * 'initial' = adın ilk harfi · simgeler · 'none' = boş aura. Değişince HEMEN buluta yazılır: yazılmazsa bir sonraki
+   * hesap yenilemesinde buluttaki eski değer yerel seçimi eziyordu ("kapattım, kapatmıyor").
+   */
+  auraMark: AuraMark;
+  setAuraMark: (v: AuraMark) => void;
   setProductivityHour: (v: 'morning' | 'afternoon' | 'evening' | 'night') => void;
   avatarBorderColor: string;
   setAvatarBorderColor: (v: string) => void;
@@ -360,6 +369,7 @@ const CLOUD_PREF_KEYS = [
   'planSpecs',
   'gender',
   'productivityHour',
+  'auraMark',
   'weeklyNotification',
   'morningBrief',
   'eveningBrief',
@@ -632,6 +642,8 @@ export const usePrefsStore = create<PrefsState>()(
       setGender: (v) => set({ gender: v }),
       productivityHour: 'morning',
       setProductivityHour: (v) => set({ productivityHour: v }),
+      auraMark: 'initial',
+      setAuraMark: (v) => { set({ auraMark: v }); void get().syncToCloud(); },
       avatarBorderColor: 'transparent',
       setAvatarBorderColor: (v) => set({ avatarBorderColor: v }),
       // Ürün katmanları — varsayılan 'pro' (mevcut kullanıcıların deneyimi değişmesin;
@@ -722,6 +734,7 @@ export const usePrefsStore = create<PrefsState>()(
         motto: '',
         gender: '',
         productivityHour: 'morning',
+        auraMark: 'initial',
         avatarBorderColor: 'transparent',
         firstWinAt: null,
         firstCapture: null,
@@ -773,6 +786,10 @@ export const usePrefsStore = create<PrefsState>()(
           const ach = require('@/features/user/store/useAchievementStore').useAchievementStore.getState();
           snapshot.__achievements = { unlocked: ach.unlocked, baselined: ach.baselined };
         } catch (e) { swallow('prefsStore.collectAchievementsForSnapshot', e, { capture: true }); }
+        // Momentum geçmişi (son 14 gün, birkaç yüz bayt) — çıkışta grafik sıfırlanmasın (bkz. useMomentumStore).
+        try {
+          snapshot.__momentum = require('@/features/user/store/useMomentumStore').useMomentumStore.getState().history;
+        } catch (e) { swallow('prefsStore.collectMomentumForSnapshot', e); }
         /*
           KİLO GEÇMİŞİ BİLEREK BURAYA EKLENMEDİ.
 
@@ -796,7 +813,18 @@ export const usePrefsStore = create<PrefsState>()(
           hiçbir şey olmadığı için bulut kazanıyor ve eski tercihleri geri geliyor.
         */
         try {
-          await AuthService.updateProfile({ preferences: JSON.stringify(snapshot) });
+          const json = JSON.stringify(snapshot);
+          await AuthService.updateProfile({ preferences: json });
+          /*
+            Bellekteki kullanıcının tercih kopyası da güncellenir (2026-11-01). Güncellenmezse bir sonraki
+            setUser (ör. profil kaydı) ESKİ metni yeniden yükleyip az önce değiştirilen tercihi geri alıyordu
+            ("aurada harfi kapattım, kapatmıyor"). setUser DEĞİL doğrudan alan: yeniden yükleme tetiklenmesin.
+          */
+          try {
+            const auth = require('@/features/user/store/useAuthStore').useAuthStore;
+            const u = auth.getState().user;
+            if (u) auth.setState({ user: { ...u, preferences: json } });
+          } catch (e) { swallow('prefsStore.mirrorUserPreferences', e); }
           return true;
         } catch (err) {
           // Çevrimdışı/başarısız: tercihler lokalde zaten kalıcı; çağıran taraf bayrağı
@@ -845,6 +873,9 @@ export const usePrefsStore = create<PrefsState>()(
             try {
               require('@/features/user/store/useAchievementStore').useAchievementStore.getState().applyCloud(parsed.__achievements);
             } catch (e) { swallow('prefsStore.applyCloudAchievements', e, { capture: true }); }
+          }
+          if (parsed.__momentum) {
+            try { require('@/features/user/store/useMomentumStore').useMomentumStore.getState().applyCloud(parsed.__momentum); } catch (e) { swallow('prefsStore.applyCloudMomentum', e); }
           }
           if (require('@/features/payments/currencyCloud').applyCloudCurrency(parsed.__currency)) get().syncToCloud();
           // Kilo geçmişi buluta hiç gitmez, geri yüklenecek bir şey yok (bkz. syncToCloud).
@@ -899,6 +930,7 @@ export const usePrefsStore = create<PrefsState>()(
         },
         motto: (persisted as any)?.motto ?? '',
         productivityHour: (persisted as any)?.productivityHour ?? 'morning',
+        auraMark: (persisted as { auraMark?: AuraMark } | undefined)?.auraMark ?? 'initial',
         avatarBorderColor: (persisted as any)?.avatarBorderColor ?? 'transparent',
         planSpecs: (persisted as any)?.planSpecs ?? {},
       }),

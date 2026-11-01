@@ -15,7 +15,7 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useAuthStore } from '@/features/user';
 import { AdminService, AdminUser, AdminStats, AdminProductInsights, BanHistoryItem, AdminUserDetail, AdminAuditItem, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary, LogSource, AiStatus, AiTestResult } from '@/shared/services/api';
 import { sendAdminSupportNotification } from '@/shared/utils/notifications';
-import { ICON, S, R, F, B, MAX_W, HAIRLINE } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, MAX_W, HAIRLINE, SCRIM } from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
@@ -25,6 +25,7 @@ import { haptic } from '@/shared/utils/haptics';
 import { canStaff, roleLabel, isAnalystOnly } from '@/shared/utils/staffRoles';
 import { AnalyticsToggle } from '@/features/admin/components/AnalyticsToggle';
 import { CrashGroupsCard } from '@/features/admin/components/CrashGroupsCard';
+import { SupportAttachmentsRow } from '@/shared/components/SupportAttachmentsRow';
 import { SupportThread } from '@/shared/components/SupportThread';
 import { RolePicker } from '@/features/admin/components/RolePicker';
 import { AnalyticsCenter } from '@/features/admin/components/AnalyticsCenter';
@@ -1026,6 +1027,10 @@ export default function AdminScreen() {
                       onClose={() => handleStaffClose(m)}
                       header={<TemplateChips templates={tpl.templates} onPick={t => { setReplyDrafts(d => ({ ...d, [m.id]: fillTemplate(t.body, m.userName, d[m.id], templateFallback(language === 'tr' ? 'tr' : 'en')) })); }} />}
                     />
+                    {/* Kullanıcının eklediği fotoğraflar (salt okunur; bkz. SupportAttachmentsRow). */}
+                    {!!m.attachments?.length && (
+                      <SupportAttachmentsRow conversationId={m.id} items={m.attachments} canAdd={false} onAdded={() => {}} theme={theme} lang={tr ? 'tr' : 'en'} />
+                    )}
 
                     {!m.isRead && (
                       <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: S.xxs }}>
@@ -1420,8 +1425,8 @@ export default function AdminScreen() {
       )}
 
       {/* Yazarak onaylı hard-delete modalı */}
-      <Modal visible={!!deleteTarget} transparent animationType="fade" onRequestClose={() => { if (!deleting) setDeleteTarget(null); }}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: S.lg }}>
+      <Modal supportedOrientations={['portrait', 'landscape']} visible={!!deleteTarget} transparent animationType="fade" onRequestClose={() => { if (!deleting) setDeleteTarget(null); }}>
+        <View style={{ flex: 1, backgroundColor: SCRIM, justifyContent: 'center', alignItems: 'center', padding: S.lg }}>
           <TouchableOpacity style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} activeOpacity={1} onPress={() => { if (!deleting) { Keyboard.dismiss(); setDeleteTarget(null); } }} />
           <MotiView from={{ opacity: 0, scale: 0.96, translateY: 12 }} animate={{ opacity: 1, scale: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18 }}
             style={{ width: '100%', maxWidth: 420, borderRadius: R.sheet, padding: S.lg, gap: S.md }}>

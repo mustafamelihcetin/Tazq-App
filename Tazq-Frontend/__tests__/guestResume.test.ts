@@ -21,11 +21,13 @@ describe('yarım kalan misafirlik', () => {
   });
 
   it('karar yalnız soğuk açılışta, bir kez ve üç depo da diskten okunduktan sonra uygulanır', () => {
+    const hook = read('features/onboarding/hooks/useGuestResume.ts');
+    expect(hook).toContain('if (checked.current || !authReady || !sessionReady || !prefsReady) return;');
+    expect(hook).toContain('checked.current = true;');
+    expect(hook).toContain("prefs.setWelcomeStatus('unknown');");
     const layout = read('app/_layout.tsx');
-    expect(layout).toContain('if (guestResumeChecked.current || !_hasHydrated || !sessionHydrated || !prefsReadyForGuest) return;');
-    expect(layout).toContain('guestResumeChecked.current = true;');
+    expect(layout).toContain('useGuestResume();');
     // Misafirlik bitince auth kapısı (isGuest bağımlılığıyla) giriş ekranına götürür.
-    expect(layout).toContain("prefs.setWelcomeStatus('unknown');");
     expect(layout).toMatch(/\}, \[_hasHydrated, isLoggedIn, isGuest, segments\]\);/);
   });
 

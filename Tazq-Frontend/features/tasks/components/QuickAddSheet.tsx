@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Modal, Animated, TextInput, StyleSheet, ActivityIndicator, Platform, Pressable } from 'react-native';
-import { Zap, Sparkles } from 'lucide-react-native';
+import { Zap, Sparkles, Mic } from 'lucide-react-native';
+import VoiceService from '@/shared/utils/voice';
+import { haptic } from '@/shared/utils/haptics';
+import { localeOf } from '@/shared/utils/lang';
+import { CustomAlert as Alert, AlertHost } from '@/shared/components/CustomAlert';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
-import { ICON, S, R, F, B, scale, verticalScale } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, scale, verticalScale, SCRIM } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { parseTaskHint } from '@/features/tasks/utils/taskParser';
 import { buildNlpChips } from '@/features/tasks/utils/nlpChips';
@@ -48,6 +52,12 @@ interface QuickAddSheetProps {
   t: any;
 }
 
+/** Sesle ekleme metinleri (bkz. CaptureSheet — aynı servis, aynı uyarılar). */
+const VOICE_COPY = {
+  tr: { start: 'Sesle ekle', stop: 'Dinlemeyi durdur', micTitle: 'Mikrofon izni gerekli', micBody: 'Sesle eklemek için ayarlardan mikrofon iznini aç.', naTitle: 'Sesle ekleme kullanılamıyor', naBody: 'Bu cihazda ses tanıma desteklenmiyor; yazarak devam edebilirsin.' },
+  en: { start: 'Add by voice', stop: 'Stop listening', micTitle: 'Microphone permission needed', micBody: 'Turn on microphone access in settings to add by voice.', naTitle: 'Voice input unavailable', naBody: 'Speech recognition isn’t supported on this device; you can keep typing.' },
+};
+
 export type DayChoice = 'today' | 'tomorrow' | null;
 
 export const QuickAddSheet: React.FC<QuickAddSheetProps> = ({
@@ -78,6 +88,38 @@ export const QuickAddSheet: React.FC<QuickAddSheetProps> = ({
     }
   }, [visible, prepare]);
 
+  // ── Sesle ekle ──────────────────────────────────────────────────────────────
+  const vc = VOICE_COPY[language === 'en' ? 'en' : 'tr'];
+  const [listening, setListening] = useState(false);
+  // Yalnız GERÇEKTEN dinlerken durdurulur (çalışmayan oturumu durdurmak iOS'ta çöküşe yol açıyordu).
+  const listeningRef = useRef(false);
+  listeningRef.current = listening;
+  const stopVoice = async () => {
+    if (!listeningRef.current) return;
+    listeningRef.current = false;
+    setListening(false);
+    await VoiceService.stop().catch(() => {});
+  };
+  useEffect(() => { if (!visible) void stopVoice(); }, [visible]);
+  useEffect(() => () => { if (listeningRef.current) VoiceService.stop().catch(() => {}); }, []);
+  const toggleVoice = async () => {
+    if (listening) { await stopVoice(); return; }
+    haptic.commit();
+    setListening(true);
+    await VoiceService.start({
+      language: localeOf(language),
+      initialText: draft,
+      onResults: (results: string[]) => { if (results.length > 0) handleChange(results[0].slice(0, 500)); },
+      onError: (err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        setListening(false);
+        if (msg === 'permission-denied') Alert.alert(vc.micTitle, vc.micBody);
+        else if (msg === 'not-available') Alert.alert(vc.naTitle, vc.naBody);
+      },
+      onEnded: () => setListening(false),
+    });
+  };
+
   const handleChange = (text: string) => {
     setDraft(text);
     if (!text.trim()) {
@@ -106,7 +148,7 @@ export const QuickAddSheet: React.FC<QuickAddSheetProps> = ({
   const canSave = !!draft.trim();
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} onShow={slideIn}>
+    <Modal supportedOrientations={['portrait', 'landscape']} visible={visible} transparent animationType="none" onRequestClose={onClose} onShow={slideIn}>
       <View style={styles.overlay}>
         <Touchable
           style={StyleSheet.absoluteFill}
@@ -147,9 +189,10 @@ export const QuickAddSheet: React.FC<QuickAddSheetProps> = ({
             </View>
 
             <Pressable onPress={() => inputRef.current?.focus()} accessible={false} style={[styles.inputGroup, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
               <TextInput
                 ref={inputRef}
-                style={[styles.input, { color: theme.onSurface }]}
+                style={[styles.input, { color: theme.onSurface, flex: 1 }]}
                 placeholder={q.placeholder}
                 placeholderTextColor={theme.onSurfaceVariant + '99'}
                 value={draft}
@@ -160,6 +203,18 @@ export const QuickAddSheet: React.FC<QuickAddSheetProps> = ({
                 accessibilityLabel={q.title}
                 autoFocus
               />
+              {/* SESLE EKLE (2026-11-01, kullanıcı: "hızlı ekleye de mikrofon ekle"): söylenen cümle alana yazılır,
+                  tarih/saat çipleri yazarken olduğu gibi anında çıkar. "Aklındakileri yaz" ile aynı servis. */}
+              <Touchable
+                onPress={toggleVoice}
+                accessibilityRole="button"
+                accessibilityLabel={listening ? vc.stop : vc.start}
+                accessibilityState={{ selected: listening }}
+                style={[styles.mic, { backgroundColor: listening ? theme.primary : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)') }]}
+              >
+                <Mic size={ICON.md} color={listening ? theme.onPrimary : theme.onSurfaceVariant} />
+              </Touchable>
+              </View>
             </Pressable>
 
             {/* Ayrıştırıcının okudukları — hızlı ekleme kara kutu olmasın. */}
@@ -225,12 +280,13 @@ export const QuickAddSheet: React.FC<QuickAddSheetProps> = ({
           </Animated.View>
         </View>
       </View>
+      <AlertHost />{/* mikrofon uyarıları pencerenin ÜSTÜNDE görünsün (iOS: pencere içinden uyarı görünmüyordu) */}
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  overlay: { flex: 1, backgroundColor: SCRIM, justifyContent: 'flex-end' },
   wrapper: { width: '100%' },
   sheet: {
     width: '100%',
@@ -248,6 +304,7 @@ const styles = StyleSheet.create({
   sub: { fontSize: F.caption, fontWeight: '600', marginTop: S.xxs },
   inputGroup: { borderRadius: R.lg, paddingHorizontal: S.md, minHeight: verticalScale(64), justifyContent: 'center', marginTop: S.md },
   input: { fontWeight: '600', fontSize: F.subhead, paddingVertical: S.sm },
+  mic: { width: 40, height: 40, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   dayRow: { flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm, flexWrap: 'wrap' },
   dayChip: { paddingHorizontal: S.md, paddingVertical: S.xs + 2, borderRadius: R.full },
   dayChipText: { fontSize: F.caption2, fontWeight: '700' },

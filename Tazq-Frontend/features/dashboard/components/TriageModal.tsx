@@ -101,7 +101,7 @@ export const TriageModal = React.memo<TriageModalProps>(({
   };
 
   return (
-    <Modal
+    <Modal supportedOrientations={['portrait', 'landscape']}
       visible={visible}
       transparent
       animationType="fade"

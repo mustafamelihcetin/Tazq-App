@@ -1,8 +1,11 @@
 import React from 'react';
-import { View, Image, type ImageStyle } from 'react-native';
-import { UserRound } from 'lucide-react-native';
+import { View, type ImageStyle } from 'react-native';
 import type { AppTheme } from '@/shared/constants/Colors';
-import { getAvatarSource } from '@/features/user/utils/avatars';
+import { AuraAvatar } from '@/features/user/components/AuraAvatar';
+import { useWeekGlow } from '@/features/user/hooks/useWeekGlow';
+import { useAuthStore } from '@/features/user';
+import { useSessionStore } from '@/shared/store/useSessionStore';
+import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 
 /**
  * KULLANICI AVATARI — seçilmemişse CİNSİYETSİZ siluet.
@@ -13,22 +16,27 @@ import { getAvatarSource } from '@/features/user/utils/avatars';
  * Apple'ın deseni: seçilmemiş fotoğraf yerine nötr bir siluet (Kişiler, Apple
  * Hesabı). Avatar seçilince fotoğraf görünür; seçim profil düzenlemede.
  */
-export function UserAvatar({ avatar, size, iconSize, theme, style }: {
+/*
+ * 2026-11-01: HERKES kişiye özel AURA (bkz. AuraAvatar). Siluet "isimsiz profil" gibi soğuktu; 3B karakterler
+ * kimliğe uymuyordu. Kayıtlı eski avatar değeri ARTIK ÇİZİLMEZ — çoğu kullanıcıda o değer seçim değil, eski
+ * kurulumun varsayılanıydı ("m1") ve ikisi ayırt edilemiyor. `avatar` prop'u çağıranlar bozulmasın diye duruyor.
+ */
+export function UserAvatar({ size, theme, style, animated = false }: {
   avatar?: string | null;
   size: number;
-  /** ICON ölçeğinden (bkz. tokens) — ikon boyutu elle yazılmaz. */
-  iconSize: number;
+  /** Eski siluet ikonu içindi; aura kendi ölçeğini kullanır. Çağıranlar bozulmasın diye duruyor. */
+  iconSize?: number;
   theme: AppTheme;
   style?: ImageStyle;
+  /** Aura yavaşça döner (yalnız profil gibi büyük yerlerde). */
+  animated?: boolean;
 }) {
-  if (avatar) {
-    return <Image source={getAvatarSource(avatar)} style={[{ width: size, height: size }, style]} resizeMode="cover" />;
-  }
+  const name = useAuthStore(s => s.user?.name) ?? useSessionStore.getState().guestProfile?.name ?? null;
+  const glow = useWeekGlow();
+  const mark = usePrefsStore(s => s.auraMark);
   return (
-    <View
-      style={[{ width: size, height: size, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surfaceField }, style]}
-    >
-      <UserRound size={iconSize} color={theme.onSurfaceMuted} strokeWidth={1.75} />
+    <View style={[{ width: size, height: size, overflow: 'hidden', borderRadius: size / 2 }, style]}>
+      <AuraAvatar name={name} accent={theme.primary} size={size} glow={glow} animated={animated} mark={mark} />
     </View>
   );
 }

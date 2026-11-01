@@ -56,7 +56,9 @@ export const PaymentRow = React.memo(({ view, position, theme, t, amountLabel, d
   const isTop = position === 'first' || position === 'only';
   const isBottom = position === 'last' || position === 'only';
   const provider = matchProvider(p.title);
-  const due = dueText(view, t, dateLabel);
+  const baseDue = dueText(view, t, dateLabel);
+  // Taksitliyse kaçıncı taksit olduğu vade yazısının yanında ("3/12. taksit").
+  const due = view.installment ? { ...baseDue, text: `${baseDue.text} · ${t.installmentOf(view.installment.no, view.installment.total)}` } : baseDue;
   const toneColor = due.tone === 'error' ? theme.error : due.tone === 'warning' ? theme.warning : theme.onSurfaceMuted;
 
   return (
@@ -120,7 +122,7 @@ PaymentRow.displayName = 'PaymentRow';
 
 const styles = StyleSheet.create({
   ring: { width: RING, height: RING, borderRadius: R.full, alignItems: 'center', justifyContent: 'center', marginRight: S.md },
-  body: { flex: 1, paddingVertical: S.smd, paddingRight: S.md, minHeight: 60, justifyContent: 'center' },
+  body: { flex: 1, paddingVertical: S.sm, paddingRight: S.md, minHeight: 52, justifyContent: 'center' },
   inner: { flexDirection: 'row', alignItems: 'center', gap: S.smd },
   generic: { width: 32, height: 32, borderRadius: R.sm, alignItems: 'center', justifyContent: 'center' },
 });

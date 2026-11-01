@@ -23,7 +23,10 @@ export interface DailyPlanSpec {
   name?: string;          // sınav/şirket/tez adı (başlıkta {name} yerine geçer)
   daysLeft: number;       // hedef tarihe kalan gün
   dailyMinutes?: number;  // kullanıcının seçtiği günlük süre → görev yoğunluğu
-  templateId?: string;    // (opsiyonel) ileride faz override için
+  /** Seçilen çalışma yöntemi (sınav: active-recall · spaced-repetition · deep-work · sprint · foundation). */
+  templateId?: string;
+  /** Günlük PLAN BÜTÇESİNDEN bu moda düşen üst sınır (bkz. allocatePlanBudget). Verilmezse sınır yok. */
+  maxCount?: number;
   /**
    * Adaptif zorluk sinyali. Kullanıcının son tamamlama davranışına göre günlük
    * görev sayısı YALNIZCA hafifletilir (asla aşırı yüklenmez). Verilmezse temel
@@ -97,6 +100,72 @@ export function adaptiveTaskCount(
   if (recovery === 'low') count -= 1;
   return Math.max(1, count);
 }
+
+/** Bu modun bugün İSTEDİĞİ görev sayısı (süre + uyum + toparlanma) — bütçe paylaştırması bunu okur. */
+export function desiredDailyCount(spec: DailyPlanSpec): number {
+  return adaptiveTaskCount(taskCountFor(spec.dailyMinutes), spec.adherence, spec.recovery);
+}
+
+/*
+  GÜNLÜK PLAN BÜTÇESİ (2026-11-01, kullanıcı: "modların görevlerinde yığılma olmasın"). Her mod kendi başına 1–3 görev
+  üretiyordu; 2 sınav + mülakat + spor açıkken günde 9–12 plan görevi çıkabiliyordu ve plan görevleri Zen'de taşınamaz
+  sayıldığı için yığılma çözülemiyordu. Artık TÜM modların toplamı bir bütçe:
+   · tavan 4; kullanıcının kendi işleri çoksa daralır (bugün ≥3 kendi işi → 3, ≥5 → 2)
+   · önce her moda 1 (hedef tarihi EN YAKIN önce), sonra kalan bütçe isteklerine göre aynı sırayla
+   · bütçe mod sayısından azsa en uzak tarihli modlar o gün görev almaz (yarın sıra onlara kayar değil — tarih yaklaşınca öne geçerler)
+*/
+export const PLAN_DAILY_BUDGET = 4;
+
+export function planBudgetFor(ownTasksToday: number): number {
+  if (ownTasksToday >= 5) return 2;
+  if (ownTasksToday >= 3) return 3;
+  return PLAN_DAILY_BUDGET;
+}
+
+/** Bütçeyi modlara paylaştırır; dönüş: spec sırasıyla her moda düşen üst sınır. */
+export function allocatePlanBudget(specs: Pick<DailyPlanSpec, 'daysLeft'>[], desired: number[], budget: number): number[] {
+  const order = specs.map((s, i) => i).sort((a, b) => specs[a].daysLeft - specs[b].daysLeft || a - b);
+  const out = specs.map(() => 0);
+  let left = budget;
+  for (const i of order) { if (left <= 0) break; if (desired[i] > 0) { out[i] = 1; left--; } }
+  for (const i of order) { if (left <= 0) break; const extra = Math.min(desired[i] - out[i], left); if (extra > 0 && out[i] > 0) { out[i] += extra; left -= extra; } }
+  return out;
+}
+
+/*
+  ÇALIŞMA YÖNTEMİ GERÇEKTEN UYGULANIR (2026-11-01). Kurulumda seçtirilen yöntem motorda hiç okunmuyordu — herkes aynı
+  görevleri alıyordu (mağaza metni bunu vaat ediyor). Artık günün İLK görevi yöntemin kendi tarzından gelir
+  (dönüşümlü); kalanlar fazın havuzundan. Yöntem seçilmemişse davranış eskisi gibi.
+*/
+const METHOD_POOLS: Record<string, Pool> = {
+  'active-recall': [
+    { tr: '{name}: Kitabı kapat, dünkü konuyu boş kâğıda 5 dakikada anlat', en: '{name}: Close the book and explain yesterday’s topic on blank paper in 5 minutes' },
+    { tr: '{name}: 10 soruyu cevaplara bakmadan çöz, sonra kontrol et', en: '{name}: Solve 10 questions without peeking, then check' },
+    { tr: '{name}: Konuyu kendi sorunla bitir: 3 soru yaz ve cevapla', en: '{name}: Write and answer 3 questions of your own on the topic' },
+    { tr: '{name}: Kavram haritasını ezberden çiz, eksikleri sonra tamamla', en: '{name}: Draw the concept map from memory, then fill the gaps' },
+  ],
+  'spaced-repetition': [
+    { tr: '{name}: Dünkü konuyu 10 dakika tekrar et', en: '{name}: Review yesterday’s topic for 10 minutes' },
+    { tr: '{name}: 3 gün önceki konudan 5 soru çöz', en: '{name}: Solve 5 questions from the topic you studied 3 days ago' },
+    { tr: '{name}: Geçen haftanın konusunu kartlarla gözden geçir', en: '{name}: Go over last week’s topic with flashcards' },
+    { tr: '{name}: "Zor" işaretli kartları bitir', en: '{name}: Clear the cards marked “hard”' },
+  ],
+  'deep-work': [
+    { tr: '{name}: Telefonsuz 50 dakikalık tek blok çalış', en: '{name}: One 50-minute block, phone in another room' },
+    { tr: '{name}: Güne en zor konuyla başla, 45 dakika kesintisiz', en: '{name}: Start with the hardest topic, 45 minutes uninterrupted' },
+    { tr: '{name}: Tek konuya 2 pomodoro, notları tek sayfada topla', en: '{name}: Two pomodoros on one topic, notes on a single page' },
+  ],
+  sprint: [
+    { tr: '{name}: Süre tutarak 30 dakikada 25 soru', en: '{name}: 25 questions in 30 minutes, timed' },
+    { tr: '{name}: Mini deneme: 20 soru, ardından hızlı hata analizi', en: '{name}: Mini mock: 20 questions, then a quick error review' },
+    { tr: '{name}: Zayıf konudan 15 hızlı soru, süre tut', en: '{name}: 15 quick questions from your weak topic, timed' },
+  ],
+  foundation: [
+    { tr: '{name}: Temel kavramı baştan oku, 5 maddede özetle', en: '{name}: Read the core concept from scratch, summarise in 5 points' },
+    { tr: '{name}: Konu anlatımını izle, örnek soruyu kendin çöz', en: '{name}: Watch the lesson, then solve the example yourself' },
+    { tr: '{name}: Formül ve tanım listeni temize çek', en: '{name}: Write out a clean list of formulas and definitions' },
+  ],
+};
 
 // Bugün 09:00 (yerel) ISO — günlük görevler güne tarihlenir
 function todayAt9(today: Date): string {
@@ -404,7 +473,9 @@ export function buildDailyTasks(
   const pool = effectivePool(spec);
   if (!pool.length) return [];
 
-  const count = Math.min(adaptiveTaskCount(taskCountFor(spec.dailyMinutes), spec.adherence, spec.recovery), pool.length);
+  const want = Math.min(desiredDailyCount(spec), pool.length);
+  const count = spec.maxCount != null ? Math.min(want, spec.maxCount) : want;
+  if (count <= 0) return []; // bütçe bugün bu moda yer bırakmadı
   const offset = dayIndex(today);
   const due = todayAt9(today);
   const name = spec.name?.trim() || (tr ? 'Hedefin' : 'Your goal');
@@ -422,8 +493,10 @@ export function buildDailyTasks(
   };
   const extraVisibleTag = visibleTagsMap[spec.kind];
 
+  const method = spec.templateId ? METHOD_POOLS[spec.templateId] : undefined;
   for (let i = 0; i < count; i++) {
-    const item = pool[(offset + i) % pool.length];
+    // Yöntemin tarzı günün İLK görevinde (dönüşümlü); kalanlar faz havuzundan.
+    const item = i === 0 && method ? method[offset % method.length] : pool[(offset + i - (method ? 1 : 0)) % pool.length];
     const titleTr = item.tr.replace('{name}', name);
     const titleEn = item.en.replace('{name}', name);
     const title = tr ? titleTr : titleEn;
@@ -457,6 +530,7 @@ export function getAllDailyPlanPairs(): Array<{ tr: string; en: string }> {
   addRecord(MEDICAL_EXAM_POOLS);
   addRecord(TEZ_POOLS);
   addRecord(MULAKAT_POOLS);
+  addRecord(METHOD_POOLS); // yöntem görevleri de dil değişince çevrilsin
   pairs.push(...KILO_POOL, ...MARATON_POOL, ...GUC_POOL, ...GENEL_POOL, ...RAMAZAN_POOL);
   /**
    * RAMAZAN VARYANTLARI DA — eskiden unutulmuşlardı.

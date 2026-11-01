@@ -31,6 +31,12 @@ export interface Payment {
   category?: string | null;
   /** ISO 4217; boş = ana birim (bkz. features/payments/utils/money). */
   currency?: string | null;
+  /** Tutar her ay değişir (elektrik, kart ekstresi): `amount` bir TAHMİN; "ödendi"de gerçek tutar sorulur. */
+  isVariable?: boolean;
+  /** Taksit sayısı (2–120); boş = süresiz. */
+  installmentCount?: number | null;
+  /** İlk taksitin dönemi ("YYYY-MM"; yıllıkta "YYYY"). */
+  installmentStart?: string | null;
 }
 
 interface PaymentsState {

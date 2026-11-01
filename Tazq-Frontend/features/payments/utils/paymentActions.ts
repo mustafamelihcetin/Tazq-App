@@ -13,7 +13,7 @@ import type { Payment } from '@/features/payments/store/usePaymentsStore';
  * usePaymentsStore başlığı).
  */
 
-function toPayload(p: Pick<Payment, 'title' | 'amount' | 'dueDay' | 'recurrence' | 'nextDueDate' | 'category' | 'currency'>): PaymentPayload {
+function toPayload(p: Pick<Payment, 'title' | 'amount' | 'dueDay' | 'recurrence' | 'nextDueDate' | 'category' | 'currency' | 'isVariable' | 'installmentCount' | 'installmentStart'>): PaymentPayload {
   return {
     title: p.title,
     amount: p.amount,
@@ -22,6 +22,9 @@ function toPayload(p: Pick<Payment, 'title' | 'amount' | 'dueDay' | 'recurrence'
     nextDueDate: p.nextDueDate ?? null,
     category: p.category ?? null,
     currency: p.currency ?? null,
+    isVariable: !!p.isVariable,
+    installmentCount: p.installmentCount ?? null,
+    installmentStart: p.installmentStart ?? null,
   };
 }
 
@@ -121,29 +124,30 @@ export async function deletePaymentAction(id: number): Promise<PaymentOpResult> 
  * "Ödendi" işaretler — tek dokunuş, geri alınabilir (bkz. app/odemeler.tsx Toast'u).
  * `cycleKey`: aylık "YYYY-MM", yıllık "YYYY", tek seferlik "once" — ekran hesaplar.
  */
-export async function markPaymentPaidAction(id: number, cycleKey: string): Promise<PaymentOpResult> {
+export async function markPaymentPaidAction(id: number, cycleKey: string, amount?: number): Promise<PaymentOpResult> {
   const store = usePaymentsStore.getState();
   const before = store.payments.find(p => p.id === id);
   if (!before) return 'skipped';
 
-  store.updatePayment(id, { lastPaidCycleKey: cycleKey });
+  // Değişken tutar: ödenen tutar bir sonraki ayın tahmini olur (sunucu da aynısını yapar).
+  store.updatePayment(id, before.isVariable && amount != null ? { lastPaidCycleKey: cycleKey, amount } : { lastPaidCycleKey: cycleKey });
 
   if (id < 0) return 'ok';
 
   if (!useNetworkStore.getState().isOnline) {
-    useOfflineQueue.getState().enqueue({ type: 'mark-paid-payment', id, cycleKey });
+    useOfflineQueue.getState().enqueue({ type: 'mark-paid-payment', id, cycleKey, amount });
     return 'queued';
   }
 
   try {
-    await PaymentService.markPaid(id, cycleKey);
+    await PaymentService.markPaid(id, cycleKey, amount);
     return 'ok';
   } catch (err: unknown) {
     if (isNetworkError(err)) {
-      useOfflineQueue.getState().enqueue({ type: 'mark-paid-payment', id, cycleKey });
+      useOfflineQueue.getState().enqueue({ type: 'mark-paid-payment', id, cycleKey, amount });
       return 'queued';
     }
-    usePaymentsStore.getState().updatePayment(id, { lastPaidCycleKey: before.lastPaidCycleKey });
+    usePaymentsStore.getState().updatePayment(id, { lastPaidCycleKey: before.lastPaidCycleKey, amount: before.amount });
     return 'failed';
   }
 }

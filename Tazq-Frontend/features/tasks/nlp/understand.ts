@@ -451,14 +451,23 @@ export function titleOf(text: string, u: Understanding): string {
     .map(f => f.at as [number, number])
     .sort((a, b) => b[0] - a[0]);
   let out = text;
+  let headCut = false;
   for (const [a0, b] of cut) {
     // Kesilen parçanın önünde yetim kalan edat da gider ("at 3pm" → "", "on monday" → "").
     const lead = /(^|\s)(at|on|by|saat)\s+$/i.exec(out.slice(0, a0));
     const a = lead ? lead.index + lead[1].length : a0;
+    if (!out.slice(0, a).trim()) headCut = true;
     out = out.slice(0, a) + ' ' + out.slice(b);
   }
   out = out.replace(/\s{2,}/g, ' ').replace(/\s+([,.;:!?])/g, '$1').replace(/^[\s,.;:\-–—]+|[\s,;:\-–—]+$/g, '').trim();
-  return out.length >= 2 ? out : text.trim();
+  if (out.length < 2) return text.trim();
+  /*
+    BAŞI KESİLEN BAŞLIK BÜYÜK HARFLE BAŞLAR (2026-11-01, kullanıcı: "Yarın ev temizlenecek" → "ev temizlenecek"
+    çirkin duruyor). Yalnız cümlenin BAŞI alana aktarıldıysa: kullanıcının kendi yazdığı küçük harfli başlığa
+    dokunulmaz. "iPhone" gibi bilerek küçük başlayan marka adları (ikinci harf büyük) da korunur.
+  */
+  if (headCut && !/^\p{Ll}\p{Lu}/u.test(out)) out = out.charAt(0).toLocaleUpperCase(u.lang) + out.slice(1);
+  return out;
 }
 
 /** Kategori → kaydedilecek etiket (arayüz dilinde). */

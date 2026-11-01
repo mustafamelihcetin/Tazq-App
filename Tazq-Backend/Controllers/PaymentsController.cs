@@ -40,11 +40,19 @@ namespace Tazq_App.Controllers
             public string? Category { get; set; }
             /// <summary>ISO 4217 (TRY/USD/EUR/GBP); boş = ana birim.</summary>
             public string? Currency { get; set; }
+            /// <summary>Tutar her ay değişir (Amount = tahmin).</summary>
+            public bool IsVariable { get; set; }
+            /// <summary>Taksit sayısı (2–120); null = süresiz.</summary>
+            public int? InstallmentCount { get; set; }
+            /// <summary>İlk taksit dönemi ("YYYY-MM" / yıllıkta "YYYY").</summary>
+            public string? InstallmentStart { get; set; }
         }
 
         public class MarkPaidRequest
         {
             public string CycleKey { get; set; } = string.Empty;
+            /// <summary>Değişken tutarlı ödemede o ayın gerçek tutarı (isteğe bağlı).</summary>
+            public decimal? Amount { get; set; }
         }
 
         [HttpGet]
@@ -65,7 +73,7 @@ namespace Tazq_App.Controllers
 
             try
             {
-                var payment = await _paymentService.CreatePaymentAsync(userId.Value, req.Title, req.Amount, req.DueDay, req.Recurrence, req.NextDueDate, req.Category, req.Currency);
+                var payment = await _paymentService.CreatePaymentAsync(userId.Value, req.Title, req.Amount, req.DueDay, req.Recurrence, req.NextDueDate, req.Category, req.Currency, req.IsVariable, req.InstallmentCount, req.InstallmentStart);
                 return Ok(payment);
             }
             catch (InvalidOperationException ex) when (ex.Message.StartsWith("PAYMENT_LIMIT_REACHED"))
@@ -80,7 +88,7 @@ namespace Tazq_App.Controllers
             var userId = GetUserId();
             if (userId == null) return Unauthorized();
 
-            var payment = await _paymentService.UpdatePaymentAsync(userId.Value, id, req.Title, req.Amount, req.DueDay, req.Recurrence, req.NextDueDate, req.Category, req.Currency);
+            var payment = await _paymentService.UpdatePaymentAsync(userId.Value, id, req.Title, req.Amount, req.DueDay, req.Recurrence, req.NextDueDate, req.Category, req.Currency, req.IsVariable, req.InstallmentCount, req.InstallmentStart);
             if (payment == null) return NotFound();
             return Ok(payment);
         }
@@ -119,7 +127,7 @@ namespace Tazq_App.Controllers
             var userId = GetUserId();
             if (userId == null) return Unauthorized();
 
-            var payment = await _paymentService.MarkPaidAsync(userId.Value, id, req.CycleKey);
+            var payment = await _paymentService.MarkPaidAsync(userId.Value, id, req.CycleKey, req.Amount);
             if (payment == null) return NotFound();
             return Ok(payment);
         }

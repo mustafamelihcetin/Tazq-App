@@ -17,7 +17,7 @@ import { getCurrentRamadanStatus } from '@/shared/utils/ramadanDates';
 import { renderModeEmojiIcon } from '../utils/modeIcons';
 import { draftsFromText, QUICK_EMOJIS, QUICK_COLORS, DraftHabit, DraftTask } from '@/features/modes/utils/customPlanDraft';
 import { langOf } from '@/shared/utils/lang';
-import { ICON, S, R, F, B, HAIRLINE , sheetMaxHeight} from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, HAIRLINE , sheetMaxHeight, SCRIM } from '@/shared/constants/tokens';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { Touchable } from '@/shared/components/Touchable';
@@ -1388,8 +1388,8 @@ export const TurkishModeBanner: React.FC<Props> = ({
         </MotiView>
       )}
 
-      <Modal visible={sheetVisible} transparent animationType="none" onRequestClose={() => setSheetVisible(false)} onShow={() => slideIn()}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
+      <Modal supportedOrientations={['portrait', 'landscape']} visible={sheetVisible} transparent animationType="none" onRequestClose={() => setSheetVisible(false)} onShow={() => slideIn()}>
+        <View style={{ flex: 1, backgroundColor: SCRIM, justifyContent: 'flex-end' }}>
           {/* Sayfanın arka planı — ekran okuyucuda adsız bir kontrol olarak belirmesin. */}
           <Touchable accessible={false} importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setSheetVisible(false)} />
           <Animated.View

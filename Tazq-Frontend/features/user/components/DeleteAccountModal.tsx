@@ -3,7 +3,7 @@ import { View, Text, Modal, TextInput, Keyboard, StyleSheet, ActivityIndicator }
 import { GlassSheet } from '@/shared/components/GlassSheet';
 import { Trash2, AlertCircle } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
-import { S, R, F, B, ICON } from '@/shared/constants/tokens';
+import { S, R, F, B, ICON, SCRIM } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { AuthService } from '@/shared/services/api';
 import { isNetworkError, httpStatusOf, httpDataOf } from '@/shared/utils/errors';
@@ -119,8 +119,8 @@ export function DeleteAccountModal({
   const bullets = [t.lossProfile, t.lossTasks, t.lossFocus, t.lossModes];
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: S.lg, paddingTop: insetTop + S.lg, paddingBottom: (kbHeight > 0 ? kbHeight : insetBottom) + S.lg }}>
+    <Modal supportedOrientations={['portrait', 'landscape']} visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
+      <View style={{ flex: 1, backgroundColor: SCRIM, justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: S.lg, paddingTop: insetTop + S.lg, paddingBottom: (kbHeight > 0 ? kbHeight : insetBottom) + S.lg }}>
         <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={dismiss} accessibilityRole="button" accessibilityLabel={t.close} />
         <GlassSheet>
           <View style={{ width: 52, height: 52, borderRadius: R.full, backgroundColor: theme.error + '18', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>

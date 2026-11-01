@@ -3,7 +3,7 @@ import { View, Text, Modal, TextInput, TouchableOpacity, ActivityIndicator, Plat
 import { MotiView } from 'moti';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Zap, Sparkles, Heart } from 'lucide-react-native';
-import { S, R, B, F, ICON } from '@/shared/constants/tokens';
+import { S, R, B, F, ICON, SCRIM } from '@/shared/constants/tokens';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { swallow } from '@/shared/utils/swallow';
 import type { AppTheme } from '@/shared/constants/Colors';
@@ -107,13 +107,13 @@ export function ReviewPromptModal({ visible, onClose, theme, tr }: Props) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal supportedOrientations={['portrait', 'landscape']} visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       {/* Ortalanmış diyalog + TextInput: klavye açılınca kutu klavyenin ALTINDA
           kalıyordu (iOS'ta ekran kaymaz, modal olduğu yerde durur). KAV içeriği
           klavyenin üstüne taşır. */}
       <KeyboardAvoidingView
         behavior="padding"
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: S.lg }}
+        style={{ flex: 1, backgroundColor: SCRIM, justifyContent: 'center', alignItems: 'center', padding: S.lg }}
       >
         <MotiView
           from={{ scale: 0.9, opacity: 0 }}

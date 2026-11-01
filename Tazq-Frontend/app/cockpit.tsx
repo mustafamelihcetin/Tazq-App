@@ -928,7 +928,7 @@ export default function CockpitScreen() {
       </View>
 
       {/* ══ ADD HABIT SHEET ══ */}
-      <Modal
+      <Modal supportedOrientations={['portrait', 'landscape']}
         visible={addVisible}
         transparent
         animationType="none"
@@ -995,7 +995,7 @@ export default function CockpitScreen() {
       })()}
 
       {/* ══ PLAN WEEK SHEET ══ */}
-      <Modal
+      <Modal supportedOrientations={['portrait', 'landscape']}
         visible={planVisible}
         transparent
         animationType="none"

@@ -38,7 +38,7 @@ import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useHabitStore } from '@/features/habits';
-import { buildDailyTasks, DailyPlanSpec, PlanKind } from '@/features/modes/utils/dailyPlanEngine';
+import { buildDailyTasks, allocatePlanBudget, desiredDailyCount, planBudgetFor, DailyPlanSpec, PlanKind } from '@/features/modes/utils/dailyPlanEngine';
 import { runPlanMigrationOnce } from '@/features/modes/utils/planMigration';
 import { findExamCurriculum, pickSubject, pickTopic, subjectExamLabel } from '@/shared/utils/curriculum';
 import { INTERVIEW_AREAS, TEZ_AREAS, SPOR_AREAS, pickWeightedArea, areaLabel, type SporAreaKind } from '@/shared/utils/weakAreas';
@@ -1158,7 +1158,22 @@ export function usePlanAdaptations() {
       return RAMAZAN.some(r => k >= r.start && k <= r.end);
     })();
     const subjectTodayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    for (const ds of dailySlots) {
+    /*
+      GÜNLÜK PLAN BÜTÇESİ (bkz. allocatePlanBudget): tüm modların toplamı sınırlı; kullanıcının bugünkü kendi
+      işleri (plan dışı, bitmemiş) çoksa bütçe daralır. Önce her moda 1, hedef tarihi en yakın önce.
+    */
+    const recoveryNow = usePrefsStore.getState().recoveryState;
+    const ownToday = fresh.filter(t => !t.isCompleted && !(t.tags ?? []).includes('daily') && (() => {
+      if (!t.dueDate) return false;
+      const d = new Date(t.dueDate);
+      return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
+    })()).length;
+    const caps = allocatePlanBudget(
+      dailySlots.map(ds => ds.spec),
+      dailySlots.map(ds => desiredDailyCount({ ...ds.spec, adherence, recovery: recoveryNow })),
+      planBudgetFor(ownToday),
+    );
+    for (const [slotIndex, ds] of dailySlots.entries()) {
       /*
         TOPARLANMA SİNYALİ SPEC'E GİRİYOR.
 
@@ -1168,7 +1183,7 @@ export function usePlanAdaptations() {
         hizmet ediyor.
       */
       const recovery = usePrefsStore.getState().recoveryState;
-      const spec = { ...ds.spec, adherence, recovery, isRamazan: inRamazanNow };
+      const spec = { ...ds.spec, adherence, recovery, isRamazan: inRamazanNow, maxCount: caps[slotIndex] };
       // Genişletilmiş havuz VARSA kullanılır; yoksa motor sabit havuzla çalışır.
       // Eksikse arka planda doldurulur — beklenmez, bugünü etkilemez (bkz. planPoolSync).
       const daily = buildDailyTasks({ ...spec, extraPool: getExtraPool(spec) }, fresh, lang, today);

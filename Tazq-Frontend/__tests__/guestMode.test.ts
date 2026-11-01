@@ -317,9 +317,9 @@ describe('"verilerim kalsın" sözü — misafirden hesaba geçişte veri SİLİ
 });
 
 describe('avatar — kimseye sorulmadan kimlik giydirilmez', () => {
-  it('avatar seçilmemişse siluet; ana sayfa ve profil aynı bileşeni kullanır', () => {
+  it('avatar seçilmemişse kişiye özel aura (siluet soğuktu, 2026-11-01); ana sayfa ve profil aynı bileşeni kullanır', () => {
     const av = stripComments(read('features/user/components/UserAvatar.tsx'));
-    expect(av).toContain('<UserRound');
+    expect(av).toContain('<AuraAvatar');
     for (const f of ['app/index.tsx', 'app/profile.tsx']) {
       const src = stripComments(read(f));
       // Misafir yedeği serbest (hoş geldinde seçtiği avatar) — bileşen yine AYNI.

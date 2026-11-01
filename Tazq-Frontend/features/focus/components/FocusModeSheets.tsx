@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, Modal } from 'react-native';
+import { View, Text, Modal, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
-import { Timer, Wind, Shield, Sun, Maximize2, ChevronRight } from 'lucide-react-native';
+import { DeviceOnlyNote } from '@/shared/components/DeviceOnlyNote';
+import { Timer, Shield, Sun, Maximize2, ChevronRight } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
+import { DragToClose } from '@/shared/components/DragToClose';
 import { AppIcon } from '@/shared/components/AppIcon';
-import { S, F, R, B, ICON } from '@/shared/constants/tokens';
+import { S, F, R, B, ICON, SCRIM, sheetMaxHeight } from '@/shared/constants/tokens';
 import { useLowPowerGraphics } from '@/shared/hooks/useLowPowerGraphics';
 import { Nebula } from '@/features/focus/components/FocusBackdrop';
-import { BreathPreview } from '@/features/breath/components/BreathOrb';
 import { FOCUS_SCENES, sceneLights, type FocusSceneId } from '@/features/focus/utils/focusScenes';
 import { useFocusSheetTheme } from '@/features/focus/hooks/useFocusSheetTheme';
 
@@ -39,8 +41,6 @@ const COPY = {
     modesSub: 'Seansını nasıl geçireceğini seç',
     scene: 'SAHNE',
     modes: 'MODLAR',
-    breath: 'Nefes',
-    breathDesc: 'Sakinleş, odaklan, uyu — ayrı seans',
     strict: 'Katı Odak',
     pomodoroDesc: 'Çalış / mola döngüleri',
     autoZen: 'Otomatik Zen',
@@ -60,8 +60,6 @@ const COPY = {
     modesSub: 'Choose how your session runs',
     scene: 'SCENE',
     modes: 'MODES',
-    breath: 'Breathing',
-    breathDesc: 'Calm, focus, sleep — its own session',
     strict: 'Strict Focus',
     pomodoroDesc: 'Work / break cycles',
     autoZen: 'Auto Zen',
@@ -96,7 +94,6 @@ export interface FocusModesSheetProps {
   strictOn: boolean;
   keepAwakeOn: boolean;
   autoZenOn: boolean;
-  onBreath: () => void;
   onPomodoro: () => void;
   onStrict: () => void;
   onKeepAwake: () => void;
@@ -109,17 +106,24 @@ export interface FocusModesSheetProps {
 export const FocusModesSheet: React.FC<FocusModesSheetProps> = ({
   visible, onClose, language, labels,
   pomodoroOn, strictOn, keepAwakeOn, autoZenOn,
-  onBreath, onPomodoro, onStrict, onKeepAwake, onAutoZen, scene, onScene,
+  onPomodoro, onStrict, onKeepAwake, onAutoZen, scene, onScene,
 }) => {
   const { theme, isDark } = useFocusSheetTheme();
   const c = COPY[language];
   const [rowW, setRowW] = useState(0);
   const lowPower = useLowPowerGraphics();
   const GAP = S.sm;
-  const cardW = rowW > 0 ? Math.floor((rowW - GAP * (FOCUS_SCENES.length - 1)) / FOCUS_SCENES.length) : 0;
+  /*
+    YATAYDA / TABLETTE TAŞMA (2026-11-01, kullanıcı: "tablette yan yatırınca odak modları aşağı kayıyor, kapanmıyor").
+    Sahne kartları genişlikle büyüyordu: yatay iPad'de pencere ekrandan uzun oluyor, kapatmak için dokunulacak boş
+    alan sıfıra iniyordu. Artık kart en çok 104 pt, pencere en çok ekranın izin verdiği boy (taşarsa kayar) ve
+    geniş ekranda 560 pt genişlikte ortada.
+  */
+  const { height: winH } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const cardW = rowW > 0 ? Math.min(104, Math.floor((rowW - GAP * (FOCUS_SCENES.length - 1)) / FOCUS_SCENES.length)) : 0;
   const rows = [
-    // Nefes artık ayar değil, ayrı seans (app/nefes.tsx): satır oraya götürür; simgesi ritmi canlı oynar.
-    { key: 'breath', Ic: Wind, on: false, title: c.breath, desc: c.breathDesc, chevron: true, onPress: onBreath, art: visible ? <BreathPreview id="sigh" size={40} still={lowPower} /> : undefined },
+    // Nefes burada YOK (2026-11-01): bir mod değil, ayrı seans; odak ekranında başlatın solunda kendi düğmesi var.
     { key: 'pomo', Ic: Timer, on: pomodoroOn, title: 'Pomodoro', desc: c.pomodoroDesc, chevron: false, onPress: onPomodoro },
     // "Çıkışı kilitler" YANLIŞTI: hiçbir şey kilitlenmiyordu. Kural artık açık yazıyor.
     { key: 'strict', Ic: Shield, on: strictOn, title: c.strict, desc: labels.strictDesc, chevron: false, onPress: onStrict },
@@ -129,15 +133,14 @@ export const FocusModesSheet: React.FC<FocusModesSheetProps> = ({
   ];
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <Touchable accessibilityRole="button" accessibilityLabel={c.modesTitle} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} activeOpacity={1} onPress={onClose} />
-        <View style={{ borderTopLeftRadius: R.sheet, borderTopRightRadius: R.sheet, paddingHorizontal: S.lg, paddingTop: S.md, paddingBottom: S.xxl, overflow: 'hidden' }}>
+    <Modal supportedOrientations={['portrait', 'landscape']} visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      {/* Karartma TÜM ekranı kaplar (pencerenin arkası dahil): sürüklerken pencerenin boşalttığı yer karartmasız kalıyordu. */}
+      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: SCRIM }}>
+        <Touchable accessibilityRole="button" accessibilityLabel={c.modesTitle} style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
+        <DragToClose onClose={onClose} handleColor={isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.14)'} style={{ maxHeight: Math.min(sheetMaxHeight(winH, insets.top), winH * 0.85), width: '100%', maxWidth: 560, alignSelf: 'center', borderTopLeftRadius: R.sheet, borderTopRightRadius: R.sheet, overflow: 'hidden' }}>
           <GlassSurface corners="top" />
-          <View style={{ alignItems: 'center' }}>
-            <View style={{ width: 36, height: 4, borderRadius: R.xs, backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }} />
-          </View>
-          <Text style={{ fontSize: F.title3, fontWeight: '700', color: theme.onSurface, textAlign: 'center', marginTop: S.md }}>{c.modesTitle}</Text>
+          <ScrollView bounces={false} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: S.lg, paddingTop: S.xs, paddingBottom: S.xxl }}>
+          <Text style={{ fontSize: F.title3, fontWeight: '700', color: theme.onSurface, textAlign: 'center' }}>{c.modesTitle}</Text>
           <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, textAlign: 'center', marginBottom: S.md }}>{c.modesSub}</Text>
 
           {/*
@@ -145,7 +148,7 @@ export const FocusModesSheet: React.FC<FocusModesSheetProps> = ({
             gösterir (dört shader aynı anda dönmesin). Seçim halkası sahnenin kendi vurgusunda.
           */}
           <Text style={{ fontSize: F.caption, fontWeight: '600', letterSpacing: 1.2, color: theme.onSurfaceMuted, marginBottom: S.sm, marginLeft: S.xs }}>{c.scene}</Text>
-          <View accessibilityRole="radiogroup" onLayout={(e) => setRowW(e.nativeEvent.layout.width)} style={{ flexDirection: 'row', gap: GAP, marginBottom: S.lg }}>
+          <View accessibilityRole="radiogroup" onLayout={(e) => setRowW(e.nativeEvent.layout.width)} style={{ flexDirection: 'row', gap: GAP, marginBottom: S.lg, justifyContent: 'center' }}>
             {cardW > 0 && FOCUS_SCENES.map((sc) => {
               const selected = sc.id === scene;
               const [l1, l2, l3] = sceneLights(sc, theme);
@@ -181,7 +184,7 @@ export const FocusModesSheet: React.FC<FocusModesSheetProps> = ({
               style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingVertical: S.smd, paddingHorizontal: S.sm, borderRadius: R.lg, marginBottom: S.xs, backgroundColor: row.on ? theme.primary + (isDark ? '14' : '0D') : 'transparent' }}
             >
               <View style={{ width: 40, height: 40, borderRadius: R.md, alignItems: 'center', justifyContent: 'center', backgroundColor: row.on ? theme.primary : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') }}>
-                {'art' in row && row.art ? row.art : <row.Ic size={ICON.md} color={row.on ? '#FFFFFF' : theme.onSurfaceVariant} strokeWidth={2.2} />}
+                <row.Ic size={ICON.md} color={row.on ? '#FFFFFF' : theme.onSurfaceVariant} strokeWidth={2.2} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurface }}>{row.title}</Text>
@@ -196,7 +199,10 @@ export const FocusModesSheet: React.FC<FocusModesSheetProps> = ({
               )}
             </Touchable>
           ))}
-        </View>
+          {/* Odak ayarları hesaba eşitlenmez — küçük, dürüst not. */}
+          <DeviceOnlyNote language={language} theme={theme} />
+          </ScrollView>
+        </DragToClose>
       </View>
     </Modal>
   );
@@ -218,11 +224,11 @@ export const PomodoroInfoSheet: React.FC<PomodoroInfoSheetProps> = ({
   const { theme, isDark } = useFocusSheetTheme();
   const c = COPY[language];
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal supportedOrientations={['portrait', 'landscape']} visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Touchable
         accessibilityRole="button"
         accessibilityLabel={c.gotIt}
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: S.slg }}
+        style={{ flex: 1, backgroundColor: SCRIM, justifyContent: 'center', alignItems: 'center', padding: S.slg }}
         activeOpacity={1}
         onPress={onClose}
       >

@@ -13,6 +13,8 @@ interface MomentumState {
   tasksCompletedForNextCharge: number;
   recordScore: (score: number) => void;
   getLastNDays: (n: number) => DayScore[];
+  /** Buluttaki geçmişi birleştir: aynı günde yerel kazanır, eksik günler buluttan gelir. */
+  applyCloud: (days: unknown) => void;
   toggleMomentumShield: () => void;
   addFocusMinutes: (mins: number) => void;
   /** Görev tamamlandı → kalkan ilerlemesi. Kalkan TAM bu tamamlamada kazanıldıysa bildirir. */
@@ -81,6 +83,27 @@ export const useMomentumStore = create<MomentumState>()(
           momentumShieldActive: activeShield,
           shieldCharges: charges
         });
+        /*
+          GEÇMİŞ BULUTA (2026-11-01, kullanıcı: "momentumum bir süredir var, 'gidişatın yarından itibaren çizilecek'
+          diyor"). Geçmiş yalnız cihazdaydı; çıkışta / hesap değişince siliniyor ve grafik sıfırdan başlıyordu.
+          Artık tercihlerle aynı yoldan (usePrefsStore.syncToCloud → __momentum) taşınır. Günde bir kez: yeni gün
+          ilk kaydedilince — dünün son değeri de o anda gider.
+        */
+        if (isNewDay) {
+          try { require('@/features/modes/store/usePrefsStore').usePrefsStore.getState().syncToCloud(); } catch (e) { swallow('useMomentumStore.pushCloud', e); }
+        }
+      },
+
+      applyCloud: (days) => {
+        if (!Array.isArray(days)) return;
+        const cutoff = cutoffISO(14);
+        const byDate = new Map<string, DayScore>();
+        for (const d of days) {
+          if (d && typeof d.date === 'string' && typeof d.score === 'number' && d.date >= cutoff) byDate.set(d.date, { date: d.date, score: d.score });
+        }
+        for (const h of get().history) byDate.set(h.date, h); // yerel kazanır
+        const merged = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+        set({ history: merged });
       },
 
       toggleMomentumShield: () => {

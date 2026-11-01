@@ -12,6 +12,7 @@ import { httpStatusOf, isNetworkError, httpRawDataOf } from '@/shared/utils/erro
 import { swallow } from '@/shared/utils/swallow';
 import { haptic } from '@/shared/utils/haptics';
 import { SupportThread } from '@/shared/components/SupportThread';
+import { SupportAttachmentsRow } from '@/shared/components/SupportAttachmentsRow';
 
 /** Konuşma metinleri (2026-10-31). */
 const SM_COPY = {
@@ -142,7 +143,8 @@ export const SupportModal: React.FC<SupportModalProps> = ({
     try {
       const updated = await SupportService.userReply(open.id, replyDraft.trim());
       haptic.success();
-      setMyMessages(prev => prev.map(m => m.id === open.id ? { ...m, ...updated } : m));
+      // Yanıt fotoğraf listesi taşımaz (null) → eldeki liste korunur.
+      setMyMessages(prev => prev.map(m => m.id === open.id ? { ...m, ...updated, attachments: updated.attachments ?? m.attachments } : m));
       setReplyDraft('');
     } catch (err: unknown) {
       haptic.error();
@@ -167,7 +169,7 @@ export const SupportModal: React.FC<SupportModalProps> = ({
   };
 
   return (
-    <Modal
+    <Modal supportedOrientations={['portrait', 'landscape']}
       visible={visible}
       transparent
       animationType="slide"
@@ -221,6 +223,14 @@ export const SupportModal: React.FC<SupportModalProps> = ({
                   <SupportThread entries={threadOf(open)} viewer="user" lang={language === 'tr' ? 'tr' : 'en'} closedBy={open.closedBy ?? null}
                     canReply={open.canReply ?? !open.closedAt} draft={replyDraft} onDraft={setReplyDraft} onSend={sendReply} sending={replying}
                     onClose={endConversation} maxLength={500} />
+                  <SupportAttachmentsRow
+                    conversationId={open.id}
+                    items={open.attachments ?? []}
+                    canAdd={!open.closedAt}
+                    onAdded={(item) => setMyMessages(prev => prev.map(m => m.id === open.id ? { ...m, attachments: [...(m.attachments ?? []), item] } : m))}
+                    theme={theme}
+                    lang={language === 'tr' ? 'tr' : 'en'}
+                  />
                 </ScrollView>
               </View>
             ) : (<>

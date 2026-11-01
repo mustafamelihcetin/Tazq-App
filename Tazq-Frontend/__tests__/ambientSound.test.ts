@@ -88,7 +88,7 @@ describe('odak ekranı kararı uygular', () => {
     expect(FOCUS).toContain("wind:      { icon: Wind,       labelTr: 'Rüzgar'");
   });
 
-  it('nefes YAZILI ve görünür: seans başlamadan, başlatın altında (yalnız simge ne olduğunu söylemiyordu)', () => {
+  it('nefes YAZILI ve görünür: seans başlamadan, başlatın solundaki kendi yuvasında (filtre/ses çiplerinde değil)', () => {
     expect(FOCUS).toMatch(/\{!sessionStarted && \([\s\S]{0,600}Başlamadan önce 1 dakika nefes/);
     // Saf gezinme titreşmez (bkz. haptics.test); doğrudan 1 dk sakinleşme açılır.
     expect(FOCUS).toContain("onPress={() => router.push('/nefes?p=sigh&m=1')}");

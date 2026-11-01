@@ -5,7 +5,7 @@ import { CheckCircle2, Sparkles, Check, Clock, Wind } from 'lucide-react-native'
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { Separator } from '@/shared/components/Separator';
-import { S, F, R, B, ICON, RSPRING } from '@/shared/constants/tokens';
+import { S, F, R, B, ICON, RSPRING, SCRIM } from '@/shared/constants/tokens';
 import { AnimatedNumber } from '@/shared/components/AnimatedNumber';
 import { LottieAnimation } from '@/shared/components/LottieAnimation';
 import { buildDoneBurst } from '@/features/focus/celebrationLottie';
@@ -141,8 +141,8 @@ export const SessionSummary: React.FC<SessionSummaryProps> = ({
   );
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: S.xl }}>
+    <Modal supportedOrientations={['portrait', 'landscape']} visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: SCRIM, alignItems: 'center', justifyContent: 'center', padding: S.xl }}>
         <MotiView
           from={{ opacity: 0, scale: 0.88 }}
           animate={{ opacity: 1, scale: 1 }}

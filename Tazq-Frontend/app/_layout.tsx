@@ -77,7 +77,14 @@ import { openThrough, completedOn, nextAt, reminderTasks, notificationSignature 
 import { completeTask } from '@/features/tasks/utils/taskActions';
 import { toDateKey } from '@/shared/utils/dateKey';
 import { useFocusStore, FocusIsland } from '@/features/focus';
-import { pushWidgetSummary, initWatchBridge } from '@/features/nativeBridge/utils/widgetBridge';
+import { startLiveActivitySync } from '@/features/focus/liveActivity';
+import { usePaymentsStore } from '@/features/payments/store/usePaymentsStore';
+import { markPaymentPaidAction } from '@/features/payments/utils/paymentActions';
+import { activeCycleKeyOf } from '@/features/payments/utils/paymentDates';
+import { scopeDay } from '@/features/dashboard/utils/dayScope';
+import { isMovable } from '@/features/tasks/utils/taskBalancer';
+import { setTaskDue, localDateISO } from '@/features/tasks/utils/taskActions';
+import { pushWidgetSummary, initWatchBridge, applyWidgetActions } from '@/features/nativeBridge/utils/widgetBridge';
 import { syncFocusAlarm, finalizeDueSession, onAppBackground, onAppForeground } from '@/features/focus/session';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
@@ -153,7 +160,7 @@ import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { swallow } from '@/shared/utils/swallow';
 import { httpStatusOf } from '@/shared/utils/errors';
 import { goHome } from '@/shared/utils/authNavigation';
-import { shouldAbandonGuest } from '@/features/onboarding/utils/guestResume';
+import { useGuestResume } from '@/features/onboarding/hooks/useGuestResume';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -177,24 +184,10 @@ export default function RootLayout() {
   const systemScheme = useColorScheme();
   const { isLoggedIn, token, setUser, logout, _hasHydrated } = useAuthStore();
   const isGuest = useSessionStore(s => s.isGuest);
-  const sessionHydrated = useSessionStore(s => s._hasHydrated);
   const currentUser = useAuthStore((s) => s.user);
-
-  // Yarım kalan misafirlik: hoş geldini bitirmeden kapatan misafir giriş ekranından başlar (bkz. guestResume).
-  // Yalnız soğuk açılışta, bir kez — aynı oturumda "göz at"a yeni basan kişi etkilenmez.
-  const guestResumeChecked = useRef(false);
-  const prefsReadyForGuest = usePrefsStore(s => s._hasHydrated);
-  useEffect(() => {
-    const prefs = usePrefsStore.getState();
-    if (guestResumeChecked.current || !_hasHydrated || !sessionHydrated || !prefsReadyForGuest) return;
-    guestResumeChecked.current = true;
-    if (shouldAbandonGuest({ isGuest: useSessionStore.getState().isGuest, isLoggedIn: useAuthStore.getState().isLoggedIn, welcomeStatus: prefs.welcomeStatus })) {
-      useSessionStore.getState().setGuest(false);
-      useSessionStore.getState().setGuestProfile(null);
-      prefs.setWelcomeStatus('unknown');
-      prefs.setCapturePending(false);
-    }
-  }, [_hasHydrated, sessionHydrated, prefsReadyForGuest]);
+  useGuestResume(); // hoş geldini bitirmeden kapatan misafir girişten başlar
+  // iPhone: süren seans Dinamik Ada / kilit ekranında (bkz. features/focus/liveActivity). Modül yoksa no-op.
+  useEffect(() => startLiveActivitySync(() => (useLanguageStore.getState().language === 'en' ? 'en' : 'tr')), []);
 
   // Sentry kullanıcı bağlamı: giriş/çıkış ve açılışta oturum geri yüklemesinin hepsi `user`'a
   // yansıdığından, tek effect tüm durumları kapsar. Yalnız id + role (PII yok) → hatalar kime ait belli olur.
@@ -459,6 +452,9 @@ export default function RootLayout() {
         }
         const action = response?.actionIdentifier;
         const data = response?.notification?.request?.content?.data ?? {};
+        // Admin önizlemesinin ÖRNEK bildirimleri (bkz. sendDemoNotifications): veri değiştiren eylemler çalışmaz —
+        // "Kalanları yarına al" gerçek görevleri taşımasın, "Ödendi" gerçek ödemeyi kapatmasın. Açma eylemleri serbest.
+        if (data.demo && ['task-complete', 'task-snooze', 'habit-complete', 'habit-skip', 'payment-paid', 'tasks-tomorrow', 'focus-stop'].includes(String(action))) return;
 
         // Watch/Lock Screen: "✅ Tamamla" on task reminder (mark complete silently)
         if (action === 'task-complete' && data.taskId) {
@@ -549,6 +545,27 @@ export default function RootLayout() {
           return;
         }
 
+        // Ödeme: "Ödendi" — uygulamayı açmadan bu dönemi kapatır (tutar sabit; değişkende "Tutarı gir" gelir).
+        if (action === 'payment-paid' && data.paymentId) {
+          const pid = Number(data.paymentId);
+          const p = usePaymentsStore.getState().payments.find(x => x.id === pid);
+          if (p) void markPaymentPaidAction(pid, activeCycleKeyOf(p));
+          return;
+        }
+        // Ödeme: "Tutarı gir" — ödemeler, o ödemenin tutar penceresiyle açılır.
+        if (action === 'payment-amount' && data.paymentId && isLoggedIn) {
+          router.push({ pathname: '/odemeler', params: { pay: String(data.paymentId) } });
+          return;
+        }
+        // Akşam: "Kalanları yarına al" — açmadan; yalnız Zen'in taşınabilir saydıkları (saatli/tekrarlayan/plan HARİÇ).
+        if (action === 'tasks-tomorrow') {
+          const { incomplete } = scopeDay(useTaskStore.getState().tasks);
+          for (const t of incomplete) if (isMovable(t)) setTaskDue(t.id, { dueDate: localDateISO(1) });
+          return;
+        }
+        if (action === 'open-day' && isLoggedIn) { router.push('/gun'); return; }
+        if (action === 'open-week' && isLoggedIn) { router.push('/report'); return; }
+
         // Ödeme vadesi bildirimi → "💳 Ödemeler"
         if (action === 'open-payments' && isLoggedIn) {
           router.push('/odemeler');
@@ -613,6 +630,10 @@ export default function RootLayout() {
     if (!isLoggedIn) return;
     const unsubWatch = initWatchBridge();
     pushWidgetSummary();
+    // Widget'tan dokunarak yapılan işaretlemeler: açılışta ve her öne gelişte uygulanır (bkz. applyWidgetActions).
+    const applyWidget = () => { if (useTaskStore.persist.hasHydrated()) void applyWidgetActions(); };
+    applyWidget();
+    const widgetAppState = AppState.addEventListener('change', s => { if (s === 'active') applyWidget(); });
     /*
       GECİKMELİ İKİNCİ (ZORLA) GÖNDERİM — WCSession AKTİVASYON YARIŞI İÇİN.
 
@@ -635,7 +656,7 @@ export default function RootLayout() {
     // tercihine göre gönderiyor (bkz. widgetBridge.ts `resolveIsDark`) — kullanıcı
     // ayarlardan manuel temayı değiştirirse widget'ın da hemen izlemesi için.
     const unsubTheme = useThemeStore.subscribe(() => pushWidgetSummary());
-    return () => { clearTimeout(activationRetry); unsubWatch(); unsubHabits(); unsubFocus(); unsubTasks(); unsubPrefs(); unsubTheme(); };
+    return () => { widgetAppState.remove(); clearTimeout(activationRetry); unsubWatch(); unsubHabits(); unsubFocus(); unsubTasks(); unsubPrefs(); unsubTheme(); };
   }, [isLoggedIn]);
 
   useEffect(() => { reportInstallOncePerDay(); }, []);

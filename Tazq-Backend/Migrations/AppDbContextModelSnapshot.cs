@@ -285,6 +285,16 @@ namespace Tazq_Backend.Migrations
                     b.Property<int>("DueDay")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("InstallmentCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("InstallmentStart")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.Property<bool>("IsVariable")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("LastPaidCycleKey")
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
@@ -297,8 +307,8 @@ namespace Tazq_Backend.Migrations
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
@@ -338,8 +348,8 @@ namespace Tazq_Backend.Migrations
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
@@ -383,6 +393,47 @@ namespace Tazq_Backend.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("RefreshTokens");
+                });
+
+            modelBuilder.Entity("Tazq_App.Models.SupportAttachment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<bool>("FromStaff")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("SizeBytes")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SupportMessageId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UploaderId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SupportMessageId");
+
+                    b.HasIndex("UploaderId");
+
+                    b.ToTable("SupportAttachments");
                 });
 
             modelBuilder.Entity("Tazq_App.Models.SupportMessage", b =>

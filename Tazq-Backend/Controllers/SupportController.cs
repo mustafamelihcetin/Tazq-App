@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using Tazq_App.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -200,7 +201,8 @@ namespace Tazq_App.Controllers
 
 		// Konuşmanın istemciye giden biçimi (iki taraf aynı şekli okur). Eski alanlar (adminReply,
 		// repliedAt) eski uygulama sürümleri için korunur.
-		private static object ThreadDto(SupportMessage m) => new
+		// `att` null = bu yanıtta fotoğraf listesi YOK (istemci elindekini korur); dizi = güncel liste.
+		private static object ThreadDto(SupportMessage m, List<SupportAttachments.Meta>? att = null) => new
 		{
 			m.Id, m.Message, m.CreatedAt, m.AdminReply, m.RepliedAt,
 			thread = SupportService.ThreadOf(m).Select(e => new { fromStaff = e.FromStaff, body = e.Body, at = e.At }),
@@ -208,16 +210,63 @@ namespace Tazq_App.Controllers
 			closedAt = m.ClosedAt,
 			closedBy = m.ClosedBy,
 			canReply = SupportService.CanUserReply(m),
+			attachments = att == null ? null : AttachmentDtos(att),
 		};
+
+		private static object[] AttachmentDtos(List<SupportAttachments.Meta>? list) =>
+			(list ?? new()).Select(a => (object)new { id = a.Id, fromStaff = a.FromStaff, at = a.At, size = a.Size }).ToArray();
+
+
+		// POST: api/support/{id}/attachments — konuşmaya fotoğraf (kullanıcı kendi konuşmasına; ekip her konuşmaya).
+		[HttpPost("{id:int}/attachments")]
+		[RequestSizeLimit(SupportAttachments.MaxBytes + 64 * 1024)]
+		public async Task<IActionResult> AddAttachment(int id, IFormFile? file, [FromServices] Tazq_App.Data.AppDbContext db, [FromServices] IAuthorizationService auth)
+		{
+			var userId = GetUserId();
+			if (userId == null) return Unauthorized();
+			if (file == null || file.Length == 0) return BadRequest(new { error = "empty" });
+			if (file.Length > SupportAttachments.MaxBytes) return StatusCode(413, new { error = "too_large", maxBytes = SupportAttachments.MaxBytes });
+			using var ms = new MemoryStream();
+			await file.CopyToAsync(ms);
+			var staff = (await auth.AuthorizeAsync(User, StaffPolicy.SupportDesk)).Succeeded;
+			var (res, item) = await SupportAttachments.AddAsync(db, id, userId.Value, staff, ms.ToArray());
+			return res switch
+			{
+				SupportAttachments.AddResult.Ok => Ok(new { id = item!.Id, fromStaff = item.FromStaff, at = item.CreatedAt, size = item.SizeBytes }),
+				SupportAttachments.AddResult.NotFound => NotFound(),
+				SupportAttachments.AddResult.Closed => Conflict(new { error = "closed" }),
+				SupportAttachments.AddResult.TooLarge => StatusCode(413, new { error = "too_large", maxBytes = SupportAttachments.MaxBytes }),
+				SupportAttachments.AddResult.BadType => BadRequest(new { error = "bad_type" }),
+				SupportAttachments.AddResult.ConversationFull => Conflict(new { error = "conversation_full", max = SupportAttachments.MaxPerConversation }),
+				_ => Conflict(new { error = "quota_full", maxBytes = SupportAttachments.MaxPerUserBytes }),
+			};
+		}
+
+		// GET: api/support/attachments/{id} — yalnız konuşmanın sahibi ya da destek ekibi.
+		[HttpGet("attachments/{attId:int}")]
+		public async Task<IActionResult> GetAttachment(int attId, [FromServices] Tazq_App.Data.AppDbContext db, [FromServices] IAuthorizationService auth)
+		{
+			var userId = GetUserId();
+			if (userId == null) return Unauthorized();
+			var a = await db.SupportAttachments.AsNoTracking().FirstOrDefaultAsync(x => x.Id == attId);
+			if (a == null) return NotFound();
+			var ownerId = await db.SupportMessages.AsNoTracking().Where(m => m.Id == a.SupportMessageId).Select(m => (int?)m.UserId).FirstOrDefaultAsync();
+			var staff = (await auth.AuthorizeAsync(User, StaffPolicy.SupportDesk)).Succeeded;
+			if (ownerId != userId && !staff) return NotFound(); // başkasının fotoğrafının VARLIĞI da sızmasın
+			Response.Headers["Cache-Control"] = "private, max-age=86400";
+			return File(a.Data, a.ContentType);
+		}
 
 		// GET: api/support/mine — kullanıcının KENDİ konuşmaları
 		[HttpGet("mine")]
-		public async Task<IActionResult> GetMyMessages()
+		public async Task<IActionResult> GetMyMessages([FromServices] Tazq_App.Data.AppDbContext db)
 		{
 			var userId = GetUserId();
 			if (userId == null) return Unauthorized();
 
-			var messages = (await _support.GetMessagesForUserAsync(userId.Value)).Select(ThreadDto);
+			var list = await _support.GetMessagesForUserAsync(userId.Value);
+			var att = await SupportAttachments.MetaForAsync(db, list.Select(m => m.Id));
+			var messages = list.Select(m => ThreadDto(m, att.GetValueOrDefault(m.Id) ?? new()));
 			return Ok(new { messages });
 		}
 
@@ -279,9 +328,10 @@ namespace Tazq_App.Controllers
 		// GET: api/support/admin/all (Sadece Admin)
 		[HttpGet("admin/all")]
 		[Authorize(Policy = StaffPolicy.SupportDesk)]
-		public async Task<IActionResult> GetAllMessages()
+		public async Task<IActionResult> GetAllMessages([FromServices] Tazq_App.Data.AppDbContext db)
 		{
 			var all = await _support.GetAllMessagesAsync();
+			var att = await SupportAttachments.MetaForAsync(db, all.Select(m => m.Id));
 			var unreadCount = all.Count(m => !m.IsRead);
 			// Varlık doğrudan dönmez (Replies → SupportMessage döngüsü); ekip alanları + konuşma.
 			var messages = all.Select(m => new
@@ -291,6 +341,7 @@ namespace Tazq_App.Controllers
 				lastActivityAt = m.LastActivityAt ?? m.CreatedAt,
 				closedAt = m.ClosedAt,
 				closedBy = m.ClosedBy,
+				attachments = AttachmentDtos(att.GetValueOrDefault(m.Id)),
 			});
 			return Ok(new { messages, unreadCount });
 		}

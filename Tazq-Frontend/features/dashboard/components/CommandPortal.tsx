@@ -4,11 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import { ChevronRight, Play, Plus, Rocket, Sparkles, Target, Wind, X } from 'lucide-react-native';
-import { AppBlur } from '@/shared/components/AppBlur';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { Touchable } from '@/shared/components/Touchable';
 import { AppIcon } from '@/shared/components/AppIcon';
-import { F, S, R, ICON, HAIRLINE } from '@/shared/constants/tokens';
+import { F, S, R, ICON, HAIRLINE, SCRIM } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { getLocalizedTaskTitle, type Task } from '@/features/tasks';
 import { useRunAfterDismiss } from '@/shared/hooks/useRunAfterDismiss';
@@ -130,7 +129,7 @@ export function CommandPortal({
     : tasks.filter(t => getLocalizedTaskTitle(t, tr).toLocaleLowerCase(c.locale).includes(needle));
 
   return (
-    <Modal
+    <Modal supportedOrientations={['portrait', 'landscape']}
       visible={visible}
       transparent
       animationType="fade"
@@ -142,8 +141,7 @@ export function CommandPortal({
         }, 80);
       }}
     >
-      <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)' }}>
-        <AppBlur material="regular" />
+      <View style={{ flex: 1, backgroundColor: SCRIM }}>
 
         <TouchableWithoutFeedback accessible={false} onPress={() => { Keyboard.dismiss(); onClose(); }}>
           <View style={StyleSheet.absoluteFill} importantForAccessibility="no-hide-descendants" />

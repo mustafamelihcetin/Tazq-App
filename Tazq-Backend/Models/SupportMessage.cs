@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Tazq_App.Models
 {
@@ -60,6 +61,27 @@ namespace Tazq_App.Models
 		[Required]
 		public string Body { get; set; } = string.Empty;
 
+		public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+	}
+
+	/// <summary>
+	/// Destek konuşmasına eklenen fotoğraf (2026-11-01). Sınırlar ve saklama: bkz. Services/SupportAttachments.
+	/// Veri veritabanında (bytea) — dosya sistemi/volume gerektirmez, yedekle birlikte gider; sınırlar şişmeyi önler.
+	/// </summary>
+	[Microsoft.EntityFrameworkCore.Index(nameof(SupportMessageId))]
+	[Microsoft.EntityFrameworkCore.Index(nameof(UploaderId))]
+	public class SupportAttachment
+	{
+		[Key]
+		[DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+		public int Id { get; set; }
+		public int SupportMessageId { get; set; }
+		public int UploaderId { get; set; }
+		public bool FromStaff { get; set; }
+		[MaxLength(32)]
+		public string ContentType { get; set; } = "image/jpeg";
+		public int SizeBytes { get; set; }
+		public byte[] Data { get; set; } = Array.Empty<byte>();
 		public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 	}
 }

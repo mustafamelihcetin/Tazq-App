@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TextInput, Modal, ActivityIndicator, StyleSheet
 import { Plus, Trash2, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
-import { S, R, F, B, ICON, HAIRLINE } from '@/shared/constants/tokens';
+import { S, R, F, B, ICON, HAIRLINE, SCRIM } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSheet } from '@/shared/components/GlassSheet';
 import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
@@ -92,8 +92,8 @@ export function TemplateEditor({ lang, visible, templates, onClose, onSave }: {
   const kb = useKeyboardHeight();
   const { height: screenH } = useWindowDimensions();
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: S.md, paddingTop: insets.top + S.md, paddingBottom: (kb > 0 ? kb : insets.bottom) + S.md }}>
+    <Modal supportedOrientations={['portrait', 'landscape']} visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: SCRIM, justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: S.md, paddingTop: insets.top + S.md, paddingBottom: (kb > 0 ? kb : insets.bottom) + S.md }}>
         <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} accessibilityRole="button" accessibilityLabel={c.close} />
         <GlassSheet maxWidth={560} padding={S.md}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>

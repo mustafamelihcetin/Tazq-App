@@ -20,6 +20,7 @@ import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { usePlanAdaptations } from '@/features/modes/hooks/usePlanAdaptations';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
+import { SheetGrabber } from '@/shared/components/DragToClose';
 import { recordWeeklyWeight, daysUntilNextWeight } from '@/features/modes/utils/weightCheckin';
 import { haptic } from '@/shared/utils/haptics';
 
@@ -105,7 +106,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
   const diffLabel = diff === null ? '' : diff === 0 ? (tr ? 'Değişim yok' : 'No change') : `${diff > 0 ? '+' : ''}${diff.toFixed(1)} kg`;
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+    <Modal supportedOrientations={['portrait', 'landscape']} visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior="padding"
         style={{ flex: 1, justifyContent: 'flex-end' }}
@@ -134,7 +135,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
             <View style={StyleSheet.absoluteFill} />
           </TouchableWithoutFeedback>
           {/* Handle */}
-          <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: R.xs, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginBottom: S.lg }} />
+          <SheetGrabber onClose={onClose} color={isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'} />
 
           {/* Header */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.lg }}>

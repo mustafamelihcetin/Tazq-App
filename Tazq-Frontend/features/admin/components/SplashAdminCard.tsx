@@ -10,6 +10,7 @@ import { useSplashPrefs } from '@/shared/store/useSplashPrefs';
 import { SPLASH_EDITIONS } from '@/shared/components/AnimatedSplash';
 import { haptic } from '@/shared/utils/haptics';
 import { AdminRestartCard } from './AdminRestartCard';
+import { AdminPreviewCard } from './AdminPreviewCard';
 
 /*
   AÇILIŞ EKRANI — YALNIZ SÜPER ADMIN (2026-10-31, kullanıcı: "sadece adminlere splash'i tetikleme,
@@ -69,6 +70,7 @@ export function SplashAdminCard({ lang }: { lang: 'tr' | 'en' }) {
       </SettingsCard>
       {/* Yeniden başlatma da yalnız süper admin: bu kartla aynı kapıdan çizilir (settings.tsx büyümesin). */}
       <AdminRestartCard lang={lang} />
+      <AdminPreviewCard lang={lang} />
     </View>
   );
 }

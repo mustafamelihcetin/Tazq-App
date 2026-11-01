@@ -35,6 +35,8 @@ const EXEMPT_FILES = new Set(['shared/constants/Colors.ts']);
  * Bu liste yalnızca KÜÇÜLMELİ. Bir dosyayı palete bağladıkça satırını düşür/sil.
  */
 const CEILING: Record<string, number> = {
+  'features/focus/liveActivity.ts': 5, // Dinamik Ada/kilit ekranı: yerel SwiftUI görünümü onaltılık renk ister, tema nesnesi oraya ulaşmaz
+  'features/dashboard/components/TodayBelow.tsx': 4, // günün göğü: sabit gece degradesi (iki tema) — kimlik rengi, semantik değil
   'app/admin.tsx': 100,  // admin paneli — son kullanıcı görmüyor
   // 53 → 43 → 28 → 19: kart/modal palete, ikon renkleri anlamsal haritaya, sonra ayarlar
   // ayrı sayfaya taşındı (silme/parola/destek modalları settings.tsx'e gitti). Kalan 19:
@@ -104,7 +106,6 @@ const CEILING: Record<string, number> = {
   // Google "G" işaretinin dört marka rengi Google'ın kuralı (değiştirilemez); giriş ve kayıttaki kopyalar
   // tek yere taşındı (2026-11-01).
   'features/user/components/AuthParts.tsx': 4,
-  'app/register.tsx': 4,
   // DynamicIsland LİSTEDEN ÇIKTI (4 → 0): iOS yeşilleri (#34c759/#30d158) ve düğme
   // yazısının beyazı palet jetonlarına bağlandı. Beyaz yazı ayrıca koyu temada paletin
   // AÇIKÇA reddettiği durumdu (primary üstünde 3.65:1, AA'dan kalıyor) — `onPrimary` ve
@@ -123,7 +124,6 @@ const CEILING: Record<string, number> = {
   'shared/utils/lifeModePlans.ts': 2,
   // CustomAlert: temizlendi. Yıkıcı-eylem kırmızısı (#EF4444, iki temada da aynı; beyaz
   // yazı üstünde 3.3:1 AA'dan kalıyordu) theme.error'a bağlandı → dosya artık palet-temiz.
-  'features/focus/components/FocusIsland.tsx': 1,
   'features/habits/store/useHabitStore.ts': 1,
   'shared/components/GlassCard.tsx': 1,
   // MomentumPulse LİSTEDEN ÇIKTI (1 → 0): bilgi penceresinin zemini (#1C1C1E) cam yüzeye geçti.

@@ -107,6 +107,9 @@ namespace Tazq_App.Services
                     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                     var n = await CrashLog.PurgeAsync(db, DateTime.UtcNow, stoppingToken);
                     if (n > 0) _logger.LogInformation("CrashRetention: {Count} eski çökme kaydı silindi.", n);
+                    // Destek fotoğrafları da aynı günlük işte: kapanalı 90 günü geçenler + sahipsizler (bkz. SupportAttachments).
+                    var a = await SupportAttachments.PurgeAsync(db, DateTime.UtcNow, stoppingToken);
+                    if (a > 0) _logger.LogInformation("SupportAttachments: {Count} eski destek fotoğrafı silindi.", a);
                     _health.Ok(JobHealth.CrashRetention);
                 }
                 catch (Exception ex)

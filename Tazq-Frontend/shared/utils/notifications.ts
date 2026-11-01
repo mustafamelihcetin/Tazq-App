@@ -94,8 +94,26 @@ export async function registerNotificationCategories(): Promise<void> {
     ]);
 
     // Ödeme vadesi yaklaşıyor — ödemeler ekranını aç
+    /*
+      2026-11-01 BİLDİRİM DENETİMİ (kullanıcı: "gerçekten işe yarar mı, etkileşimli mi — basılı tutunca yapıldı gibi").
+      · ödeme: "Ödendi" uygulamayı AÇMADAN o dönemi kapatır; değişken tutarlıda "Tutarı gir" (tutar penceresiyle açılır)
+      · akşam: "Kalanları yarına al" AÇMADAN (Zen kuralı: saatli/tekrarlayan/plan görevi taşınmaz) + "Günü kapat"
+      · haftalık: kendi kategorisi, geri bakışa götürür (eskiden günlük özetin "Aç → Görevler"iydi)
+    */
     await Notifications.setNotificationCategoryAsync('payment-due', [
+      { identifier: 'payment-paid', buttonTitle: tr ? 'Ödendi' : 'Paid', options: { opensAppToForeground: false } },
       { identifier: 'open-payments', buttonTitle: tr ? 'Ödemeler' : 'Payments', options: { opensAppToForeground: true } },
+    ]);
+    await Notifications.setNotificationCategoryAsync('payment-due-variable', [
+      { identifier: 'payment-amount', buttonTitle: tr ? 'Tutarı gir' : 'Enter amount', options: { opensAppToForeground: true } },
+      { identifier: 'open-payments', buttonTitle: tr ? 'Ödemeler' : 'Payments', options: { opensAppToForeground: true } },
+    ]);
+    await Notifications.setNotificationCategoryAsync('evening-close', [
+      { identifier: 'tasks-tomorrow', buttonTitle: tr ? 'Kalanları yarına al' : 'Move the rest to tomorrow', options: { opensAppToForeground: false } },
+      { identifier: 'open-day', buttonTitle: tr ? 'Günü kapat' : 'Close the day', options: { opensAppToForeground: true } },
+    ]);
+    await Notifications.setNotificationCategoryAsync('weekly-summary', [
+      { identifier: 'open-week', buttonTitle: tr ? 'Haftama bak' : 'See my week', options: { opensAppToForeground: true } },
     ]);
   } catch (e) { swallow('notifications.registerNotificationCategories', e); }
 }
@@ -345,7 +363,7 @@ export async function scheduleEveningBrief(
           verildiği yere düşüyor.
         */
         data: { type: 'evening-brief' },
-        categoryIdentifier: 'daily-summary',
+        categoryIdentifier: 'evening-close',
       },
       trigger: {
         type: 'date',
@@ -700,7 +718,7 @@ export async function scheduleWeeklySummary(
       await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
       await Notifications.scheduleNotificationAsync({
         identifier: id,
-        content: { title, body: week === 0 ? body : copy.evergreen, sound: true, data: { type: 'weekly' }, categoryIdentifier: 'daily-summary' },
+        content: { title, body: week === 0 ? body : copy.evergreen, sound: true, data: { type: 'weekly' }, categoryIdentifier: 'weekly-summary' },
         trigger: { type: 'date', date: trigger } as any,
       });
     }
@@ -809,6 +827,7 @@ export async function schedulePaymentDueNotif(
   dueDate: Date,
   locale: string = 'tr',
   daysBefore: number = 3,
+  variable: boolean = false,
 ): Promise<void> {
   if (!Notifications || isExpoGo) return;
   try {
@@ -830,11 +849,54 @@ export async function schedulePaymentDueNotif(
           : `Due in ${daysBefore} day${daysBefore > 1 ? 's' : ''}.`,
         sound: true,
         data: { type: 'payment-due', paymentId },
-        categoryIdentifier: 'payment-due',
+        categoryIdentifier: variable ? 'payment-due-variable' : 'payment-due',
       },
       trigger: { type: 'date', date: trigger } as any,
     });
   } catch (e) { swallow('notifications.schedulePaymentDueNotif', e); }
+}
+
+/** Admin önizlemesinin örnek bildirimleri — iki dil ayrı (bkz. sendDemoNotifications). */
+const DEMO_NOTIFS: Record<'tr' | 'en', { title: string; body: string; category: string; type: string }[]> = {
+  tr: [
+    { title: 'Sunumu bitir', body: '15:00 · bugün', category: 'task-reminder', type: 'task' },
+    { title: 'Su iç', body: 'Bugünkü alışkanlığın', category: 'habit-reminder', type: 'habit-reminder' },
+    { title: 'Kira ödemesi yaklaşıyor', body: '3 gün içinde vadesi geliyor.', category: 'payment-due', type: 'payment-due' },
+    { title: 'Elektrik ödemesi yaklaşıyor', body: 'Tutar değişken · ~650 ₺', category: 'payment-due-variable', type: 'payment-due' },
+    { title: 'Günü kapat', body: '3 iş kaldı. Yarına al ya da bırak.', category: 'evening-close', type: 'evening-brief' },
+    { title: 'Haftan hazır', body: '4 sa 20 dk odak, 18 görev.', category: 'weekly-summary', type: 'weekly' },
+    { title: 'Günaydın', body: 'Bugün 5 işin var; ilki 09:00.', category: 'morning-brief', type: 'morning-brief' },
+  ],
+  en: [
+    { title: 'Finish the slides', body: '3 pm · today', category: 'task-reminder', type: 'task' },
+    { title: 'Drink water', body: 'Your habit for today', category: 'habit-reminder', type: 'habit-reminder' },
+    { title: 'Rent payment is coming up', body: 'Due in 3 days.', category: 'payment-due', type: 'payment-due' },
+    { title: 'Electricity payment is coming up', body: 'Variable amount · ~650', category: 'payment-due-variable', type: 'payment-due' },
+    { title: 'Close the day', body: '3 tasks left. Move them or let go.', category: 'evening-close', type: 'evening-brief' },
+    { title: 'Your week is ready', body: '4h 20m focus, 18 tasks.', category: 'weekly-summary', type: 'weekly' },
+    { title: 'Good morning', body: '5 tasks today; first at 9.', category: 'morning-brief', type: 'morning-brief' },
+  ],
+};
+
+/**
+ * ADMIN ÖNİZLEMESİ — her bildirim türünden bir ÖRNEK, 5 sn arayla (basılı tutup eylemleri denemek için).
+ * `data.demo` taşırlar: eylemleri gerçek veriye DOKUNMAZ (bkz. _layout yanıt işleyicisi).
+ */
+export async function sendDemoNotifications(locale: string = 'tr'): Promise<number> {
+  if (!Notifications || isExpoGo) return 0;
+  const list = DEMO_NOTIFS[locale === 'tr' ? 'tr' : 'en'];
+  let n = 0;
+  for (const [i, x] of list.entries()) {
+    try {
+      await Notifications.scheduleNotificationAsync({
+        identifier: `demo-${i}`,
+        content: { title: x.title, body: x.body, sound: true, categoryIdentifier: x.category, data: { type: x.type, demo: true } },
+        trigger: { type: 'timeInterval', seconds: 5 * (i + 1), repeats: false },
+      });
+      n++;
+    } catch (e) { swallow('notifications.sendDemo', e); }
+  }
+  return n;
 }
 
 export async function cancelPaymentDueNotif(paymentId: number): Promise<void> {

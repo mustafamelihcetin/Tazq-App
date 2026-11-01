@@ -3,7 +3,7 @@ import { Modal, View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Check, X } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
-import { S, R, F, W, ICON, HAIRLINE } from '@/shared/constants/tokens';
+import { S, R, F, W, ICON, HAIRLINE, SCRIM } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSheet } from '@/shared/components/GlassSheet';
 import { STAFF_ROLES, roleLabel, roleDescription, type StaffRole } from '@/shared/utils/staffRoles';
@@ -27,7 +27,7 @@ export function RolePicker({ visible, name, current, lang, onPick, onClose }: {
   const insets = useSafeAreaInsets();
   const c = COPY[lang];
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal supportedOrientations={['portrait', 'landscape']} visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={[styles.backdrop, { paddingBottom: insets.bottom + S.md }]}>
         <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} accessibilityRole="button" accessibilityLabel={c.close} />
         <GlassSheet maxWidth={560} padding={S.md}>
@@ -63,6 +63,6 @@ export function RolePicker({ visible, name, current, lang, onPick, onClose }: {
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: S.md },
+  backdrop: { flex: 1, backgroundColor: SCRIM, justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: S.md },
   row: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: S.smd, minHeight: 56 },
 });

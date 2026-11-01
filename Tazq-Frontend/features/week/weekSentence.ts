@@ -22,6 +22,20 @@ export interface WeekNumbers {
 
 type Lang = 'tr' | 'en';
 
+/*
+  "%40" Türkçede "yüzde kırk" diye okunur; ek okunuşun son ünlüsüne uyar: %40'ını, %54'ünü, %2'sini, %6'sını.
+  (2026-11-01, kullanıcı: "alışkanlıklarda %40" bağlamdan kopuktu — artık "alışkanlıklarının %40'ını yaptın".)
+*/
+const UNITS = ['', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz'];
+const TENS = ['', 'on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan'];
+export function trPctAccusative(n: number): string {
+  const word = n === 0 ? 'sıfır' : n % 10 ? UNITS[n % 10] : n % 100 ? TENS[(n / 10) % 10] : 'yüz';
+  const last = [...word].reverse().find(ch => 'aıoueiöü'.includes(ch)) ?? 'ı';
+  const v = 'aı'.includes(last) ? 'ı' : 'ei'.includes(last) ? 'i' : 'ou'.includes(last) ? 'u' : 'ü';
+  const vowelEnd = 'aıoueiöü'.includes(word[word.length - 1]);
+  return `%${n}'${vowelEnd ? 's' : ''}${v}n${v}`;
+}
+
 const COPY = {
   tr: {
     fresh: 'Hafta yeni başlıyor — bir alışkanlık ya da kısa bir odakla aç.',
@@ -29,17 +43,19 @@ const COPY = {
     lead: 'Bu hafta ',
     focus: (v: string): WeekSeg[] => [{ em: v }, ' odaklandın'],
     tasks: (n: number): WeekSeg[] => [{ em: `${n} görev` }, ' bitirdin'],
-    joinActions: ', ',
-    habits: (pct: number, afterAction: boolean): WeekSeg[] => [afterAction ? '; alışkanlıklarda ' : 'alışkanlıklarda ', { em: `%${pct}` }],
+    habits: (pct: number): WeekSeg[] => ['alışkanlıklarının ', { em: trPctAccusative(pct) }, ' yaptın'],
+    comma: ', ',
+    and: ' ve ',
   },
   en: {
     fresh: 'The week is just starting — open it with a habit or a short focus.',
     none: 'Nothing logged this week yet — start with a habit or a short focus.',
     lead: 'This week ',
     focus: (v: string): WeekSeg[] => ['you focused ', { em: v }],
-    tasks: (n: number, afterFocus = false): WeekSeg[] => [afterFocus ? 'finished ' : 'you finished ', { em: `${n} task${n === 1 ? '' : 's'}` }],
-    joinActions: ' and ',
-    habits: (pct: number, afterAction: boolean): WeekSeg[] => [afterAction ? '; habits at ' : ', habits at ', { em: `${pct}%` }],
+    tasks: (n: number, first: boolean): WeekSeg[] => [first ? 'you finished ' : 'finished ', { em: `${n} task${n === 1 ? '' : 's'}` }],
+    habits: (pct: number, first: boolean): WeekSeg[] => [first ? 'you kept ' : 'kept ', { em: `${pct}%` }, ' of your habits'],
+    comma: ', ',
+    and: ' and ',
   },
 };
 
@@ -50,14 +66,13 @@ export function buildWeekSentence(w: WeekNumbers, lang: Lang): WeekSeg[] {
   const showHabits = w.hasHabits && w.habitPct > 0;
   if (!showFocus && !showTasks && !showHabits) return [w.dayIndex <= 1 ? c.fresh : c.none];
 
-  const actions: WeekSeg[][] = [];
-  if (showFocus) actions.push(c.focus(formatMinutes(w.focusMin, lang)));
-  if (showTasks) actions.push(lang === 'en' ? COPY.en.tasks(w.tasks, showFocus) : COPY.tr.tasks(w.tasks));
+  // Tek cümle, tek özne: "… odaklandın, … bitirdin ve alışkanlıklarının %40'ını yaptın."
+  const parts: WeekSeg[][] = [];
+  if (showFocus) parts.push(c.focus(formatMinutes(w.focusMin, lang)));
+  if (showTasks) parts.push(lang === 'en' ? COPY.en.tasks(w.tasks, parts.length === 0) : COPY.tr.tasks(w.tasks));
+  if (showHabits) parts.push(lang === 'en' ? COPY.en.habits(w.habitPct, parts.length === 0) : COPY.tr.habits(w.habitPct));
   const out: WeekSeg[] = [c.lead];
-  actions.forEach((a, i) => { if (i > 0) out.push(c.joinActions); out.push(...a); });
-  if (showHabits) out.push(...c.habits(w.habitPct, actions.length > 0));
+  parts.forEach((p, i) => { if (i > 0) out.push(i === parts.length - 1 ? c.and : c.comma); out.push(...p); });
   out.push('.');
-  // "This week , habits at 40%." → "This week, habits at 40%." (yalnız alışkanlık, İngilizce)
-  if (lang === 'en' && actions.length === 0) out[0] = 'This week';
   return out;
 }

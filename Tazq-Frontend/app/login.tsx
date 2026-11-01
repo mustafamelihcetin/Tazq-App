@@ -13,8 +13,7 @@ import { GlassCard } from '@/shared/components/GlassCard';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { AnimatedBackground } from '@/shared/components/AnimatedBackground';
 import { AUTH_COPY, AuthBrand, AuthDivider, AuthField, SocialButton } from '@/features/user/components/AuthParts';
-import { AppBlur } from '@/shared/components/AppBlur';
-import { ICON, S, R, F, scale, verticalScale, B } from '@/shared/constants/tokens';
+import { ICON, S, R, F, scale, verticalScale, B, SCRIM } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { CustomAlert as Alert, AlertHost } from '@/shared/components/CustomAlert';
 import { validateLogin, isValidEmail } from '@/shared/utils/validation';
@@ -481,14 +480,13 @@ export default function LoginScreen() {
           </KeyboardAvoidingView>
         </SafeAreaView>
 
-        <Modal visible={forgotVisible} transparent animationType="fade">
+        <Modal supportedOrientations={['portrait', 'landscape']} visible={forgotVisible} transparent animationType="fade">
           <KeyboardAvoidingView
             behavior="padding"
             style={{ flex: 1 }}
           >
           <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
           <View style={styles.modalOverlay}>
-            <AppBlur material="regular" tint="dark" />
             <GlassCard style={styles.modalCard} floating>
               {forgotSuccess ? (
                 <View style={{ alignItems: 'center', gap: S.md, paddingVertical: S.sm }}>
@@ -664,7 +662,7 @@ const styles = StyleSheet.create({
   guestText: { fontSize: F.footnote, fontWeight: '500' },
   inputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, borderRadius: R.md, borderWidth: B.thin, gap: S.smd },
   input: { flex: 1, fontSize: F.body, fontWeight: '600', height: '100%', textAlignVertical: 'center' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: scale(24) },
+  modalOverlay: { flex: 1, backgroundColor: SCRIM, justifyContent: 'center', padding: scale(24) },
   modalCard: { padding: scale(24), gap: S.md },
   modalTitle: { fontSize: F.title + 2, fontWeight: '700' },
   modalSub: { fontSize: F.body, fontWeight: '500', lineHeight: verticalScale(20) },

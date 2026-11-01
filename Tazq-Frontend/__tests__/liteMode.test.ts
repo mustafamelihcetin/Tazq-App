@@ -146,9 +146,10 @@ describe('tur gördüğü ekranı anlatır', () => {
     expect(src).toMatch(/setShown\(\(prev\) => prev\.map\(\(v, k\) => \(k === i \? false : v\)\)\)/);
   });
 
-  it('Sade modda gizlenen Haftalık göstergesi ekrana hiç çizilmez → adımı atlanır', () => {
+  it('Haftalık göstergesi kalktı (2026-11-01): başlıkta tur hedefi "cockpit" yok, yerinde gelen kutusu', () => {
     const src = read('app/index.tsx');
-    expect(src).toMatch(/isLite \? undefined : \(\s*<TourTarget id="cockpit"[^>]*>/);
+    expect(src).not.toContain('<TourTarget id="cockpit"');
+    expect(src).toContain('<InboxButton');
   });
 });
 

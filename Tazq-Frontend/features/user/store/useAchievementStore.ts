@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { swallow } from '@/shared/utils/swallow';
-import { playSoundEffect } from '@/shared/utils/soundEffects';
 
 export interface Achievement {
   id: string;
@@ -96,18 +95,7 @@ export const useAchievementStore = create<AchievementState>()(
         }
         pushCloud();
 
-        // Play level up SFX
-        try {
-          const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
-          if (usePrefsStore.getState().soundEffects) {
-            playSoundEffect(require('../../../assets/sounds/levelup.mp3'), {
-              context: 'achievementStore.levelUpSound',
-              releaseAfterMs: 3000,
-            });
-          }
-        } catch (e) {
-          swallow('achievementStore.readSoundPref', e);
-        }
+        // Ses kutlama GÖRÜNDÜĞÜNDE çalar (CelebrationOverlay) — açılış ekranındayken değil.
       },
 
       // İlk gözlemde sessiz baseline: hak edilmiş eşikleri kutlamadan kilitle.

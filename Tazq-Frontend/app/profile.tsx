@@ -1,18 +1,23 @@
 import React, { useEffect, useState, useRef } from 'react';
 import type { AppTheme } from '@/shared/constants/Colors';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Modal, ActivityIndicator, Platform, TextInput, Keyboard, Linking, Animated, TouchableWithoutFeedback } from 'react-native';
 import { CustomAlert as Alert, AlertHost } from '@/shared/components/CustomAlert';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { track } from '@/shared/utils/analytics';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
-import { Bell, Moon, LogOut, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, FileText, MessageSquare, Send, Settings, Wallet, Palette, HeartPulse, ShieldCheck } from 'lucide-react-native';
+import { Bell, Moon, LogOut, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, FileText, MessageSquare, Send, Settings, Wallet, Palette, HeartPulse, ShieldCheck, Pencil, CircleSlash, ChevronRight } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { AuthService, FocusService } from '@/shared/services/api';
 import { SleepHealth } from '@/shared/services/sleepHealth';
 import { SupportModal } from '@/shared/components/SupportModal';
 import { useAuthStore, getAvatarSource, AVATAR_CONFIGS, AVATAR_MAP, useAchievementStore } from '@/features/user';
+import { AuraAvatar } from '@/features/user/components/AuraAvatar';
+import { useThemeStore } from '@/shared/store/useThemeStore';
+import { accentOf } from '@/shared/constants/Colors';
+import { useWeekAura } from '@/features/user/hooks/useWeekGlow';
+import { SegmentedControl } from '@/shared/components/SegmentedControl';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore } from '@/features/focus';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
@@ -21,7 +26,7 @@ import { useRouter } from 'expo-router';
 import { requestNotificationPermissions, cancelWeeklySummary, cancelMorningBrief, cancelEveningBrief } from '@/shared/utils/notifications';
 import { requestCalendarPermissions, bulkExportTasksToCalendar } from '@/shared/utils/calendarSync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ICON, S, R, F, B, MAX_W , sheetMaxHeight} from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, MAX_W , sheetMaxHeight, SCRIM } from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { healthSourceName } from '@/shared/utils/healthSource';
@@ -197,14 +202,16 @@ export default function ProfileScreen() {
         name: newName.trim(),
         motto: newMotto.trim(),
       });
-      // Update local state and close only on success — prevents unmounted-component reopen on error
-      setUser({ ...user, avatar: selectedAvatar || user?.avatar, name: newName.trim() });
       setDailyGoal(selectedGoal);
       setMotto(newMotto.trim());
       setGender(newGender);
       useSporStore.getState().setGender(newGender);
       setProductivityHour(newProductivityHour);
+      // SIRA ÖNEMLİ (2026-11-01): önce tercihler buluta (ve bellekteki kullanıcı kopyasına) yazılır, SONRA kullanıcı
+      // güncellenir. Tersi, setUser'ın eski tercih metnini yeniden yükleyip az önceki seçimleri geri almasına yol açıyordu.
       await usePrefsStore.getState().syncToCloud();
+      const fresh = useAuthStore.getState().user ?? user;
+      setUser({ ...fresh, avatar: selectedAvatar || fresh?.avatar, name: newName.trim() });
       setEditModalVisible(false);
       showToast(t.toastProfileUpdated, 'success');
     } catch (e: unknown) {
@@ -366,6 +373,11 @@ export default function ProfileScreen() {
   const currentStreak = useFocusStore(s => s.localStreak);
   const displayBestStreak = Math.max(bestStreak, currentStreak);
   const scrollViewRef = useRef<ScrollView>(null);
+  const aura = useWeekAura();
+  const ic = ID_COPY[language === 'en' ? 'en' : 'tr'];
+  const auraMark = usePrefsStore(st => st.auraMark);
+  const accentId = useThemeStore(st => st.accent);
+  const setAuraMark = usePrefsStore(st => st.setAuraMark);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -384,42 +396,42 @@ export default function ProfileScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={[styles.header, { marginTop: S.md }]}>
-            <MotiView from={{ scale: 0.92 }} animate={{ scale: 1 }} style={[styles.avatarLarge, { backgroundColor: theme.surfaceField, borderWidth: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 2 : 4, borderColor: hasRing(avatarBorderColor) ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'), width: 88, height: 88, borderRadius: R.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
-                {/*
-                  Resim çerçevenin İÇ KENARINA oturur: dış çap − 2×kenarlık. Aradaki iç boşluk
-                  kaldırıldı (2026-10-25, kullanıcı: "çerçeve ile resim arasında boşluk var") —
-                  renkli halka resmi doğrudan sarıyor. Kap opaklık 0'dan başlamıyor: görünmezken
-                  kurulan ekranda giriş animasyonu çalışmazsa avatar kaybolmasın.
-                  (Eski not:) Resim dairenin İÇ alanına göre boyutlanır.
-                  Sabit 110 yazılıydı; kap küçülünce (88) resim taşıp kırpılıyor, "yakınlaştırılmış"
-                  görünüyordu (eskiden de kenarlık+boşluk kadar hafifçe taşıyordu).
-                */}
-                {(() => {
-                  const inner = 88 - 2 * ((!avatarBorderColor || avatarBorderColor === 'transparent') ? 2 : 4);
-                  // Resim kendi dairesini de taşır: kare köşeler iç boşluk halkasında görünmesin.
-                  return <UserAvatar avatar={user?.avatar ?? guestAvatar} size={inner} iconSize={ICON.xxl} theme={theme} style={{ borderRadius: inner / 2, overflow: 'hidden' }} />;
-                })()}
-            </MotiView>
-            <View style={{ alignItems: 'center', marginTop: S.md }}>
-                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.name, { color: theme.onSurface, fontSize: F.display }]}>{isGuest ? (guestName || t.guest.badge) : (user?.name || '')}</Text>
-                {isGuest ? (
-                  <Text style={[styles.email, { color: theme.onSurfaceMuted, fontSize: F.body, textAlign: 'center' }]}>{t.guest.settingsRow}</Text>
-                ) : !!user?.email && (
-                  <Text style={[styles.email, { color: theme.onSurfaceMuted, fontSize: F.body }]}>{user.email}</Text>
-                )}
-                {!!motto && (
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, fontStyle: 'italic', marginTop: S.xs, textAlign: 'center', paddingHorizontal: S.lg }}>"{motto}"</Text>
-                )}
-                <Touchable
-                  onPress={isGuest ? () => router.push('/register') : openEditModal}
-                  accessibilityRole="button"
-                  accessibilityLabel={isGuest ? t.guest.keepMyData : (t.editProfile || 'Edit Profile')}
-                  style={[styles.editBtn, { backgroundColor: theme.primary, paddingVertical: S.sm }]}
-                >
-                    <Text style={[styles.editBtnText, { color: theme.onPrimary, fontWeight: '700', fontSize: F.caption }]}>{isGuest ? t.guest.keepMyData : (t.editProfile || 'Edit Profile')}</Text>
-                </Touchable>
+          {/*
+            KİMLİK KARTI (2026-11-01, kullanıcı: "profil kısmı çok dağınık, yukarıdaki yuvarlak çok yer yiyor").
+            Eskiden: 88'lik daire + altında ortalanmış ad, e-posta, motto ve ortada dolu bir düğme — ekranın üçte biri.
+            Şimdi tek satır: solda aura, yanında ad · e-posta · motto, sağda ikincil "Düzenle". Ayarlar hemen görünür.
+          */}
+          <View style={[styles.idCard, { backgroundColor: theme.surfaceCard, borderColor: theme.outlineVariant, marginTop: S.xl }]}>
+            <View style={[styles.idAvatar, { borderColor: hasRing(avatarBorderColor) ? theme.primary : 'transparent' }]}>
+              <UserAvatar avatar={user?.avatar ?? guestAvatar} size={ID_AVATAR} iconSize={ICON.lg} theme={theme} animated />
             </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text numberOfLines={1} style={[styles.name, { color: theme.onSurface }]}>{isGuest ? (guestName || t.guest.badge) : (user?.name || '')}</Text>
+              <Text numberOfLines={1} style={[styles.email, { color: theme.onSurfaceMuted }]}>
+                {isGuest ? t.guest.settingsRow : (user?.email || '')}
+              </Text>
+              {!!motto && (
+                <Text numberOfLines={1} style={[styles.motto, { color: theme.onSurfaceVariant }]}>“{motto}”</Text>
+              )}
+              {/* AURANIN ANLAMI — çekici ama dürüst: yalnız son 7 günün ölçülen etkinliği. */}
+              <View style={styles.auraLine}>
+                <View style={[styles.auraDot, { backgroundColor: theme.primary, opacity: 0.35 + 0.65 * (aura.activeDays / 7) }]} />
+                <Text numberOfLines={1} style={[styles.auraText, { color: theme.onSurfaceMuted }]}>
+                  {aura.activeDays === 0 ? ic.auraDim : aura.activeDays === 7 ? ic.auraFull : ic.auraDays(aura.activeDays)}
+                </Text>
+              </View>
+            </View>
+            <Touchable
+              onPress={isGuest ? () => router.push('/register') : openEditModal}
+              accessibilityRole="button"
+              accessibilityLabel={isGuest ? t.guest.keepMyData : (t.editProfile || 'Edit Profile')}
+              hitSlop={{ top: S.sm, bottom: S.sm, left: S.sm, right: S.sm }}
+              style={[styles.editBtn, { backgroundColor: theme.primary + '14' }]}
+            >
+              {isGuest
+                ? <Text style={[styles.editBtnText, { color: theme.primary }]}>{t.guest.keepMyData}</Text>
+                : <Pencil size={ICON.sm} color={theme.primary} />}
+            </Touchable>
           </View>
 
           {/* İLERLEME — istatistik + başarılar + seri kalkanı TEK kartta (bkz. ProgressCard). */}
@@ -512,10 +524,15 @@ export default function ProfileScreen() {
       {/* Şifre Değiştir */}
 
       {/* Edit Profile Modal */}
-      <Modal visible={editModalVisible} transparent animationType="none" onShow={() => editSlideIn()}>
-        <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: 'flex-end' }}>
+      <Modal supportedOrientations={['portrait', 'landscape']} visible={editModalVisible} transparent animationType="none" onShow={() => editSlideIn()}>
+        {/*
+          KLAVYE (2026-11-01, kullanıcı: "kimlik kutusuna bastım, yukarıda kaldı"): KeyboardAvoidingView pencere içinde
+          iOS'ta güvenilir değil — klavye kapanınca sayfa yukarıda takılıyordu. Ölçülen klavye yüksekliği kadar kalkar
+          (hızlı ekleme ile aynı yol), kapanınca kesin olarak iner; tavan da klavye kadar düşer.
+        */}
+        <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: kbHeight }}>
             <Touchable style={StyleSheet.absoluteFill} onPress={() => setEditModalVisible(false)} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'} />
-              <Animated.View style={[editSlide, styles.modalContent, { maxHeight: sheetMaxHeight(height, insets.top) }]}>
+              <Animated.View style={[editSlide, styles.modalContent, { maxHeight: sheetMaxHeight(height, insets.top) - kbHeight }]}>
                 <GlassSurface radius={R.sheet} />
                 <View {...editPan.panHandlers} style={{ paddingTop: S.md, paddingBottom: S.lmd, alignItems: 'center' }}>
                   <View style={[styles.modalHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)' }]} />
@@ -533,180 +550,141 @@ export default function ProfileScreen() {
                   <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
                     <View style={StyleSheet.absoluteFill} />
                   </TouchableWithoutFeedback>
-                  {/* Name input */}
-                  <View style={{ width: '100%', marginBottom: S.md }}>
-                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>
-                      {upperFor(t.editName || 'Display Name', language)}
-                    </Text>
-                    <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow }]}>
-                      <TextInput
-                        value={newName}
-                        onChangeText={setNewName}
-                        placeholder={t.namePlaceholder || 'Your name'}
-                        placeholderTextColor={theme.onSurfaceVariant + '99'}
-                        style={[styles.nameInput, { color: theme.onSurface, flex: 1, height: '100%', textAlignVertical: 'center' }]}
-                        maxLength={fitMaxLength(50, newName)}
-                        underlineColorAndroid="transparent"
-                      />
+                  {/*
+                    PROFİLİ DÜZENLE (2026-11-01, kullanıcı: "çok dağınık ve uyumsuz, iyi toparla").
+                    Eskiden dört ayrı stil: dolgulu ad alanı, çerçeveli motto, kalın kenarlı cinsiyet kutuları, dört
+                    kutulu saat seçimi + ayrı "profil işareti" açıklaması. Şimdi tek dil: üstte canlı önizleme, sonra
+                    gruplar — aynı dolgulu alan, aynı kayan seçici (kurulum ekranıyla bire bir).
+                    Cinsiyet artık avatarı DEĞİŞTİRMEZ (eskiden 'm1'/'f1' atıyordu); yalnız spor hesabı için.
+                  */}
+                  <View style={styles.editPreview}>
+                    <View style={{ width: 56, height: 56, borderRadius: R.full, overflow: 'hidden' }}>
+                      <AuraAvatar name={newName || user?.name} accent={theme.primary} size={56} glow={0.8} animated mark={auraMark} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text numberOfLines={1} style={[styles.previewName, { color: theme.onSurface }]}>{newName.trim() || (t.namePlaceholder || 'Your name')}</Text>
+                      <Text numberOfLines={1} style={{ fontSize: F.footnote, color: theme.onSurfaceMuted, marginTop: S.xxs }}>
+                        {newMotto.trim() ? `“${newMotto.trim()}”` : ic.previewSub}
+                      </Text>
                     </View>
                   </View>
 
-                  {/* Gender selection */}
-                  <View style={{ width: '100%', marginBottom: S.md }}>
-                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>
-                      {upperFor(language === 'tr' ? 'Cinsiyet' : 'Gender', language)}
-                    </Text>
-                    <View style={{ flexDirection: 'row', gap: S.xs }}>
-                      {([
-                        { key: 'male', labelTr: 'Erkek', labelEn: 'Male' },
-                        { key: 'female', labelTr: 'Kadın', labelEn: 'Female' },
-                      ] as const).map((g) => {
-                        const isSelected = newGender === g.key;
-                        return (
-                          <Touchable
-                            key={g.key}
-                            onPress={() => {
-                              // ZATEN SEÇİLİYSE DOKUNMA — aksi halde kullanıcının seçtiği
-                              // avatarı (ör. 'm5'), aynı cinsiyete yeniden dokununca
-                              // sessizce cinsiyet varsayılanına ('m1') sıfırlıyordu.
-                              if (isSelected) return;
-                              haptic.select();
-                              setNewGender(g.key);
-                              if (g.key === 'male') {
-                                setSelectedAvatar('m1');
-                              } else {
-                                setSelectedAvatar('f1');
-                              }
-                            }}
-                            style={{
-                              flex: 1,
-                              paddingVertical: S.smd,
-                              borderRadius: R.sm,
-                              borderWidth: 1.5,
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              borderColor: isSelected ? theme.primary : theme.outline,
-                              backgroundColor: isSelected ? theme.primaryContainer : 'transparent',
-                            }}
-                          >
-                            <Text style={{
-                              fontSize: F.caption2,
-                              fontFamily: 'Jakarta-Bold',
-                              color: isSelected ? theme.onPrimaryContainer : theme.onSurfaceVariant,
-                            }}>
-                              {language === 'tr' ? g.labelTr : g.labelEn}
-                            </Text>
-                          </Touchable>
-                        );
-                      })}
-                    </View>
+                  <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>{upperFor(ic.identity, language)}</Text>
+                  <View style={[styles.field, { backgroundColor: theme.surfaceField }]}>
+                    <TextInput
+                      value={newName}
+                      onChangeText={setNewName}
+                      placeholder={t.namePlaceholder || 'Your name'}
+                      accessibilityLabel={t.editName || 'Display Name'}
+                      placeholderTextColor={theme.onSurfaceMuted}
+                      style={[styles.fieldInput, { color: theme.onSurface }]}
+                      maxLength={fitMaxLength(50, newName)}
+                      autoCapitalize="words"
+                      textContentType="name"
+                      underlineColorAndroid="transparent"
+                    />
                   </View>
-
-                  {/* Avatar selection */}
-                  <View style={{ width: '100%', marginBottom: S.md }}>
-                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>{upperFor('Avatar', language)}</Text>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.lg }}
-                      style={{ marginTop: S.xs, marginHorizontal: -S.lg }}
-                    >
-                      {AVATAR_CONFIGS.filter(config => {
-                        if (newGender === 'male') return config.key.startsWith('m');
-                        if (newGender === 'female') return config.key.startsWith('f');
-                        return true;
-                      }).map((config) => {
-                        const isSelected = selectedAvatar === config.key;
-                        return (
-                          <Touchable
-                            key={config.id}
-                            onPress={() => { haptic.select(); setSelectedAvatar(config.key); }}
-                            activeOpacity={0.75}
-                            accessibilityRole="imagebutton"
-                            accessibilityLabel={(language === 'tr' ? 'Avatar ' : 'Avatar ') + config.key}
-                            accessibilityState={{ selected: isSelected }}
-                            style={{ alignItems: 'center', gap: S.xs }}
-                          >
-                            <View style={{
-                              width: 64, height: 64, borderRadius: R.full,
-                              borderWidth: isSelected ? 3 : 1.5,
-                              borderColor: isSelected ? theme.primary : theme.outline,
-                              overflow: 'hidden',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              backgroundColor: '#ffffff',
-                            }}>
-                              <Image
-                                source={config.image}
-                                style={{ width: 64, height: 64 }}
-                                resizeMode="cover"
-                              />
-                            </View>
-                            <Text style={{
-                              fontSize: F.caption, fontWeight: '700', letterSpacing: 0.3,
-                              color: isSelected ? theme.primary : theme.onSurfaceVariant,
-                              opacity: isSelected ? 1 : 0.5,
-                            }}>
-                              {upperFor(config.name, language)}
-                            </Text>
-                          </Touchable>
-                        );
-                      })}
-                    </ScrollView>
-                  </View>
-
-                  {/* Çerçeve ve renk artık TEK yerde: Ayarlar → Görünüm (bkz. AccentPicker). */}
-                  {/* Motto */}
-                  <View style={{ width: '100%', marginBottom: S.lg }}>
-                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>
-                      {upperFor(language === 'tr' ? 'Kişisel Motto' : 'Personal Motto', language)}
-                    </Text>
+                  <View style={[styles.field, { backgroundColor: theme.surfaceField, marginTop: S.sm }]}>
                     <TextInput
                       value={newMotto}
                       onChangeText={setNewMotto}
-                      placeholder={language === 'tr' ? 'Seni motive eden bir cümle…' : 'A sentence that motivates you…'}
-                      placeholderTextColor={theme.onSurfaceVariant + '60'}
+                      placeholder={ic.motto}
+                      accessibilityLabel={ic.mottoA11y}
+                      placeholderTextColor={theme.onSurfaceMuted}
                       maxLength={fitMaxLength(60, newMotto)}
-                      style={{ fontSize: F.body, color: theme.onSurface, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm, marginTop: S.xs }}
+                      style={[styles.fieldInput, { color: theme.onSurface }]}
+                      underlineColorAndroid="transparent"
                     />
-                    <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, textAlign: 'right', marginTop: S.xs }}>{newMotto.length}/60</Text>
+                    {newMotto.length > 40 && (
+                      <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, fontVariant: ['tabular-nums'] }}>{newMotto.length}/60</Text>
+                    )}
                   </View>
 
-                  {/* Productivity hour */}
-                  <View style={{ width: '100%', marginBottom: S.lg }}>
-                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>
-                      {upperFor(language === 'tr' ? 'En Verimli Olduğun Zaman' : 'Peak Productivity Time', language)}
-                    </Text>
-                    <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, marginBottom: S.sm }}>
-                      {productivityHint(newProductivityHour, language === 'tr' ? 'tr' : 'en')}
-                    </Text>
-                    <View style={{ flexDirection: 'row', gap: S.xs }}>
-                      {([
-                        { key: 'morning',   labelTr: 'Sabah',   labelEn: 'Morning',   hint: '07:00', icon: (color: string) => <Sunrise size={ICON.md} color={color} /> },
-                        { key: 'afternoon', labelTr: 'Öğlen',   labelEn: 'Afternoon', hint: '12:00', icon: (color: string) => <Sun size={ICON.md} color={color} /> },
-                        { key: 'evening',   labelTr: 'Akşam',   labelEn: 'Evening',   hint: '17:00', icon: (color: string) => <Sunset size={ICON.md} color={color} /> },
-                        { key: 'night',     labelTr: 'Gece',    labelEn: 'Night',     hint: '21:00', icon: (color: string) => <Moon size={ICON.md} color={color} /> },
-                      ] as const).map(opt => {
-                        const sel = newProductivityHour === opt.key;
-                        const itemColor = sel ? theme.primary : theme.onSurfaceVariant;
+                  {/*
+                    TERCİHLER — tek satırda simgeyle (2026-11-01, kullanıcı: "cinsiyet, en verimli zaman daha minimal ve
+                    ikonlarla seçtirilebilir, bu kadar alan yemez"). Solda başlık + seçilenin adı, sağda simge düğmeleri.
+                  */}
+                  <View style={[styles.prefCard, { backgroundColor: theme.surfaceField, marginTop: S.lg }]}>
+                    <IconChoiceRow
+                      title={ic.peak}
+                      hint={productivityHint(newProductivityHour, language === 'tr' ? 'tr' : 'en')}
+                      value={newProductivityHour || 'morning'}
+                      onChange={(k) => { haptic.select(); setNewProductivityHour(k as 'morning' | 'afternoon' | 'evening' | 'night'); }}
+                      options={[
+                        { key: 'morning', label: ic.morning, render: (c) => <Sunrise size={ICON.sm} color={c} /> },
+                        { key: 'afternoon', label: ic.afternoon, render: (c) => <Sun size={ICON.sm} color={c} /> },
+                        { key: 'evening', label: ic.evening, render: (c) => <Sunset size={ICON.sm} color={c} /> },
+                        { key: 'night', label: ic.night, render: (c) => <Moon size={ICON.sm} color={c} /> },
+                      ]}
+                      theme={theme}
+                    />
+                    <View style={[styles.prefDivider, { backgroundColor: theme.separator }]} />
+                    <IconChoiceRow
+                      title={ic.gender}
+                      hint={ic.genderHint}
+                      value={newGender || 'unset'}
+                      onChange={(k) => { haptic.select(); setNewGender(k === 'unset' ? '' : (k as 'male' | 'female')); }}
+                      options={[
+                        { key: 'female', label: ic.female, render: (c) => <Text style={{ color: c, fontSize: F.callout, fontWeight: '700', lineHeight: F.callout + 2 }}>♀</Text> },
+                        { key: 'male', label: ic.male, render: (c) => <Text style={{ color: c, fontSize: F.callout, fontWeight: '700', lineHeight: F.callout + 2 }}>♂</Text> },
+                        { key: 'unset', label: ic.unset, render: (c) => <CircleSlash size={ICON.sm} color={c} /> },
+                      ]}
+                      theme={theme}
+                    />
+                    <View style={[styles.prefDivider, { backgroundColor: theme.separator }]} />
+                    {/* AURA İŞARETİ — harf, simge ya da boş (harfini istemeyen için alternatifler). Seçim anında kaydedilir. */}
+                    <View style={styles.prefRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.prefTitle, { color: theme.onSurface }]}>{ic.auraLetter}</Text>
+                        <Text style={[styles.prefHint, { color: theme.onSurfaceMuted }]}>{ic.auraLetterHint}</Text>
+                      </View>
+                    </View>
+                    {/* 14 işaret = iki TAM satır (7 + 7): her hücre satırın 1/7'si (kullanıcı: "2 satır olacaksa dolacak"). */}
+                    <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: S.sm, paddingBottom: S.smd }}>
+                      {(['initial', 'star', 'moon', 'sun', 'leaf', 'drop', 'spark', 'mountain', 'wave', 'heart', 'bolt', 'flame', 'arrow', 'none'] as const).map(k => {
+                        const on = auraMark === k;
                         return (
                           <Touchable
-                            key={opt.key}
-                            onPress={() => { haptic.select(); setNewProductivityHour(opt.key); }}
-                            style={{ flex: 1, alignItems: 'center', gap: S.sm, paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.thin, borderColor: sel ? theme.primary + '60' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), backgroundColor: sel ? theme.primary + '15' : 'transparent' }}
+                            key={k}
+                            onPress={() => { if (!on) { haptic.select(); setAuraMark(k); } }}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: on, checked: on }}
+                            accessibilityLabel={ic.marks[k]}
+                            style={styles.markCell}
                           >
-                            {opt.icon(itemColor)}
-                            <Text style={{ fontSize: 10, fontWeight: '700', color: itemColor }}>{language === 'tr' ? opt.labelTr : opt.labelEn}</Text>
-                            <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted }}>{opt.hint}</Text>
+                            <View style={[styles.markChoice, { borderColor: on ? theme.primary : 'transparent' }]}>
+                              <View style={{ width: 34, height: 34, borderRadius: R.full, overflow: 'hidden' }}>
+                                <AuraAvatar name={newName || user?.name} accent={theme.primary} size={34} glow={0.8} mark={k} />
+                              </View>
+                            </View>
                           </Touchable>
                         );
                       })}
                     </View>
+                    <View style={[styles.prefDivider, { backgroundColor: theme.separator }]} />
+                    {/*
+                      AURANIN RENGİ = UYGULAMANIN RENGİ — tek ayar, TEK yer (Ayarlar → Görünüm). Burada yalnız kısayol:
+                      aynı seçici iki yerde karmaşa yaratırdı (kullanıcı: "2 yerde aynı ayar karmaşa olmaz mı").
+                    */}
+                    <Touchable
+                      onPress={() => { setEditModalVisible(false); router.push({ pathname: '/settings', params: { section: 'system' } }); }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${ic.color}: ${accentOf(accentId).label[language === 'en' ? 'en' : 'tr']}`}
+                      accessibilityHint={ic.colorHint}
+                      style={styles.prefRow}
+                    >
+                      <View style={{ width: 14, height: 14, borderRadius: R.full, backgroundColor: theme.primary }} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.prefTitle, { color: theme.onSurface }]}>{ic.color} · {accentOf(accentId).label[language === 'en' ? 'en' : 'tr']}</Text>
+                        <Text style={[styles.prefHint, { color: theme.onSurfaceMuted }]}>{ic.colorHint}</Text>
+                      </View>
+                      <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} />
+                    </Touchable>
                   </View>
                 </ScrollView>
 
                 {/* Save button — fixed outside scroll, respects safe area */}
-                <View style={{ paddingHorizontal: S.lg, paddingTop: S.sm, paddingBottom: insets.bottom > 0 ? insets.bottom : S.xl }}>
+                <View style={{ paddingHorizontal: S.lg, paddingTop: S.sm, paddingBottom: kbHeight > 0 ? S.md : (insets.bottom > 0 ? insets.bottom : S.xl) }}>
                   {profileError && (
                     <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '700', textAlign: 'center', marginBottom: S.sm }}>
                       {profileError}
@@ -729,7 +707,7 @@ export default function ProfileScreen() {
                   </Touchable>
                 </View>
               </Animated.View>
-        </KeyboardAvoidingView>
+        </View>
         <AlertHost />{/* modal içinden açılan uyarı burada, modalın üstünde (bkz. CustomAlert) */}
       </Modal>
 
@@ -742,14 +720,101 @@ export default function ProfileScreen() {
 
 
 
+/** Kimlik kartı + Profili düzenle metinleri (2026-11-01) — iki dil tek yerde, satır içi ternary yerine. */
+const ID_COPY = {
+  tr: {
+    auraDim: 'Auran sönük; bugün bir iş bitir, parlasın.',
+    auraFull: 'Auran tam parlıyor: 7 günün 7’sinde buradaydın.',
+    auraDays: (n: number) => `Auran bu hafta ${n} günde parladı.`,
+    previewSub: 'Auran adından ve renginden doğar; her aktif gün parlatır.',
+    identity: 'Kimlik', motto: 'Motto (isteğe bağlı)', mottoA11y: 'Kişisel motto',
+    peak: 'En verimli olduğun zaman', morning: 'Sabah', afternoon: 'Öğlen', evening: 'Akşam', night: 'Gece',
+    gender: 'Cinsiyet', female: 'Kadın', male: 'Erkek', unset: 'Belirtme',
+    genderHint: 'Yalnız spor modundaki kalori ve kilo hesapları için.',
+    auraLetter: 'Auranın işareti', auraLetterHint: 'Adının harfi, bir simge ya da boş.',
+    color: 'Renk', colorHint: 'Uygulamanın rengi de bu; Görünüm’den değişir.',
+    marks: { initial: 'Harf', star: 'Yıldız · odak', moon: 'Ay · gece', sun: 'Güneş · sabah', leaf: 'Yaprak · büyüme', drop: 'Damla · akış', spark: 'Parıltı · fikir', mountain: 'Dağ · hedef', wave: 'Dalga · sakinlik', heart: 'Kalp · özen', bolt: 'Şimşek · enerji', flame: 'Alev · seri', arrow: 'Ok · yön', none: 'Boş' },
+  },
+  en: {
+    auraDim: 'Your aura is dim. Finish one thing today to light it.',
+    auraFull: 'Your aura is at full glow: 7 of 7 days.',
+    auraDays: (n: number) => `Your aura glowed on ${n} days this week.`,
+    previewSub: 'Your aura comes from your name and colour; every active day makes it glow.',
+    identity: 'Identity', motto: 'Motto (optional)', mottoA11y: 'Personal motto',
+    peak: 'Your peak time', morning: 'Morning', afternoon: 'Midday', evening: 'Evening', night: 'Night',
+    gender: 'Gender', female: 'Female', male: 'Male', unset: 'Skip',
+    genderHint: 'Only used for calorie and weight estimates in fitness mode.',
+    auraLetter: 'Aura mark', auraLetterHint: 'Your initial, a symbol, or nothing.',
+    color: 'Colour', colorHint: 'The app uses this colour too; change it in Appearance.',
+    marks: { initial: 'Initial', star: 'Star · focus', moon: 'Moon · night owl', sun: 'Sun · early bird', leaf: 'Leaf · growth', drop: 'Drop · flow', spark: 'Spark · ideas', mountain: 'Mountain · goals', wave: 'Wave · calm', heart: 'Heart · care', bolt: 'Bolt · energy', flame: 'Flame · streak', arrow: 'Arrow · direction', none: 'None' },
+  },
+};
+
+/** Tek satırlık simge seçici: solda başlık + seçilenin açıklaması, sağda yuvarlak simge düğmeleri. */
+function IconChoiceRow<K extends string>({ title, hint, value, onChange, options, theme }: {
+  title: string; hint?: string; value: K; onChange: (k: K) => void; theme: AppTheme;
+  options: { key: K; label: string; render: (color: string) => React.ReactNode }[];
+}) {
+  const sel = options.find(o => o.key === value);
+  // Açıklama simgelerin yanındaki dar sütunda kesiliyordu ("saat verm…"): artık satırın ALTINDA, tam genişlikte.
+  return (
+    <View style={{ paddingVertical: S.smd }}>
+    <View style={[styles.prefRow, { paddingVertical: 0 }]}>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={[styles.prefTitle, { color: theme.onSurface }]}>{title}</Text>
+        {sel ? <Text numberOfLines={1} style={[styles.prefHint, { color: theme.primary, fontWeight: '600' }]}>{sel.label}</Text> : null}
+      </View>
+      <View accessibilityRole="radiogroup" style={styles.iconChoices}>
+        {options.map(o => {
+          const on = o.key === value;
+          return (
+            <Touchable
+              key={o.key}
+              onPress={() => { if (!on) onChange(o.key); }}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: on, checked: on }}
+              accessibilityLabel={o.label}
+              style={[styles.iconChoice, { backgroundColor: on ? theme.primary : 'transparent', borderColor: on ? theme.primary : theme.outlineVariant }]}
+            >
+              {o.render(on ? theme.onPrimary : theme.onSurfaceVariant)}
+            </Touchable>
+          );
+        })}
+      </View>
+    </View>
+    {!!hint && <Text style={[styles.prefHint, { color: theme.onSurfaceMuted, marginTop: S.sm }]}>{hint}</Text>}
+    </View>
+  );
+}
+
+/** Kimlik kartındaki avatar çapı (bkz. idCard). */
+const ID_AVATAR = 60;
+
 const styles = StyleSheet.create({
-  header: { alignItems: 'center' },
-  avatarLarge: { borderWidth: 3, padding: S.xs },
-  image: { width: '100%', height: '100%' },
-  name: { fontWeight: '700', letterSpacing: -1 },
-  email: { marginTop: S.xs },
-  editBtn: { marginTop: S.md, paddingHorizontal: S.lg, borderRadius: R.full },
-  editBtnText: { fontWeight: '700' },  // renk kullanım yerinde theme.onPrimary ile verilir
+  idCard: { flexDirection: 'row', alignItems: 'center', gap: S.md, padding: S.md, borderRadius: R.xl, borderWidth: B.thin },
+  idAvatar: { width: ID_AVATAR + 6, height: ID_AVATAR + 6, borderRadius: R.full, borderWidth: B.medium, alignItems: 'center', justifyContent: 'center' },
+  name: { fontSize: F.title3, fontWeight: '700', letterSpacing: -0.4 },
+  email: { fontSize: F.footnote, marginTop: S.xxs },
+  motto: { fontSize: F.footnote, fontStyle: 'italic', marginTop: S.xs },
+  editBtn: { minWidth: 40, height: 40, borderRadius: R.full, alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.smd },
+  editBtnText: { fontSize: F.footnote, fontWeight: '700' },
+  auraLine: { flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.xs },
+  auraDot: { width: 6, height: 6, borderRadius: R.full },
+  auraText: { flex: 1, fontSize: F.caption, fontWeight: '600' },
+  editPreview: { flexDirection: 'row', alignItems: 'center', gap: S.md, marginBottom: S.lg },
+  previewName: { fontSize: F.subhead, fontWeight: '700', letterSpacing: -0.3 },
+  field: { flexDirection: 'row', alignItems: 'center', gap: S.sm, height: 48, borderRadius: R.md, paddingHorizontal: S.md },
+  fieldInput: { flex: 1, height: '100%', fontSize: F.body, fontWeight: '500' },
+  hint: { fontSize: F.caption, marginTop: S.sm, lineHeight: 16 },
+  prefCard: { borderRadius: R.lg, paddingHorizontal: S.md },
+  prefRow: { flexDirection: 'row', alignItems: 'center', gap: S.md, paddingVertical: S.smd },
+  prefTitle: { fontSize: F.body, fontWeight: '600' },
+  prefHint: { fontSize: F.caption, marginTop: S.xxs, lineHeight: 16 },
+  prefDivider: { height: StyleSheet.hairlineWidth },
+  iconChoices: { flexDirection: 'row', gap: S.xs },
+  markCell: { width: `${100 / 7}%`, alignItems: 'center' },
+  markChoice: { padding: S.xxs, borderRadius: R.full, borderWidth: B.medium },
+  iconChoice: { width: 36, height: 36, borderRadius: R.full, borderWidth: B.thin, alignItems: 'center', justifyContent: 'center' },
   statsGrid: { flexDirection: 'row' },
   statValue: { fontWeight: '700', marginTop: S.sm },
   settingsSection: { },
@@ -762,10 +827,10 @@ const styles = StyleSheet.create({
   settingLabel: { fontWeight: '700' },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, borderRadius: R.lg },
   logoutText: { fontFamily: 'Jakarta-Bold', fontWeight: '700' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalOverlay: { flex: 1, backgroundColor: SCRIM, justifyContent: 'flex-end' },
   modalContent: { borderRadius: R.sheet, paddingTop: S.sm, overflow: 'hidden' },
   modalHandle: { width: 40, height: 4, borderRadius: R.sm, alignSelf: 'center', marginBottom: S.md },
-  modalTitle: { fontWeight: '700', marginBottom: S.lg, textAlign: 'center', paddingHorizontal: S.lg },
+  modalTitle: { fontWeight: '700', marginBottom: S.md, textAlign: 'center', paddingHorizontal: S.lg },
   avatarGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' },
   inputGroup: { borderRadius: R.md, paddingHorizontal: S.md, height: 48, justifyContent: 'center' },
   nameInput: { fontSize: F.body, fontWeight: '600' },

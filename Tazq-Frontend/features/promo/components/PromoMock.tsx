@@ -16,13 +16,7 @@ export type { AccentKey, PromoKind, PromoMode } from '@/features/promo/promoThem
 import { PROMO_COPY } from '@/features/promo/promoCopy';
 import type { PromoDevice } from '@/features/promo/promoDevices';
 import {
-  Moon, GraduationCap, Dumbbell, Coins, BookOpen, CheckCircle2, Circle, Check,
-  Flame, Trophy, Gauge, Plus, Clock, Zap, Target, SlidersHorizontal, Search,
-  CalendarClock, ChevronRight, BarChart3, Info, Ban, Briefcase, TrendingUp, Play, Library,
-  // Alt sekme çubuğunun GERÇEK ikonları (bkz. BottomNavBar) — mock ile uygulama
-  // arasındaki en görünür fark buydu: tanıtımda başka ikonlar duruyordu.
-  LayoutGrid, CheckSquare, Sparkles, CalendarDays, Layers,
-  Wifi, BatteryFull, SignalHigh,
+  Moon, GraduationCap, Dumbbell, Coins, BookOpen, CheckCircle2, Circle, Check, Flame, Trophy, Gauge, Plus, Clock, Zap, Target, SlidersHorizontal, Search, CalendarClock, ChevronRight, BarChart3, Info, Ban, Briefcase, TrendingUp, Play, Library, CheckSquare, Sparkles, CalendarDays, Wifi, BatteryFull, SignalHigh, Sun, Timer, Flag,
 } from 'lucide-react-native';
 
 /**
@@ -308,7 +302,7 @@ export const PromoMock: React.FC<{
     tint rengi; UIKit de böyle yapar (şekil gezdirmez, ikonu büyütmez). Çizgi kalınlığı
     2.1/1.8 — lucide çizgisel olduğu için "dolu varyant" yerine bir tık kalınlaşma.
   */
-  const TAB_ICONS = [LayoutGrid, CheckSquare, Sparkles, CalendarDays, Layers];
+  const TAB_ICONS = [Sun, CheckSquare, Timer, CalendarDays, Flag]; // gerçek sekme çubuğuyla aynı (bkz. BottomNavBar)
   const TabBar: React.FC<{ active: number }> = ({ active }) => (
     <>
       {/* Kapsül de içerikle AYNI sütunda: geniş ekranda sekmeler sonsuza yayılmaz. */}

@@ -1,13 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, Platform, useWindowDimensions, Modal, AppState, Animated, ScrollView, BackHandler, InteractionManager, AccessibilityInfo } from 'react-native';
-import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
+import { View, Text, StyleSheet, Platform, useWindowDimensions, AppState, Animated, ScrollView, BackHandler, InteractionManager, AccessibilityInfo } from 'react-native';
 import Svg, { Circle, G, Path } from 'react-native-svg';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
-import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Coffee, Wind, CloudRain, Flame, Waves, Music2, Headphones, AudioLines, SlidersHorizontal, SkipForward, Trees } from 'lucide-react-native';
+import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Coffee, Wind, CloudRain, Flame, Waves, Music2, Headphones, AudioLines, SlidersHorizontal, SkipForward, Trees, Minus, Plus } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore, focusDayKey } from '@/features/focus';
@@ -23,13 +22,17 @@ import { usePrefsStore } from '@/features/modes';
 import { track } from '@/shared/utils/analytics';
 import { StatusBar } from 'expo-status-bar';
 import { useToastStore } from '@/shared/store/useToastStore';
+import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLowPowerGraphics } from '@/shared/hooks/useLowPowerGraphics';
 import { Colors } from '@/shared/constants/Colors';
-import { getRandomQuote } from '@/shared/constants/Quotes';
+import { pickFocusLine, type FocusPhase, type SoundId } from '@/shared/constants/Quotes';
+import { sessionDayKey } from '@/features/report/weeklyReport';
+import { toDateKey } from '@/shared/utils/dateKey';
+import { QuoteScene } from '@/features/focus/components/QuoteScene';
+import { DurationDial } from '@/features/focus/components/DurationDial';
 import { ICON, S, R, F, B, SPRING_SOFT } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
-import { GlassSurface } from '@/shared/components/GlassSurface';
 import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import {
@@ -71,6 +74,28 @@ import { SoundIcon, type SoundKind } from '@/features/focus/components/SoundIcon
 // izole ettik → artık yalnız bu minik bileşenler saniyede bir render olur, ana ekran olmaz.
 
 // Sayaç metni (dk : atan iki nokta : sn). Yalnız seconds/isActive'e abone.
+/** En yakın aktif hedef — sınav, tez, mülakat ya da spor (alt satırın motivasyon cümlesi onu adıyla anar). */
+function nearestGoal(): { name: string; days: number } | null {
+  const s = usePrefsStore.getState().seasonal as unknown as Record<string, string | boolean | null>;
+  const pairs: [boolean, string, string | null][] = [
+    [!!s.examMode, String(s.examName ?? ''), s.examDate as string | null],
+    [!!s.examMode, String(s.exam2Name ?? ''), s.exam2Date as string | null],
+    [!!s.examMode, String(s.exam3Name ?? ''), s.exam3Date as string | null],
+    [!!s.tezMode, String(s.tezName ?? ''), s.tezDate as string | null],
+    [!!s.mulakatMode, String(s.mulakatName ?? ''), s.mulakatDate as string | null],
+    [!!s.sporMode, String(s.sporGoal ?? ''), s.sporDate as string | null],
+  ];
+  const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+  let best: { name: string; days: number } | null = null;
+  for (const [on, name, date] of pairs) {
+    if (!on || !name.trim() || !date) continue;
+    const d = new Date(date); d.setHours(0, 0, 0, 0);
+    const days = Math.round((d.getTime() - t0.getTime()) / 86400000);
+    if (days >= 0 && (!best || days < best.days)) best = { name: name.trim(), days };
+  }
+  return best;
+}
+
 const CountdownText = React.memo(({ timerSize, colonColor, reduceMotion, a11yLabel }: { timerSize: number; colonColor: string; reduceMotion?: boolean; a11yLabel: (m: number) => string }) => {
   const seconds = useFocusStore(s => s.seconds);
   const isActive = useFocusStore(s => s.isActive);
@@ -79,6 +104,11 @@ const CountdownText = React.memo(({ timerSize, colonColor, reduceMotion, a11yLab
   // İki nokta: Sakin mod'da sabit; normalde sert blink (0.2↔1) yerine nazik kımıltı (0.55↔0.85) —
   // saniyeliği yaşam belirtisi kalsın ama göz köşesinde rahatsız etmesin.
   const colonOpacity = reduceMotion ? 0.7 : ((isActive && seconds % 2 === 1) ? 0.55 : 0.85);
+  // Kayma YALNIZ saniyelik tikte (bir önceki değerden 1 eksik). Süre kadranla/ön ayarla değişince anında yazılır:
+  // dört rakam birden kayarken sayaç da görünür olunca iki değer üst üste görünüyordu.
+  const lastSec = React.useRef(seconds);
+  const tick = lastSec.current - seconds === 1;
+  React.useEffect(() => { lastSec.current = seconds; }, [seconds]);
   /*
     Ekran okuyucu kalan süreyi DAKİKA olarak okur. Etiket bilerek burada: ana ekranda
     olsaydı her dakika 2000+ satırlık ağaç yeniden render olurdu (bkz. yukarıdaki not).
@@ -86,11 +116,11 @@ const CountdownText = React.memo(({ timerSize, colonColor, reduceMotion, a11yLab
   return (
     <View accessible accessibilityRole="timer" accessibilityLabel={a11yLabel(Math.ceil(seconds / 60))} style={{ flexDirection: 'row', alignItems: 'center' }}>
       {/* Rakamlar KAYAR (react-bits Counter → RollingDigits); Sakin mod'da kaymaz. */}
-      <RollingDigits value={Math.floor(seconds / 60).toString().padStart(2, '0')} fontSize={big} textStyle={[styles.timerText, styles.timerGlow, { color: '#FFFFFF' }]} reduceMotion={reduceMotion} />
+      <RollingDigits value={Math.floor(seconds / 60).toString().padStart(2, '0')} fontSize={big} textStyle={[styles.timerText, styles.timerGlow, { color: '#FFFFFF' }]} reduceMotion={reduceMotion} instant={!tick} />
       {/* ':' rakamlarla DİKEY ORTALI — satır 'center', böylece küçük iki nokta tabana düşmez.
           Küçük hizalama payı: optik olarak tam ortaya oturması için minik yukarı nudge. */}
       <Text style={[styles.timerText, { color: colonColor, fontSize: mid, marginHorizontal: S.xxs, opacity: colonOpacity, includeFontPadding: false, textAlignVertical: 'center' }]}>:</Text>
-      <RollingDigits value={(seconds % 60).toString().padStart(2, '0')} fontSize={big} textStyle={[styles.timerText, styles.timerGlow, { color: '#FFFFFF' }]} reduceMotion={reduceMotion} />
+      <RollingDigits value={(seconds % 60).toString().padStart(2, '0')} fontSize={big} textStyle={[styles.timerText, styles.timerGlow, { color: '#FFFFFF' }]} reduceMotion={reduceMotion} instant={!tick} />
     </View>
   );
 });
@@ -289,6 +319,18 @@ export default function FocusScreen() {
   const focusSessions = useFocusHistoryStore(st => st.sessions);
   const recent = useMemo(() => recentFocus(focusSessions, dailyFocusToday), [focusSessions, dailyFocusToday]);
   /*
+    ALT SATIR: TELKİN / MOTİVASYON (bkz. shared/constants/Quotes.ts). Aşama durumdan gelir; son iki dakika
+    yalnız bir boolean seçiciyle izlenir (saniyelik render yok). Cümle aşama değişince bir kez seçilir.
+  */
+  const inFinal = useFocusStore(st => st.isActive && st.seconds > 0 && st.seconds <= 120);
+  const [lineSeed, setLineSeed] = useState(() => Math.random());
+  const linePhase: FocusPhase = !sessionStarted ? 'idle' : inBreak ? 'break' : inFinal ? 'final' : 'focus';
+  useEffect(() => { setLineSeed(Math.random()); }, [linePhase]);
+  const sessionsToday = useMemo(() => {
+    const today = toDateKey(new Date());
+    return focusSessions.filter(x => sessionDayKey(x.startedAt) === today).length;
+  }, [focusSessions]);
+  /*
     Bitiş alarmı bildirim iznine bağlı. İzin kapalıysa kullanıcı "süre bitince haber
     verir" sanıp telefonu bırakıyor ve seansın bittiğini çok sonra öğreniyor.
     Durum yalnız OKUNUR — sistem diyaloğu burada AÇILMAZ (bkz. notifications).
@@ -335,9 +377,25 @@ export default function FocusScreen() {
   const playRequestIdRef = useRef(0);
   // Kalıcı tercihler store'dan; isimler aynı kaldığı için ekranın gerisi değişmiyor.
   const ambientSound = focusAmbientSound as AmbientSound;
+  const quote = useMemo(() => pickFocusLine({
+    phase: linePhase, task: currentTask, sound: ambientSound as SoundId, hour: new Date().getHours(),
+    todayMin: dailyFocusToday, goalMin: dailyGoalMinutes, streak: recent.streak, sessionsToday,
+    goal: nearestGoal(), sessionMin: Math.round(totalSeconds / 60),
+  }, language === 'en' ? 'en' : 'tr', lineSeed),
+  // Cümle aşama/tohum değişince seçilir; ses ya da görev değişince de güncellenir.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [linePhase, lineSeed, language, currentTask, ambientSound, totalSeconds]);
   const setAmbientSound = setFocusAmbientSound as (v: AmbientSound) => void;
 
   // Nefes artık ayrı bir seans (app/nefes.tsx, madde 14): sayacın üstündeki ipucu kaldırıldı.
+  const [dialDragging, setDialDragging] = useState(false);
+  // ARA ARA DEĞİŞİR (2026-11-01, kullanıcı: "alt yazılar ara ara değişebilir olsun"): her 40 sn bir sonraki aday.
+  // Altın oran adımı: havuzda her seferinde FARKLI bir yere düşer, aynı cümle art arda gelmez. Kadran sürüklenirken durur.
+  useEffect(() => {
+    if (dialDragging) return;
+    const id = setInterval(() => setLineSeed(v => (v + 0.618) % 1), 40000);
+    return () => clearInterval(id);
+  }, [dialDragging, linePhase]);
   const [modesSheetVisible, setModesSheetVisible] = useState(false);
   const [zenMode, setZenMode] = useState(false);
 
@@ -351,9 +409,6 @@ export default function FocusScreen() {
 
 
   // Custom duration wheel
-  const [customVisible, setCustomVisible] = useState(false);
-  const [wheelValue, setWheelValue] = useState(25);
-  const wheelRef = useRef<ScrollView>(null);
 
   // Seansa görev bağlama (bkz. FocusTaskPicker)
   const [taskPickerVisible, setTaskPickerVisible] = useState(false);
@@ -374,11 +429,9 @@ export default function FocusScreen() {
   */
   const [summaryTask, setSummaryTask] = useState<{ id: number; title: string } | null>(null);
 
-  const [quote, setQuote] = useState('');
 
   useEffect(() => {
     const handleBackPress = () => {
-      if (customVisible) { setCustomVisible(false); return true; }
       if (modesSheetVisible) { setModesSheetVisible(false); return true; }
       if (taskPickerVisible) { setTaskPickerVisible(false); return true; }
       if (pomodoroInfoVisible) { setPomodoroInfoVisible(false); return true; }
@@ -392,12 +445,23 @@ export default function FocusScreen() {
 
     const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
     return () => backHandler.remove();
-  }, [customVisible, modesSheetVisible, taskPickerVisible, pomodoroInfoVisible, summaryVisible, summaryCompleted, completionRitual]);
+  }, [modesSheetVisible, taskPickerVisible, pomodoroInfoVisible, summaryVisible, summaryCompleted, completionRitual]);
 
-  const WHEEL_ITEM_H = 56;
-  const WHEEL_MINS = Array.from({ length: 180 }, (_, i) => i + 1);
 
-  const timerSize = Math.min(width * 0.72, height * 0.35);
+  /*
+    HALKA SABİT (2026-11-01, kullanıcı: "o yerinden ayrılmamalı, belirli boyutta orada durmalı"): boyutu yalnız
+    ekrandan gelir; altındaki her öğe (nefes yuvası, ses durumu, ses ayarı) SABİT yükseklikte yer tutar,
+    görünüp kaybolurken yalnız saydamlığı değişir — hiçbiri halkayı itmez.
+  */
+  /*
+    DİKEY BÜTÇE (2026-11-01, kullanıcı: halka yukarı kayıyor, başlat düğmesi içine giriyordu).
+    Ölçüldü: 780 pt ekranda halka (+28 hale) 287 pt isterken üst + alt bölümler arasında ~170 pt kalıyordu;
+    ortalanan halka iki yana taşıyordu. Boyut artık EKRANDAN bir kez hesaplanır: yükseklikten güvenli alan
+    ve sabit bölümler (FOCUS_CHROME) düşülür. Seans boyunca değişmez; halka kalan bandın tam ortasındadır.
+  */
+  const FOCUS_CHROME = 424; // başlık 56 + üst şerit/çipler ~110 + düğmeler 72 + ses satırı ~118 + alt satır 56 + boşluklar
+  const timerSize = Math.round(Math.max(150, Math.min(width * 0.72, height - insets.top - insets.bottom - FOCUS_CHROME - 28 - 2 * S.md)));
+  const [topRoom, setTopRoom] = useState(84);
   // Zen zemini tam DAİRENİN boyutundan büyümeye başlasın: ışık dairenin içinden taşsın,
   // rastgele bir ölçekten değil. Eskiden 0.6 sabiti vardı ve daireyle ilgisi yoktu.
   const zenFrom = timerSize / width;
@@ -464,10 +528,6 @@ export default function FocusScreen() {
   // progressAnim'i <ProgressDriver/> besliyor; sessionStarted yukarıda boolean selector'dan geliyor.
   const progressAnim = useRef(new Animated.Value(0)).current;
   const nativeProgressAnim = useRef(new Animated.Value(0)).current;
-
-  const { panResponder: customPan, animatedStyle: customSlide, prepare: prepareCustom, slideIn: customSlideIn } = useSwipeToDismiss({
-    onDismiss: () => setCustomVisible(false),
-  });
 
   // ── Ambient sound ────────────────────────────────────────────────────────
   const [ambientVolume, setAmbientVolume] = useState(0.4);
@@ -690,11 +750,11 @@ export default function FocusScreen() {
   useEffect(() => { rehydrateTimer(); }, []);
 
   useFocusEffect(useCallback(() => {
-    setQuote(getRandomQuote(language));
+    setLineSeed(Math.random());
     return () => {
       stopAllSounds();
     };
-  }, [language]));
+  }, []));
 
   // Android hardware back button — go home instead of closing app
   useFocusEffect(useCallback(() => {
@@ -978,16 +1038,6 @@ export default function FocusScreen() {
     }
   };
 
-  const applyCustomDuration = () => {
-    if (wheelValue >= 1 && wheelValue <= 180) {
-      haptic.select();
-      setDuration(wheelValue);
-      setCustomVisible(false);
-    } else {
-      haptic.error();
-    }
-  };
-
   const formatTime = (sec: number) => {
     const mins = Math.floor(sec / 60);
     const s = sec % 60;
@@ -1105,33 +1155,40 @@ export default function FocusScreen() {
           <View style={{ flexShrink: 0 }}>
             <Touchable
               onPress={() => {
-                stopAllSounds();
-                setAmbientSound('off');
-                const elapsed = getElapsed();
-                if (elapsed > 0) {
-                  setIsActive(false);
-                  /*
-                    `Math.max(1, ...)` YAZILIYDI: 5 saniyelik bir seans 1 dakika olarak
-                    kaydediliyordu — "1 dakikadan kısa kaydedilmez" kuralının tam tersi.
-                    Ayrıca puan verilmiyordu, yani aynı seans "durdur" ile puan
-                    kazanıyor, "çık" ile kazanmıyordu. İkisi de ortak karara bağlandı.
-                  */
-                  commitSession(Math.round(elapsed / 60), false);
-                  /*
-                    ÇIKIŞ SEANSI BİTİRİR — sıfırlama eskiden YOKTU: seans duraklamış
-                    halde kalıyor, kullanıcı geri dönüp devam edince aynı dakikalar
-                    ikinci kez sayılıyordu (kısmi + tam).
-                  */
-                  reset();
-                  completedRef.current = false;
-                }
                 /*
-                  ÇIKIŞTA TEK ANİMASYON. Eskiden ekran önce kendini 400 ms soldurup
-                  (Skia aurora dahil tüm ağaç — zayıf GPU'da pahalı), 350 ms sonra bir de
-                  yığın geçişini oynatıyordu; ikincisi sırasında ana sayfa kuruluyordu.
-                  Huawei Y6'da kare başına 65–85 ms, 500 ms'lik donmalar ölçüldü.
+                  X SEANSI BİTİRMEZ (2026-11-01, kullanıcı: "odak sürerken X'e basınca seansı iptal ediyor, daha
+                  akıllı olmalıydı"). Saat tek ve bitiş anına bağlı (ekran kapansa da doğru); her ekranda yüzen canlı
+                  kapsül geri getirir. Bu yüzden:
+                   · seans yokken  → kapat (eskisi gibi);
+                   · sürüyor/duraklı → yalnız ekrandan çık, seans sürer; her ekranda yüzen kapsül (FocusIsland) gösterir;
+                   · KATI MOD + sürüyor → önce sor: kolay çıkışı engellemek katı modun işi.
                 */
-                router.canGoBack() ? router.back() : goHome(router);
+                const leave = () => { router.canGoBack() ? router.back() : goHome(router); };
+                const endAndLeave = () => {
+                  stopAllSounds();
+                  const elapsed = getElapsed();
+                  if (elapsed > 0) {
+                    setIsActive(false);
+                    // 1 dakikadan kısa seans kaydedilmez; "durdur" ile "çık" aynı karara bağlı (bkz. commitSession).
+                    commitSession(Math.round(elapsed / 60), false);
+                    reset(); // devam edilince aynı dakikalar ikinci kez sayılmasın
+                    completedRef.current = false;
+                  }
+                  leave();
+                };
+                if (!sessionStarted) { stopAllSounds(); leave(); return; }
+                if (strictMode && isActive) {
+                  Alert.alert(
+                    language === 'tr' ? 'Katı moddasın' : 'Strict mode is on',
+                    language === 'tr' ? 'Çıkarsan seans biter. Kalmak ister misin?' : 'Leaving ends the session. Stay?',
+                    [
+                      { text: language === 'tr' ? 'Kal' : 'Stay', style: 'cancel' },
+                      { text: language === 'tr' ? 'Seansı bitir ve çık' : 'End and leave', style: 'destructive', onPress: endAndLeave },
+                    ],
+                  );
+                  return;
+                }
+                leave();
               }}
               style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}
               accessibilityRole="button"
@@ -1153,36 +1210,8 @@ export default function FocusScreen() {
 
           {/* Pomodoro & Breath Toggles - Unified Premium Pill */}
           <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
-            <AnimatePresence>
-              {!isActive && (
-                <TourTarget id="modeSelect" spotRadius={R.lg} spotPad={S.xs}>
-                <MotiView
-                  key="pomo-controls"
-                  from={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ type: 'timing', duration: 220 }}
-                >
-                  {/* Tek "modlar" butonu — soldaki X ile aynı boyut/biçim → header simetrik.
-                      Modlar (Pomodoro/Katı/…) alt-sheet'te açılır; Nefes ayrı seansa götürür. Aktif mod varsa buton vurgulanır. */}
-                  {(() => {
-                    const anyModeOn = pomodoroMode || strictMode;
-                    return (
-                      <Touchable
-                        accessibilityRole="button"
-                        accessibilityLabel={language === 'tr' ? 'Odak modları' : 'Focus modes'}
-                        accessibilityState={{ expanded: modesSheetVisible }}
-                        onPress={() => { haptic.select(); setModesSheetVisible(true); }}
-                        style={[styles.closeBtn, { backgroundColor: anyModeOn ? theme.primary + '20' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)') }]}
-                      >
-                        <SlidersHorizontal size={ICON.md} color={anyModeOn ? theme.primary : theme.onSurface} strokeWidth={2.4} />
-                      </Touchable>
-                    );
-                  })()}
-                </MotiView>
-                </TourTarget>
-              )}
-            </AnimatePresence>
+            {/* Modlar düğmesi başlatın SAĞINA taşındı (nefesin karşılığı); başlıkta soldaki X'in simetrisi için boş yuva. */}
+            <View style={styles.closeBtn} />
 
             {/* Seans sırasında aktif modlar yazı ile belirtilir (pill gizliyken) */}
             {isActive && (strictMode || pomodoroMode) && (
@@ -1212,12 +1241,15 @@ export default function FocusScreen() {
 
           {/* Üst alan (preset'ler) — sabit yükseklik: seans başlayınca çember yerinden oynamaz,
               chip'ler yalnızca fade ile kaybolur (layout reflow/jank yok) */}
+          {/* Yükseklik = içeriğin GÖRÜLEN EN BÜYÜK hâli (yalnız büyür): 84 sabitken haftalık şerit + çipler taşıp
+              halkanın üstüne biniyordu; içeriğe göre daralsaydı seans başlayınca halka kayardı. */}
           <View
-            style={{ width: '100%', height: 84, zIndex: 10 }}
+            style={{ width: '100%', height: topRoom, zIndex: 10 }}
             pointerEvents="box-none"
           >
             {/* Preset chips (standard mode) / Pomodoro indicator */}
             <MotiView
+              onLayout={e => { const h = Math.ceil(e.nativeEvent.layout.height); setTopRoom(prev => (h > prev ? h : prev)); }}
               pointerEvents={zenMode && isActive ? "none" : "auto"}
               animate={{ opacity: zenMode && isActive ? 0 : 1 }}
               transition={{ type: 'timing', duration: 400 }}
@@ -1251,77 +1283,8 @@ export default function FocusScreen() {
                 isDark={isDark}
               />
             ) : (
-              <AnimatePresence>
-                {!sessionStarted && (
-                  <MotiView
-                    key="chips"
-                    from={{ opacity: 0, translateY: -6 }}
-                    animate={{ opacity: 1, translateY: 0 }}
-                    exit={{ opacity: 0, translateY: -6 }}
-                    transition={{ type: 'timing', duration: 220 }}
-                    // Kap içeriği kadar daralırsa segment sıkışır — tam genişlik, okunur sınırla.
-                    style={{ width: '100%', maxWidth: 360, alignSelf: 'center' }}
-                  >
-                    {/*
-                      SEGMENTLİ SEÇİCİ — kaydırmalı haplar DEĞİL.
-                      Haplar ortalayan bir kabın içinde genişliksiz bir ScrollView'daydı: satır
-                      içeriği kadar genişleyip ortalanıyor, sol ucu ekran dışında kalıyordu
-                      ("rint 15" — ve oraya kaydırılamıyordu). Beş seçenek telefonda sığmıyordu.
-                      Bedtime/Headspace (can-it-be-done) süreyi tek, ekrana oturan bir kontrolle
-                      seçtirir: eşit genişlik, yalnız dakika; ad ekran okuyucuda kalır.
-                    */}
-                    <TourTarget id="duration" style={{ marginBottom: S.md }} spotRadius={R.full} spotPad={S.xs}>
-                    <View style={styles.segment}>
-                      {PRESETS.map((preset) => {
-                        const isSelected = totalSeconds === preset.workMins * 60;
-                        return (
-                          <Touchable
-                            key={preset.key}
-                            style={{ flex: 1 }}
-                            accessibilityRole="button"
-                            accessibilityState={{ selected: isSelected }}
-                            accessibilityLabel={L.presetLabel(language === 'tr' ? preset.labelTr : preset.labelEn, preset.workMins)}
-                            onPress={() => { haptic.select(); setSelectedPreset(preset.key); setDuration(preset.workMins); }}
-                          >
-                            <MotiView
-                              animate={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0)' }}
-                              transition={{ type: 'timing', duration: 200 }}
-                              style={styles.segmentItem}
-                            >
-                              <Text style={{ fontSize: F.body, fontWeight: isSelected ? '700' : '600', color: isSelected ? '#fff' : 'rgba(255,255,255,0.6)', fontVariant: ['tabular-nums'] }}>
-                                {preset.workMins}
-                              </Text>
-                            </MotiView>
-                          </Touchable>
-                        );
-                      })}
-                      {(() => {
-                        const isCustom = !PRESETS.some(p => p.workMins * 60 === totalSeconds) && totalSeconds > 0;
-                        return (
-                          <Touchable
-                            style={{ flex: 1 }}
-                            accessibilityRole="button"
-                            accessibilityState={{ selected: isCustom }}
-                            accessibilityLabel={L.customLabel}
-                            onPress={() => { prepareCustom(); haptic.select(); setCustomVisible(true); }}
-                          >
-                            <MotiView
-                              animate={{ backgroundColor: isCustom ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0)' }}
-                              transition={{ type: 'timing', duration: 200 }}
-                              style={styles.segmentItem}
-                            >
-                              <Text style={{ fontSize: F.footnote, fontWeight: isCustom ? '700' : '600', color: isCustom ? '#fff' : 'rgba(255,255,255,0.6)' }}>
-                                {isCustom ? Math.round(totalSeconds / 60) : L.custom}
-                              </Text>
-                            </MotiView>
-                          </Touchable>
-                        );
-                      })()}
-                    </View>
-                    </TourTarget>
-                  </MotiView>
-                )}
-              </AnimatePresence>
+              /* Süre artık halkadan seçiliyor (bkz. DurationDial) — üstte çubuk yok. */
+              null
             )}
             </MotiView>
           </View>
@@ -1354,6 +1317,22 @@ export default function FocusScreen() {
                 </Svg>
               );
             })()}
+
+            {/* SÜRE KADRANI — seans başlamadan halka çevrilerek süre seçilir (bkz. DurationDial). */}
+            {!sessionStarted && !pomodoroMode && (
+              <TourTarget id="duration" style={{ position: 'absolute', width: timerSize, height: timerSize, zIndex: 13 }} spotRadius={R.full}>
+                <DurationDial
+                  size={timerSize}
+                  minutes={Math.max(1, Math.round(totalSeconds / 60))}
+                  color={workAccent}
+                  track="rgba(255,255,255,0.28)"
+                  onCommit={setDuration}
+                  onDragging={setDialDragging}
+                  unit={language === 'tr' ? 'DAKİKA' : 'MINUTES'}
+                  a11yLabel={language === 'tr' ? 'Odak süresi, dakika' : 'Focus length, minutes'}
+                />
+              </TourTarget>
+            )}
 
             {/* Cosmic Orbit Clock - Zen Mode Timer Indicator */}
             <AnimatePresence>
@@ -1576,10 +1555,11 @@ export default function FocusScreen() {
                   <MotiView
                     pointerEvents={zenMode && isActive ? "none" : "auto"}
                     animate={{
-                      opacity: zenMode && isActive ? 0 : 1,
+                      // Kadran sürüklenirken sayıyı kadran çizer; sayaç + görev satırı anında çekilir.
+                      opacity: (zenMode && isActive) || dialDragging ? 0 : 1,
                       scale: zenMode && isActive ? 0.92 : 1,
                     }}
-                    transition={{ type: 'timing', duration: 400 }}
+                    transition={{ type: 'timing', duration: dialDragging ? 80 : 400 }}
                     style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}
                   >
                     {/* Tatlı zaman — dakika · atan iki nokta · saniye. Saniyeye bağlı tek render burada izole. */}
@@ -1635,6 +1615,11 @@ export default function FocusScreen() {
                           {L.paused}
                         </Text>
                       )}
+                      {!sessionStarted && !pomodoroMode && (
+                        <Text style={{ fontSize: F.caption, fontWeight: '600', color: 'rgba(255,255,255,0.45)' }}>
+                          {language === 'tr' ? 'Süre için halkayı çevir' : 'Turn the ring to set the time'}
+                        </Text>
+                      )}
                     </View>
                   </MotiView>
 
@@ -1664,7 +1649,7 @@ export default function FocusScreen() {
           </View>
 
           {/* Controls & Bottom Section Wrapper */}
-          <View style={{ width: '100%', alignItems: 'center', paddingBottom: S.md, gap: S.md, zIndex: 10 }} pointerEvents="box-none">
+          <View style={{ width: '100%', alignItems: 'center', paddingBottom: S.sm, gap: S.lg, zIndex: 10 }} pointerEvents="box-none">
             {/* Controls */}
             <MotiView
               pointerEvents={zenMode && isActive ? "none" : "auto"}
@@ -1673,6 +1658,24 @@ export default function FocusScreen() {
               style={[styles.controlsRow, { gap: S.xl }]}
             >
             <View style={{ width: 56, height: 56 }}>
+              {/*
+                NEFES — başlatın SOLUNDA, kendi yuvasında (2026-11-01, kullanıcı: "nefesi yine filtreye almışsın").
+                Seans başlamadan bu yuva boştu (sıfırla yalnız seans başlayınca gelir); nefes oraya oturur:
+                ayrı satır gibi halkanın dikey payını yemez, ses çipleriyle de karışmaz. Sağdaki "atla" ile simetrik.
+              */}
+              {!sessionStarted && (
+                <>
+                  <Touchable
+                    accessibilityRole="button"
+                    accessibilityLabel={language === 'tr' ? 'Başlamadan önce 1 dakika nefes' : 'One minute of breathing before you start'}
+                    onPress={() => router.push('/nefes?p=sigh&m=1')}
+                    style={[styles.secondaryBtn, styles.sideBtn, { borderColor: theme.primary + '33', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}
+                  >
+                    <BreathPreview id="sigh" size={26} still={lowPowerGraphics} />
+                  </Touchable>
+                  <Text style={[styles.sideLabel, { color: theme.onSurfaceMuted }]} numberOfLines={1}>{language === 'tr' ? 'Nefes' : 'Breathe'}</Text>
+                </>
+              )}
               {/* Sıfırlanacak bir şey yokken (seans başlamamış) düğme hiç çizilmez — yeri
                   korunur ki oynat düğmesi kaymasın. Eskiden %30 opaklıkla "ölü" duruyordu. */}
               <AnimatePresence>
@@ -1727,6 +1730,40 @@ export default function FocusScreen() {
 
             {/* Sağ yuva: molada "atla" — mola bitmeden çalışmaya dönmenin yolu yoktu. */}
             <View style={{ width: 56, height: 56 }}>
+              {/* MODLAR — nefesin karşılığı: seans başlamadan pomodoro / katı mod / sahne. Seans sürerken bu yuva "atla"nındır. */}
+              {!sessionStarted && !inBreak && (
+                <TourTarget id="modeSelect" spotRadius={R.full} spotPad={S.xs}>
+                  <Touchable
+                    accessibilityRole="button"
+                    accessibilityLabel={language === 'tr' ? 'Odak modları' : 'Focus modes'}
+                    accessibilityState={{ expanded: modesSheetVisible }}
+                    onPress={() => { haptic.select(); setModesSheetVisible(true); }}
+                    style={[styles.secondaryBtn, styles.sideBtn, { borderColor: (pomodoroMode || strictMode) ? theme.primary + '66' : theme.primary + '33', backgroundColor: (pomodoroMode || strictMode) ? theme.primary + '20' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') }]}
+                  >
+                    <SlidersHorizontal size={ICON.md} color={(pomodoroMode || strictMode) ? theme.primary : theme.onSurfaceVariant} strokeWidth={2.2} />
+                  </Touchable>
+                  <Text style={[styles.sideLabel, { color: theme.onSurfaceMuted }]} numberOfLines={1}>{language === 'tr' ? 'Modlar' : 'Modes'}</Text>
+                </TourTarget>
+              )}
+              {/*
+                BİTİR — seans sürerken sağ yuvada (2026-11-01): alt satır artık telkin/motivasyon cümlesinin.
+                İKİ DOKUNUŞ: ilk dokunuş "emin misin?" der, ikincisi bitirir; onay 4 sn'de geri döner.
+              */}
+              {sessionStarted && !inBreak && (
+                <>
+                  <Touchable
+                    onPress={onEndPress}
+                    accessibilityRole="button"
+                    accessibilityLabel={confirmEnd ? L.endConfirm : t.focusEndSession}
+                    style={[styles.secondaryBtn, styles.sideBtn, { borderColor: (confirmEnd ? theme.error : theme.tertiary) + '55', backgroundColor: (confirmEnd ? theme.error : theme.tertiary) + '14' }]}
+                  >
+                    <CheckCircle2 size={ICON.md} color={confirmEnd ? theme.error : theme.tertiary} />
+                  </Touchable>
+                  <Text style={[styles.sideLabel, { color: confirmEnd ? theme.error : theme.onSurfaceMuted }]} numberOfLines={1}>
+                    {confirmEnd ? (language === 'tr' ? 'Emin misin?' : 'Sure?') : (language === 'tr' ? 'Bitir' : 'Finish')}
+                  </Text>
+                </>
+              )}
               {inBreak && (
                 <Touchable
                   onPress={skipBreak}
@@ -1739,27 +1776,6 @@ export default function FocusScreen() {
               )}
             </View>
           </MotiView>
-
-          {/*
-            NEFES — yazılı ve görünür (2026-11-01). Modlar sayfasının içindeyken "karıştırmadıkça kimse
-            görmüyordu"; başlıkta yalnız simge olunca da ne olduğu anlaşılmıyordu. Seans başlamadan önce,
-            başlatın hemen altında bir ritüel olarak durur. Yuva sabit yükseklik: seans başlayınca yerleşim kaymaz.
-          */}
-          <View style={{ height: 40, alignItems: 'center', justifyContent: 'center' }}>
-            {!sessionStarted && (
-              /* Ses düğmeleriyle aynı dil: ince çerçeveli kapsül, canlı halka, ad + soluk süre. Doğrudan 1 dk sakinleşme. */
-              <Touchable
-                accessibilityRole="button"
-                accessibilityLabel={language === 'tr' ? 'Başlamadan önce 1 dakika nefes' : 'One minute of breathing before you start'}
-                onPress={() => router.push('/nefes?p=sigh&m=1')}
-                style={[styles.ambientBtn, { minHeight: 36, gap: S.sm, paddingLeft: S.sm, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderColor: theme.primary + '33' }]}
-              >
-                <BreathPreview id="sigh" size={22} still={lowPowerGraphics} />
-                <Text style={[styles.ambientLabel, { color: theme.onSurface }]}>{language === 'tr' ? 'Nefes' : 'Breathe'}</Text>
-                <Text style={[styles.ambientLabel, { color: theme.onSurfaceMuted, fontWeight: '600' }]}>{language === 'tr' ? '1 dk' : '1 min'}</Text>
-              </Touchable>
-            )}
-          </View>
 
           {/* Ambient sound row */}
           <MotiView
@@ -1826,90 +1842,51 @@ export default function FocusScreen() {
             <AmbientStatus sound={ambientSound === 'off' ? null : (language === 'tr' ? SOUND_LABELS[ambientSound].labelTr : SOUND_LABELS[ambientSound].labelEn)}
               audible={audible} sessionActive={isActive} paused={isPaused} language={language === 'en' ? 'en' : 'tr'} color={theme.onSurfaceVariant} accent={theme.primary} />
 
-            {/* Volume Control Stepper */}
-            <AnimatePresence>
-              {ambientSound !== 'off' && (
-                <MotiView
-                  key="volume-stepper"
-                  from={{ opacity: 0, height: 0, marginTop: 0 }}
-                  animate={{ opacity: 1, height: 24, marginTop: S.smd }}
-                  exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                  transition={{ type: 'timing', duration: 300 }}
-                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm }}
+            {/* Ses ayarı — yuvası HEP yer tutar (yalnız saydamlık değişir); açılıp kapanırken halkayı yukarı itiyordu. */}
+            <MotiView
+              animate={{ opacity: ambientSound !== 'off' ? 1 : 0 }}
+              transition={{ type: 'timing', duration: 300 }}
+              pointerEvents={ambientSound !== 'off' ? 'auto' : 'none'}
+              accessibilityElementsHidden={ambientSound === 'off'}
+              importantForAccessibility={ambientSound === 'off' ? 'no-hide-descendants' : 'auto'}
+              style={{ height: 24, marginTop: S.smd, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm }}
+            >
+              {[0.2, 0.4, 0.6, 0.8, 1.0].map(v => (
+                <Touchable
+                  key={v}
+                  hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
+                  onPress={() => { updateAmbientVolume(v); haptic.select(); }}
+                  style={{ width: 34, height: 24, justifyContent: 'center', alignItems: 'center' }}
+                  accessibilityLabel={`Ses seviyesi ${v * 100}`}
                 >
-                  {[0.2, 0.4, 0.6, 0.8, 1.0].map(v => (
-                    <Touchable
-                      key={v}
-                      hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
-                      onPress={() => { updateAmbientVolume(v); haptic.select(); }}
-                      style={{ width: 34, height: 24, justifyContent: 'center', alignItems: 'center' }}
-                      accessibilityLabel={`Ses seviyesi ${v * 100}`}
-                    >
-                      <View style={{ width: '100%', height: 4, borderRadius: R.xs, backgroundColor: ambientVolume >= v ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)') }} />
-                    </Touchable>
-                  ))}
-                </MotiView>
-              )}
-            </AnimatePresence>
+                  <View style={{ width: '100%', height: 4, borderRadius: R.xs, backgroundColor: ambientVolume >= v ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)') }} />
+                </Touchable>
+              ))}
+            </MotiView>
           </MotiView>
 
-          {/* Dynamic Bottom Area (Fixed height to prevent layout shifts) */}
-          <View style={{ height: 44, width: '100%', alignItems: 'center', justifyContent: 'center' }}>
+          {/* Alt satır — SABİT yükseklik, HEP cümlenin: solda sahne (36), yanında en çok iki satır (bkz. Quotes.ts). */}
+          <View style={{ height: 56, width: '100%', alignItems: 'center', justifyContent: 'center' }}>
             <AnimatePresence>
-              {inBreak && isActive ? (
+              {(
                 <MotiView
-                  key="break-tip"
-                  from={{ opacity: 0, translateY: 6 }}
-                  animate={{ opacity: zenMode && isActive ? 0 : 1, translateY: 0 }}
-                  exit={{ opacity: 0, translateY: 6 }}
-                  transition={{ type: 'timing', duration: 400 }}
-                  style={{ alignItems: 'center' }}
-                  pointerEvents={zenMode && isActive ? "none" : "auto"}
-                >
-                  <Text style={{ fontSize: F.caption, color: theme.tertiary, fontWeight: '700', letterSpacing: 0.2 }}>
-                    {language === 'tr' ? '💧 Su iç  ·  Esne  ·  Gözlerini kapat' : '💧 Hydrate  ·  Stretch  ·  Close your eyes'}
-                  </Text>
-                </MotiView>
-              ) : sessionStarted ? (
-                <MotiView
-                  key="end-session"
-                  from={{ opacity: 0, translateY: 10 }}
-                  animate={{ opacity: zenMode && isActive ? 0 : 1, translateY: 0 }}
-                  exit={{ opacity: 0, translateY: 10 }}
-                  transition={{ type: 'timing', duration: 300 }}
-                  style={{ alignItems: 'center' }}
-                  pointerEvents={zenMode && isActive ? "none" : "auto"}
-                >
-                  {/*
-                    İKİ DOKUNUŞ: ilk dokunuş "emin misin?" der, ikincisi bitirir. Tek
-                    dokunuşla biten düğme, sayacın hemen altında duruyor ve yanlışlıkla
-                    dokunan kullanıcının seansını yarıda kesiyordu. Onay 4 saniyede geri döner.
-                  */}
-                  <Touchable
-                    onPress={onEndPress}
-                    accessibilityRole="button"
-                    accessibilityLabel={confirmEnd ? L.endConfirm : t.focusEndSession}
-                    style={[styles.finishBtn, { borderColor: (confirmEnd ? theme.error : theme.tertiary) + '50', backgroundColor: (confirmEnd ? theme.error : theme.tertiary) + '12' }]}
-                  >
-                    <CheckCircle2 size={ICON.sm} color={confirmEnd ? theme.error : theme.tertiary} />
-                    <Text style={[styles.finishText, { color: confirmEnd ? theme.error : theme.tertiary, fontSize: F.body }]}>
-                      {confirmEnd ? L.endConfirm : t.focusEndSession}
-                    </Text>
-                  </Touchable>
-                </MotiView>
-              ) : (
-                <MotiView
-                  key="footer-quote"
+                  key={`line-${linePhase}`}
                   from={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
+                  animate={{ opacity: zenMode && isActive ? 0 : 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ type: 'timing', duration: 350 }}
                 >
-                  <View style={[styles.footer, { paddingHorizontal: S.xl }]}>
+                  <View style={[styles.footer, { paddingHorizontal: S.md }]}>
                     {notifBlocked ? (
                       <Text style={{ textAlign: 'center', color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600' }}>{L.notifOff}</Text>
                     ) : (
-                      <Text style={{ fontStyle: 'italic', textAlign: 'center', color: theme.onSurfaceMuted, fontSize: F.body }}>{quote}</Text>
+                      quote && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.smd, maxWidth: 340 }}>
+                          <QuoteScene kind={quote.k} color={quote.kind === 'motivation' ? theme.primary : theme.onSurfaceVariant} />
+                          {/* Motivasyon (veriyle konuşan) bir ton daha belirgin; telkin sakin ve soluk. */}
+                          <Text numberOfLines={2} style={{ flexShrink: 1, color: quote.kind === 'motivation' ? theme.onSurfaceVariant : theme.onSurfaceMuted, fontSize: F.footnote, fontWeight: quote.kind === 'motivation' ? '600' : '400', lineHeight: 19 }}>{quote.t}</Text>
+                        </View>
+                      )
                     )}
                   </View>
                 </MotiView>
@@ -1991,86 +1968,6 @@ export default function FocusScreen() {
 
 
 
-      {/* ── Custom Duration Modal ─────────────────────────────────────────────── */}
-      <Modal
-        visible={customVisible}
-        transparent
-        animationType="none"
-        onShow={() => {
-          customSlideIn();
-          setTimeout(() => {
-            wheelRef.current?.scrollTo({ y: (wheelValue - 1) * WHEEL_ITEM_H, animated: false });
-          }, 50);
-        }}
-      >
-        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <Touchable style={styles.modalOverlay} activeOpacity={1} onPress={() => setCustomVisible(false)} />
-          <Animated.View
-            style={[
-              customSlide,
-              styles.customSheet,
-              { paddingBottom: S.xxl },
-            ]}
-          >
-            <GlassSurface corners="top" />
-            <View {...customPan.panHandlers} style={{ paddingTop: S.md, paddingBottom: S.lmd, alignItems: 'center' }}>
-              <View style={[styles.sheetHandle, { backgroundColor: sheetDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
-            </View>
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: sheetTheme.onSurface }]}>{t.focusCustomDuration}</Text>
-            <Text style={[styles.sheetSub, { color: sheetTheme.onSurfaceMuted }]}>{language === 'tr' ? '1 – 180 dakika' : '1 – 180 minutes'}</Text>
-
-            {/* Drum-roll wheel */}
-            <View style={{ height: WHEEL_ITEM_H * 5, width: '100%', alignItems: 'center', overflow: 'hidden' }}>
-              {/* center selection indicator */}
-              <View style={{ position: 'absolute', top: WHEEL_ITEM_H * 2, left: 24, right: 24, height: WHEEL_ITEM_H, borderTopWidth: 1.5, borderBottomWidth: 1.5, borderColor: sheetTheme.primary + '70', borderRadius: R.sm, pointerEvents: 'none' }} />
-              {/* fade top */}
-              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: WHEEL_ITEM_H * 2, zIndex: 1, pointerEvents: 'none', backgroundColor: 'transparent' }}
-                    pointerEvents="none">
-                <View style={{ flex: 1, backgroundColor: sheetDark ? sheetTheme.surfaceContainerHigh : sheetTheme.surfaceContainerLowest, opacity: 0.7 }} />
-              </View>
-              {/* fade bottom */}
-              <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: WHEEL_ITEM_H * 2, zIndex: 1, pointerEvents: 'none' }}
-                    pointerEvents="none">
-                <View style={{ flex: 1, backgroundColor: sheetDark ? sheetTheme.surfaceContainerHigh : sheetTheme.surfaceContainerLowest, opacity: 0.7 }} />
-              </View>
-              <ScrollView
-                ref={wheelRef}
-                style={{ flex: 1, width: '100%' }}
-                contentContainerStyle={{ paddingVertical: WHEEL_ITEM_H * 2 }}
-                snapToInterval={WHEEL_ITEM_H}
-                decelerationRate="fast"
-                showsVerticalScrollIndicator={false}
-                onMomentumScrollEnd={e => {
-                  const idx = Math.round(e.nativeEvent.contentOffset.y / WHEEL_ITEM_H);
-                  const val = Math.min(180, Math.max(1, idx + 1));
-                  setWheelValue(val);
-                  haptic.select();
-                }}
-              >
-                {WHEEL_MINS.map(m => (
-                  <View key={m} style={{ height: WHEEL_ITEM_H, justifyContent: 'center', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 36, fontWeight: '700', letterSpacing: -1, color: sheetTheme.onSurface }}>
-                      {m}
-                    </Text>
-                  </View>
-                ))}
-              </ScrollView>
-            </View>
-
-            <Text style={[styles.minLabel, { color: sheetTheme.onSurfaceMuted, marginTop: S.xs }]}>
-              {language === 'tr' ? 'DAKİKA' : 'MINUTES'}
-            </Text>
-
-            <Touchable
-              onPress={applyCustomDuration}
-              style={[styles.applyBtn, { backgroundColor: sheetTheme.primary }]}
-            >
-              <Text style={[styles.applyBtnText, { color: sheetTheme.onPrimary }]}>{t.focusCustomApply}</Text>
-            </Touchable>
-          </Animated.View>
-        </View>
-      </Modal>
-
       {/* Odak modları — görsel ve metinler ayrı dosyada (bkz. FocusModeSheets). */}
       <FocusModesSheet
         visible={modesSheetVisible}
@@ -2081,7 +1978,6 @@ export default function FocusScreen() {
         strictOn={strictMode}
         keepAwakeOn={focusKeepAwake || strictMode}
         autoZenOn={focusAutoZen}
-        onBreath={() => { haptic.select(); setModesSheetVisible(false); router.push('/nefes'); }}
         onPomodoro={() => { haptic.select(); togglePomodoroMode(); if (!pomodoroMode) setDuration(activePreset.workMins); }}
         onStrict={() => { haptic.select(); setStrictMode(!strictMode); }}
         onKeepAwake={() => { haptic.select(); setFocusKeepAwake(!focusKeepAwake); }}
@@ -2156,8 +2052,9 @@ export default function FocusScreen() {
 }
 
 const styles = StyleSheet.create({
-  segment: { flexDirection: 'row', width: '100%', padding: S.xxs, borderRadius: R.full, backgroundColor: 'rgba(255,255,255,0.06)' },
-  segmentItem: { alignItems: 'center', justifyContent: 'center', paddingVertical: S.sm, borderRadius: R.full, minHeight: 36 },
+  sideBtn: { width: 56, height: 56, borderRadius: R.full, borderWidth: B.thin },
+  // Etiket yuvarlağın ALTINDA ve akış dışında: satır yüksekliği (dolayısıyla halka) değişmez.
+  sideLabel: { position: 'absolute', top: 56 + S.xs, left: -S.md, right: -S.md, textAlign: 'center', fontSize: F.caption, fontWeight: '600' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: S.lg },
   closeBtn: { width: 44, height: 44, borderRadius: R.lg, alignItems: 'center', justifyContent: 'center' },
   badge: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full },
@@ -2198,15 +2095,8 @@ const styles = StyleSheet.create({
   footer: { alignItems: 'center' },
   quote: { fontStyle: 'italic', textAlign: 'center', opacity: 0.5 },
   modalOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.5)' },
-  customSheet: { borderTopLeftRadius: R.sheet, borderTopRightRadius: R.sheet, padding: S.lg, alignItems: 'center', gap: S.sm },
-  sheetHandle: { width: 36, height: 4, borderRadius: R.sm, marginBottom: S.sm },
-  sheetTitle: { fontSize: F.title, fontWeight: '700', letterSpacing: -0.5 },
-  sheetSub: { fontSize: F.body, fontWeight: '600', marginBottom: S.sm },
   inputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: B.thin, borderRadius: R.md, paddingHorizontal: S.lg, paddingVertical: S.xs, marginBottom: S.sm },
   customInput: { fontWeight: '700', letterSpacing: -2, textAlign: 'center' },
-  minLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1.5, textAlign: 'center', marginBottom: S.sm },
-  applyBtn: { width: '100%', paddingVertical: S.md, borderRadius: R.full, alignItems: 'center' },
-  applyBtnText: { color: 'white', fontWeight: '700', fontSize: F.subhead, letterSpacing: 0.5 },
   taskPickerItem: { flexDirection: 'row', alignItems: 'flex-start', gap: S.md, paddingHorizontal: S.lg, paddingVertical: S.md, borderBottomWidth: StyleSheet.hairlineWidth },
   taskPickerItemTitle: { fontSize: F.body, fontWeight: '600', lineHeight: 20 },
   transitionOverlay: { alignItems: 'center', justifyContent: 'center', gap: S.md },

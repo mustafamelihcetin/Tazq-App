@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Platform, Keyboard, useWindowDimensions, BackHandler } from 'react-native';
-import { LayoutGrid, CheckSquare, Sparkles, Layers, CalendarDays } from 'lucide-react-native';
+import { CheckSquare, CalendarDays, Sun, Timer, Flag } from 'lucide-react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { swallow } from '@/shared/utils/swallow';
 import { goHome } from '@/shared/utils/authNavigation';
@@ -166,11 +166,15 @@ const BottomNavBarInner = () => {
   }, []);
 
   const allTabs = [
-    { id: 'home', path: '/', icon: LayoutGrid },
+    /*
+      SİMGE = ANLAM (2026-11-01 denetimi): ızgara "bugün" demiyordu (pano simgesi), parıltı artık yapay zekâ
+      çağrıştırıyor, katmanlar "hedef" değil. Bugün=güneş · Odak=kronometre · Hedefler=bayrak.
+    */
+    { id: 'home', path: '/', icon: Sun },
     { id: 'tasks', path: '/tasks', icon: CheckSquare },
-    { id: 'focus', path: '/focus', icon: Sparkles },
+    { id: 'focus', path: '/focus', icon: Timer },
     { id: 'cockpit', path: '/cockpit', icon: CalendarDays },
-    { id: 'modlar', path: '/modlar', icon: Layers },
+    { id: 'modlar', path: '/modlar', icon: Flag },
   ];
   /*
     Sade modda ve misafirde sade sekme seti. Misafirde modlar sunucu gerektirdiği

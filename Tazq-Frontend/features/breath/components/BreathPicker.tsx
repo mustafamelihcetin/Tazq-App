@@ -12,21 +12,40 @@ import { BREATH_SOUNDS, type BreathSound } from '@/features/breath/breathCues';
 
 const INK = '#FFFFFF';
 
-const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <View style={{ gap: S.xs, marginTop: S.xs }}>
-    <Text style={{ fontSize: F.caption, fontWeight: W.semibold, color: 'rgba(255,255,255,0.55)' }}>{label}</Text>
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.sm }}>{children}</View>
-  </View>
-);
-
-const Chip = ({ on, accent, label, recommended, onPress }: { on: boolean; accent: string; label: string; recommended?: string; onPress: () => void }) => (
-  <Touchable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }} accessibilityLabel={recommended ? `${label}, ${recommended}` : label}
-    style={{ minHeight: MIN_TOUCH, paddingHorizontal: S.md, borderRadius: R.full, justifyContent: 'center', borderWidth: B.thin, borderColor: on ? accent : 'rgba(255,255,255,0.14)', backgroundColor: on ? 'rgba(255,255,255,0.08)' : 'transparent' }}>
-    <Text style={{ fontSize: F.body, fontWeight: on ? W.semibold : W.regular, color: on ? accent : INK }}>
-      {label}{recommended ? <Text style={{ fontSize: F.caption2, color: accent }}>{'  ★'}</Text> : null}
-    </Text>
-  </Touchable>
-);
+/*
+  KOMPAKT SEÇİCİ (2026-11-01, kullanıcı: "süre ve ses kısımları daha animasyonel, kompakt, tatlı olmalı").
+  Dağınık çipler yerine tek kapsül: seçili dilimin altında yaylı kayan bir parıltı, seçilen yazı hafifçe büyür.
+*/
+const Segmented = ({ label, accent, items, selected, onPick }: {
+  label: string; accent: string; selected: number;
+  items: { key: string; label: string; a11y?: string }[]; onPick: (i: number) => void;
+}) => {
+  const [w, setW] = React.useState(0);
+  const seg = items.length ? (w - S.xxs * 2) / items.length : 0;
+  return (
+    <View style={{ gap: S.xs, marginTop: S.xs }}>
+      <Text style={{ fontSize: F.caption, fontWeight: W.semibold, color: 'rgba(255,255,255,0.55)' }}>{label}</Text>
+      <View accessibilityRole="radiogroup" onLayout={e => setW(e.nativeEvent.layout.width)}
+        style={{ flexDirection: 'row', padding: S.xxs, borderRadius: R.full, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: B.thin, borderColor: 'rgba(255,255,255,0.1)' }}>
+        {seg > 0 && selected >= 0 && (
+          <MotiView pointerEvents="none" animate={{ translateX: selected * seg }} transition={{ type: 'spring', damping: 18, stiffness: 220 }}
+            style={{ position: 'absolute', top: S.xxs, bottom: S.xxs, left: S.xxs, width: seg, borderRadius: R.full, backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: B.thin, borderColor: accent }} />
+        )}
+        {items.map((it, i) => {
+          const on = i === selected;
+          return (
+            <Touchable key={it.key} onPress={() => onPick(i)} accessibilityRole="radio" accessibilityState={{ selected: on, checked: on }} accessibilityLabel={it.a11y ?? it.label}
+              style={{ flex: 1, minHeight: MIN_TOUCH, alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.xxs }}>
+              <MotiView animate={{ scale: on ? 1.06 : 1, opacity: on ? 1 : 0.7 }} transition={{ type: 'spring', damping: 14 }}>
+                <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: F.subhead, fontWeight: on ? W.semibold : W.regular, color: on ? accent : INK }}>{it.label}</Text>
+              </MotiView>
+            </Touchable>
+          );
+        })}
+      </View>
+    </View>
+  );
+};
 
 /**
  * Seans seçici: dört amaç, her kartta ritmi CANLI oynatan küçük küre (kullanıcı:
@@ -83,19 +102,16 @@ export function BreathPicker({ lang, id, minutes, sound, theme, onPick, onMinute
           })}
         </View>
 
-        <Row label={c.duration}>
-          {pattern.options.map(m => (
-            <Chip key={m} on={same(m, minutes)} accent={accent} label={doseLabel(m)} recommended={same(m, pattern.minutes) ? c.recommended : undefined} onPress={() => onMinutes(m)} />
-          ))}
-        </Row>
+        <Segmented label={c.duration} accent={accent}
+          items={pattern.options.map(m => ({ key: String(m), label: doseLabel(m) + (same(m, pattern.minutes) ? ' ★' : ''), a11y: same(m, pattern.minutes) ? `${doseLabel(m)}, ${c.recommended}` : doseLabel(m) }))}
+          selected={pattern.options.findIndex(m => same(m, minutes))}
+          onPick={i => onMinutes(pattern.options[i])} />
         <Text style={{ fontSize: F.caption, lineHeight: 18, color: 'rgba(255,255,255,0.55)' }}>{c.items[id].dose}</Text>
         {/* Ses teması: dokununca kısa önizleme çalar (herkes aynı sesi sevmez). */}
-        <Row label={c.soundLabel}>
-          {BREATH_SOUNDS.map(t => (
-            <Chip key={t} on={sound && t === theme} accent={accent} label={c.themes[t]} onPress={() => onTheme(t)} />
-          ))}
-          <Chip on={!sound} accent={accent} label={c.soundOff} onPress={onMute} />
-        </Row>
+        <Segmented label={c.soundLabel} accent={accent}
+          items={[...BREATH_SOUNDS.map(t => ({ key: t, label: c.themes[t] })), { key: 'off', label: c.soundOff }]}
+          selected={sound ? BREATH_SOUNDS.indexOf(theme) : BREATH_SOUNDS.length}
+          onPick={i => (i === BREATH_SOUNDS.length ? onMute() : onTheme(BREATH_SOUNDS[i]))} />
       </ScrollView>
 
       <View style={{ paddingHorizontal: S.md, paddingBottom: S.md }}>

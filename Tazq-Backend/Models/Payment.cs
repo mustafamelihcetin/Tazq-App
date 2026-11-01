@@ -31,8 +31,12 @@ namespace Tazq_App.Models
 		[JsonIgnore]
 		public User? User { get; set; }
 
+		/// <summary>
+		/// 2026-11-01: ŞİFRELİ saklanır (kullanıcı anahtarı, AES-GCM) — "kredi kartı", "kira" gibi başlıklar kişisel.
+		/// Sütun şifreli metni taşıyacak genişlikte (512); düz metin sınırı serviste 100 (PaymentService.MaxTitleLength).
+		/// </summary>
 		[Required]
-		[MaxLength(100)]
+		[MaxLength(512)]
 		public string Title { get; set; } = string.Empty;
 
 		public decimal Amount { get; set; }
@@ -66,6 +70,19 @@ namespace Tazq_App.Models
 		[MaxLength(3)]
 		public string? Currency { get; set; }
 
+		/// <summary>
+		/// TUTAR HER AY DEĞİŞİR (elektrik, doğalgaz, kart ekstresi — 2026-11-01). Doğruysa `Amount` bir TAHMİNDİR
+		/// (son ödenen tutar); "ödendi" işaretinde o ayın gerçek tutarı alınır ve geçmişe o yazılır.
+		/// </summary>
+		public bool IsVariable { get; set; }
+
+		/// <summary>TAKSİT: toplam taksit sayısı (2–120). null = süresiz. Son taksitten sonra ödeme "bitti" sayılır.</summary>
+		public int? InstallmentCount { get; set; }
+
+		/// <summary>İlk taksitin dönemi ("YYYY-MM"; yıllıkta "YYYY"). Kalan taksit buradan hesaplanır.</summary>
+		[MaxLength(7)]
+		public string? InstallmentStart { get; set; }
+
 		public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 	}
 
@@ -86,8 +103,9 @@ namespace Tazq_App.Models
 		/// <summary>Ödeme silinince null (geçmiş korunur).</summary>
 		public int? PaymentId { get; set; }
 
+		/// <summary>Ödemenin başlığıyla aynı biçimde ŞİFRELİ (anın fotoğrafı; bkz. Payment.Title).</summary>
 		[Required]
-		[MaxLength(100)]
+		[MaxLength(512)]
 		public string Title { get; set; } = string.Empty;
 
 		public decimal Amount { get; set; }

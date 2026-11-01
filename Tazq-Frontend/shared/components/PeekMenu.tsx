@@ -24,7 +24,7 @@ export function PeekMenu({ visible, onClose, items, title }: { visible: boolean;
   if (!visible) return null;
 
   return (
-    <Modal transparent visible animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+    <Modal supportedOrientations={['portrait', 'landscape']} transparent visible animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <Pressable style={styles.backdrop} onPress={onClose}>
         {Platform.OS === 'ios'
           ? <AppBlur material="regular" />

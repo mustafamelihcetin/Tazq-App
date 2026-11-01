@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleProp, TextStyle } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, interpolate } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, interpolate, runOnJS } from 'react-native-reanimated';
 
 /*
   ── AKAN RAKAMLAR (SwiftUI .numericText(countsDown:) karşılığı) ───────────────
@@ -18,13 +18,15 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, interpo
 
 interface DigitProps {
   digit: string;
+  /** Geçişsiz yaz (büyük sıçrama). */
+  instant?: boolean;
   fontSize: number;
   textStyle: StyleProp<TextStyle>;
   countsDown: boolean;
   reduceMotion?: boolean;
 }
 
-const Digit = React.memo(({ digit, fontSize, textStyle, countsDown, reduceMotion }: DigitProps) => {
+const Digit = React.memo(({ digit, fontSize, textStyle, countsDown, reduceMotion, instant }: DigitProps) => {
   const [prev, setPrev] = useState<string | null>(null);
   const last = useRef(digit);
   const p = useSharedValue(1);
@@ -33,11 +35,14 @@ const Digit = React.memo(({ digit, fontSize, textStyle, countsDown, reduceMotion
     if (last.current === digit) return;
     const old = last.current;
     last.current = digit;
-    if (reduceMotion) { setPrev(null); p.value = 1; return; }
+    // ANINDA yazılan durumlar: hareketi azalt ya da büyük sıçrama (süre değişti — saniyelik tik değil).
+    if (reduceMotion || instant) { setPrev(null); p.value = 1; return; }
     setPrev(old);
     p.value = 0;
-    p.value = withTiming(1, { duration: 280, easing: Easing.out(Easing.cubic) });
-  }, [digit, reduceMotion]);
+    // Bitince eski rakam TAMAMEN kaldırılır (2026-11-01): yalnız saydamlığı sıfırlanıyordu; animasyon bir kare
+    // takılınca (ör. ses yüklenirken) iki değer üst üste kalıyordu ("24:00 üstüne 15:00 binmiş").
+    p.value = withTiming(1, { duration: 280, easing: Easing.out(Easing.cubic) }, done => { if (done) runOnJS(setPrev)(null); });
+  }, [digit, reduceMotion, instant]);
 
   // Kayma mesafesi rakam boyunun ~üçte biri: hareket "akış" olarak okunur, uçuş olarak değil.
   const dist = fontSize * 0.32 * (countsDown ? 1 : -1);
@@ -72,14 +77,16 @@ interface Props {
   /** Geri sayım (varsayılan): yeni rakam üstten iner. */
   countsDown?: boolean;
   reduceMotion?: boolean;
+  /** Geçişsiz yaz: değer bir saniyelik tik değil, sıçrama (ör. süre kadranla değişti). */
+  instant?: boolean;
 }
 
-export const RollingDigits = React.memo(({ value, fontSize, textStyle, countsDown = true, reduceMotion }: Props) => {
+export const RollingDigits = React.memo(({ value, fontSize, textStyle, countsDown = true, reduceMotion, instant }: Props) => {
   const style = [textStyle, { fontSize }];
   return (
     <View style={{ flexDirection: 'row' }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
       {value.split('').map((ch, i) => (
-        <Digit key={i} digit={ch} fontSize={fontSize} textStyle={style} countsDown={countsDown} reduceMotion={reduceMotion} />
+        <Digit key={i} digit={ch} fontSize={fontSize} textStyle={style} countsDown={countsDown} reduceMotion={reduceMotion} instant={instant} />
       ))}
     </View>
   );

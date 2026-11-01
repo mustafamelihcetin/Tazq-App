@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, Modal, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppBlur } from '@/shared/components/AppBlur';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
@@ -17,7 +16,7 @@ import { ACHIEVEMENT_ICONS, renderAchievementIcon } from '@/shared/utils/achieve
 import { BackButton } from '@/shared/components/BackButton';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
-import { S, R, F, W, B, ICON, MIN_TOUCH, RSPRING } from '@/shared/constants/tokens';
+import { S, R, F, W, B, ICON, MIN_TOUCH, RSPRING, SCRIM } from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { haptic } from '@/shared/utils/haptics';
 import { upperFor } from '@/shared/utils/localeCase';
@@ -331,7 +330,7 @@ export default function AchievementsScreen() {
         aynı düzeltme). Blur burada anında belirir; kart yine de MotiView ile
         yumuşak giriyor, göz "ani"yi fark etmiyor.
       */}
-      <Modal visible={!!detail} transparent animationType="none" onRequestClose={() => setDetail(null)}>
+      <Modal supportedOrientations={['portrait', 'landscape']} visible={!!detail} transparent animationType="none" onRequestClose={() => setDetail(null)}>
         {detail && (() => {
           const color = ACHIEVEMENT_ICONS[detail.id]?.color || theme.primary;
           const p = !detail.earned ? progressOf(detail.id) : null;
@@ -339,8 +338,7 @@ export default function AchievementsScreen() {
           // almasın; içindeki rozet kartı okunmaya devam eder.
           return (
             <Touchable accessible={false} activeOpacity={1} onPress={() => setDetail(null)} style={{ flex: 1 }}>
-              <AppBlur material="thick" />
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.20)' }]} />
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: SCRIM }]} />
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.xl }}>
                 <MotiView
                   from={{ opacity: 0, scale: 0.85, translateY: 12 }}

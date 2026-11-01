@@ -100,5 +100,38 @@ namespace Tazq_Backend.Tests
             Assert.Null(r.PaymentId);                     // bağ koptu, kayıt kaldı
             Assert.Equal("Spor salonu", r.Title);
         }
+
+        // ── 2026-11-01: değişken tutar + taksit ─────────────────────────────────
+
+        [Fact]
+        public async Task VariableAmount_MarkPaidWritesActual_AndBecomesNextEstimate()
+        {
+            var p = await _service.CreatePaymentAsync(1, "Elektrik", 600m, 15, PaymentRecurrence.Monthly, null, null, null, isVariable: true);
+            await _service.MarkPaidAsync(1, p!.Id, "2026-10", 742.5m);
+            var r = Assert.Single(await _service.GetHistoryAsync(1, 6));
+            Assert.Equal(742.5m, r.Amount);                       // geçmişe GERÇEK tutar
+            Assert.Equal(742.5m, (await _context.Payments.FindAsync(p.Id))!.Amount); // sonraki tahmin
+        }
+
+        [Fact]
+        public async Task FixedAmount_ActualAmountGoesToHistory_ButPlanStays()
+        {
+            var p = await _service.CreatePaymentAsync(1, "Kira", 200m, 1, PaymentRecurrence.Monthly, null, null);
+            await _service.MarkPaidAsync(1, p!.Id, "2026-10", 210m);
+            Assert.Equal(210m, Assert.Single(await _service.GetHistoryAsync(1, 6)).Amount);
+            Assert.Equal(200m, (await _context.Payments.FindAsync(p.Id))!.Amount);
+        }
+
+        [Fact]
+        public async Task Installment_ValidatedAndClamped_InvalidIsIgnored()
+        {
+            var ok = await _service.CreatePaymentAsync(1, "Telefon", 1000m, 10, PaymentRecurrence.Monthly, null, null, null, installmentCount: 500, installmentStart: "2026-11");
+            Assert.Equal(120, ok!.InstallmentCount);
+            Assert.Equal("2026-11", ok.InstallmentStart);
+            var badStart = await _service.CreatePaymentAsync(1, "X", 1m, 10, PaymentRecurrence.Monthly, null, null, null, installmentCount: 6, installmentStart: "2026-13");
+            Assert.Null(badStart!.InstallmentCount);
+            var once = await _service.CreatePaymentAsync(1, "Y", 1m, 10, PaymentRecurrence.Once, null, null, null, installmentCount: 6, installmentStart: "2026-11");
+            Assert.Null(once!.InstallmentCount); // tek seferlikte taksit anlamsız
+        }
     }
 }

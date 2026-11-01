@@ -648,3 +648,10 @@ export const getPremiumShadow = (elevation = 5, color = '#000000') => {
     shadowRadius: elevation * 1.5, // wider blur radius
   };
 };
+
+/**
+ * PENCERE KARARTMASI — her modal/sayfanın arkasındaki TEK zemin (2026-11-01, kullanıcı: "tüm popuplar tek tip, bizim
+ * tarzımız"). Eskiden 0.4 / 0.45 / 0.5 / 0.55 / 0.6 ve kimi yerde bulanıklık: her pencere farklı karartıyordu.
+ * Bulanık zemin ayrıca arkadaki Skia tuvallerini (aura) kenarda yinelenmiş gösteriyordu (iOS).
+ */
+export const SCRIM = 'rgba(0,0,0,0.5)';

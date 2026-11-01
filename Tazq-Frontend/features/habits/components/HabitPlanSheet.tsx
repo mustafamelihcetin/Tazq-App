@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Modal, StyleSheet, useWindowDimensions } from '
 import { X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { AppTheme } from '@/shared/constants/Colors';
-import { S, F, ICON } from '@/shared/constants/tokens';
+import { S, F, ICON, SCRIM } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSheet } from '@/shared/components/GlassSheet';
 import { haptic } from '@/shared/utils/haptics';
@@ -25,7 +25,7 @@ export function HabitPlanSheet({ visible, title, color, initial, onSave, onClose
   const copy = lang === 'tr' ? { save: 'Kaydet', close: 'Kapat' } : { save: 'Save', close: 'Close' };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal supportedOrientations={['portrait', 'landscape']} visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={[styles.backdrop, { paddingTop: insets.top + S.md, paddingBottom: insets.bottom + S.md }]}>
         <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} accessibilityRole="button" accessibilityLabel={copy.close} />
         <GlassSheet maxWidth={520} padding={S.md}>
@@ -51,7 +51,7 @@ export function HabitPlanSheet({ visible, title, color, initial, onSave, onClose
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: S.md },
+  backdrop: { flex: 1, backgroundColor: SCRIM, justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: S.md },
   header: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
   title: { fontSize: F.subhead, fontWeight: '700' },
   sub: { fontSize: F.caption },

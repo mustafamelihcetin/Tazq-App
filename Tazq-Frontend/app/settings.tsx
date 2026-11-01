@@ -7,6 +7,7 @@ import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { track } from '@/shared/utils/analytics';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { DeviceOnlyNote } from '@/shared/components/DeviceOnlyNote';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { MotiView } from 'moti';
@@ -28,7 +29,7 @@ import { rescheduleAllTaskNotifications } from '@/shared/utils/notifications';
 import { requestNotificationPermissions, getNotificationPermissionStatus, cancelWeeklySummary, cancelMorningBrief, cancelEveningBrief } from '@/shared/utils/notifications';
 import { requestCalendarPermissions, bulkExportTasksToCalendar } from '@/shared/utils/calendarSync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ICON, S, R, F, B, W, MAX_W, MIN_TOUCH, trackingFor , topBarSpace} from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, W, MAX_W, MIN_TOUCH, trackingFor , topBarSpace, SCRIM } from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { healthSourceName } from '@/shared/utils/healthSource';
@@ -68,7 +69,7 @@ export default function SettingsScreen() {
   const { scrollY, onScroll } = useCollapsibleHeader();
   const sectionY = useRef<Record<string, number>>({});
   const mountedAt = useRef(Date.now());
-  const { section } = useLocalSearchParams<{ section?: string }>();
+  const { section, support } = useLocalSearchParams<{ section?: string; support?: string }>();
   // Bölüme kaydırma — ZAMAN PENCERELİ. Kademeli yerleşimde hedef ölçülürken altındaki
   // içerik daha yerleşmemiş olur; ScrollView kısadır ve scrollTo en alta KIRPILIR (hep
   // sayfa başı görünür). Bu yüzden ilk 800ms boyunca hem her bölüm ölçümünde hem içerik
@@ -109,7 +110,8 @@ export default function SettingsScreen() {
   const { unlocked: unlockedAchievements } = useAchievementStore();
   const isDark = colorScheme === 'dark';
   const A = settingsAccents(theme);
-  const [supportModalVisible, setSupportModalVisible] = useState(false);
+  // Gelen kutusundaki "destekten yanıt" satırı buraya `support=1` ile gelir: konuşma doğrudan açılır.
+  const [supportModalVisible, setSupportModalVisible] = useState(support === '1');
   const [notifEnabled, setNotifEnabled] = useState(false);
   const [calendarSync, setCalendarSync] = useState(false);
   // Ortak hook (bkz. useKeyboardHeight).
@@ -571,6 +573,7 @@ export default function SettingsScreen() {
                         theme={theme} isDark={isDark}
                     />
                 </SettingsCard>
+                <DeviceOnlyNote kind="health" language={language === 'en' ? 'en' : 'tr'} theme={theme} />
               </>
             )}
 
@@ -779,8 +782,8 @@ export default function SettingsScreen() {
         insetTop={insets.top}
         insetBottom={insets.bottom}
       />
-      <Modal visible={pwModalVisible} transparent animationType="fade" onRequestClose={() => { if (!changingPw) setPwModalVisible(false); }}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: S.lg, paddingTop: insets.top + S.lg, paddingBottom: (kbHeight > 0 ? kbHeight : insets.bottom) + S.lg }}>
+      <Modal supportedOrientations={['portrait', 'landscape']} visible={pwModalVisible} transparent animationType="fade" onRequestClose={() => { if (!changingPw) setPwModalVisible(false); }}>
+        <View style={{ flex: 1, backgroundColor: SCRIM, justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: S.lg, paddingTop: insets.top + S.lg, paddingBottom: (kbHeight > 0 ? kbHeight : insets.bottom) + S.lg }}>
           <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => { if (!changingPw) { Keyboard.dismiss(); setPwModalVisible(false); } }} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'} />
           <MotiView
             from={{ opacity: 0, scale: 0.96, translateY: 16 }}

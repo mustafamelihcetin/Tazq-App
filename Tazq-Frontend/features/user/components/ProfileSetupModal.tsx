@@ -21,14 +21,13 @@
  *    yalnız görünüm + verimli saat sorulur.
  */
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Animated, Modal, TextInput, ScrollView, StyleSheet, Platform, KeyboardAvoidingView, Image, ActivityIndicator, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text, Animated, Modal, TextInput, ScrollView, StyleSheet, Platform, KeyboardAvoidingView, ActivityIndicator, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { Check } from 'lucide-react-native';
-import { AppBlur } from '@/shared/components/AppBlur';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
-import { ICON, S, R, F, B, MAX_W } from '@/shared/constants/tokens';
-import { AVATAR_CONFIGS } from '@/features/user';
+import { ICON, S, R, F, B, MAX_W, SCRIM } from '@/shared/constants/tokens';
 import { ringOptions, ringStoreValue, type RingChoice } from '@/features/user/utils/avatarRings';
+import { AuraAvatar } from '@/features/user/components/AuraAvatar';
 import { useThemeStore } from '@/shared/store/useThemeStore';
 import { ACCENT_FEATURED } from '@/shared/constants/Colors';
 import { SegmentedControl } from '@/shared/components/SegmentedControl';
@@ -57,7 +56,6 @@ const COPY = {
     sub: 'Görünümünü seç; sonra Profil\'den değiştirebilirsin.',
     subName: 'Adını yaz, görünümünü seç.',
     namePh: 'Adın',
-    avatar: 'AVATAR',
     ring: 'HALKA',
     hour: 'EN VERİMLİ OLDUĞUN ZAMAN',
     start: 'Başla',
@@ -65,7 +63,6 @@ const COPY = {
     hourA11y: 'En verimli olduğun zaman',
     nameErr: 'Adın en az 2 harf olmalı.',
     saveErr: 'Kaydedilemedi. Bağlantını kontrol edip tekrar dene.',
-    avatarA11y: (n: string) => `Avatar ${n}`,
   },
   en: {
     welcome: (n: string) => `Welcome, ${n}`,
@@ -73,7 +70,6 @@ const COPY = {
     sub: 'Pick your look; you can change it later in Profile.',
     subName: 'Add your name and pick your look.',
     namePh: 'Your name',
-    avatar: 'AVATAR',
     ring: 'RING',
     hour: 'WHEN YOU WORK BEST',
     start: 'Get started',
@@ -81,15 +77,12 @@ const COPY = {
     hourA11y: 'When you work best',
     nameErr: 'Your name needs at least 2 letters.',
     saveErr: "Couldn't save. Check your connection and try again.",
-    avatarA11y: (n: string) => `Avatar ${n}`,
   },
 };
 
 /** Önizleme avatarı ve halka kalınlığı — iç görsel `PREVIEW - 2*RING_W`: halka ile resim arasında boşluk kalmaz. */
 const PREVIEW = 64;
 const RING_W = 3;
-const AVATAR_MIN = 38;
-const AVATAR_GAP = S.xs;
 const DOT = 26;
 const SEL = 3;
 const HOURS: Hour[] = ['morning', 'afternoon', 'evening', 'night'];
@@ -99,19 +92,19 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
 }) => {
   const c = COPY[language === 'tr' ? 'tr' : 'en'];
   const [name, setName] = useState('');
-  const [avatar, setAvatar] = useState('m1');
+  // 2026-11-01: avatar seçimi kalktı — boş = kişiye özel aura (bkz. AuraAvatar). 3B karakterler arşivde.
+  const [avatar, setAvatar] = useState('');
   const accent = useThemeStore(s => s.accent);
   const setAccent = useThemeStore(s => s.setAccent);
   const [ring, setRing] = useState<RingChoice>(accent);
   const [hour, setHour] = useState<Hour>('morning');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [w, setW] = useState(0);
 
   useEffect(() => {
     if (!visible) return;
     setName(isNamePlaceholder ? '' : currentName);
-    setAvatar('m1');
+    setAvatar('');
     // Varsayılan halka o anki vurgu: "Yok" ile açılan önizleme sönük duruyordu.
     setRing(accent);
     setHour('morning');
@@ -141,19 +134,12 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
   };
 
   const firstName = (isNamePlaceholder ? name : currentName).trim().split(' ')[0];
-  const image = AVATAR_CONFIGS.find((a) => a.key === avatar)?.image;
   // İlk açılışta yalnız 6 seçkin ton (tek sıra); 18'in tamamı ve çerçeveyi kapatmak Ayarlar → Görünüm'de (tek yer).
   const rings = ringOptions(isDark).filter(o => o.key !== 'none' && ACCENT_FEATURED.includes(o.key));
   const ringed = ring !== 'none';
   const ringColor = rings.find(o => o.key === ring)?.color ?? theme.primary;
   const inner = PREVIEW - 2 * (ringed ? RING_W : B.thin);
 
-  /*
-    12 avatar: sütun sayısı 12'yi TAM bölmeli (6 → iki satır, sığmazsa 4 → üç satır).
-    gridFit 5 sütun buluyordu: 5 + 5 + 2, son satır yarım (cihazda görüldü).
-  */
-  const avatarCols = w > 0 ? ((w - AVATAR_GAP * 5) / 6 >= AVATAR_MIN ? 6 : 4) : 0;
-  const avatarCell = avatarCols > 0 ? Math.floor((w - AVATAR_GAP * (avatarCols - 1)) / avatarCols) : 0;
 
   // Önizleme seçime yaylı küçük bir "pop"la cevap verir — seçimin sonucu hissedilsin.
   const pop = useRef(new Animated.Value(1)).current;
@@ -161,16 +147,15 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
     if (!visible) return;
     pop.setValue(0.92);
     Animated.spring(pop, { toValue: 1, damping: 9, stiffness: 220, mass: 0.8, useNativeDriver: true }).start();
-  }, [avatar, ring]);
+  }, [ring]);
   const ringCols = 6;
 
   const rows = <T,>(items: T[], cols: number) =>
     Array.from({ length: Math.ceil(items.length / cols) }, (_, r) => items.slice(r * cols, r * cols + cols));
 
   return (
-    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
+    <Modal supportedOrientations={['portrait', 'landscape']} visible={visible} transparent animationType="fade" statusBarTranslucent>
       <KeyboardAvoidingView behavior="padding" style={styles.backdrop}>
-        <AppBlur material="thin" />
         {/* Perdeye dokunmak yalnız klavyeyi kapatır; bu ekranın tek çıkışı "Başla". */}
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View style={StyleSheet.absoluteFill} />
@@ -197,7 +182,10 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                   },
                 ]}
               >
-                {image ? <Image source={image} style={{ width: inner, height: inner, borderRadius: inner / 2 }} resizeMode="cover" /> : null}
+                {/* Kişiye özel aura — seçilen renkte, yazılan adla canlı değişir (profilde nasıl görünecekse öyle). */}
+                <View style={{ width: inner, height: inner, borderRadius: inner / 2, overflow: 'hidden' }}>
+                  <AuraAvatar name={isNamePlaceholder ? name : currentName} accent={ringColor} size={inner} glow={0.8} animated />
+                </View>
               </Animated.View>
               <View style={{ flex: 1 }}>
                 <Text accessibilityRole="header" numberOfLines={2} style={[styles.title, { color: theme.onSurface }]}>
@@ -228,36 +216,6 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                 />
               </View>
             )}
-
-            <View onLayout={(e) => setW(Math.floor(e.nativeEvent.layout.width))}>
-              <Text style={[styles.label, { color: theme.onSurfaceMuted }]}>{c.avatar}</Text>
-              {avatarCell > 0 && (
-                <View accessibilityRole="radiogroup" style={{ gap: AVATAR_GAP }}>
-                  {rows(AVATAR_CONFIGS, avatarCols).map((row, r) => (
-                    <View key={r} style={styles.row}>
-                      {Array.from({ length: avatarCols }, (_, k) => {
-                        const a = row[k];
-                        if (!a) return <View key={`pad-${k}`} style={{ width: avatarCell }} />;
-                        const selected = a.key === avatar;
-                        const img = avatarCell - 2 * SEL - 4;
-                        return (
-                          <Touchable
-                            key={a.key}
-                            accessibilityRole="radio"
-                            accessibilityState={{ selected, checked: selected }}
-                            accessibilityLabel={c.avatarA11y(a.name)}
-                            onPress={() => { if (!selected) { haptic.select(); setAvatar(a.key); } }}
-                            style={[styles.avatarCell, { width: avatarCell, height: avatarCell, borderColor: selected ? theme.primary : 'transparent' }]}
-                          >
-                            <Image source={a.image} style={{ width: img, height: img, borderRadius: img / 2, backgroundColor: theme.surfaceField }} resizeMode="cover" />
-                          </Touchable>
-                        );
-                      })}
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
 
             <View>
               <Text style={[styles.label, { color: theme.onSurfaceMuted }]}>{c.ring}</Text>
@@ -331,7 +289,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
 };
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.55)' },
+  backdrop: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: SCRIM },
   card: {
     width: '90%',
     maxWidth: MAX_W - 40,
@@ -351,7 +309,6 @@ const styles = StyleSheet.create({
   label: { fontSize: F.caption, fontWeight: '600', letterSpacing: 1.2, marginBottom: S.sm, marginLeft: S.xs },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   ringRow: { paddingHorizontal: S.xxs },
-  avatarCell: { borderRadius: R.full, borderWidth: SEL, alignItems: 'center', justifyContent: 'center' },
   dotRing: { width: DOT + SEL * 4, height: DOT + SEL * 4, borderRadius: R.full, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   dot: { width: DOT, height: DOT, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   input: { fontSize: F.body, paddingHorizontal: S.md, paddingVertical: Platform.OS === 'ios' ? S.smd : S.sm, borderRadius: R.md, minHeight: 48 },

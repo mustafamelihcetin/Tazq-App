@@ -3,6 +3,7 @@ import { View, Text, Modal, TextInput, ScrollView } from 'react-native';
 import { X, Check } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
+import { SheetGrabber } from '@/shared/components/DragToClose';
 import { S, F, R, B, ICON } from '@/shared/constants/tokens';
 import { useActiveTasks, getLocalizedTaskTitle, isSomeday, type Task } from '@/features/tasks';
 import { calendarDayOf, dateKeyFromNow } from '@/shared/utils/dateKey';
@@ -156,15 +157,13 @@ export const FocusTaskPicker: React.FC<FocusTaskPickerProps> = ({ visible, langu
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal supportedOrientations={['portrait', 'landscape']} visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         <Touchable accessibilityRole="button" accessibilityLabel={c.close} style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
         {/* Klavye payı iki platformda (bkz. useKeyboardHeight): serbest başlık yazılırken liste klavyenin altında kalmasın. */}
         <View style={{ maxHeight: '76%', marginBottom: keyboardHeight, borderTopLeftRadius: R.sheet, borderTopRightRadius: R.sheet, paddingHorizontal: S.lg, paddingTop: S.md, paddingBottom: S.xl, overflow: 'hidden' }}>
           <GlassSurface corners="top" />
-          <View style={{ alignItems: 'center', marginBottom: S.md }}>
-            <View style={{ width: 36, height: 4, borderRadius: R.xs, backgroundColor: theme.onSurface + '1F' }} />
-          </View>
+          <SheetGrabber onClose={onClose} color={theme.onSurface + '1F'} />
 
           <Text style={{ fontSize: F.title3, fontWeight: '700', color: theme.onSurface, textAlign: 'center' }}>{c.title}</Text>
           <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, textAlign: 'center', marginTop: S.xxs, marginBottom: S.md }}>{c.sub}</Text>

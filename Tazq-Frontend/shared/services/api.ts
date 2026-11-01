@@ -523,6 +523,9 @@ export interface PaymentPayload {
   category?: string | null;
   /** ISO 4217; boş = ana birim (madde 12). */
   currency?: string | null;
+  isVariable?: boolean;
+  installmentCount?: number | null;
+  installmentStart?: string | null;
 }
 
 /** Ödeme geçmişinin bir kaydı — "ödendi" anının fotoğrafı (bkz. backend PaymentRecord). */
@@ -570,8 +573,9 @@ export const PaymentService = {
   deletePayment: async (id: number) => {
     await api.delete(`/api/payments/${id}`);
   },
-  markPaid: async (id: number, cycleKey: string) => {
-    const response = await api.post(`/api/payments/${id}/mark-paid`, { cycleKey });
+  /** `amount`: değişken tutarlı ödemede o ayın gerçek tutarı (isteğe bağlı). */
+  markPaid: async (id: number, cycleKey: string, amount?: number) => {
+    const response = await api.post(`/api/payments/${id}/mark-paid`, amount == null ? { cycleKey } : { cycleKey, amount });
     return response.data;
   },
   /** Son `months` ayın ödemeleri, yeniden eskiye. */
@@ -780,6 +784,7 @@ export interface SupportMessageItem {
   adminReply?: string | null;
   repliedAt?: string | null;
   thread?: SupportThreadEntry[]; lastActivityAt?: string; closedAt?: string | null; closedBy?: 'user' | 'staff' | null;
+  attachments?: SupportAttachmentMeta[];
 }
 
 /** Destek konuşmasının bir satırı (ilk mesaj dahil) — sunucu: SupportService.ThreadOf. */
@@ -793,7 +798,12 @@ export interface MySupportMessage {
   adminReply?: string | null;
   repliedAt?: string | null;
   thread?: SupportThreadEntry[]; lastActivityAt?: string; closedAt?: string | null; closedBy?: 'user' | 'staff' | null; canReply?: boolean;
+  /** Konuşmanın fotoğrafları (2026-11-01). null = bu yanıtta liste yok (istemci elindekini korur). */
+  attachments?: SupportAttachmentMeta[] | null;
 }
+
+/** Destek fotoğrafı — yalnız kimlik/zaman/boyut; görüntü `attachmentUrl` ile (yetkili) çekilir. */
+export interface SupportAttachmentMeta { id: number; fromStaff: boolean; at: string; size: number }
 
 /** Çökme grubu — aynı hata mesajı tek satır (sunucu: CrashLog). */
 export interface CrashGroup {
@@ -818,6 +828,17 @@ export const SupportService = {
   /** Kullanıcı kendi konuşmasına yazar; 409 = kapalı ya da ekip yanıtı bekleniyor (gövdede message). */
   userReply: async (id: number, message: string): Promise<MySupportMessage> => (await api.post(`/api/support/${id}/reply`, { message })).data,
   userClose: async (id: number): Promise<void> => { await api.post(`/api/support/${id}/close`); },
+  /** Konuşmaya fotoğraf (multipart). Sınırlar sunucuda: 3 MB, konuşma başına 6, kullanıcı başına 20 MB. */
+  uploadAttachment: async (id: number, uri: string, name: string, type: string): Promise<SupportAttachmentMeta> => {
+    const form = new FormData();
+    form.append('file', { uri, name, type } as unknown as Blob);
+    return (await api.post(`/api/support/${id}/attachments`, form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000 })).data;
+  },
+  /** Görüntü kaynağı — yetki başlığıyla (yalnız konuşmanın sahibi ve destek ekibi görebilir). */
+  attachmentSource: (attId: number): { uri: string; headers?: Record<string, string> } => {
+    const token = useAuthStore.getState().token;
+    return { uri: `${BASE_URL}/api/support/attachments/${attId}`, headers: token ? { Authorization: `Bearer ${token}` } : undefined };
+  },
   staffClose: async (id: number): Promise<void> => { await api.patch(`/api/support/admin/${id}/close`); },
   getCrashGroups: async (opts: { limit?: number; offset?: number; unresolvedOnly?: boolean }): Promise<{ groups: CrashGroup[]; total: number; hasMore: boolean; retentionDays: { resolved: number; max: number } }> =>
     (await api.get('/api/support/admin/crash-groups', { params: opts })).data,

@@ -478,7 +478,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
   const customTags = visibleTextTags(form.tags).filter(tag => !CATEGORY_IDS.some(id => CATEGORY_TAGS[id][langOf(language)] === tag));
 
   return (
-    <Modal
+    <Modal supportedOrientations={['portrait', 'landscape']}
       visible={visible}
       transparent
       animationType="none"

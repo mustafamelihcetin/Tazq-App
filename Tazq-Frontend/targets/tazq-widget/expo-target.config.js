@@ -4,7 +4,7 @@ module.exports = config => ({
   name: 'TazqWidget',
   displayName: 'TAZQ',
   colors: { $accent: { color: '#0B6BCB', darkColor: '#0A84FF' } },
-  frameworks: ['SwiftUI', 'WidgetKit'],
+  frameworks: ['SwiftUI', 'WidgetKit', 'AppIntents'],
   entitlements: {
     'com.apple.security.application-groups':
       config.ios.entitlements['com.apple.security.application-groups'],

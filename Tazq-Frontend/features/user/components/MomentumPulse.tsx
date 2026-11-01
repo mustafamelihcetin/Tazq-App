@@ -4,7 +4,7 @@ import { MotiView } from 'moti';
 import { Easing } from 'react-native-reanimated';
 import { TrendingUp, TrendingDown, Minus, CheckCircle2, Zap, Flame, Shield, Info } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
-import { ICON, S, F, R, B, METRIC, LH, trackingFor } from '@/shared/constants/tokens';
+import { ICON, S, F, R, B, METRIC, LH, trackingFor, SCRIM } from '@/shared/constants/tokens';
 import { modeAccentOn } from '@/shared/constants/Colors';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
@@ -442,8 +442,8 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
     </View>
 
     {/* Momentum formula info modal */}
-    <Modal visible={infoVisible} transparent animationType="fade" onRequestClose={() => setInfoVisible(false)}>
-      <Touchable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: S.slg }} activeOpacity={1} onPress={() => setInfoVisible(false)}>
+    <Modal supportedOrientations={['portrait', 'landscape']} visible={infoVisible} transparent animationType="fade" onRequestClose={() => setInfoVisible(false)}>
+      <Touchable style={{ flex: 1, backgroundColor: SCRIM, justifyContent: 'center', alignItems: 'center', padding: S.slg }} activeOpacity={1} onPress={() => setInfoVisible(false)}>
         <MotiView
           from={{ scale: 0.92, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}

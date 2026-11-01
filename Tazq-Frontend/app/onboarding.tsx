@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { F, S, ICON, R, B, trackingFor } from '@/shared/constants/tokens';
+import { F, S, ICON, R, B, trackingFor, SCRIM } from '@/shared/constants/tokens';
 import {
   View,
   Text,
@@ -298,7 +298,7 @@ export default function OnboardingScreen() {
         slayt olsaydı "Geç"le atlanır ve cevap alınamazdı; burada çıkışın üstünde
         duruyor ama iki seçenekten biri tek dokunuşla geçiliyor.
       */}
-      <Modal visible={modeAsk !== null} transparent animationType="fade" onRequestClose={() => setModeAsk(null)}>
+      <Modal supportedOrientations={['portrait', 'landscape']} visible={modeAsk !== null} transparent animationType="fade" onRequestClose={() => setModeAsk(null)}>
         <View style={styles.askBackdrop}>
           <GlassSheet>
             <Text style={[styles.askTitle, { color: theme.onSurface }]}>{t.onboardingModeAsk}</Text>
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
   nextBtn: { borderRadius: R.xl, width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm },
   clayShadow: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 15 },
   nextBtnText: { fontWeight: '700' },
-  askBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.lg },
+  askBackdrop: { flex: 1, backgroundColor: SCRIM, alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.lg },
   askTitle: { fontSize: F.title3, fontWeight: '700', textAlign: 'center', letterSpacing: -0.3 },
   askSub: { fontSize: F.body, textAlign: 'center', lineHeight: 20 },
   askOption: { flexDirection: 'row', alignItems: 'center', gap: S.smd, borderRadius: R.md, borderWidth: B.thin, paddingVertical: S.md, paddingHorizontal: S.md },

@@ -122,7 +122,6 @@ const BASELINE: Record<string, number> = {
   // halkası eklenirken dört metin daha gerekiyordu; her birini ayrı dallandırmak
   // aynı soruyu on bir kez sormak olurdu.
   'features/dashboard/components/MyDayTaskRow.tsx': 1,
-  'features/dashboard/components/StatusHub.tsx': 3,
   'features/dashboard/components/TodayCard.tsx': 6,
   'features/habits/components/HabitBubble.tsx': 2,
   'features/habits/components/SwipeableHabitItem.tsx': 3,
@@ -164,7 +163,7 @@ const BASELINE: Record<string, number> = {
   'shared/utils/lifeModePlans.ts': 3,
   // 42 → 40: haftalık özetin başlığı, gövdesi ve tekrarlı yedeği ayrı ayrı
   // dallanıyordu; üçü tek sözlükte toplandı (iki dil yan yana).
-  'shared/utils/notifications.ts': 41, // (2026-10-18): schedulePaymentDueNotif — scheduleExamCountdownNotifs ile aynı isTR deseni
+  'shared/utils/notifications.ts': 47, // +6 (2026-11-01): bildirim eylemleri (Ödendi, Tutarı gir, Yarına al, Günü kapat, Haftama bak) — kategori düğmeleri dosyanın mevcut deseniyle · // (2026-10-18): schedulePaymentDueNotif — scheduleExamCountdownNotifs ile aynı isTR deseni
   'shared/utils/ramadanDates.ts': 1,
   'shared/utils/stepInsight.ts': 3,
 };

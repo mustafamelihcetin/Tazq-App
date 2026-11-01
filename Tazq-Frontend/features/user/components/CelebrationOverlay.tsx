@@ -9,6 +9,10 @@
  * MANTIK HİÇ DEĞİŞMEDİ, yalnız yeri değişti.
  */
 import React, { useEffect, useRef, useMemo } from 'react';
+import { swallow } from '@/shared/utils/swallow';
+import { useBootStore } from '@/shared/store/useBootStore';
+import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
+import { playSoundEffect } from '@/shared/utils/soundEffects';
 import { View, Text, StyleSheet, Animated, TouchableWithoutFeedback, useWindowDimensions, Platform, BackHandler } from 'react-native';
 import { AppBlur } from '@/shared/components/AppBlur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -40,6 +44,11 @@ interface Particle {
 
 export const CelebrationOverlay: React.FC = () => {
   const { pending, clearPending, queue } = useAchievementStore();
+  /*
+    AÇILIŞ EKRANI BİTMEDEN KUTLAMA YOK (2026-11-01, kullanıcı: "splash screendeyken başarım tetiklendi ve sesini
+    duydum"). Kazanım kaydedilir ama kutlama (görüntü + ses + titreşim) açılış ekranı kalkınca oynar.
+  */
+  const splashDone = useBootStore(s => s.splashDone);
   const { theme, colorScheme } = useAppTheme();
   const { language } = useLanguageStore();
   const isDark = colorScheme === 'dark';
@@ -91,11 +100,16 @@ export const CelebrationOverlay: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!pending) return;
+    if (!pending || !splashDone) return;
 
     resetAll();
 
     // Premium haptic sequence
+    try {
+      if (usePrefsStore.getState().soundEffects) {
+        playSoundEffect(require('../../../assets/sounds/levelup.mp3'), { context: 'celebration.levelUpSound', releaseAfterMs: 3000 });
+      }
+    } catch (e) { swallow('celebration.sound', e); }
     haptic.success();
     setTimeout(() => { haptic.commit(); }, 120);
     setTimeout(() => { haptic.commit(); }, 280);
@@ -207,9 +221,9 @@ export const CelebrationOverlay: React.FC = () => {
       if (dismissTimer.current) clearTimeout(dismissTimer.current);
       backSub.remove();
     };
-  }, [pending?.id]);
+  }, [pending?.id, splashDone]);
 
-  if (!pending) return null;
+  if (!pending || !splashDone) return null;
 
   const cx = width / 2;
   const cy = height * 0.42;

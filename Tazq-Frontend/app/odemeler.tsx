@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Animated, Platform, type FlatList } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { Plus, Wallet } from 'lucide-react-native';
+import { Plus, Wallet, Zap, Layers } from 'lucide-react-native';
 import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -21,6 +21,8 @@ import { usePaymentsStore, type Payment, type PaymentRecurrence } from '@/featur
 import { createPaymentAction, updatePaymentAction, deletePaymentAction, markPaymentPaidAction, unmarkPaymentPaidAction, refreshPayments, type CreatePaymentResult } from '@/features/payments/utils/paymentActions';
 import { nextDueDateOf, activeCycleKeyOf, paymentView, type PaymentView } from '@/features/payments/utils/paymentDates';
 import { PaymentRow } from '@/features/payments/components/PaymentRow';
+import { PaidAmountSheet } from '@/features/payments/components/PaidAmountSheet';
+import { ToggleRow } from '@/shared/components/SettingsRows';
 import { PaymentsMonthCard } from '@/features/payments/components/PaymentsMonthCard';
 import { PaymentsHistoryCard } from '@/features/payments/components/PaymentsHistoryCard';
 import { totalsByCurrency, formatTotals, formatMoney, approxTotal, withLocalPaid, type FxRates } from '@/features/payments/utils/money';
@@ -98,6 +100,19 @@ export default function OdemelerScreen() {
   const [recurrence, setRecurrence] = useState<PaymentRecurrence>('Monthly');
   // Ödeme BAŞINA birim (madde 12): 200 ₺ kira ile 20 $ abonelik aynı listede. Varsayılan ana birim.
   const [payCurrency, setPayCurrency] = useState<CurrencyCode>(currency);
+  // Değişken tutar + taksit (2026-11-01): elektrik gibi her ay değişen faturalar, "12 taksit" gibi biten ödemeler.
+  const [isVariable, setIsVariable] = useState(false);
+  const [installmentOn, setInstallmentOn] = useState(false);
+  const [installmentCount, setInstallmentCount] = useState('12');
+  // Değişken tutarlıda "ödendi" → o ayın gerçek tutarı sorulur (bkz. PaidAmountSheet).
+  const [paidPrompt, setPaidPrompt] = useState<Payment | null>(null);
+  // Bildirimdeki "Tutarı gir" buraya `pay=<id>` ile gelir: o ödemenin tutar penceresi doğrudan açılır.
+  const { pay } = useLocalSearchParams<{ pay?: string }>();
+  useEffect(() => {
+    if (!pay) return;
+    const p = usePaymentsStore.getState().payments.find(x => String(x.id) === pay);
+    if (p) setPaidPrompt(p);
+  }, [pay]);
   // Monthly — "ayın kaçı" GÜN GRİDİ (1-31), bir sayı yazmaktan ya da tam bir takvimden
   // (ay/yıl seçmek zorunda bırakmak) daha doğrudan: aylık bir fatura için önemli olan
   // tek bilgi gündür. Yearly/Once — gerçek bir TARİH gerekiyor (ay/yıl de önemli),
@@ -112,6 +127,7 @@ export default function OdemelerScreen() {
 
   const resetForm = () => {
     setEditingId(null); setTitle(''); setAmount(''); setRecurrence('Monthly'); setPayCurrency(currency); setDueDayValue(new Date().getDate()); setAnchorDate(new Date()); setShowPicker(false); setProviderSuggestions([]);
+    setIsVariable(false); setInstallmentOn(false); setInstallmentCount('12');
   };
 
   const openAdd = () => { haptic.select(); setShowAdd(true); };
@@ -122,6 +138,9 @@ export default function OdemelerScreen() {
     setAmount(p.amount.toLocaleString(locale, { useGrouping: false, maximumFractionDigits: 2 })); // yerel ondalık ayıracı
     setRecurrence(p.recurrence);
     setPayCurrency((p.currency as CurrencyCode) || currency);
+    setIsVariable(!!p.isVariable);
+    setInstallmentOn(!!p.installmentCount);
+    setInstallmentCount(String(p.installmentCount ?? 12));
     setDueDayValue(p.dueDay);
     setAnchorDate(p.nextDueDate ? new Date(p.nextDueDate) : new Date());
     setShowPicker(false); setProviderSuggestions([]);
@@ -150,9 +169,19 @@ export default function OdemelerScreen() {
     // tarihin kendisi nextDueDate olur (bkz. paymentDates.ts).
     const day = isMonthly ? dueDayValue : anchorDate.getDate();
     const nextDueDate = isMonthly ? null : anchorDate.toISOString();
+    // Taksit: ilk taksit = bu ödemenin ŞU ANKİ dönemi; düzenlemede mevcut başlangıç korunur (sayaç kaymasın).
+    const count = parseInt(installmentCount, 10);
+    const editing = editingId != null ? payments.find(x => x.id === editingId) : undefined;
+    const draft = { id: 0, title, amount: amountNum, dueDay: day, recurrence, nextDueDate } as Payment;
+    const useInst = installmentOn && recurrence !== 'Once' && count >= 2;
+    const kind = {
+      isVariable,
+      installmentCount: useInst ? Math.min(120, count) : null,
+      installmentStart: useInst ? (editing?.installmentStart ?? activeCycleKeyOf(draft, today)) : null,
+    };
 
     if (editingId != null) {
-      const r = await updatePaymentAction(editingId, { title: title.trim(), amount: amountNum, dueDay: day, recurrence, nextDueDate, currency: payCurrency });
+      const r = await updatePaymentAction(editingId, { title: title.trim(), amount: amountNum, dueDay: day, recurrence, nextDueDate, currency: payCurrency, ...kind });
       if (r === 'failed') { showToast(t.updateFailedToast, 'error'); return; }
       showToast(r === 'queued' ? t.queuedToast : t.updatedToast, 'success');
       setShowAdd(false); resetForm();
@@ -166,6 +195,7 @@ export default function OdemelerScreen() {
       nextDueDate,
       category: null,
       currency: payCurrency,
+      ...kind,
     });
     // Sonuç HER ZAMAN bildirilir — sessiz başarısızlık yok.
     if (result === 'ok') showToast(t.addedToast, 'success');
@@ -174,10 +204,12 @@ export default function OdemelerScreen() {
     if (result !== 'failed') { setShowAdd(false); resetForm(); }
   };
 
-  const handleMarkPaid = async (payment: Payment) => {
+  const handleMarkPaid = async (payment: Payment, actualAmount?: number) => {
+    // Değişken tutar: önce o ayın gerçek tutarı sorulur (alan son tutarla dolu gelir).
+    if (payment.isVariable && actualAmount == null) { haptic.select(); setPaidPrompt(payment); return; }
     haptic.select();
     const cycleKey = activeCycleKeyOf(payment, today);
-    await markPaymentPaidAction(payment.id, cycleKey);
+    await markPaymentPaidAction(payment.id, cycleKey, actualAmount);
     loadHistory();
     if (payment.id > 0) void cancelPaymentDueNotif(payment.id);
     showToast(
@@ -216,7 +248,7 @@ export default function OdemelerScreen() {
         const dueTime = due.getTime();
         if (scheduledRef.current.get(p.id) !== dueTime) {
           scheduledRef.current.set(p.id, dueTime);
-          void schedulePaymentDueNotif(p.id, p.title, due, language);
+          void schedulePaymentDueNotif(p.id, p.title, due, language, 3, !!p.isVariable);
         }
       }
     }
@@ -247,7 +279,8 @@ export default function OdemelerScreen() {
           position={list.length === 1 ? 'only' : i === 0 ? 'first' : i === list.length - 1 ? 'last' : 'middle'}
           theme={theme}
           t={t}
-          amountLabel={formatMoney(v.p.amount, v.p.currency || currency, lang)}
+          // Değişken tutar ödenene kadar TAHMİN: başında "~" (ödenince gerçek tutar görünür).
+          amountLabel={`${v.p.isVariable && v.status !== 'paid' ? '~' : ''}${formatMoney(v.p.amount, v.p.currency || currency, lang)}`}
           dateLabel={formatDue(v.date)}
           onToggle={() => (v.status === 'paid' ? unmarkPaymentPaidAction(v.p.id) : handleMarkPaid(v.p))}
           onDelete={() => handleDelete(v.p)}
@@ -368,6 +401,18 @@ export default function OdemelerScreen() {
                       );
                     })}
                   </View>
+                  {recurrence !== 'Once' && (
+                    <ToggleRow
+                      icon={<Zap size={ICON.sm} color="#FFFFFF" />}
+                      bg={theme.warning}
+                      title={t.variableLabel}
+                      subtitle={isVariable ? t.variableHint : undefined}
+                      value={isVariable}
+                      onValueChange={(v) => { haptic.select(); setIsVariable(v); }}
+                      theme={theme}
+                      isDark={isDark}
+                    />
+                  )}
                 </View>
 
                 <View style={{ gap: S.sm }}>
@@ -427,6 +472,24 @@ export default function OdemelerScreen() {
                   )}
                 </View>
 
+                {recurrence !== 'Once' && (
+                  <View style={{ gap: S.sm }}>
+                    <ToggleRow
+                      icon={<Layers size={ICON.sm} color="#FFFFFF" />}
+                      bg={theme.primary}
+                      title={t.installmentLabel}
+                      subtitle={installmentOn && parseInt(installmentCount, 10) >= 2 ? t.installmentHint(Math.min(120, parseInt(installmentCount, 10))) : undefined}
+                      value={installmentOn}
+                      onValueChange={(v) => { haptic.select(); setInstallmentOn(v); }}
+                      theme={theme}
+                      isDark={isDark}
+                    />
+                    {installmentOn && (
+                      <ModeField accent={theme.primary} value={installmentCount} onChangeText={(v) => setInstallmentCount(v.replace(/[^0-9]/g, '').slice(0, 3))} placeholder="12" keyboardType="number-pad" suffix={<Text style={{ color: theme.onSurfaceVariant, fontWeight: '600' }}>{t.installmentLabel}</Text>} />
+                    )}
+                  </View>
+                )}
+
                 {/* CTA — diğer mod kartlarının birincil butonlarıyla AYNI ölçü
                     (S.smd dolgu + F.body metin): eskiden S.sm + F.caption basık duruyordu. */}
                 <View style={{ flexDirection: 'row', gap: S.sm }}>
@@ -469,6 +532,21 @@ export default function OdemelerScreen() {
               />
             )}
 
+            {/* KOMPAKT SIRA (2026-11-01, kullanıcı: "ödemeler daha kompakt, minimalist, kolay yönetilebilir olmalı"):
+                özet → liste (yönetilen şey) → geçmiş → ana para birimi. Liste eskiden grafik ve para biriminin altında kalıyordu. */}
+            {thisMonth.length > 0 && (
+              <View style={{ gap: S.sm }}>
+                {sectionTitle(t.thisMonth)}
+                {renderGroup(thisMonth)}
+              </View>
+            )}
+
+            {later.length > 0 && (
+              <View style={{ gap: S.sm }}>
+                {sectionTitle(t.upcoming)}
+                {renderGroup(later)}
+              </View>
+            )}
             {(history.length > 0 || payments.length > 0) && (
               <PaymentsHistoryCard theme={theme} isDark={isDark} lang={lang} main={currency} fx={fx}
                 records={withLocalPaid(history, payments)} />
@@ -492,21 +570,19 @@ export default function OdemelerScreen() {
               </View>
             )}
 
-            {thisMonth.length > 0 && (
-              <View style={{ gap: S.sm }}>
-                {sectionTitle(t.thisMonth)}
-                {renderGroup(thisMonth)}
-              </View>
-            )}
-
-            {later.length > 0 && (
-              <View style={{ gap: S.sm }}>
-                {sectionTitle(t.upcoming)}
-                {renderGroup(later)}
-              </View>
-            )}
           </View>
         }
+      />
+      <PaidAmountSheet
+        visible={paidPrompt != null}
+        title={paidPrompt?.title ?? ''}
+        estimate={paidPrompt?.amount ?? 0}
+        symbol={currencySymbol((paidPrompt?.currency as CurrencyCode) || currency)}
+        locale={locale}
+        theme={theme}
+        t={t}
+        onCancel={() => setPaidPrompt(null)}
+        onConfirm={(amt) => { const p = paidPrompt; setPaidPrompt(null); if (p) void handleMarkPaid(p, amt); }}
       />
     </View>
   );

@@ -72,7 +72,7 @@ export const TOUR_STEPS: Record<FirstRunPage, TourStepDef[]> = {
     {
       target: 'duration',
       title: { tr: 'Süre', en: 'Length' },
-      body: { tr: '15 ile 90 dakika arasında bir süre seç ya da kendin belirle.', en: 'Pick 15 to 90 minutes, or set your own.' },
+      body: { tr: 'Halkayı parmağınla çevir: 1 ile 120 dakika arası, dakika dakika.', en: 'Turn the ring with your finger: 1 to 120 minutes, minute by minute.' },
     },
     {
       target: 'startButton',
@@ -82,7 +82,7 @@ export const TOUR_STEPS: Record<FirstRunPage, TourStepDef[]> = {
     {
       target: 'modeSelect',
       title: { tr: 'Odak modları', en: 'Focus modes' },
-      body: { tr: 'Nefes, Pomodoro ve Katı Mod buradan açılır.', en: 'Turn on Breathing, Pomodoro and Strict Mode here.' },
+      body: { tr: 'Pomodoro, Katı Mod ve odak sahnesi buradan açılır.', en: 'Turn on Pomodoro, Strict Mode and the focus scene here.' },
     },
   ],
   modlar: [

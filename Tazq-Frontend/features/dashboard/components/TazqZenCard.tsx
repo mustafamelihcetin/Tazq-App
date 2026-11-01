@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { MotiView } from 'moti';
-import { CheckCircle2, Wind } from 'lucide-react-native';
+import { CheckCircle2, Wind, X } from 'lucide-react-native';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { Touchable } from '@/shared/components/Touchable';
 import { F, S, R, W, ICON, LH, MIN_TOUCH } from '@/shared/constants/tokens';
@@ -51,7 +51,6 @@ export interface TazqZenCardProps {
 
 const copy = (tr: boolean) => tr
   ? {
-      eyebrow: 'TAZQ ZEN',
       headline: 'Dengeye dönme vakti',
       body: (n: number) => `${n} görevin birikti.`,
       preview: (s: number, d: number) =>
@@ -63,11 +62,10 @@ const copy = (tr: boolean) => tr
       done: 'Denge sağlandı. Takvimin nefes aldı.',
       undo: 'Geri al',
       overTitle: (n: number) => `Bugün ${n} işin var`,
-      overBody: 'Hepsi bir güne sığmaz. Bugün kalacak 1–3 işi seç, gerisini önümüzdeki günlere yayayım.',
+      overBody: 'Bugün için 1–3 tanesini seç, gerisini önümüzdeki günlere yayayım.',
       overAct: 'Sadeleştir',
     }
   : {
-      eyebrow: 'TAZQ ZEN',
       headline: 'Time to rebalance',
       body: (n: number) => `${n} tasks have piled up.`,
       preview: (s: number, d: number) =>
@@ -79,7 +77,7 @@ const copy = (tr: boolean) => tr
       done: 'Balanced. Your schedule can breathe.',
       undo: 'Undo',
       overTitle: (n: number) => `${n} tasks today`,
-      overBody: "That won't fit in one day. Pick the 1–3 that stay today and I'll spread the rest.",
+      overBody: "Pick 1–3 for today and I'll spread the rest over the coming days.",
       overAct: 'Simplify',
     };
 
@@ -143,25 +141,15 @@ export const TazqZenCard = React.memo<TazqZenCardProps>(
 
     if ((!visible || plan.moves.length === 0) && overload) {
       return (
-        <MotiView from={{ opacity: 0, translateY: -8 }} animate={{ opacity: 1, translateY: 0 }} style={styles.wrap}>
-          <BentoCard index={0} style={[styles.card, { backgroundColor: theme.tertiary + '0A', borderColor: theme.tertiary + '26', borderWidth: 1 }]}>
-            <View style={styles.eyebrowRow}>
-              <Wind size={ICON.xs} color={theme.tertiary} />
-              <Text style={[styles.eyebrow, { color: theme.tertiary }]}>{c.eyebrow}</Text>
-            </View>
-            <Text style={[styles.headline, { color: theme.onSurface }]} accessibilityRole="header">{c.overTitle(overload.count)}</Text>
-            <Text style={[styles.body, { color: theme.onSurfaceMuted }]}>{c.overBody}</Text>
-            <View style={styles.actions}>
-              <Touchable onPress={onDismiss} accessibilityRole="button" accessibilityLabel={c.dismiss} style={styles.dismissBtn}>
-                <Text style={[styles.dismissText, { color: theme.onSurfaceMuted }]}>{c.dismiss}</Text>
-              </Touchable>
-              <Touchable onPress={overload.onOpen} accessibilityRole="button" accessibilityLabel={c.overAct} style={[styles.actBtn, { backgroundColor: theme.tertiary }]}>
-                <Wind size={ICON.sm} color={theme.onTertiary} />
-                <Text style={[styles.actText, { color: theme.onTertiary }]}>{c.overAct}</Text>
-              </Touchable>
-            </View>
-          </BentoCard>
-        </MotiView>
+        <ZenPrompt
+          theme={theme}
+          title={c.overTitle(overload.count)}
+          body={c.overBody}
+          dismiss={c.dismiss}
+          onDismiss={onDismiss}
+          act={c.overAct}
+          onAct={overload.onOpen}
+        />
       );
     }
 
@@ -171,79 +159,84 @@ export const TazqZenCard = React.memo<TazqZenCardProps>(
     const working = phase === 'working';
 
     return (
-      <MotiView
-        from={{ opacity: 0, translateY: -8 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'spring', damping: 16 }}
-        style={styles.wrap}
-      >
-        <BentoCard
-          index={0}
-          style={[styles.card, { backgroundColor: theme.tertiary + '0A', borderColor: theme.tertiary + '26', borderWidth: 1 }]}
-        >
-          <View style={styles.eyebrowRow}>
-            <Wind size={ICON.xs} color={theme.tertiary} />
-            <Text style={[styles.eyebrow, { color: theme.tertiary }]}>{c.eyebrow}</Text>
-          </View>
-
-          <Text style={[styles.headline, { color: theme.onSurface }]} accessibilityRole="header">
-            {c.headline}
-          </Text>
-          <Text style={[styles.body, { color: theme.onSurfaceMuted }]}>
-            {c.body(plan.moves.length)} {c.preview(plan.scheduled, plan.someday)}
-            {fixedCount > 0 ? ` ${c.fixedNote(fixedCount)}` : ''}
-          </Text>
-
-          <View style={styles.actions}>
-            <Touchable
-              onPress={onDismiss}
-              disabled={working}
-              accessibilityRole="button"
-              accessibilityLabel={c.dismiss}
-              style={styles.dismissBtn}
-            >
-              <Text style={[styles.dismissText, { color: theme.onSurfaceMuted }]}>{c.dismiss}</Text>
-            </Touchable>
-
-            <Touchable
-              onPress={rebalance}
-              disabled={working}
-              accessibilityRole="button"
-              accessibilityLabel={c.act}
-              accessibilityState={{ busy: working, disabled: working }}
-              style={[styles.actBtn, { backgroundColor: theme.tertiary, opacity: working ? 0.7 : 1 }]}
-            >
-              {working
-                ? <ActivityIndicator size="small" color={theme.onTertiary} />
-                : <Wind size={ICON.sm} color={theme.onTertiary} />}
-              <Text style={[styles.actText, { color: theme.onTertiary }]}>{working ? c.working : c.act}</Text>
-            </Touchable>
-          </View>
-        </BentoCard>
-      </MotiView>
+      <ZenPrompt
+        theme={theme}
+        title={c.headline}
+        body={`${c.body(plan.moves.length)} ${c.preview(plan.scheduled, plan.someday)}`}
+        note={fixedCount > 0 ? c.fixedNote(fixedCount) : undefined}
+        dismiss={c.dismiss}
+        onDismiss={onDismiss}
+        act={working ? c.working : c.act}
+        actLabel={c.act}
+        onAct={rebalance}
+        working={working}
+      />
     );
   },
 );
+
+/*
+  ÖNERİ ŞERİDİ (2026-11-01, kullanıcı: "çirkin ve yetersiz, sayfa düzenini de bozuyor").
+  Kart artık ana panelin ÜSTÜNDE değil altında, Bugün listesinin hemen önünde ve tek satırlık bir şerit:
+  simge · başlık (+ ikincil satır) · dolu hap · kapat (×). Kendi zemini/çerçevesi yok; diğer kartlarla aynı yüzey.
+*/
+function ZenPrompt({ theme, title, body, note, dismiss, onDismiss, act, actLabel, onAct, working = false }: {
+  theme: AppTheme; title: string; body: string; note?: string; dismiss: string; onDismiss: () => void;
+  act: string; actLabel?: string; onAct: () => void; working?: boolean;
+}) {
+  return (
+    <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ type: 'timing', duration: 220 }} style={styles.wrap}>
+      <BentoCard index={0} style={styles.card}>
+        <View style={styles.row}>
+          <View style={[styles.tile, { backgroundColor: theme.tertiary + '1A' }]}>
+            <Wind size={ICON.sm} color={theme.tertiary} />
+          </View>
+          <View style={styles.textCol}>
+            <Text style={[styles.headline, { color: theme.onSurface }]} accessibilityRole="header" numberOfLines={1}>{title}</Text>
+            <Text style={[styles.body, { color: theme.onSurfaceMuted }]}>{body}{note ? ` ${note}` : ''}</Text>
+          </View>
+          <Touchable
+            onPress={onAct}
+            disabled={working}
+            accessibilityRole="button"
+            accessibilityLabel={actLabel ?? act}
+            accessibilityState={{ busy: working, disabled: working }}
+            hitSlop={{ top: S.xs, bottom: S.xs, left: S.xs, right: S.xs }}
+            style={[styles.actBtn, { backgroundColor: theme.tertiary, opacity: working ? 0.7 : 1 }]}
+          >
+            {working ? <ActivityIndicator size="small" color={theme.onTertiary} /> : <Text style={[styles.actText, { color: theme.onTertiary }]}>{act}</Text>}
+          </Touchable>
+          <Touchable
+            onPress={onDismiss}
+            disabled={working}
+            accessibilityRole="button"
+            accessibilityLabel={dismiss}
+            hitSlop={{ top: S.smd, bottom: S.smd, left: S.xs, right: S.smd }}
+            style={styles.close}
+          >
+            <X size={ICON.sm} color={theme.onSurfaceMuted} />
+          </Touchable>
+        </View>
+      </BentoCard>
+    </MotiView>
+  );
+}
 
 TazqZenCard.displayName = 'TazqZenCard';
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: S.lg, marginBottom: S.lg },
-  card: { padding: S.md, overflow: 'hidden' }, // ana sayfanın tek iç dolgusu (bkz. index → bentoPad)
-  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm },
-  eyebrow: { fontSize: F.caption, fontWeight: W.bold, letterSpacing: 1.2 },
-  headline: { fontSize: F.title3, fontWeight: W.semibold, letterSpacing: -0.4, marginBottom: S.xs },
-  body: { fontSize: F.body, lineHeight: F.body * LH.relaxed },
-  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: S.md, marginTop: S.md },
-  dismissBtn: { minHeight: MIN_TOUCH, justifyContent: 'center', paddingHorizontal: S.sm },
-  dismissText: { fontSize: F.body, fontWeight: W.medium },
-  actBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: S.xs, minHeight: MIN_TOUCH,
-    paddingHorizontal: S.md, borderRadius: R.full,
-  },
-  actText: { fontSize: F.body, fontWeight: W.semibold },
+  card: { paddingVertical: S.smd, paddingLeft: S.smd, paddingRight: S.sm, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: S.smd },
+  tile: { width: 34, height: 34, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
+  textCol: { flex: 1, gap: S.xxs },
+  headline: { fontSize: F.body, fontWeight: W.semibold },
+  body: { fontSize: F.caption, lineHeight: F.caption * LH.relaxed },
+  actBtn: { minHeight: 32, minWidth: 64, paddingHorizontal: S.smd, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
+  actText: { fontSize: F.footnote, fontWeight: W.semibold },
+  close: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   doneRow: { flexDirection: 'row', alignItems: 'center', gap: S.smd },
-  doneText: { flex: 1, fontSize: F.body, fontWeight: W.medium },
-  undoBtn: { paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.sm },
-  undoText: { fontSize: F.body, fontWeight: W.semibold },
+  doneText: { flex: 1, fontSize: F.footnote, fontWeight: W.medium },
+  undoBtn: { paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full },
+  undoText: { fontSize: F.footnote, fontWeight: W.semibold },
 });

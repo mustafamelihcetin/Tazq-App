@@ -3,6 +3,8 @@ import type { TazqWidgetBridgeEvents } from './TazqWidgetBridge.types';
 
 declare class TazqWidgetBridgeModule extends NativeModule<TazqWidgetBridgeEvents> {
   updateSharedData(json: string): Promise<void>;
+  /** Eski derlemelerde YOK (2026-11-01'de eklendi) — çağırmadan önce varlığı denetlenir. */
+  takeWidgetActions?: () => Promise<string>;
 }
 
 let cached: TazqWidgetBridgeModule | null | undefined;
