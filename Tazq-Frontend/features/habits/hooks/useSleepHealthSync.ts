@@ -149,8 +149,9 @@ export function useSleepHealthSync() {
 
     useToastStore.getState().show(
       lang === 'tr'
-        ? `Hedefe ulaşılmadı · ${dur} / ${goalHours} sa`
-        : `Goal missed · ${dur} / ${goalHours}h`,
+        // Neyin hedefi olduğu ilk kelimede (kullanıcı "sanırım uyku için" dedi; "Hedefe ulaşılmadı" belirsizdi).
+        ? `Uyku hedefinin altında · ${dur} / ${goalHours} sa`
+        : `Below your sleep goal · ${dur} / ${goalHours}h`,
       'info',
       {
         label: lang === 'tr' ? 'İşaretle' : 'Mark',
@@ -164,6 +165,18 @@ export function useSleepHealthSync() {
   const run = useCallback(async () => {
     if (runningRef.current) return;
     if (!SleepHealth.isSupported()) return;
+    /*
+      YALNIZ UYGULAMA AÇIKKEN VE HESAPTAYKEN (2026-11-02, TestFlight: "login ekranındayken üstte 'hedefe
+      ulaşılamadı' uyarısı geldi"). Ana sayfa bir an bağlanıp giriş ekranına yönlendirilirken tur çalışıyor,
+      bildirim giriş ekranının üstünde kalıyordu. Açılış ekranı bitmeden ve oturum yokken hiç çalışmaz.
+    */
+    try {
+      const { useAuthStore } = require('@/features/user/store/useAuthStore');
+      const { useSessionStore } = require('@/shared/store/useSessionStore');
+      const { useBootStore } = require('@/shared/store/useBootStore');
+      if (!useAuthStore.getState().isLoggedIn && !useSessionStore.getState().isGuest) return;
+      if (!useBootStore.getState().splashDone) return;
+    } catch { return; }
 
     const sleepHabits = habits.filter(isSleepHabit);
     if (sleepHabits.length === 0) return;

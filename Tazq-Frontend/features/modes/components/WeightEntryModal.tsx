@@ -9,14 +9,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Modal, View, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, Keyboard, ScrollView,
-  KeyboardAvoidingView, Platform, Animated, StyleSheet,
+  Platform, Animated, StyleSheet,
 } from 'react-native';
+import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
+import { WeightRuler } from '@/features/modes/components/WeightRuler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Activity } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useSporStore, getThisWeekEntry } from '@/features/modes/store/useSporStore';
-import { ICON, S, R, F, B } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, SCRIM } from '@/shared/constants/tokens';
 import { usePlanAdaptations } from '@/features/modes/hooks/usePlanAdaptations';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
@@ -29,6 +31,12 @@ interface Props {
   taskId: number | null;
   onClose: () => void;
   onSaved?: () => void;
+}
+
+/** Hiç kilo girilmemişse başlangıç: yetişkin ortalamasına yakın yuvarlak değer (erkek 80, kadın 65, belirtilmemiş 72). */
+function defaultWeight(): number {
+  const g = require('@/features/modes/store/usePrefsStore').usePrefsStore.getState().gender;
+  return g === 'male' ? 80 : g === 'female' ? 65 : 72;
 }
 
 export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
@@ -45,6 +53,10 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const slideAnim = useRef(new Animated.Value(300)).current;
+  // Klavye artık kendiliğinden açılmaz (cetvel + ±); yazmak isteyen sayıya dokunur. Klavye payı ölçülerek verilir —
+  // Modal içinde KeyboardAvoidingView güvenilmez (bkz. QuickAddSheet notu).
+  const keyboardHeight = useKeyboardHeight();
+  const [rulerW, setRulerW] = useState(0);
 
   const thisWeek = getThisWeekEntry(weightLog);
   const lastWeight = weightLog[0]?.weight;
@@ -52,7 +64,8 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
   useEffect(() => {
     if (visible) {
       setErr('');
-      setInput(lastWeight ? String(lastWeight) : '');
+      // Boş başlamaz: son kayıtlı kilo; hiç yoksa cinsiyete göre yetişkin ortalaması — cetvel bir değerden başlar.
+      setInput(String(lastWeight ?? defaultWeight()));
       Animated.spring(slideAnim, {
         toValue: 0,
         useNativeDriver: true,
@@ -107,10 +120,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
 
   return (
     <Modal supportedOrientations={['portrait', 'landscape']} visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior="padding"
-        style={{ flex: 1, justifyContent: 'flex-end' }}
-      >
+      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: SCRIM, paddingBottom: keyboardHeight }}>
         <Touchable
           accessibilityRole="button"
           accessibilityLabel={tr ? 'Kapat' : 'Close'}
@@ -125,7 +135,8 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
             paddingTop: S.sm,
             paddingBottom: insets.bottom > 0 ? insets.bottom : S.xl,
             paddingHorizontal: S.lg,
-            // Klavye açılınca KAV'ın iç alanı daralır; sheet küçülemezse taşar.
+            // Tablette ortada, telefonda tam genişlik; klavye açılınca küçülebilsin (gövde kayar).
+            width: '100%', maxWidth: 560, alignSelf: 'center',
             flexShrink: 1,
             transform: [{ translateY: slideAnim }],
           }}
@@ -181,10 +192,21 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
               placeholder={lastWeight ? String(lastWeight) : (tr ? 'kg' : 'kg')}
               placeholderTextColor={theme.onSurfaceVariant + '60'}
               keyboardType="decimal-pad"
-              autoFocus
+              selectTextOnFocus
               style={{ flex: 1, fontSize: F.display, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5, height: '100%', textAlignVertical: 'center' }}
             />
             <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, fontWeight: '700' }}>kg</Text>
+          </View>
+
+          {/* Cetvel: klavyesiz seçim (bkz. WeightRuler). */}
+          <View onLayout={e => setRulerW(Math.round(e.nativeEvent.layout.width))} style={{ marginBottom: S.sm }}>
+            <WeightRuler
+              width={rulerW}
+              value={Number.isFinite(parsedInput) && parsedInput >= 20 && parsedInput <= 300 ? parsedInput : (lastWeight ?? defaultWeight())}
+              onChange={kg => { setErr(''); setInput(String(kg)); }}
+              theme={theme}
+              accent={theme.success}
+            />
           </View>
 
           {/* Diff indicator */}
@@ -237,7 +259,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
             </Text>
           </Touchable>
         </Animated.View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }

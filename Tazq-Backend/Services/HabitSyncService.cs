@@ -53,6 +53,19 @@ namespace Tazq_App.Services
         {
             var user = await _context.Users.FindAsync(userId);
             if (user == null) return false;
+            /*
+              BOŞ LİSTE DOLU KOPYAYI EZEMEZ (2026-11-02, olay: yeni TestFlight kurulumunda giriş sonrası istemci "[]" yazdı,
+              kullanıcının 5,6 KB alışkanlık geçmişi silindi; yedekten geri alındı). İstemcinin birleştirme kapısı bir
+              yarışta boş yerel listeyi gönderebiliyor; asıl kayıt sunucuda olduğu için son savunma burada: mevcut kopya
+              boş değilse ve gelen liste boşsa yazılmaz. Bilinen bedel: kullanıcı SON alışkanlığını da silerse bu silme
+              buluta gitmez (yeni cihazda o alışkanlık geri gelir). Geri gelen bir alışkanlık, silinen bir geçmişten
+              çok daha ucuz bir hata; tümden silme hesap silme yoluyla yapılır.
+            */
+            if (IsEmptyList(json) && !string.IsNullOrEmpty(user.HabitsData))
+            {
+                var existing = TryDecrypt(user.HabitsData, userId);
+                if (existing == null || !IsEmptyList(existing)) return false;
+            }
             user.HabitsData = _crypto.Encrypt(json, _crypto.GetKeyForUser(userId));
             user.HabitsUpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
@@ -64,6 +77,12 @@ namespace Tazq_App.Services
         /// veri "yok" sayılır ve loglanır — istemci yerel kopyasını korur, bir sonraki kayıtta
         /// güncel anahtarla yeniden yazılır. Asla istisna fırlatmaz.
         /// </summary>
+        private static bool IsEmptyList(string json)
+        {
+            try { using var doc = JsonDocument.Parse(json); return doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() == 0; }
+            catch (JsonException) { return false; }
+        }
+
         private string? TryDecrypt(string cipher, int userId)
         {
             try { return _crypto.Decrypt(cipher, _crypto.GetKeyForUser(userId)); }

@@ -62,12 +62,16 @@
 # TAZQ — API
 api.tazqapp.com {
     import tazq_security
+    encode zstd gzip
     reverse_proxy tazq-backend:80
 }
 
 # TAZQ — Landing + legal pages (served from backend wwwroot)
 tazqapp.com {
     import tazq_security
+    # Sıkıştırma (2026-11-02): ana sayfa 91 KB SIKIŞTIRILMADAN gidiyordu — mobilde ilk açılışı (LCP) ve
+    # dolayısıyla arama sıralamasını yavaşlatıyordu. zstd/gzip ile birkaç kat küçülür.
+    encode zstd gzip
     reverse_proxy tazq-backend:80
 }
 

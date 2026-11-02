@@ -87,14 +87,27 @@ describe('VoiceService', () => {
     it('fires onResults when speech results arrive', async () => {
       const onResults = jest.fn();
       await VoiceService.start({ language: 'tr-TR', onResults });
+      // Başlatmadan hemen sonraki kısa pencerede sonuç alınmaz (izin sonrası hayalet sözcük) — sonrasını dene.
+      const later = Date.now() + 2000; const spy = jest.spyOn(Date, 'now').mockReturnValue(later);
       mockVoice.onSpeechResults?.({ value: ['merhaba dünya'] });
+      spy.mockRestore();
       expect(onResults).toHaveBeenCalledWith(['merhaba dünya']);
+    });
+
+    it('başlatmadan hemen sonraki sözcüğü yazmaz (izin penceresi kapanırken duyulan "evet")', async () => {
+      const onResults = jest.fn();
+      await VoiceService.start({ language: 'tr-TR', onResults });
+      mockVoice.onSpeechPartialResults?.({ value: ['evet'] });
+      expect(onResults).not.toHaveBeenCalled();
     });
 
     it('fires onResults for partial results (live feedback)', async () => {
       const onResults = jest.fn();
       await VoiceService.start({ language: 'tr-TR', onResults });
+      // Başlatmadan hemen sonraki kısa pencerede sonuç alınmaz (izin sonrası hayalet sözcük) — sonrasını dene.
+      const later = Date.now() + 2000; const spy = jest.spyOn(Date, 'now').mockReturnValue(later);
       mockVoice.onSpeechPartialResults?.({ value: ['merha'] });
+      spy.mockRestore();
       expect(onResults).toHaveBeenCalledWith(['merha']);
     });
 

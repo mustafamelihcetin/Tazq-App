@@ -710,7 +710,7 @@ app.MapGet("/robots.txt", () => Results.Content(
     "User-agent: *\nAllow: /\n\nSitemap: https://tazqapp.com/sitemap.xml\n", "text/plain"));
 
 // sitemap.xml — wwwroot'taki tüm public .html sayfalarını OTOMATİK tarayıp üretir
-// (yeni bir .html eklendiğinde sitemap kendiliğinden dolar). TR/EN hreflang dahil.
+// (yeni bir .html eklendiğinde sitemap kendiliğinden dolar).
 app.MapGet("/sitemap.xml", (IWebHostEnvironment env) =>
 {
     const string baseUrl = "https://tazqapp.com";
@@ -746,9 +746,9 @@ app.MapGet("/sitemap.xml", (IWebHostEnvironment env) =>
             sb.AppendLine($"    <lastmod>{lastModUtc:yyyy-MM-dd}</lastmod>");
             sb.AppendLine("    <changefreq>weekly</changefreq>");
             sb.AppendLine($"    <priority>{(isHome ? "1.0" : "0.8")}</priority>");
-            sb.AppendLine($"    <xhtml:link rel=\"alternate\" hreflang=\"tr\" href=\"{loc}\"/>");
-            sb.AppendLine($"    <xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"{loc}?lang=en\"/>");
-            sb.AppendLine($"    <xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"{loc}\"/>");
+            // hreflang YOK (2026-11-02): "?lang=en" ayrı bir İngilizce sayfa değil, aynı Türkçe HTML'in istemci
+            // tarafı dil düğmesi — üstelik kanonik etiketi Türkçe URL'yi gösteriyordu. Google çelişkili sinyali
+            // görmezden geliyor ya da "İngilizce" diye Türkçe sayfa sunuyordu. Gerçek /en/ sayfaları gelince eklenir.
             sb.AppendLine("  </url>");
         }
     }

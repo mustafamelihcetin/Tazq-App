@@ -30,7 +30,7 @@ import { DisplayValue, DisplayReadout } from '@/shared/components/DisplayPanel';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
-import { ICON, S, R, F, B, TRACKING, MAX_W, contentMaxWidth, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT , sheetMaxHeight, touchSlop } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, TRACKING, MAX_W, contentMaxWidth, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT , sheetMaxHeight, touchSlop, SCRIM } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { WideSplit, WideCol } from '@/shared/components/ResponsiveColumns';
@@ -937,7 +937,7 @@ export default function CockpitScreen() {
       >
         <KeyboardAvoidingView
           behavior="padding"
-          style={{ flex: 1, justifyContent: 'flex-end' }}
+          style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: SCRIM }}
         >
           <Touchable style={{ flex: 1 }} activeOpacity={1} onPress={() => setAddVisible(false)} accessibilityRole="button" accessibilityLabel={tr ? 'Kapat' : 'Close'} />
           <Animated.View
@@ -1004,7 +1004,7 @@ export default function CockpitScreen() {
       >
         <KeyboardAvoidingView
           behavior="padding"
-          style={{ flex: 1, justifyContent: 'flex-end' }}
+          style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: SCRIM }}
         >
           <Touchable style={{ flex: 1 }} activeOpacity={1} onPress={() => setPlanVisible(false)} />
           <Animated.View

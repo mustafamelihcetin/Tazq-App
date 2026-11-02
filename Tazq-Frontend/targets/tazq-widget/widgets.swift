@@ -233,6 +233,11 @@ private struct TaskCheckRow: View {
       Spacer(minLength: 0)
     }
     .contentShape(Rectangle())
+    // VoiceOver: adı + durumu (tamamlandıysa "seçili") okur; daire tek başına bir şey söylemiyordu.
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(Text(item.title))
+    .accessibilityAddTraits(item.done ? [.isButton, .isSelected] : .isButton)
+    .animation(.spring(response: 0.35, dampingFraction: 0.7), value: item.done)
   }
 }
 
@@ -265,6 +270,11 @@ private struct HabitButton: View {
       }
     }
     .frame(width: diameter, height: diameter)
+    // Yalnız simge (💧) görünüyordu; VoiceOver alışkanlığın ADINI ve durumunu okusun.
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(Text(item.title))
+    .accessibilityAddTraits(item.done ? [.isButton, .isSelected] : .isButton)
+    .animation(.spring(response: 0.35, dampingFraction: 0.65), value: item.done)
   }
 }
 

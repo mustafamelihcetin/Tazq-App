@@ -93,6 +93,12 @@ class VoiceService {
     yeniden başlatma zamanlayıcısıyla aynı anda durdurulunca uygulama çöküyordu. Artık çalışmayan oturum = no-op.
   */
   private _ended = true;
+  /*
+    İZİN SONRASI HAYALET SÖZCÜK (2026-11-02, kullanıcı: "izin verdikten sonra ben evet demeden 'evet' yazarak
+    başlıyor"). iOS izin pencereleri Voice.start SIRASINDA açılır; kapanırken tanıyıcı o anki sesi/dokunuşu
+    sözcüğe çeviriyordu. Başlatma tamamlandıktan sonraki ilk kısa süre (ve izin istendiyse daha uzun) sonuç alınmaz.
+  */
+  private _acceptAfter = 0;
   private _timeout: ReturnType<typeof setTimeout> | null = null;
   private _restartHandle: ReturnType<typeof setTimeout> | null = null;
   private _committedText = '';
@@ -108,7 +114,7 @@ class VoiceService {
   }
 
   private onSpeechResults(e: any) {
-    if (this._ended) return;
+    if (this._ended || Date.now() < this._acceptAfter) return;
 
     const phrase = e.value?.[0]?.trim();
     if (!phrase) return;
@@ -119,7 +125,7 @@ class VoiceService {
   }
 
   private onSpeechPartialResults(e: any) {
-    if (this._ended) return;
+    if (this._ended || Date.now() < this._acceptAfter) return;
     const partial = e.value?.[0]?.trim();
     if (!partial || !this._options?.onResults) return;
 
@@ -207,7 +213,11 @@ class VoiceService {
 
     try {
       this._isListening = true;
+      this._acceptAfter = Number.MAX_SAFE_INTEGER; // başlatma (ve olası izin penceresi) sürerken hiçbir şey yazılmaz
+      const t0 = Date.now();
       await Voice.start(options.language || 'tr-TR');
+      // Başlatma 1,5 sn'den uzun sürdüyse bir izin penceresi açılıp kapandı demektir → daha uzun bekle.
+      this._acceptAfter = Date.now() + (Date.now() - t0 > 1500 ? 1200 : 350);
     } catch (e: unknown) {
       const opts = this._options;
       this._terminate();

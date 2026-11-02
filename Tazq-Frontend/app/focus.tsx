@@ -6,7 +6,7 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
-import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Coffee, Wind, CloudRain, Flame, Waves, Music2, Headphones, AudioLines, SlidersHorizontal, SkipForward, Trees, Minus, Plus } from 'lucide-react-native';
+import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Coffee, Wind, CloudRain, Flame, Waves, Music2, Headphones, AudioLines, SlidersHorizontal, SkipForward, Trees, Minus, Plus, ChevronDown } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore, focusDayKey } from '@/features/focus';
@@ -145,7 +145,7 @@ const ProgressDriver = React.memo(({ progressAnim, nativeProgressAnim }: { progr
  */
 const FOCUS_COPY = {
   tr: {
-    pickTask: 'Konu',
+    pickTask: 'Konu seç',
     paused: 'DURAKLATILDI',
     skipBreak: 'Molayı atla',
     endConfirm: 'Emin misin?',
@@ -163,7 +163,7 @@ const FOCUS_COPY = {
     customLabel: 'Özel süre',
   },
   en: {
-    pickTask: 'Topic',
+    pickTask: 'Pick a topic',
     paused: 'PAUSED',
     skipBreak: 'Skip break',
     endConfirm: 'Are you sure?',
@@ -1333,6 +1333,40 @@ export default function FocusScreen() {
                 />
               </TourTarget>
             )}
+            {!sessionStarted && !pomodoroMode && (
+              <MotiView
+                pointerEvents={dialDragging ? 'none' : 'box-none'}
+                animate={{ opacity: dialDragging ? 0 : 1 }}
+                transition={{ type: 'timing', duration: dialDragging ? 80 : 300 }}
+                style={{ position: 'absolute', width: timerSize, height: timerSize, zIndex: 14, alignItems: 'center', justifyContent: 'center' }}
+              >
+                {/* Sayaç metninin yüksekliği kadar boşluk: düğme eski yerinde (sayacın altında) durur. */}
+                <View pointerEvents="none" style={{ height: Math.round(timerSize * 0.205) * 1.2 }} />
+                      /*
+                  KADRANIN ÜSTÜNDE (2026-11-02, TestFlight: "Konu seç'e basılmıyor"): süre kadranı bütün daireyi
+                  kaplayan bir sürükleme katmanı; düğme onun altında kaldığı için dokunuşu kadran yutuyordu.
+                  KONU SEÇİCİ BELİRGİN (2026-11-02, kullanıcı: "halkada konu yazıyor, deaktif ve işlevsiz görünüyor").
+                  Soluk nokta + soluk "Konu" devre dışı bir etiket gibi okunuyordu. Artık açıkça bir düğme:
+                  boşken artı + "Konu seç", seçiliyken konu adı; ikisinde de aşağı ok "değiştirilebilir" der.
+                */
+                <Touchable
+                  accessibilityRole="button"
+                  accessibilityLabel={currentTask || L.pickTask}
+                  onPress={() => setTaskPickerVisible(true)}
+                  hitSlop={S.sm}
+                  style={{ maxWidth: timerSize * 0.82, minHeight: 34, marginTop: S.md, flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingLeft: S.smd, paddingRight: S.sm, borderRadius: R.full, borderWidth: B.thin, borderColor: currentTask ? theme.primary + '66' : 'rgba(255,255,255,0.24)', backgroundColor: currentTask ? theme.primary + '26' : 'rgba(255,255,255,0.12)' }}
+                >
+                  {currentTask
+                    ? <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: theme.primary }} />
+                    : <Plus size={ICON.xs} color="rgba(255,255,255,0.92)" strokeWidth={2.6} />}
+                  <Text numberOfLines={1} textBreakStrategy="simple" style={{ flexShrink: 1, color: currentTask ? '#FFFFFF' : 'rgba(255,255,255,0.92)', fontSize: F.footnote, fontWeight: '700', letterSpacing: 0.2 }}>
+                    {currentTask || L.pickTask}
+                  </Text>
+                  <ChevronDown size={ICON.xs} color="rgba(255,255,255,0.7)" strokeWidth={2.4} />
+                </Touchable>
+                <View pointerEvents="none" style={{ height: 28 + S.sm }} />
+              </MotiView>
+            )}
 
             {/* Cosmic Orbit Clock - Zen Mode Timer Indicator */}
             <AnimatePresence>
@@ -1592,18 +1626,31 @@ export default function FocusScreen() {
                         </MotiView>
                       ) : null
                     ) : (
-                      <Touchable
-                        accessibilityRole="button"
-                        accessibilityLabel={currentTask || L.pickTask}
-                        onPress={() => setTaskPickerVisible(true)}
-                        style={{ maxWidth: timerSize * 0.82, marginTop: S.md, flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingHorizontal: S.md, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: currentTask ? theme.primary + '1A' : 'rgba(255,255,255,0.07)' }}
-                      >
-                        {/* Seçili konu accent bir nokta ile işaretlenir; boşken nokta soluk. */}
-                        <View style={{ width: 5, height: 5, borderRadius: R.full, backgroundColor: currentTask ? theme.primary : 'rgba(255,255,255,0.35)' }} />
-                        <Text numberOfLines={1} style={{ color: currentTask ? theme.primary : 'rgba(255,255,255,0.62)', fontSize: F.footnote, fontWeight: '600', letterSpacing: 0.2, textAlign: 'center' }}>
-                          {currentTask || L.pickTask}
-                        </Text>
-                      </Touchable>
+                      pomodoroMode ? (
+                      /*
+                          KONU SEÇİCİ BELİRGİN (2026-11-02, kullanıcı: "halkada konu yazıyor, deaktif ve işlevsiz görünüyor").
+                          Soluk nokta + soluk "Konu" devre dışı bir etiket gibi okunuyordu. Artık açıkça bir düğme:
+                          boşken artı + "Konu seç", seçiliyken konu adı; ikisinde de aşağı ok "değiştirilebilir" der.
+                        */
+                        <Touchable
+                          accessibilityRole="button"
+                          accessibilityLabel={currentTask || L.pickTask}
+                          onPress={() => setTaskPickerVisible(true)}
+                          hitSlop={S.sm}
+                          style={{ maxWidth: timerSize * 0.82, minHeight: 34, marginTop: S.md, flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingLeft: S.smd, paddingRight: S.sm, borderRadius: R.full, borderWidth: B.thin, borderColor: currentTask ? theme.primary + '66' : 'rgba(255,255,255,0.24)', backgroundColor: currentTask ? theme.primary + '26' : 'rgba(255,255,255,0.12)' }}
+                        >
+                          {currentTask
+                            ? <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: theme.primary }} />
+                            : <Plus size={ICON.xs} color="rgba(255,255,255,0.92)" strokeWidth={2.6} />}
+                          <Text numberOfLines={1} textBreakStrategy="simple" style={{ flexShrink: 1, color: currentTask ? '#FFFFFF' : 'rgba(255,255,255,0.92)', fontSize: F.footnote, fontWeight: '700', letterSpacing: 0.2 }}>
+                            {currentTask || L.pickTask}
+                          </Text>
+                          <ChevronDown size={ICON.xs} color="rgba(255,255,255,0.7)" strokeWidth={2.4} />
+                        </Touchable>
+                      ) : (
+                        // Kadran varken düğme kadranın ÜSTÜNDE çizilir (aşağıda); burada yalnız yeri tutulur.
+                        <View style={{ height: 34, marginTop: S.md }} />
+                      )
                     )}
 
                     {/* Duraklatıldı göstergesi (eski nefes ipucunun yeri; nefes artık ayrı seans) */}
@@ -1641,6 +1688,14 @@ export default function FocusScreen() {
                       {language === 'tr' ? 'Çıkmak için dokun' : 'Tap to exit Zen Mode'}
                     </Text>
                   </MotiView>
+                </View>
+                {/*
+                  CAM KENAR (2026-11-02, kullanıcı: "yuvarlağın çevresi çok az opak mı olsa, ya liquid?"). Gerçek bulanıklık
+                  arkadaki canlı Skia sahnesini her karede yeniden işler (iOS ısı + kenarda yinelenme, bkz. SCRIM notu);
+                  onun yerine malzeme izlenimi: kılcal yarı saydam kenar + tepede hafif ışık. Dokunuşu engellemez.
+                */}
+                <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: timerSize / 2, borderWidth: B.thin, borderColor: 'rgba(255,255,255,0.16)', overflow: 'hidden' }]}>
+                  <LinearGradient colors={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0)', 'rgba(255,255,255,0.04)']} locations={[0, 0.38, 1]} style={StyleSheet.absoluteFill} />
                 </View>
               </Touchable>
             </Animated.View>

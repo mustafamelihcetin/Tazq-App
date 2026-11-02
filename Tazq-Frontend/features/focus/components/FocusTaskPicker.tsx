@@ -4,7 +4,7 @@ import { X, Check } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { SheetGrabber } from '@/shared/components/DragToClose';
-import { S, F, R, B, ICON } from '@/shared/constants/tokens';
+import { S, F, R, B, ICON, SCRIM } from '@/shared/constants/tokens';
 import { useActiveTasks, getLocalizedTaskTitle, isSomeday, type Task } from '@/features/tasks';
 import { calendarDayOf, dateKeyFromNow } from '@/shared/utils/dateKey';
 import { whenLabel } from '@/features/tasks/utils/horizon';
@@ -158,7 +158,7 @@ export const FocusTaskPicker: React.FC<FocusTaskPickerProps> = ({ visible, langu
 
   return (
     <Modal supportedOrientations={['portrait', 'landscape']} visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: SCRIM }}>
         <Touchable accessibilityRole="button" accessibilityLabel={c.close} style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
         {/* Klavye payı iki platformda (bkz. useKeyboardHeight): serbest başlık yazılırken liste klavyenin altında kalmasın. */}
         <View style={{ maxHeight: '76%', marginBottom: keyboardHeight, borderTopLeftRadius: R.sheet, borderTopRightRadius: R.sheet, paddingHorizontal: S.lg, paddingTop: S.md, paddingBottom: S.xl, overflow: 'hidden' }}>

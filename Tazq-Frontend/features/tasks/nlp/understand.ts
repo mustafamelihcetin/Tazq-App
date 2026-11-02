@@ -460,13 +460,26 @@ export function titleOf(text: string, u: Understanding): string {
     out = out.slice(0, a) + ' ' + out.slice(b);
   }
   out = out.replace(/\s{2,}/g, ' ').replace(/\s+([,.;:!?])/g, '$1').replace(/^[\s,.;:\-–—]+|[\s,;:\-–—]+$/g, '').trim();
+  /*
+    TARİH SİLİNİNCE KALAN YARIM PARÇALAR (2026-11-02, kullanıcı: "bu bir test 2 görevidir yarın yapılacak" → "…görevidir
+    yapılacak", cümle bozuldu). Yalnız bir kesim yapıldıysa ve yalnız iki dar kalıp:
+      · başta öksüz edat: "yarın için sunum hazırla" → "Sunum hazırla";
+      · sonda öksüz sıfat-fiil, ÖNCESİ zaten yüklemse: "görevidir yapılacak" → "görevidir".
+        "Spor yapılacak", "Kira ödenecek" bozulmaz (önlerinde yüklem yok).
+  */
+  if (cut.length > 0) {
+    const orphanHead = /^(için|icin|kadar|for)\s+/iu.exec(out);
+    if (orphanHead) { out = out.slice(orphanHead[0].length); headCut = true; }
+    out = out.replace(/(\S+(?:d[ıiuü]r|t[ıiuü]r|lazım|gerek))\s+(?:yapılacak|edilecek|olacak|yapılmalı)$/iu, '$1');
+  }
   if (out.length < 2) return text.trim();
   /*
     BAŞI KESİLEN BAŞLIK BÜYÜK HARFLE BAŞLAR (2026-11-01, kullanıcı: "Yarın ev temizlenecek" → "ev temizlenecek"
     çirkin duruyor). Yalnız cümlenin BAŞI alana aktarıldıysa: kullanıcının kendi yazdığı küçük harfli başlığa
     dokunulmaz. "iPhone" gibi bilerek küçük başlayan marka adları (ikinci harf büyük) da korunur.
   */
-  if (headCut && !/^\p{Ll}\p{Lu}/u.test(out)) out = out.charAt(0).toLocaleUpperCase(u.lang) + out.slice(1);
+  // Başlık DÜZENLENDİYSE (herhangi bir kesim) büyük harfle başlar; hiç dokunulmayan başlık kullanıcının yazdığı gibi kalır.
+  if ((headCut || cut.length > 0) && !/^\p{Ll}\p{Lu}/u.test(out)) out = out.charAt(0).toLocaleUpperCase(u.lang) + out.slice(1);
   return out;
 }
 

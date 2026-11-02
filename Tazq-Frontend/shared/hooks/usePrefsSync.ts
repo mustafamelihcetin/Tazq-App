@@ -18,7 +18,7 @@ export function usePrefsSync() {
 
   useEffect(() => {
     // prefs store'daki herhangi bir alan değiştiğinde tetiklenir.
-    const unsub = usePrefsStore.subscribe(() => {
+    const schedule = () => {
       dirty.current = true;
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(() => {
@@ -36,9 +36,21 @@ export function usePrefsSync() {
         */
         usePrefsStore.getState().syncToCloud().then((ok) => { if (ok) dirty.current = false; });
       }, DEBOUNCE_MS);
-    });
+    };
+    const unsub = usePrefsStore.subscribe(schedule);
+    /*
+      AYNI PAKETLE GİDEN İKİ DEPO (2026-11-02, çevrimdışı denetimi): başarımlar ve momentum geçmişi de bu
+      gönderimle taşınıyor (bkz. syncToCloud → __achievements / __momentum), ama kendi depolarında değişiyorlardı.
+      Çevrimdışıyken kazanılan başarım ya da günün kaydı gönderilemezse "bekleyen" sayılmıyor, internet gelince
+      yeniden denenmiyordu. Artık onların değişikliği de bekleyen işaretini yakar.
+    */
+    // Tembel require: shared → features doğrudan içe aktarılmaz (bkz. architecture testi).
+    const { useAchievementStore } = require('@/features/user/store/useAchievementStore');
+    const { useMomentumStore } = require('@/features/user/store/useMomentumStore');
+    const unsubAch = useAchievementStore.subscribe((st: { unlocked: string[] }, prev: { unlocked: string[] }) => { if (st.unlocked !== prev.unlocked) schedule(); });
+    const unsubMom = useMomentumStore.subscribe((st: { history: unknown[] }, prev: { history: unknown[] }) => { if (st.history !== prev.history) schedule(); });
     return () => {
-      unsub();
+      unsub(); unsubAch(); unsubMom();
       if (timer.current) clearTimeout(timer.current);
     };
   }, []);

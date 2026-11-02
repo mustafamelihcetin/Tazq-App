@@ -32,6 +32,22 @@ namespace Tazq_Backend.Tests
 
         private const string Sample = "[{\"id\":\"h1\",\"name\":\"Kitap oku\",\"completedDates\":[\"2026-10-25\"]}]";
 
+        // 2026-11-02 olayı: yeni kurulumda istemci "[]" gönderip dolu geçmişi sildi.
+        [Fact]
+        public async Task Empty_list_cannot_overwrite_existing_habits()
+        {
+            Assert.True(await _service.SaveAsync(1, Sample));
+            Assert.False(await _service.SaveAsync(1, "[]"));
+            Assert.Equal(Sample, (await _service.GetAsync(1))!.Data);
+        }
+
+        [Fact]
+        public async Task Empty_list_is_fine_when_nothing_is_stored()
+        {
+            Assert.True(await _service.SaveAsync(1, "[]"));
+            Assert.True(await _service.SaveAsync(1, "[]"));
+        }
+
         [Fact]
         public async Task Save_then_Get_roundtrips_the_json()
         {
