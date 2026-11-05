@@ -22,5 +22,11 @@ namespace Tazq_App.Models
         public DateTime StartedAt { get; set; } = DateTime.UtcNow;
 
         public bool Completed { get; set; } = true;
+
+        /// <summary>
+        /// Seans içinde duraklı geçen süre (sn). Null: bilinmiyor (bu alandan önceki kayıtlar).
+        /// Yalnız kullanıcıya "kesintisiz" diyebilmek için; kimseyi yargılamak için değil.
+        /// </summary>
+        public int? PausedSeconds { get; set; }
     }
 }

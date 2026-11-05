@@ -50,6 +50,11 @@ function snapshot(lang: 'tr' | 'en'): Snapshot {
   const c = COPY[lang];
   const title = s.currentTask || (isBreak ? c.break : c.focus);
   const tint = isBreak ? COLORS.rest : COLORS.focus;
+  // Serbest seansın geri sayacak bitişi yok: yalnız durum yazar.
+  if (s.openSession && s.sessionKind === 'focus') {
+    const subtitle = s.isActive ? c.focusing : c.paused(Math.floor((s.totalSeconds - s.seconds) / 60));
+    return { key: `open:${s.isActive}:${title}`, title, subtitle, progress: 0, tint };
+  }
   if (s.isActive && s.expectedFinishAt) {
     const subtitle = isBreak ? c.onBreak : c.focusing;
     return { key: `run:${s.expectedFinishAt}:${title}:${isBreak}`, title, subtitle, date: s.expectedFinishAt, tint };

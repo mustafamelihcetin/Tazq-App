@@ -100,12 +100,53 @@ interface FocusState {
   pomodoroMode: boolean;
   pomodoroRound: number;
   pomodoroPhase: 'work' | 'break';
+  /** Dört tur bitti, uzun moladayız: mola bitince 1. tura dönülür ve koşu kapanır. */
+  pomodoroCycleDone: boolean;
+  /**
+   * KOŞU: birbirine bağlı seanslar. +5 dk uzatma ve Pomodoro turları ayrı kayıt açar ama dünya aynı dünyadır.
+   * `doneSeconds` önceki parçaların toplamı (çalışan parça hariç), `plannedSeconds` dünyanın tamamlanacağı süre.
+   */
+  run: { doneSeconds: number; plannedSeconds: number } | null;
+  /** Bu seansta duraklı geçen süre (sn). Yalnız "kesintisiz" diyebilmek için; bir sonraki seansta sıfırlanır. */
+  pausedTotalSeconds: number;
+  pausedAt: number | null;
+  /** Görevin son süresi (dk): görev seçilince kadran oraya gelir. Yerel, ölçü değil kolaylık. */
+  taskLastMinutes: Record<number, number>;
+  /** Kadran bir kez çevrildi: ipucu bir daha gösterilmez. */
+  dialLearned: boolean;
+  setDialLearned: () => void;
+  /** Seans içinde bırakılan notlar; karar seans sonunda. Cihazda kalır, sunucuya gitmez. */
+  sessionNotes: { id: string; text: string }[];
+  /**
+   * SERBEST SÜRE: saat aynı saat (4 saatlik seans gibi çalışır), ekran geçen süreyi gösterir.
+   * Böylece kayıt kilidi, katı mod, kapanıp açılma ve duraklatma hiç değişmeden çalışır (bkz. focusClock).
+   */
+  openSession: boolean;
+  /** Kazanılan mola (sn): odakta birikir, molada azalır, gün değişince sıfırlanır. */
+  breakBudgetSeconds: number;
+  breakBudgetDate: string;
+  /** Süren mola bütçeden mi? Erken dönülürse artanı geri yazmak için. */
+  breakFromBudget: boolean;
+  /** Katı modda uzun ayrılıktan dönüş anı; ekran dönüş nefesini gösterir. Kalıcı değil. */
+  strictReturnAt: number | null;
   // Actions
   setIsActive: (active: boolean) => void;
   setSeconds: (seconds: number | ((s: number) => number)) => void;
   /** İkinci parametre verilmezse bağ KURULMAZ/kaldırılır — varsayılan davranış budur. */
   setCurrentTask: (task: string, taskId?: number | null) => void;
   setDuration: (minutes: number) => void;
+  /** Aynı koşuda devam: görev ve dünya korunur, yeni kayıt açılır. */
+  extendSession: (minutes: number) => void;
+  /** Katı mod: uzun ayrılıkta saat ayrılış anındaki kalan süreyle durur; seans bitmez. */
+  freezeAfterLeaving: (remainingSeconds: number, now: number, leftAt?: number) => void;
+  clearStrictReturn: () => void;
+  setOpenDuration: () => void;
+  accrueBreakBudget: (focusSeconds: number) => void;
+  startBudgetBreak: (minutes: number) => void;
+  refundBreak: () => void;
+  /** Boş ya da yalnız boşluksa false. */
+  addSessionNote: (text: string) => boolean;
+  removeSessionNote: (id: string) => void;
   /** Mola geri sayımını başlatır — odak olarak KAYDEDİLMEZ. */
   startBreak: (minutes: number) => void;
   /**
@@ -160,6 +201,28 @@ const getISOWeek = () => {
   return `${d.getUTCFullYear()}-W${weekNo}`;
 };
 
+export const OPEN_MAX_MINUTES = 240;
+/** Serbest sürede dünyanın tamamlandığı süre. */
+export const OPEN_WORLD_SECONDS = 60 * 60;
+/** Odak ÷ mola: 25 dk odak ≈ 5 dk mola (GoodTime ve Reef'in varsayılan oranı). Ayar yok. */
+const BREAK_RATIO = 5;
+export const BREAK_BUDGET_MAX_SECONDS = 30 * 60;
+const MAX_NOTE_CHARS = 600;
+const MAX_NOTES = 30;
+
+/** Ekranda görünen süre: serbest odakta geçen süre, diğerlerinde kalan süre. */
+export const focusClock = (s: { openSession?: boolean; sessionKind: 'focus' | 'break'; totalSeconds: number; seconds: number }): number =>
+  (s.openSession && s.sessionKind === 'focus' ? s.totalSeconds - s.seconds : s.seconds);
+
+/** Özetin gösterdiği toplam: koşunun önceki parçaları + bu parça. */
+export const runTotals = (segmentMinutes: number): { minutes: number; plannedMinutes: number } => {
+  const { run, totalSeconds } = useFocusStore.getState();
+  return {
+    minutes: Math.round((run?.doneSeconds ?? 0) / 60 + segmentMinutes),
+    plannedMinutes: (run?.plannedSeconds ?? totalSeconds) / 60,
+  };
+};
+
 export const useFocusStore = create<FocusState>()(
   persist(
     (set, get) => ({
@@ -190,6 +253,19 @@ export const useFocusStore = create<FocusState>()(
       pomodoroMode: false,
       pomodoroRound: 1,
       pomodoroPhase: 'work',
+      pomodoroCycleDone: false,
+      run: null,
+      strictReturnAt: null,
+      pausedTotalSeconds: 0,
+      pausedAt: null,
+      taskLastMinutes: {},
+      dialLearned: false,
+      setDialLearned: () => { if (!get().dialLearned) set({ dialLearned: true }); },
+      sessionNotes: [],
+      openSession: false,
+      breakBudgetSeconds: 0,
+      breakBudgetDate: '',
+      breakFromBudget: false,
 
       setIsActive: (isActive) => {
         const st = get();
@@ -204,6 +280,11 @@ export const useFocusStore = create<FocusState>()(
             finishedAt: null,
             // Duraklatıp devam etmek AYNI seans; yalnız yeni başlangıç yeni kimlik alır.
             sessionId: st.sessionId ?? newSessionId(),
+            pausedTotalSeconds: st.pausedTotalSeconds + (st.pausedAt ? Math.max(0, Math.round((now - st.pausedAt) / 1000)) : 0),
+            pausedAt: null,
+            ...(st.currentTaskId != null && st.sessionKind === 'focus' && !st.sessionId && !st.openSession
+              ? { taskLastMinutes: { ...st.taskLastMinutes, [st.currentTaskId]: Math.round(st.totalSeconds / 60) } }
+              : null),
           });
           return;
         }
@@ -215,6 +296,8 @@ export const useFocusStore = create<FocusState>()(
           lastActiveAt: null,
           expectedFinishAt: null,
           pausedSeconds: seconds,
+          // Bitirmek için duraklatmak kesinti sayılmaz: süre yalnız devam edilince yazılır.
+          pausedAt: st.isActive ? now : st.pausedAt,
         });
       },
 
@@ -242,8 +325,92 @@ export const useFocusStore = create<FocusState>()(
           sessionId: null,
           sessionKind: 'focus',
           finishedAt: null,
+          // Pomodoro turları arasında koşu sürer; kullanıcının seçtiği yeni süre yeni dünyadır.
+          run: get().pomodoroMode ? get().run : null,
+          pausedTotalSeconds: 0,
+          pausedAt: null,
+          openSession: false,
+          breakFromBudget: false,
         });
       },
+
+      setOpenDuration: () => {
+        const secs = OPEN_MAX_MINUTES * 60;
+        set({
+          totalSeconds: secs,
+          seconds: secs,
+          isActive: false,
+          lastActiveAt: null,
+          expectedFinishAt: null,
+          pausedSeconds: null,
+          sessionId: null,
+          sessionKind: 'focus',
+          finishedAt: null,
+          pausedTotalSeconds: 0,
+          pausedAt: null,
+          openSession: true,
+          breakFromBudget: false,
+          run: { doneSeconds: 0, plannedSeconds: OPEN_WORLD_SECONDS },
+        });
+      },
+
+      accrueBreakBudget: (focusSeconds) => {
+        const { breakBudgetDate, breakBudgetSeconds } = get();
+        const today = getISODate();
+        const base = breakBudgetDate === today ? breakBudgetSeconds : 0;
+        set({ breakBudgetDate: today, breakBudgetSeconds: Math.min(BREAK_BUDGET_MAX_SECONDS, base + Math.round(Math.max(0, focusSeconds) / BREAK_RATIO)) });
+      },
+
+      startBudgetBreak: (minutes) => {
+        const { breakBudgetSeconds } = get();
+        get().startBreak(minutes);
+        set({ breakFromBudget: true, breakBudgetSeconds: Math.max(0, breakBudgetSeconds - minutes * 60) });
+      },
+
+      refundBreak: () => {
+        const st = get();
+        if (!st.breakFromBudget) return;
+        const left = st.isActive && st.expectedFinishAt ? remainingFromClock(st.expectedFinishAt) : st.seconds;
+        set({ breakFromBudget: false, breakBudgetSeconds: Math.min(BREAK_BUDGET_MAX_SECONDS, st.breakBudgetSeconds + left) });
+      },
+
+      addSessionNote: (text) => {
+        const clean = text.trim().slice(0, MAX_NOTE_CHARS);
+        if (!clean) return false;
+        set({ sessionNotes: [...get().sessionNotes, { id: newSessionId(), text: clean }].slice(-MAX_NOTES) });
+        return true;
+      },
+
+      removeSessionNote: (id) => set({ sessionNotes: get().sessionNotes.filter((n) => n.id !== id) }),
+
+      extendSession: (minutes) => {
+        const st = get();
+        const secs = Math.max(1, Math.round(minutes)) * 60;
+        const now = Date.now();
+        const segment = Math.max(0, st.totalSeconds - st.seconds);
+        set({
+          run: { doneSeconds: (st.run?.doneSeconds ?? 0) + segment, plannedSeconds: st.run?.plannedSeconds ?? st.totalSeconds },
+          totalSeconds: secs,
+          seconds: secs,
+          isActive: true,
+          lastActiveAt: now,
+          expectedFinishAt: now + secs * 1000,
+          pausedSeconds: null,
+          sessionId: newSessionId(),
+          sessionKind: 'focus',
+          finishedAt: null,
+          pausedTotalSeconds: 0,
+          pausedAt: null,
+          openSession: false,
+        });
+      },
+
+      freezeAfterLeaving: (remainingSeconds, now, leftAt) => {
+        const seconds = Math.max(1, Math.min(get().totalSeconds, remainingSeconds));
+        set({ isActive: false, seconds, pausedSeconds: seconds, lastActiveAt: null, expectedFinishAt: null, strictReturnAt: now, pausedAt: leftAt ?? now });
+      },
+
+      clearStrictReturn: () => set({ strictReturnAt: null }),
 
       startBreak: (minutes) => {
         const secs = Math.max(1, Math.round(minutes)) * 60;
@@ -258,6 +425,8 @@ export const useFocusStore = create<FocusState>()(
           sessionId: newSessionId(),
           sessionKind: 'break',
           finishedAt: null,
+          pausedTotalSeconds: 0,
+          pausedAt: null,
         });
       },
 
@@ -270,9 +439,10 @@ export const useFocusStore = create<FocusState>()(
       },
 
       tick: () => {
-        const { isActive, seconds, expectedFinishAt } = get();
+        const { isActive, seconds, expectedFinishAt, totalSeconds } = get();
         if (isActive) {
-          const next = expectedFinishAt ? remainingFromClock(expectedFinishAt) : Math.max(0, seconds - 1);
+          // Cihaz saati geri alınırsa kalan süre seans süresini aşmaz.
+          const next = expectedFinishAt ? Math.min(totalSeconds, remainingFromClock(expectedFinishAt)) : Math.max(0, seconds - 1);
           if (next <= 0) {
             set({ seconds: 0, isActive: false, lastActiveAt: null, expectedFinishAt: null, pausedSeconds: null, finishedAt: expectedFinishAt ?? Date.now() });
           } else if (next !== seconds) {
@@ -297,6 +467,11 @@ export const useFocusStore = create<FocusState>()(
           sessionId: null,
           sessionKind: 'focus',
           finishedAt: null,
+          run: get().openSession ? { doneSeconds: 0, plannedSeconds: OPEN_WORLD_SECONDS } : null,
+          strictReturnAt: null,
+          breakFromBudget: false,
+          pausedTotalSeconds: 0,
+          pausedAt: null,
           /*
             localStreak SIFIRLANMIYOR — bu alan odak ekranında kullanılmıyor
             (incrementLocalStreak hiç çağrılmıyor); sıfırlamak zararsız ama gereksiz.
@@ -350,6 +525,8 @@ export const useFocusStore = create<FocusState>()(
               sessionId: null,
               sessionKind: 'focus',
               finishedAt: null,
+              openSession: false,
+              run: null,
               dailyFocusMinutes: 0,
               dailyFocusDate: today
             });
@@ -451,16 +628,20 @@ export const useFocusStore = create<FocusState>()(
       },
 
       nextPomodoroPhase: () => {
-        const { pomodoroPhase, pomodoroRound } = get();
+        const { pomodoroPhase, pomodoroRound, pomodoroCycleDone, run, totalSeconds } = get();
         if (pomodoroPhase === 'work') {
+          // Tamamlanan tur koşuya işlenir: dünya dört tur boyunca birikir.
+          const nextRun = { doneSeconds: (run?.doneSeconds ?? 0) + totalSeconds, plannedSeconds: run?.plannedSeconds ?? totalSeconds * 4 };
           if (pomodoroRound === 4) {
             // Long break after round 4
-            set({ pomodoroPhase: 'break', pomodoroRound: 1 });
+            set({ pomodoroPhase: 'break', pomodoroRound: 1, pomodoroCycleDone: true, run: nextRun });
           } else {
-            set({ pomodoroPhase: 'break' });
+            set({ pomodoroPhase: 'break', run: nextRun });
           }
+        } else if (pomodoroCycleDone) {
+          // Uzun mola bitti: yeni döngü 1. turdan başlar (eskiden 2. turdan başlıyordu), koşu kapanır.
+          set({ pomodoroPhase: 'work', pomodoroRound: 1, pomodoroCycleDone: false, run: null });
         } else {
-          // break -> work, advance round (unless we just reset from round 4)
           const nextRound = pomodoroRound < 4 ? pomodoroRound + 1 : 1;
           set({ pomodoroPhase: 'work', pomodoroRound: nextRound });
         }
@@ -578,6 +759,17 @@ export const useFocusStore = create<FocusState>()(
         pomodoroMode: state.pomodoroMode,
         pomodoroRound: state.pomodoroRound,
         pomodoroPhase: state.pomodoroPhase,
+        pomodoroCycleDone: state.pomodoroCycleDone,
+        run: state.run,
+        pausedTotalSeconds: state.pausedTotalSeconds,
+        pausedAt: state.pausedAt,
+        taskLastMinutes: state.taskLastMinutes,
+        sessionNotes: state.sessionNotes,
+        dialLearned: state.dialLearned,
+        openSession: state.openSession,
+        breakBudgetSeconds: state.breakBudgetSeconds,
+        breakBudgetDate: state.breakBudgetDate,
+        breakFromBudget: state.breakFromBudget,
         focusPoints: state.focusPoints,
         streakShields: state.streakShields,
         strictMode: state.strictMode,

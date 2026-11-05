@@ -54,7 +54,7 @@ export const useFocusHistoryStore = create<FocusHistoryState>()(
         try {
           const rows = await FocusService.getSessions(WINDOW_DAYS);
           set({
-            sessions: rows.map((r) => ({ startedAt: r.startedAt, minutes: r.minutes })),
+            sessions: rows.map((r) => ({ startedAt: r.startedAt, minutes: r.minutes, taskName: r.taskName ?? null, pausedSeconds: r.pausedSeconds ?? null })),
             lastSyncedAt: Date.now(),
             neverLoaded: false,
             usingLegacyFallback: false,

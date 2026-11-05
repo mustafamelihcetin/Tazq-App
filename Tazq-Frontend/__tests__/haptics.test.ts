@@ -216,7 +216,8 @@ describe('yoğunluk', () => {
      * → 354 (2026-10-31): YALNIZ süper adminin açılış kartı — şimdi oynat, sürüm seçimi, aç/kapa
      *   (kullanıcı bu ekranı hiç görmez; diğer seçim satırlarıyla aynı seçim tiki).
      * → 358 (2026-11-05): rota bitişi, su bardağında yudum ve yudumu geri alma (dokunuşa yanıt; boşta titreşim yok).
+     * → 360 (2026-11-05): süre kadranında tutma, yaygın süre ve uç noktası tıkları; her biri parmağa yanıt.
      */
-    expect(hap).toBeLessThanOrEqual(358);
+    expect(hap).toBeLessThanOrEqual(368); // 360 → 368 (2026-11-05): adım adım kurulum (seçim, ilerleme, başlatma, sahne sonu) kabuğu
   });
 });

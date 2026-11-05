@@ -30,7 +30,7 @@
  * daha güvenli bir ara durum. Sonraki dalgalarda yalnız bu dosyaya veri eklenir.
  */
 
-import { detectExamFromInput, matchExamName } from './examPresets';
+import { detectExamFromInput, examFromPartialShortName } from './examPresets';
 import { INTL_CURRICULA } from './curriculumIntl';
 import { TR_CURRICULA } from './curriculumTr';
 
@@ -97,7 +97,7 @@ export function findExamCurriculum(examName: string): ExamCurriculum | null {
   if (!examName || !examName.trim()) return null;
   // Önce tam alias eşleşmesi, sonra fuzzy en iyi eşleşme.
   // Kısa girdide yakın eşleşme yok: "at", SAT sayılmasın (2026-11-05, kısa adlı EN sınavları eklendi).
-  const preset = detectExamFromInput(examName) ?? (examName.trim().length >= 3 ? matchExamName(examName)[0] : undefined);
+  const preset = detectExamFromInput(examName) ?? examFromPartialShortName(examName);
   if (!preset) return null;
   return activeManifest.exams.find(e => e.id === preset.id) ?? null;
 }

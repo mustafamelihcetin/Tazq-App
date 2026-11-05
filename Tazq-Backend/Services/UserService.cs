@@ -154,13 +154,14 @@ namespace Tazq_App.Services
             return Convert.ToHexString(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(raw)));
         }
 
-        private async Task<string> IssueRefreshTokenAsync(int userId)
+        private async Task<string> IssueRefreshTokenAsync(int userId, string? familyId = null)
         {
             var raw = GenerateRawRefreshToken();
             _context.RefreshTokens.Add(new RefreshToken
             {
                 UserId = userId,
                 TokenHash = HashRefreshToken(raw),
+                FamilyId = familyId ?? Guid.NewGuid().ToString("N"),
                 ExpiresAt = DateTime.UtcNow.Add(RefreshTokenLifetime),
                 CreatedAt = DateTime.UtcNow,
             });
@@ -508,8 +509,9 @@ namespace Tazq_App.Services
             var stored = await _context.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash);
             if (stored == null) return null;
 
-            // Yeniden Kullanım Tespiti (Reuse Detection): Token zaten iptal edilmişse,
-            // bu bir çalınma/replay belirtisidir. Kullanıcının tüm aktif oturumlarını kapat!
+            // Yeniden Kullanım Tespiti (Reuse Detection): Token zaten iptal edilmişse çalınma/replay belirtisidir; o GİRİŞİN zinciri kapanır.
+            // TÜM OTURUMLAR KAPATILMAZ (2026-11-05, kayıtla kanıtlandı): iPhone ve iPad aynı hesapta birbirini sırayla dışarı atıyordu, her çıkış öbür cihazın anahtarını ölü bırakıyordu.
+            // Hesabın tamamını kapatmanın yolu parola değiştirmek (RevokeAllRefreshTokensAsync).
             // TOLERANS (2026-11-05): yanıtı kaybolan ya da eşzamanlı yenileme hırsızlık değildir. Rotasyondan sonraki
             // kısa süre içindeki tekrar yeni çift alır; bütün oturumları kapatmak meşru kullanıcıyı çıkarıyordu.
             if (stored.RevokedAt != null && stored.RevokedAt.Value.AddSeconds(RefreshReuseGraceSeconds) > DateTime.UtcNow)
@@ -517,20 +519,16 @@ namespace Tazq_App.Services
                 var graceUser = await _context.Users.FindAsync(stored.UserId);
                 if (graceUser == null || graceUser.DeletedAt != null || graceUser.IsCurrentlyBanned) return null;
                 var graceAccess = _jwtService.GenerateToken(graceUser.Id.ToString(), graceUser.Role ?? "User");
-                return new AuthTokens(graceAccess, await IssueRefreshTokenAsync(graceUser.Id));
+                return new AuthTokens(graceAccess, await IssueRefreshTokenAsync(graceUser.Id, stored.FamilyId));
             }
             if (stored.RevokedAt != null)
             {
-                var allActive = await _context.RefreshTokens
-                    .Where(t => t.UserId == stored.UserId && t.RevokedAt == null)
+                // Ailesi olmayan eski kayıt: hangi cihaza ait bilinmiyor, kimse kapatılmaz, yalnız bu anahtar reddedilir.
+                if (stored.FamilyId == null) return null;
+                var family = await _context.RefreshTokens
+                    .Where(t => t.FamilyId == stored.FamilyId && t.RevokedAt == null)
                     .ToListAsync();
-                
-                foreach (var t in allActive)
-                {
-                    t.RevokedAt = DateTime.UtcNow;
-                }
-                
-                _context.RefreshTokens.UpdateRange(allActive);
+                foreach (var t in family) t.RevokedAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
                 return null;
             }
@@ -556,7 +554,7 @@ namespace Tazq_App.Services
             _context.RefreshTokens.Update(stored);
 
             var accessToken = _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
-            var newRefresh = await IssueRefreshTokenAsync(user.Id); // SaveChanges burada da çalışır
+            var newRefresh = await IssueRefreshTokenAsync(user.Id, stored.FamilyId); // SaveChanges burada da çalışır
             return new AuthTokens(accessToken, newRefresh);
         }
 

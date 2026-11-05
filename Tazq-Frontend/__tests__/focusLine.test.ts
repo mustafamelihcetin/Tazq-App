@@ -37,6 +37,11 @@ describe('telkin / motivasyon', () => {
   });
 
   it('hedef ve bu seansın dakikası: daha spesifik motivasyon', () => {
+    // Kullanıcı: "kilo yönetimi ile başlayanın başında emoji var yine": ne gelirse gelsin cümleye emoji girmez, ekran da ham kaydı okumaz.
+    expect(texts({ goal: { name: '⚖️ Kilo Yönetimi', days: 40 } }).map(l => l.t)).toContain('Kilo Yönetimi için 40 gün kaldı. Bugünkü seans o yolun bir adımı.');
+    const focus = require('fs').readFileSync(require('path').join(__dirname, '../app/focus.tsx'), 'utf8');
+    expect(focus).not.toContain('s.sporGoal');
+    expect(focus).toContain('goalTitle(p, lang');
     expect(texts({ goal: { name: 'YKS', days: 212 } }).map(l => l.t)).toContain('YKS için 212 gün kaldı. Bugünkü seans o yolun bir adımı.');
     expect(texts({ goal: { name: 'YKS', days: 0 } }).map(l => l.t)).toContain('YKS bugün. Bu seans son hazırlığın.');
     expect(texts({ phase: 'final', todayMin: 50, sessionMin: 25 })[0].t).toBe('Az kaldı. Bu seansla bugün 75 dk olacak.');

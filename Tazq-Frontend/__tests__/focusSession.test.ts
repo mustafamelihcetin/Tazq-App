@@ -4,12 +4,13 @@ import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import {
   commitFocusSession, finalizeDueSession, focusAlarmSpec, syncFocusAlarm,
   onAppBackground, onAppForeground, strictBreached, STRICT_GRACE_MS,
-  __resetFocusAlarmForTests,
+  __resetFocusAlarmForTests, updateLastSession, idleAddMinutes,
 } from '@/features/focus/session';
 
 const mockSave = jest.fn();
+const mockUpdate = jest.fn().mockResolvedValue(undefined);
 jest.mock('@/shared/services/api', () => ({
-  FocusService: { saveSession: (...a: unknown[]) => mockSave(...a) },
+  FocusService: { saveSession: (...a: unknown[]) => mockSave(...a), updateSession: (...a: unknown[]) => mockUpdate(...a) },
 }));
 const mockSchedule = jest.fn();
 const mockCancel = jest.fn();
@@ -124,7 +125,7 @@ describe('bir seans BİR kez kaydedilir', () => {
     expect(finalizeDueSession()).toBe('saved');
     expect(commitFocusSession(25, true)).toBe('duplicate'); // ekranın kutlama yolu
     expect(mockSave).toHaveBeenCalledTimes(1);
-    expect(mockSave).toHaveBeenCalledWith('Focus', 25, true);
+    expect(mockSave).toHaveBeenCalledWith('Focus', 25, true, 0);
     expect(s().dailyFocusMinutes).toBe(25);
   });
 
@@ -250,27 +251,44 @@ describe('katı mod — ceza değil, adil kural', () => {
     expect(s().isActive).toBe(true);
   });
 
-  it('uzun ayrılıkta seans biter ve AYRILANA KADARKİ dakikalar kaydedilir', () => {
+  it('uzun ayrılıkta seans BİTMEZ: saat ayrılış anında durur, ayrı geçen süre sayılmaz, kayıt açılmaz', () => {
     useFocusStore.setState({ strictMode: true } as never);
     start(25);
     at(NOW + 8 * MIN);
     onAppBackground();
-    at(NOW + 30 * MIN); // uzakta geçen süre odak değildir
+    at(NOW + 30 * MIN); // uzakta geçen süre odak değildir; bitiş anı geçmiş olsa da seans dolmaz
     expect(onAppForeground()).toBe(true);
-    expect(mockSave).toHaveBeenCalledWith('Focus', 8, false);
+    expect(mockSave).not.toHaveBeenCalled();
     expect(s().isActive).toBe(false);
-    expect(s().seconds).toBe(s().totalSeconds);
+    expect(s().seconds).toBe(17 * 60);
+    expect(s().pausedSeconds).toBe(17 * 60);
+    expect(s().sessionId).not.toBeNull();
+    expect(s().strictReturnAt).toBe(NOW);
+    s().rehydrateTimer();
+    expect(s().seconds).toBe(17 * 60);
   });
 
-  it('PUAN CEZASI YOK — ayrılmak seansı bitirir, kullanıcıyı cezalandırmaz', () => {
+  it('dönüşte devam edilince kalan süreden sürer', () => {
+    useFocusStore.setState({ strictMode: true } as never);
+    start(25);
+    at(NOW + 8 * MIN);
+    onAppBackground();
+    at(NOW + 30 * MIN);
+    onAppForeground();
+    s().setIsActive(true);
+    at(NOW + 1 * MIN);
+    s().tick();
+    expect(s().seconds).toBe(16 * 60);
+  });
+
+  it('PUAN CEZASI YOK — ayrılmak hiçbir şey eksiltmez', () => {
     useFocusStore.setState({ strictMode: true, focusPoints: 40 } as never);
     start(25);
     at(NOW + 8 * MIN);
     onAppBackground();
     at(NOW + 30 * MIN);
     onAppForeground();
-    // 8 dk yarım seans ödülü eklenir (2*8 üst sınır 10), hiçbir şey EKSİLMEZ
-    expect(s().focusPoints).toBeGreaterThanOrEqual(40);
+    expect(s().focusPoints).toBe(40);
   });
 
   it('katı mod kapalıyken ayrılmak hiçbir şey yapmaz', () => {
@@ -287,5 +305,93 @@ describe('katı mod — ceza değil, adil kural', () => {
     expect(strictBreached(0, 9_000)).toBe(false);
     expect(strictBreached(0, 11_000)).toBe(true);
     expect(strictBreached(null, 999_999)).toBe(false);
+  });
+});
+
+describe('seansın izi', () => {
+  it('görev adı ve duraklatma süresi kayda gider', () => {
+    s().setCurrentTask('Tez', 7);
+    start(25);
+    at(NOW + 5 * MIN);
+    s().setIsActive(false);
+    at(NOW + 2 * MIN);
+    s().setIsActive(true);
+    at(NOW + 20 * MIN);
+    s().tick();
+    expect(commitFocusSession(25, true)).toBe('saved');
+    expect(mockSave).toHaveBeenCalledWith('Tez', 25, true, 120);
+  });
+
+  it('bitirmek için duraklatmak kesinti sayılmaz', () => {
+    start(25);
+    at(NOW + 5 * MIN);
+    s().setIsActive(false);
+    commitFocusSession(5, false);
+    expect(mockSave).toHaveBeenCalledWith('Focus', 5, false, 0);
+  });
+
+  it('yeni seansta kesinti sıfırlanır', () => {
+    start(25);
+    s().setIsActive(false);
+    at(NOW + MIN);
+    s().setIsActive(true);
+    expect(s().pausedTotalSeconds).toBe(60);
+    start(25);
+    expect(s().pausedTotalSeconds).toBe(0);
+  });
+
+  it('katı modda ayrı geçen süre kesinti olarak yazılır', () => {
+    useFocusStore.setState({ strictMode: true } as never);
+    start(25);
+    at(NOW + 8 * MIN);
+    onAppBackground();
+    at(NOW + 3 * MIN);
+    onAppForeground();
+    s().setIsActive(true);
+    expect(s().pausedTotalSeconds).toBe(180);
+  });
+
+  it('çevrimdışı seans adıyla kuyruğa girer; ad ve ek süre kuyruktaki kayda yazılır', () => {
+    useNetworkStore.setState({ isOnline: false } as never);
+    start(25);
+    commitFocusSession(25, true);
+    updateLastSession({ taskName: 'Okuma', addMinutes: 4 });
+    const op = useOfflineQueue.getState().ops[0] as { taskName: string; minutes: number };
+    expect(op.taskName).toBe('Okuma');
+    expect(op.minutes).toBe(29);
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('gönderilmiş seansa ad ve ek süre sunucuya yamalanır, günlük toplam artar', async () => {
+    mockSave.mockResolvedValue({ id: 42 });
+    start(25);
+    commitFocusSession(25, true);
+    const before = s().dailyFocusMinutes;
+    updateLastSession({ taskName: '  Okuma ', addMinutes: 4 });
+    await new Promise((r) => setImmediate(r));
+    expect(mockUpdate).toHaveBeenCalledWith(42, { taskName: 'Okuma', addMinutes: 4 });
+    expect(s().dailyFocusMinutes).toBe(before + 4);
+  });
+
+  it('boş ad bir şey göndermez', async () => {
+    mockSave.mockResolvedValue({ id: 42 });
+    start(25);
+    commitFocusSession(25, true);
+    updateLastSession({ taskName: '   ' });
+    await new Promise((r) => setImmediate(r));
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('alarm sonrası süre: 1 dk altı ve 60 dk üstü önerilmez', () => {
+    expect(idleAddMinutes(null, NOW)).toBe(0);
+    expect(idleAddMinutes(NOW - 30_000, NOW)).toBe(0);
+    expect(idleAddMinutes(NOW - 4 * MIN, NOW)).toBe(4);
+    expect(idleAddMinutes(NOW - 61 * MIN, NOW)).toBe(0);
+  });
+
+  it('görev son süresini hatırlar', () => {
+    s().setCurrentTask('Tez', 7);
+    start(45);
+    expect(s().taskLastMinutes[7]).toBe(45);
   });
 });

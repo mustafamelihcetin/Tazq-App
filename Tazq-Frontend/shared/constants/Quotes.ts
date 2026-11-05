@@ -1,3 +1,4 @@
+import { stripEmoji } from '@/shared/utils/emoji';
 /*
   ODAK EKRANININ ALT SATIRI — TELKİN ve MOTİVASYON ayrı (2026-11-01, kullanıcı: "yazılar yeterli ve anlamlı mı?
   çeviri değil yerelleştirme · kişiye göre olabilir mi · motivasyon ve telkini ayrı ayrı düşünelim").
@@ -169,7 +170,7 @@ export function focusLineCandidates(c: FocusLineContext, lang: Lang): FocusQuote
   // idle — motivasyon, yalnız gerçek veriyle
   const out: FocusQuote[] = [];
   if (task) out.push(mot(M.task(task)));
-  if (c.goal && c.goal.days >= 0 && c.goal.days <= 365) out.push(mot(M.goal(clip(c.goal.name), c.goal.days)));
+  if (c.goal && c.goal.days >= 0 && c.goal.days <= 365) out.push(mot(M.goal(clip(stripEmoji(c.goal.name)), c.goal.days)));
   if (c.goalMin > 0 && c.todayMin >= c.goalMin) out.push(mot(M.goalDone()));
   else if (c.goalMin > 0 && c.todayMin > 0) out.push(mot(M.goalLeft(c.todayMin, c.goalMin - c.todayMin)));
   if (c.streak >= 2) out.push(mot(M.streak(c.streak)));

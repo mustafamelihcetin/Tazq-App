@@ -268,9 +268,9 @@ describe('Haftalık Merkez — gün seçimi EKRANIN TAMAMINI kapsar', () => {
   it('alışkanlık işaretleme SEÇİLİ güne yazılır — bugüne değil', () => {
     // 2026-10-30: ızgarada hücre O GÜNÜ işaretler — gün seçmeye bile gerek yok; gün verilmezse seçili gün.
     expect(COCKPIT).toContain('const handleToggleHabit = (id: string, day: string = selectedDay)');
-    // 2026-10-31: kartta TEK eylem — soldaki ✓ BUGÜNÜ işaretler (görev satırı kalıbı); geçmiş gün
-    // alışkanlığın sayfasındaki takvimden düzeltilir (O GÜNE yazılır, bugüne değil).
-    expect(COCKPIT).toContain('onToday={h => handleToggleHabit(h.id, todayKey)}');
+    // 2026-11-05: kartta tek eylem, soldaki ✓ üstte SEÇİLİ günü işaretler; kartın başlığı hangi gün olduğunu yazar (kullanıcı: "havada kalıyor").
+    // Ekrana her girişte seçim bugüne döner. Alışkanlığın sayfasındaki takvim de O GÜNE yazar.
+    expect(COCKPIT).toContain('onToday={h => handleToggleHabit(h.id, selectedDay)}');
     const detail = fs.readFileSync(path.join(__dirname, '..', 'app/aliskanlik.tsx'), 'utf8');
     expect(detail).toContain('onPress={() => mark(key)}');
     expect(detail).toContain('tapHabit(habit.id, key)');
@@ -300,10 +300,9 @@ describe('Haftalık Merkez — gün seçimi EKRANIN TAMAMINI kapsar', () => {
     expect(head).not.toContain('handleToggleHabit');
   });
 
-  it('haftanın özeti alışkanlıkların ÜSTÜNDE', () => {
-    // 2026-10-30: haftanın sayıları hafta panelinin İÇİNDE, alışkanlık listesinin üstünde.
-    expect(COCKPIT.indexOf('── HAFTA PANELİ')).toBeLessThan(COCKPIT.indexOf('── ALIŞKANLIKLAR'));
-    expect(COCKPIT.indexOf('<TourTarget id="weeklyReview"')).toBeLessThan(COCKPIT.indexOf('<WeekHabits'));
+  it('haftanın resmi alışkanlıkların ÜSTÜNDE, özet üst barda', () => {
+    expect(COCKPIT.indexOf('<WeekPanel')).toBeLessThan(COCKPIT.indexOf('<WeekHabits'));
+    expect(COCKPIT.indexOf('<TourTarget id="weeklyReview"')).toBeLessThan(COCKPIT.indexOf('<WeekPanel'));
   });
 
   it('şerit noktası görevi DE alışkanlığı DA sayar', () => {
@@ -312,16 +311,11 @@ describe('Haftalık Merkez — gün seçimi EKRANIN TAMAMINI kapsar', () => {
     expect(COCKPIT).toMatch(/completed: taskDone \+ habitsDone/);
   });
 
-  it('başlıkta iki KALICI hedef: solda Bugün ekranı, sağda geri bakış', () => {
-    /*
-      Sol yuvada önce "bugüne dön" vardı ve bugün seçiliyken soluk duruyordu; ekrana her
-      girişte seçim bugüne döndüğü için pratikte HEP soluk görünüyordu — kullanıcı onu
-      bozuk sandı. Kalıcı yuva kalıcı bir işe ait olmalı.
-    */
+  it('başlıkta iki kalıcı hedef: solda Takvim, sağda özet (2026-11-05, kullanıcı: "sol üste basınca günün saatleri açılıyor, yeri burası değil")', () => {
     const header = COCKPIT.slice(COCKPIT.indexOf('<ScreenHeader'), COCKPIT.indexOf('<View style={{ flex: 1 }}>'));
-    expect(header).toContain("router.push('/gun')");
+    expect(header).toContain("pathname: '/takvim'");
     expect(header).toContain("router.push('/report')");
-    expect(header).not.toContain('disabled={isSelectedToday}');
+    expect(header).not.toContain("'/gun'");
   });
 
   it('"bugüne dön" gün seçiminin yapıldığı yerde ve yalnız gerektiğinde', () => {

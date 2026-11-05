@@ -205,6 +205,15 @@ export function orderForNow<T extends HabitLike>(habits: T[], today: string, now
 }
 
 /**
+ * Ekran açıkken sıra sabit (2026-11-05, cihazda görüldü): işaretlenen halka sona kayınca sonraki dokunuş yanlış alışkanlığa geliyordu.
+ * Bilinen sıra korunur, yenisi sona eklenir, kalkan düşer. Bitenler bir sonraki açılışta sona iner.
+ */
+export function keepOrder<T extends { id: string }>(known: string[], items: T[]): T[] {
+  const pos = new Map(known.map((id, i) => [id, i]));
+  return items.map((h, i) => ({ h, r: pos.get(h.id) ?? known.length + i })).sort((a, b) => a.r - b.r).map(x => x.h);
+}
+
+/**
  * Miktarlı alışkanlıkta bir dokunuş: hedefe kadar +1; hedefteyken dokunuş sıfırlar (geri alma).
  * Dönen `done`: yeni durumda gün yapıldı mı.
  */

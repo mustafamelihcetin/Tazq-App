@@ -204,36 +204,6 @@ namespace Tazq_Backend.Tests
         }
 
         [Fact]
-        public async Task RotateRefreshTokenAsync_ShouldRevokeAllUserTokens_WhenTokenIsReused()
-        {
-            // Arrange
-            var dto = new UserRegisterDto { Email = "reuse@test.com", Name = "ReuseUser", Password = "Pass!1" };
-            await _userService.RegisterAsync(dto);
-            var user = await _context.Users.FirstAsync(u => u.Email == dto.Email);
-
-            // Create a revoked token and two active tokens
-            var reusedTokenStr = "reused-token-value";
-            using var sha = System.Security.Cryptography.SHA256.Create();
-            var reusedTokenHash = Convert.ToHexString(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(reusedTokenStr)));
-
-            var token1 = new RefreshToken { UserId = user.Id, TokenHash = reusedTokenHash, ExpiresAt = DateTime.UtcNow.AddDays(7), RevokedAt = DateTime.UtcNow.AddHours(-1) };
-            var token2 = new RefreshToken { UserId = user.Id, TokenHash = "active-hash-1", ExpiresAt = DateTime.UtcNow.AddDays(7) };
-            var token3 = new RefreshToken { UserId = user.Id, TokenHash = "active-hash-2", ExpiresAt = DateTime.UtcNow.AddDays(7) };
-
-            _context.RefreshTokens.AddRange(token1, token2, token3);
-            await _context.SaveChangesAsync();
-
-            var result = await _userService.RotateRefreshTokenAsync(reusedTokenStr);
-
-            // Assert
-            Assert.Null(result); // Rotation should fail
-            
-            // All active tokens should now be revoked
-            var revokedTokens = await _context.RefreshTokens.Where(t => t.UserId == user.Id).ToListAsync();
-            Assert.All(revokedTokens, t => Assert.NotNull(t.RevokedAt));
-        }
-
-        [Fact]
         public async Task GoogleLoginAsync_ShouldRegisterAndLoginNewUser_WhenTokenIsValid()
         {
             // Arrange

@@ -28,6 +28,22 @@ namespace Tazq_App.Controllers
             public string TaskName { get; set; } = string.Empty;
             public int DurationMinutes { get; set; }
             public bool Completed { get; set; } = true;
+            public int? PausedSeconds { get; set; }
+        }
+
+        public class UpdateSessionRequest
+        {
+            public string? TaskName { get; set; }
+            public int? AddMinutes { get; set; }
+        }
+
+        /// <summary>Seans sonunda ad ya da alarm sonrası süre ekler. Başkasının seansı 404.</summary>
+        [HttpPatch("sessions/{id:int}")]
+        public async Task<IActionResult> UpdateSession(int id, [FromBody] UpdateSessionRequest req)
+        {
+            var userId = GetUserId();
+            if (userId == null) return Unauthorized();
+            return await _focusService.UpdateSessionAsync(userId.Value, id, req.TaskName, req.AddMinutes) ? NoContent() : NotFound();
         }
 
         [HttpPost("save")]
@@ -36,7 +52,7 @@ namespace Tazq_App.Controllers
             var userId = GetUserId();
             if (userId == null) return Unauthorized();
 
-            var session = await _focusService.SaveSessionAsync(userId.Value, req.TaskName, req.DurationMinutes, req.Completed);
+            var session = await _focusService.SaveSessionAsync(userId.Value, req.TaskName, req.DurationMinutes, req.Completed, req.PausedSeconds);
             return Ok(session);
         }
 

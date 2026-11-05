@@ -46,7 +46,7 @@ describe('para', () => {
   });
   it('acil fon ayları kurulumda saklanır, sıfırlamada silinir', () => {
     const src = read('features/modes/components/modes/TasarrufCard.tsx');
-    expect(src).toContain('setCover(budgetType');
+    expect(read('features/modes/utils/lifePlanStart.ts')).toContain('setCover(type');
     useBudgetStore.getState().setCover(10000, 6);
     expect(useBudgetStore.getState()).toMatchObject({ monthlyExpense: 10000, coverMonths: 6 });
     useBudgetStore.getState().reset();

@@ -80,7 +80,7 @@ const VenusIcon = ({ size = 16, color = '#000', strokeWidth = 2.5 }: { size?: nu
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"><Circle cx="12" cy="9" r="5" /><Line x1="12" x2="12" y1="14" y2="22" /><Line x1="9" x2="15" y1="18" y2="18" /></Svg>
 );
 
-function getSporGoals(tr: boolean) {
+export function getSporGoals(tr: boolean) {
   return tr
     ? [{ key: 'maraton', label: 'Maraton / Koşu' }, { key: 'guc', label: 'Güç & Kas' }, { key: 'kilo', label: 'Kilo Yönetimi' }, { key: 'genel', label: 'Genel Form' }, { key: 'yaris', label: 'Spor Yarışması' }]
     : [{ key: 'maraton', label: 'Marathon / Running' }, { key: 'guc', label: 'Strength & Muscle' }, { key: 'kilo', label: 'Weight Management' }, { key: 'genel', label: 'General Fitness' }, { key: 'yaris', label: 'Sport Competition' }];

@@ -1,29 +1,20 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Canvas, Circle, DashPathEffect, Path, Skia } from '@shopify/react-native-skia';
-import Animated, { Easing, useAnimatedStyle, useDerivedValue, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import { Check } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
-import { S, R, F, W, RSPRING } from '@/shared/constants/tokens';
+import { S, R, F, W, ICON, RSPRING } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
-import { DisplayPanel, DisplayDivider, useDisplayColors } from '@/shared/components/DisplayPanel';
+import { DisplayPanel, useDisplayColors } from '@/shared/components/DisplayPanel';
 import { haptic } from '@/shared/utils/haptics';
 import { PillSentence, type PillPart } from '@/shared/components/PillSentence';
 
 /*
-  HAFTA PANELİ — Haftalık Merkez'in tek ekranı (2026-10-30). Kullanıcı: "haftalık merkezi de ana
-  sayfadaki gibi toparlamak lazım; bir ekranda, animasyonlu, şık, anlamlı ve etkileşimli".
-  Eskiden beş ayrı kart: gün şeridi, "Bugün · Takvimde aç", "BU HAFTA" sayıları, plan satırı,
-  28 günlük ızgaralı alışkanlık listesi. Hiçbiri ötekine bağlı değildi.
-  Şimdi ana sayfanın dijital paneliyle aynı dil, tek panel:
-    · HAFTANIN CÜMLESİ — veriden kurulur, vurgu yalnız sayılarda.
-    · GÜN ŞERİDİ — her günün halkası o günün dolulumu (görev + alışkanlık) ve açılışta dolar;
-      seçili günü KAYAN bir vurgu izler (yay animasyonu). Bir güne dokun: altındaki her şey o güne döner.
-    · SEÇİLİ GÜN — o günün alışkanlık halkaları (o güne işaretlenir) + "Takvimde aç".
-    · HAFTA SAYILARI ve "Gelecek haftayı planla".
-  Yuvalar (`day`, `stats`) çağıranda doldurulur: tur hedefleri ve ekranın iş mantığı orada kalır.
+  HAFTANIN RESMİ (2026-11-05, kullanıcı: "minimalist değil, görsel içerik az, anlaması zor"). Halkalar ve kayan vurgu kalktı; vurgu cihazda yanlış güne kayıyordu, etiket başka günü söylüyordu.
+  Yedi sütun doldukça yükselir: yazı okumadan haftanın resmi görülür. Tam dolan gün tik alır. Açılışta sırayla dolar ve durur; dokunulan sütun bir kez hafifçe zıplar. Boşta hiçbir şey dönmez.
+  Sütunun anlamı: dolu kısım yapılan, kesik çerçeve o gün iş yoktu, boş gelecek gün henüz bir şey söylemez.
 */
-
 export type WeekSeg = PillPart;
 
 export interface WeekDay {
@@ -32,125 +23,78 @@ export interface WeekDay {
   num: number;
   isToday: boolean;
   isFuture: boolean;
-  /** 0..1 o günün dolulumu; beklenen iş yoksa null (halka çizilmez). */
+  /** 0..1 o günün dolulumu; beklenen iş yoksa null. */
   ratio: number | null;
   a11y: string;
 }
 
-const RING = 34;
-const STROKE = 2.5;
+const COLUMN_H = 68;
 
-const Arc = ({ progress, color }: { progress: SharedValue<number>; color: string }) => {
-  const path = useMemo(() => {
-    const p = Skia.Path.Make();
-    const r = RING / 2 - STROKE / 2;
-    p.addArc({ x: RING / 2 - r, y: RING / 2 - r, width: r * 2, height: r * 2 }, -90, 359.9);
-    return p;
-  }, []);
-  const end = useDerivedValue(() => progress.value);
-  return <Path path={path} style="stroke" strokeWidth={STROKE} strokeCap="round" color={color} start={0} end={end} />;
-};
-
-function DayCell({ day, selected, onPress, delay }: { day: WeekDay; selected: boolean; onPress: () => void; delay: number }) {
+function DayColumn({ day, selected, onPress, delay }: { day: WeekDay; selected: boolean; onPress: () => void; delay: number }) {
   const { theme, isDark } = useAppTheme();
   const reduce = useReduceMotion();
   const dc = useDisplayColors();
-  const progress = useSharedValue(0);
-  const full = day.ratio != null && day.ratio >= 1;
+  const fill = useSharedValue(0);
+  const pop = useSharedValue(1);
+  const ratio = day.ratio ?? 0;
+  const full = ratio >= 1;
+
   useEffect(() => {
-    const to = day.ratio ?? 0;
-    if (reduce) { progress.value = to; return; }
-    const t = setTimeout(() => { progress.value = withTiming(to, { duration: 600, easing: Easing.out(Easing.cubic) }); }, delay);
-    return () => clearTimeout(t);
-  }, [day.ratio, reduce]);
+    const to = ratio * COLUMN_H;
+    fill.value = reduce ? to : withDelay(delay, withTiming(to, { duration: 520, easing: Easing.out(Easing.cubic) }));
+  }, [ratio, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (selected && !reduce) pop.value = withSequence(withTiming(1.06, { duration: 110 }), withSpring(1, RSPRING.snappy));
+  }, [selected, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fillStyle = useAnimatedStyle(() => ({ height: fill.value }));
+  const popStyle = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
+  const noWork = day.ratio == null && !day.isFuture;
+
   return (
     <Touchable onPress={onPress} accessibilityRole="button" accessibilityLabel={day.a11y} accessibilityState={{ selected }} style={styles.day}>
       <Text style={[styles.abbr, { color: day.isToday ? theme.primary : dc.label }]}>{day.abbr}</Text>
-      <View style={{ width: RING, height: RING, alignItems: 'center', justifyContent: 'center' }}>
-        {/*
-          PLAN YOK (geçmiş/bugün, beklenen iş yok) = KESİK halka. Eskiden halka hiç çizilmiyordu ve
-          "plan yoktu" ile "gelecek gün" aynı görünüyordu; gri halka (planlı ama yapılmadı) da yanında
-          anlamsızlaşıyordu. Gelecek gün yine halkasız: henüz bir şey söylemez.
-        */}
-        {day.ratio == null && !day.isFuture && (
-          <Canvas style={{ position: 'absolute', width: RING, height: RING }}>
-            <Circle cx={RING / 2} cy={RING / 2} r={RING / 2 - STROKE / 2} style="stroke" strokeWidth={1} color={theme.onSurface + (isDark ? '33' : '26')}>
-              <DashPathEffect intervals={[2, 3]} />
-            </Circle>
-          </Canvas>
-        )}
-        {day.ratio != null && (
-          <Canvas style={{ position: 'absolute', width: RING, height: RING }}>
-            <Circle cx={RING / 2} cy={RING / 2} r={RING / 2 - STROKE / 2} style="stroke" strokeWidth={STROKE} color={theme.onSurface + (isDark ? '26' : '1A')} />
-            <Arc progress={progress} color={full ? theme.success : theme.primary} />
-          </Canvas>
-        )}
-        <Text style={[styles.num, { color: day.isToday ? theme.primary : day.isFuture ? dc.muted : dc.ink }]}>{day.num}</Text>
-      </View>
+      <Animated.View style={[styles.column, {
+        backgroundColor: noWork ? 'transparent' : theme.onSurface + (isDark ? '1F' : '12'),
+        borderColor: selected ? theme.primary : noWork ? theme.onSurface + (isDark ? '33' : '26') : 'transparent',
+        borderWidth: selected ? 2 : noWork ? 1 : 0,
+        borderStyle: noWork && !selected ? 'dashed' : 'solid',
+      }, popStyle]}>
+        <Animated.View style={[styles.fill, { backgroundColor: full ? theme.success : theme.primary }, fillStyle]} />
+        {full && <View style={styles.tick}><Check size={ICON.xs} color={theme.onPrimary} strokeWidth={3} /></View>}
+      </Animated.View>
+      <Text style={[styles.num, { color: day.isToday || selected ? theme.primary : day.isFuture ? dc.muted : dc.ink }]}>{day.num}</Text>
     </Touchable>
   );
 }
 
-export function WeekPanel({ label, sentence, days, selectedKey, onSelectDay, grid, day, stats }: {
-  /** Geri Bakış'a geçiş başlıktaki kalıcı ikonda; panelde ikinci bir bağlantı yok (tekrar). */
-  label: string;
+export function WeekPanel({ sentence, days, selectedKey, onSelectDay, day }: {
   sentence: WeekSeg[];
   days: WeekDay[]; selectedKey: string; onSelectDay: (key: string) => void;
-  /**
-   * Gün sütunlarıyla HİZALI blok (alışkanlık × hafta ızgarası). Şeridin hemen altında, aynı
-   * yedi sütunda çizilir; seçili günün vurgusu ızgaranın içinden de akar.
-   */
-  grid?: React.ReactNode;
-  /** Seçili günün satırı (takvim). */
+  /** Seçili günün işleri. */
   day: React.ReactNode;
-  /** Hafta sayıları + plan satırı. */
-  stats: React.ReactNode;
 }) {
-  const { theme } = useAppTheme();
-  const dc = useDisplayColors();
-  const reduce = useReduceMotion();
-  const [w, setW] = useState(0);
-  const idx = Math.max(0, days.findIndex(d => d.key === selectedKey));
-  const col = w / Math.max(1, days.length);
-  const x = useSharedValue(0);
-  useEffect(() => { x.value = reduce || w === 0 ? idx * col : withSpring(idx * col, RSPRING.snappy); }, [idx, col, reduce]);
-  const pill = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
-
   return (
     <DisplayPanel padding={S.md}>
-      <View style={styles.status}>
-        <Text style={[styles.label, { color: dc.label }]} numberOfLines={1}>{label}</Text>
-      </View>
-
-      {/* Ana sayfanın yaşayan cümlesiyle aynı dil: vurgu yumuşak zeminli hap. */}
       <PillSentence parts={sentence} />
-
-      {/* Şerit + ızgara tek kap: seçili gün vurgusu (kayan sütun) ikisini birden kapsar. */}
-      <View style={styles.columns} onLayout={e => setW(e.nativeEvent.layout.width)}>
-        {w > 0 && <Animated.View pointerEvents="none" style={[styles.pill, { width: col, backgroundColor: theme.primary + '12', borderColor: theme.primary + '33' }, pill]} />}
-        <View style={styles.week}>
-          {days.map((d, i) => (
-            <DayCell key={d.key} day={d} selected={d.key === selectedKey} delay={i * 45}
-              onPress={() => { if (d.key !== selectedKey) { haptic.select(); onSelectDay(d.key); } }} />
-          ))}
-        </View>
-        {grid}
+      <View style={styles.week}>
+        {days.map((d, i) => (
+          <DayColumn key={d.key} day={d} selected={d.key === selectedKey} delay={i * 45}
+            onPress={() => { if (d.key !== selectedKey) { haptic.select(); onSelectDay(d.key); } }} />
+        ))}
       </View>
-
-      <View style={{ gap: S.sm }}>{day}</View>
-      <DisplayDivider />
-      {stats}
+      {day}
     </DisplayPanel>
   );
 }
 
 const styles = StyleSheet.create({
-  status: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: S.sm },
-  label: { flexShrink: 1, fontSize: F.caption, fontWeight: W.semibold, letterSpacing: 1.2 },
-  columns: { marginTop: S.md, marginBottom: S.sm },
-  week: { flexDirection: 'row' },
-  pill: { position: 'absolute', top: 0, bottom: 0, borderRadius: R.md, borderWidth: 1 },
-  day: { flex: 1, alignItems: 'center', gap: S.xs, paddingVertical: S.sm },
+  week: { flexDirection: 'row', marginTop: S.md, marginBottom: S.sm },
+  day: { flex: 1, alignItems: 'center', gap: S.xs, paddingVertical: S.xs },
   abbr: { fontSize: F.caption, fontWeight: W.semibold, letterSpacing: 0.6 },
+  column: { width: '72%', height: COLUMN_H, borderRadius: R.sm, overflow: 'hidden', justifyContent: 'flex-end' },
+  fill: { width: '100%' },
+  tick: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   num: { fontSize: F.footnote, fontWeight: W.semibold, fontVariant: ['tabular-nums'] },
 });

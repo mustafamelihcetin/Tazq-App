@@ -4,6 +4,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
 import { Zap } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { focusClock } from '@/features/focus/store/useFocusStore';
 import { useFocusStore } from '../store/useFocusStore';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -16,7 +17,7 @@ export const DynamicIsland = () => {
   const { t } = useLanguageStore();
   const router = useRouter();
   const isActive = useFocusStore(s => s.isActive);
-  const seconds = useFocusStore(s => s.seconds);
+  const seconds = useFocusStore(focusClock);
   const currentTask = useFocusStore(s => s.currentTask);
 
   const formatTime = (s: number) => {

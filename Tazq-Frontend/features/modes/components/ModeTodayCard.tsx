@@ -187,6 +187,7 @@ export function ModeTodayCard({ onOpen, bare }: { onOpen: () => void; bare?: boo
         a11yLabel={`${activeCount} ${t.eyebrow}`}
       />
     );
+    // Mod satırı rota varken de yerinde kalır: çalışırken gizlendiğinde Android'de ana sayfanın tüm içeriği boşalıyordu (2026-11-05, cihazda ölçüldü; kök neden bulunmadı).
     return (
       <>
         <RouteBanner />

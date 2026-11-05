@@ -26,6 +26,8 @@ export interface FocusSessionRow {
   /** ISO — sunucudaki seans başlangıcı (UTC). Yerel güne burada çevrilir. */
   startedAt: string;
   minutes: number;
+  taskName?: string | null;
+  pausedSeconds?: number | null;
 }
 
 export interface ReportTask {

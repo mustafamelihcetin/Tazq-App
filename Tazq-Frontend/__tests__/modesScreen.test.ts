@@ -272,8 +272,10 @@ describe('mod kurulum formları', () => {
   it('girdi alanları tek kabuktan gelir ve odakta vurgulanır', () => {
     for (const [name, src] of CARDS) {
       expect([name, src.includes('<TextInput')]).toEqual([name, false]);
-      expect([name, src.includes('<ModeField')]).toEqual([name, true]);
+      // Sınav adı alanı kendi dosyasında (ExamNameField) ve aynı kabuğu kullanıyor.
+      expect([name, src.includes('<ModeField') || src.includes('<ExamNameField')]).toEqual([name, true]);
     }
+    expect(read('features/modes/components/modes/ExamNameField.tsx')).toContain('<ModeField');
     const field = read('features/modes/components/ModeField.tsx');
     expect(field).toContain('focused ? accent : restColor');
     expect(field).toContain("transition={{ type: 'timing', duration: 160 }}");

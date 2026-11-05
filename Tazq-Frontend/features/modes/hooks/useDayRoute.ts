@@ -30,6 +30,9 @@ interface RouteState {
   reasons: Record<string, StopReason>;
   celebratedDay: string | null;
   history: DayLog[];
+  /** Bu haftanın önceliği; hafta bitince kendiliğinden düşer. */
+  priority: { slot: string; until: string } | null;
+  setPriority: (p: { slot: string; until: string } | null) => void;
   setRoute: (day: string, keys: string[], reasons: Record<string, StopReason>) => void;
   addKey: (key: string, reason: StopReason) => void;
   log: (day: string, planned: number, done: number) => void;
@@ -45,11 +48,14 @@ export const useDayRouteStore = create<RouteState>()(
       reasons: {},
       celebratedDay: null,
       history: [],
+      priority: null,
+      // Seçim bugünün rotasına da yansır: günlük sabitleme çözülür, biten işler yerinde kalır.
+      setPriority: (priority) => set({ priority, day: null }),
       setRoute: (day, keys, reasons) => set({ day, keys, reasons }),
       addKey: (key, reason) => set(s => ({ keys: [...s.keys, key], reasons: { ...s.reasons, [key]: reason } })),
       log: (day, planned, done) => set(s => ({ history: withLog(s.history, day, planned, done) })),
       markCelebrated: (day) => set({ celebratedDay: day }),
-      reset: () => set({ day: null, keys: [], reasons: {}, celebratedDay: null, history: [] }),
+      reset: () => set({ day: null, keys: [], reasons: {}, celebratedDay: null, history: [], priority: null }),
     }),
     { name: 'tazq-day-route', storage: createJSONStorage(() => AsyncStorage) },
   ),
@@ -119,8 +125,8 @@ export function useDayRoute(lang: 'tr' | 'en'): DayRoute {
     }));
     const active = activeKeys(planHabits.flatMap(h => h.completedDates ?? []), all.filter(t => t.isCompleted).map(t => t.completedAt));
     const lastActive = [...active].filter(k => k < today).sort().pop() ?? null;
-    return [{ slot: p.slot, type: p.type, goal, daysLeft: p.date ? daysUntil(p.date) : null, lastActive, items: [...taskItems, ...habitItems] }];
-  }), [prefs, tasks, habits, affinity, today, lang]); // eslint-disable-line react-hooks/exhaustive-deps
+    return [{ slot: p.slot, type: p.type, goal, daysLeft: p.date ? daysUntil(p.date) : null, priority: store.priority?.slot === p.slot && store.priority.until >= today, lastActive, items: [...taskItems, ...habitItems] }];
+  }), [prefs, tasks, habits, affinity, today, lang, store.priority]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const frame = ramadanFrameNow();
   const capacity = routeCapacity(store.history, today, { lightDay: goals.some(g => lightDayFor(g.slot)), fasting: frame.fasting, eid: frame.phase === 'eid' });

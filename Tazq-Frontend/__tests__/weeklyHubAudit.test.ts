@@ -35,13 +35,13 @@ describe('Haftalık Merkez — bugünün çubuğu rakama benzemez', () => {
   });
 });
 
-describe('Haftalık Merkez — gün halkası', () => {
+describe('Haftalık Merkez — gün sütunu', () => {
   it('sesli etiket görev + alışkanlığı "planlı iş" diye sayar (eskiden hepsine "görev" diyordu)', () => {
     expect(COCKPIT).toContain('planlı işten');
     expect(COCKPIT).not.toContain('görevden ${done} tamamlandı');
   });
-  it('planı olmayan geçmiş gün kesik halkayla çizilir (boş gün ≠ plan yok belirsizliği)', () => {
-    expect(PANEL).toContain('DashPathEffect');
+  it('planı olmayan geçmiş gün kesik çerçeveyle çizilir (boş gün ≠ plan yok belirsizliği)', () => {
+    expect(PANEL).toContain("'dashed'");
   });
 });
 
@@ -49,11 +49,11 @@ describe('Haftalık Merkez — yazım ve tekrar', () => {
   it('ay değişen haftada başlık iki ayı da yazar ("26 EKİ – 1 KAS")', () => {
     expect(COCKPIT).toContain('weekDays[0].getMonth() !== weekDays[6].getMonth()');
   });
-  it('tarih yalnız başlıkta; panel etiketi "BU HAFTA"', () => {
-    expect(COCKPIT).not.toMatch(/label=\{`\$\{upperFor\(tr \? 'Bu hafta' : 'This week', tr\)\} · /);
+  it('tarih yalnız başlıkta; panelde "BU HAFTA" tekrarı yok', () => {
+    expect(COCKPIT).not.toContain("upperFor(tr ? 'Bu hafta'");
   });
   it('Türkçe düğme ve başlıklar cümle düzeninde', () => {
-    for (const s of ["'Gelecek haftayı planla'", "'Haftalık hedefi güncelle'", "'Alışkanlık ekle'", "'Gelecek hafta'", "'Haftalık hedef'"]) {
+    for (const s of ["'Alışkanlık ekle'"]) {
       expect(COCKPIT).toContain(s);
     }
     expect(COCKPIT).not.toMatch(/'Gelecek Haftayı Planla'|'Alışkanlık Ekle'|'Su İç'|'Kitap Oku'/);

@@ -18,10 +18,8 @@ import { useBudgetStore, type BudgetType } from '@/shared/store/useBudgetStore';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { useHabitStore } from '@/features/habits/store/useHabitStore';
 import { useTaskStore } from '@/features/tasks/store/useTaskStore';
-import { useNetworkStore } from '@/shared/store/useNetworkStore';
-import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
-import { usePlanAdaptations, makeClientKey } from '@/features/modes/hooks/usePlanAdaptations';
-import { TaskService } from '@/shared/services/api';
+import { usePlanAdaptations } from '@/features/modes/hooks/usePlanAdaptations';
+import { startTasarrufPlan } from '@/features/modes/utils/lifePlanStart';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
 import { ModeCardClose } from '../ModeCardClose';
@@ -29,7 +27,7 @@ import { DeviceOnlyNote } from '@/features/modes/components/DeviceOnlyNote';
 import { FormReveal, ModeField } from '../ModeField';
 import { renderModeEmojiIcon } from '@/features/modes/utils/modeIcons';
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
-import { buildTasarrufPlan, tasarrufTypeLabel, TASARRUF_COLOR, spendingAreaLabel, type SpendingArea } from '@/shared/utils/lifeModePlans';
+import { tasarrufTypeLabel, TASARRUF_COLOR, spendingAreaLabel, type SpendingArea } from '@/shared/utils/lifeModePlans';
 import { retirePlanTask , retireModeTasksByTag} from '@/features/modes/utils/planTaskOps';
 import { Coins } from 'lucide-react-native';
 import { Plus, Minus } from 'lucide-react-native';
@@ -40,9 +38,6 @@ import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 import { haptic } from '@/shared/utils/haptics';
 import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
 import { daysLeftOf as planDaysLeftOf } from '@/features/modes/utils/planTaskOps';
-import { modeRoomLeft } from '@/features/habits/utils/habitLimit';
-import { splitForFirstDay, interleaveStaged } from '@/features/modes/utils/stagedRollout';
-import { useStagedPlanStore } from '@/features/modes/store/useStagedPlanStore';
 import { HABIT_LIMIT_COPY } from '@/features/habits/utils/habitLimitCopy';
 
 
@@ -167,24 +162,6 @@ export function TasarrufCard({ onInputFocus }: { onInputFocus?: (target: number)
     />
   );
 
-  // Sunucu tarafı idempotency — bkz. usePlanAdaptations.ts `makeClientKey` notu:
-  // aynı kullanıcı + aynı anahtar + tamamlanmamışsa sunucu yenisini oluşturmaz.
-  // İstemci tarafındaki `applyingRef` kilidinin yanına ikinci bir güvenlik ağı.
-  const createPlanTask = async (rawPayload: any): Promise<number | null> => {
-    const payload = { ...rawPayload, clientKey: rawPayload.clientKey ?? makeClientKey(rawPayload) };
-    if (!useNetworkStore.getState().isOnline) {
-      const tempId = -Date.now() - Math.floor(Math.random() * 1000);
-      useOfflineQueue.getState().enqueue({ type: 'create-task', tempId, payload });
-      useTaskStore.getState().addTask({ ...payload, id: tempId });
-      return tempId;
-    }
-    try {
-      const t = await TaskService.createTask(payload);
-      if (t?.id) { useTaskStore.getState().addTask(t); return t.id; }
-    } catch { /* sessiz */ }
-    return null;
-  };
-
   /*
     ÇİFT DOKUNUŞ KİLİDİ — bkz. TurkishModeBanner.tsx `applyingRef`: aynı kalıp.
     `apply` birden çok `await` içeriyor; hızlı iki dokunuş ikisi de `configValid`
@@ -196,61 +173,7 @@ export function TasarrufCard({ onInputFocus }: { onInputFocus?: (target: number)
     applyingRef.current = true;
     try {
     haptic.success();
-    const content = buildTasarrufPlan(budgetType, spendingArea);
-    const habitIds: string[] = [];
-    // Kademeli açılım (2026-11-05, "ilk gün aşırı yığılma"): ilk gün 1 rutin + 1 görev, kalanı her gün birer sıradan gelir.
-    const staged = splitForFirstDay(content.habits, content.tasks);
-    const room = modeRoomLeft(useHabitStore.getState().habits, 'tasarruf');
-    staged.habitsNow.slice(0, room).forEach((h, i) => {
-      const id = `habit_tasarruf_${i}_${Date.now()}`;
-      addHabit(h.name, h.emoji, h.color, id, 'tasarruf');
-      habitIds.push(id);
-    });
-    const taskIds: number[] = [];
-    // Önek metnin dilinde: İngilizce başlığa Türkçe önek gidiyordu.
-    const labelFor = (isTr: boolean) => tasarrufTypeLabel(budgetType, isTr);
-    const withLabel = (text: string, isTr: boolean) => (labelFor(isTr) && !text.toLowerCase().includes(labelFor(isTr).toLowerCase()) ? `${labelFor(isTr)}: ${text}` : text);
-    useStagedPlanStore.getState().setQueue('tasarruf', interleaveStaged(
-      staged.tasksLater.map(t => ({ titleTr: withLabel(t.title, true), titleEn: withLabel(t.titleEn, false), descTr: t.desc, descEn: t.descEn, priority: t.priority, tags: t.tags ?? [] })),
-      [...staged.habitsNow.slice(room), ...staged.habitsLater].map(h => ({ nameTr: h.name, nameEn: h.nameEn ?? h.name, emoji: h.emoji, color: h.color, modeType: 'tasarruf' })),
-    ));
-    for (const t of staged.tasksNow) {
-      let taskTitleTr = t.title;
-      let taskTitleEn = t.titleEn;
-      taskTitleTr = withLabel(taskTitleTr, true);
-      taskTitleEn = withLabel(taskTitleEn, false);
-      const id = await createPlanTask({
-        title: tr ? taskTitleTr : taskTitleEn,
-        description: JSON.stringify({ tr: taskTitleTr, en: taskTitleEn, descTr: t.desc, descEn: t.descEn }),
-        priority: t.priority,
-        isCompleted: false,
-        tags: t.tags
-      });
-      if (id != null) taskIds.push(id);
-    }
-    const titleTr = 'Bu hafta birikimini gir';
-    const titleEn = 'Log this week\'s balance';
-    const wId = await createPlanTask({
-      title: tr ? titleTr : titleEn,
-      description: JSON.stringify({ tr: titleTr, en: titleEn }),
-      priority: 'Medium',
-      dueDate: new Date().toISOString(),
-      isCompleted: false,
-      tags: ['tasarruf', 'budget_entry']
-    });
-    if (wId != null) taskIds.push(wId);
-
-    const d = new Date(); d.setMonth(d.getMonth() + (durationMonths || 6));
-    // Türe özel hesaplanan başlangıç/hedefi store'a yaz (ilerleme kartının kaynağı).
-    setStartAmount(String(computedStart));
-    setTargetAmount(String(computedTarget));
-    setCover(budgetType === 'acilfon' ? monthlyExp : 0, budgetType === 'acilfon' ? coverMonths : 0);
-    setSeasonalPref('tasarrufMode', true);
-    setSeasonalPref('tasarrufName', tasarrufTypeLabel(budgetType, tr));
-    setSeasonalPref('tasarrufDate', toDateKey(d));
-    if (log.length === 0) addEntry(computedStart); // başlangıç noktası
-    setPlanIds('tasarruf', habitIds, taskIds);
-    usePrefsStore.getState().setPlanSpec('tasarruf', { ...usePrefsStore.getState().planSpecs.tasarruf }); // başlangıç damgası: Planım'daki yol çizgisi buna bakar
+    await startTasarrufPlan({ type: budgetType as Exclude<BudgetType, ''>, start: computedStart, target: computedTarget, monthly: monthlyExp, cover: coverMonths, months: durationMonths || 6, area: spendingArea, lang: tr ? 'tr' : 'en' });
     setExpanded(false);
     setTimeout(() => runAdaptations(true), 300);
     } finally {

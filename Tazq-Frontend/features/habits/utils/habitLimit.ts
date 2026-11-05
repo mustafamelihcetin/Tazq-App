@@ -10,9 +10,10 @@
 import type { Habit } from '@/features/habits/store/useHabitStore';
 
 /*
-  AYRILDI (2026-11-05, kullanıcı: "3 alışkanlık eklesem moddan düzgün faydalanamam"). 7 sınırı artık KİŞİSEL alışkanlıklar
-  için; mod rutinleri ayrı sayılır: mod başına en çok 2, toplam en çok 4. Kişisel alışkanlık modu engellemez, modlar da
-  günü boğmaz: en kötü gün 7 + 4.
+  İKİ AYRI HESAP (2026-11-05, kullanıcı: "3 mod açılsa limit doluyor, manuel ekleyemez; ayrım lazım").
+  KİŞİSEL: 7 hak yalnız kullanıcının, hedefler bundan yemez.
+  HEDEF RUTİNİ: hedef başına en çok 2. Otomatik ekleme genel bütçeye uyar ki hedefler günü boğmasın, ama bütçe hiçbir hedefi rutinsiz bırakmaz (bütçe en az hedef sayısı kadardır).
+  ELLE EKLEME: kullanıcı kendi hedefine bilerek ekliyorsa yalnız hedef başına sınır geçerlidir; bütçe onun seçimini engellemez.
 */
 export const HABIT_LIMIT = 7;
 export const MODE_ROUTINE_PER_MODE = 2;
@@ -21,7 +22,7 @@ export const MODE_ROUTINE_TOTAL = 4;
 type HabitRef = Pick<Habit, 'pausedAt'> & Partial<Pick<Habit, 'id' | 'planMode'>>;
 
 /** Alışkanlığın modu (exam2 → exam; eski kayıtlarda kimlik öneki); kişiselse null. */
-export function modeOf(h: Partial<Pick<Habit, 'id' | 'planMode'>>): string | null {
+export function modeOf(h: { id?: string; planMode?: string | null }): string | null {
   const raw = h.planMode || h.id?.match(/^habit_(ramazan|yks|kpss|exam|tez|mulakat|spor|tasarruf|birakma)_/)?.[1];
   if (!raw) return null;
   const base = raw.replace(/\d+$/, '');
@@ -34,14 +35,23 @@ export const activeHabits = <T extends Pick<Habit, 'pausedAt'>>(habits: T[]): T[
 /** Sınıra kadar kaç alışkanlık daha eklenebilir (0 = dolu; sınır üstündeyse de 0). */
 export const roomLeft = (habits: HabitRef[]): number => Math.max(0, HABIT_LIMIT - activeHabits(habits).filter(h => !modeOf(h)).length);
 
-/** Bu mod kaç rutin daha açabilir (mod başına ve toplam sınırın küçüğü). */
-export function modeRoomLeft(habits: HabitRef[], mode: string): number {
-  const base = mode.replace(/\d+$/, '');
-  const active = activeHabits(habits).map(modeOf).filter(Boolean);
-  return Math.max(0, Math.min(MODE_ROUTINE_PER_MODE - active.filter(m => m === (base === 'yks' || base === 'kpss' ? 'exam' : base)).length, MODE_ROUTINE_TOTAL - active.length));
+const familyOf = (mode: string) => { const b = mode.replace(/\d+$/, ''); return b === 'yks' || b === 'kpss' ? 'exam' : b; };
+
+/** Kullanıcı bu hedefe elle kaç rutin daha ekleyebilir: yalnız hedef başına sınır. */
+export function manualRoutineRoom(habits: HabitRef[], mode: string): number {
+  const own = activeHabits(habits).map(modeOf).filter(m => m === familyOf(mode)).length;
+  return Math.max(0, MODE_ROUTINE_PER_MODE - own);
 }
 
-/** Sınır üstündeki mod rutinlerinden dinlendirilecekler: son iki haftada en az yapılanlar. */
+/** Otomatik ekleme için yer: genel bütçeye uyar, ama hiç rutini olmayan hedefe en az bir yer kalır. */
+export function modeRoomLeft(habits: HabitRef[], mode: string): number {
+  const active = activeHabits(habits).map(modeOf).filter(Boolean) as string[];
+  const room = manualRoutineRoom(habits, mode);
+  const own = active.filter(m => m === familyOf(mode)).length;
+  return Math.min(room, Math.max(own === 0 ? 1 : 0, MODE_ROUTINE_TOTAL - active.length));
+}
+
+/** Sınır üstündeki mod rutinlerinden dinlendirilecekler: son iki haftada en az yapılanlar. Hiçbir hedefin son rutini dinlenmez. */
 export function routinesToRest<T extends Pick<Habit, 'id' | 'pausedAt' | 'completedDates' | 'createdAt'> & Partial<Pick<Habit, 'planMode'>>>(habits: T[], today: Date = new Date()): T[] {
   const routines = activeHabits(habits).filter(h => modeOf(h));
   const out = new Set<T>();
@@ -50,7 +60,15 @@ export function routinesToRest<T extends Pick<Habit, 'id' | 'pausedAt' | 'comple
     restSuggestions(own, own.length - MODE_ROUTINE_PER_MODE, today).forEach(h => out.add(h));
   }
   const left = routines.filter(h => !out.has(h));
-  restSuggestions(left, left.length - MODE_ROUTINE_TOTAL, today).forEach(h => out.add(h));
+  const budget = Math.max(MODE_ROUTINE_TOTAL, new Set(left.map(h => modeOf(h))).size);
+  let extra = left.length - budget;
+  for (const h of restSuggestions(left, left.length, today)) {
+    if (extra <= 0) break;
+    const kept = left.filter(x => !out.has(x) && modeOf(x) === modeOf(h)).length;
+    if (kept <= 1) continue;
+    out.add(h);
+    extra--;
+  }
   return [...out];
 }
 

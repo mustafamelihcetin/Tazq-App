@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Canvas, Circle, Path, Group, BlurMask, Skia } from '@shopify/react-native-skia';
+import { Canvas, Circle, Oval, Path, Group, BlurMask, Skia } from '@shopify/react-native-skia';
 import { Easing, useDerivedValue, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { Sun, Moon } from 'lucide-react-native';
 import { useLowPowerGraphics } from '@/shared/hooks/useLowPowerGraphics';
@@ -10,8 +10,9 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { sceneOf, sceneLights, LIGHT_NAMES } from '@/features/focus/utils/focusScenes';
 import { Nebula } from '@/features/focus/components/FocusBackdrop';
-import { skyStars, skyStory, type SkySession } from '@/features/report/weekSky';
-import { S, R, F, ICON } from '@/shared/constants/tokens';
+import { skyDayLine, skyDayTasks, skyDelta, skyDuration, skyStars, skyStory, skyTop, skyWeek, type SkySession } from '@/features/report/weekSky';
+import { Touchable } from '@/shared/components/Touchable';
+import { S, R, F, ICON, MIN_TOUCH } from '@/shared/constants/tokens';
 
 /*
   HAFTANIN GÖKYÜZÜ (v3, 2026-11-01).
@@ -31,7 +32,10 @@ import { S, R, F, ICON } from '@/shared/constants/tokens';
 const REVEAL_MS = 2400;
 const H = 180;
 const PAD = 12;
+/** En büyük yıldızın parıltısı ~35 birim yayılır (yarıçap 7 × 3.2 + bulanıklık payı). */
+const OVERSCAN = 40;
 const DUST = 46;
+const CLEAN_MIN_MINUTES = 10;
 const GLINT_MIN = 0.55; // ~27 dk ve üstü seanslarda ışıltı haçı
 
 const Star = ({ x, y, r, at, t, core, halo, glint, low }: { x: number; y: number; r: number; at: number; t: SharedValue<number>; core: string; halo: string; glint: boolean; low: boolean }) => {
@@ -72,6 +76,7 @@ const COPY = {
     total: (n: number, l: string) => `${n} ${l}`,
     empty: 'Her odak seansın bu gökyüzüne bir yıldız olarak düşer.',
     a11yHow: 'Her yıldız bir odak seansı; yukarısı sabah, aşağısı gece; büyük yıldız uzun seans',
+    legend: 'Her yıldız bir seans · ışıltılısı kesintisiz · güne dokun',
     days: ['P', 'S', 'Ç', 'P', 'C', 'C', 'P'],
   },
   en: {
@@ -79,6 +84,7 @@ const COPY = {
     total: (n: number, l: string) => `${n} ${l}`,
     empty: 'Every focus session lands in this sky as a star.',
     a11yHow: 'Each star is a focus session; higher is morning, lower is night; bigger is longer',
+    legend: 'Each star is a session · sparkling means uninterrupted · tap a day',
     days: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
   },
 };
@@ -89,8 +95,10 @@ function seeded(seed: number) {
   return () => { a = (a + 0x6d2b79f5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 
-export function WeekSky({ sessions, dayKeys, language, timed = true, todayKey }: {
+export function WeekSky({ sessions, dayKeys, language, timed = true, todayKey, bleed = false, bottomInset = 0, children }: {
   sessions: SkySession[]; dayKeys: string[]; language: 'tr' | 'en'; timed?: boolean; todayKey?: string;
+  /** Kart değil, pencerenin kendisi: kenar çizgisi yok (kullanıcı: "iç kenarlar çok solid"). */
+  bleed?: boolean; bottomInset?: number; children?: React.ReactNode;
 }) {
   const reduce = useReduceMotion();
   const low = useLowPowerGraphics();
@@ -106,12 +114,19 @@ export function WeekSky({ sessions, dayKeys, language, timed = true, todayKey }:
   const names = LIGHT_NAMES[scene.id];
   const label = language === 'tr' ? names.tr : stars.length === 1 ? names.enOne : names.en;
   const todayIdx = todayKey ? dayKeys.indexOf(todayKey) : -1;
+  const week = useMemo(() => skyWeek(sessions, dayKeys, todayKey, timed), [sessions, dayKeys, todayKey, timed]);
+  const delta = skyDelta(week.delta, language);
+  const [picked, setPicked] = useState<number | null>(null);
+  // Hafta değişince (rapor hafta seçicisi) eski seçim anlamsız kalır.
+  useEffect(() => setPicked(null), [dayKeys[0]]); // dizi kimliği değil tarih: her çizimde yeni dizi gelse seçim silinirdi
+  const glowIdx = picked ?? todayIdx;
 
   const pts = useMemo(() => stars.map((st, i) => ({
     x: st.x01 * w,
     y: PAD + st.y01 * (H - 2 * PAD),
     r: 2.4 + 4.6 * st.size,
-    glint: st.size >= GLINT_MIN,
+    // Işıltı kesintisiz seansı anlatır; eski kayıtlarda bilinmediği için süre kuralı kalır.
+    glint: st.clean === null ? st.size >= GLINT_MIN : st.clean && st.minutes >= CLEAN_MIN_MINUTES,
     at: stars.length <= 1 ? 0 : (i / (stars.length - 1)) * 0.92,
   })), [stars, w]);
 
@@ -138,10 +153,8 @@ export function WeekSky({ sessions, dayKeys, language, timed = true, todayKey }:
 
   return (
     <View
-      style={styles.card}
+      style={[styles.card, bleed ? { paddingHorizontal: S.lg, paddingTop: S.lg, paddingBottom: Math.max(bottomInset, S.md) } : { borderRadius: R.lg }]}
       onLayout={(e) => setCard({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-      accessible
-      accessibilityLabel={[c.title, story ?? c.empty, stars.length > 0 ? c.a11yHow : ''].filter(Boolean).join('. ')}
     >
       <LinearGradient colors={scene.zen.slice(0, 3) as [string, string, string]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
       {/* Aurora bandı: sahnenin ışık renkleriyle durağan çapraz pus — HER cihazda (zayıfta tek mistik katman). */}
@@ -149,7 +162,7 @@ export function WeekSky({ sessions, dayKeys, language, timed = true, todayKey }:
       {/* Aurora zemini — odak ekranının dili; durağan tek kare. Zayıf cihazda yok. */}
       {!low && card.w > 0 && (
         <View style={[StyleSheet.absoluteFill, { opacity: scene.zenOpacity }]} pointerEvents="none">
-          <Nebula size={0} width={card.w} height={card.h} c1={c1} c2={c2} c3={c3} scene={scene.id} base={scene.base} paused />
+          <Nebula size={0} width={card.w} height={card.h} c1={c1} c2={c2} c3={c3} scene={scene.id} base={scene.base} paused sky />
         </View>
       )}
       {/* Şafak: gökyüzünün üstü (sabah) hafifçe aydınlık — saat eksenini çizgisiz söyler. */}
@@ -159,17 +172,28 @@ export function WeekSky({ sessions, dayKeys, language, timed = true, todayKey }:
         <Text style={styles.title}>{c.title}</Text>
         {stars.length > 0 && <Text style={[styles.total, { color: scene.stars[1] }]}>{c.total(stars.length, label)}</Text>}
       </View>
-      {story ? <Text style={styles.story}>{story}</Text> : null}
+      {stars.length > 0 && (
+        <View>
+          <Text style={styles.sum}>{skyDuration(week.totalMinutes, language)}</Text>
+          {delta ? <Text style={styles.delta}>{delta}</Text> : null}
+          {skyTop(week, language) ? <Text numberOfLines={1} style={styles.delta}>{skyTop(week, language)}</Text> : null}
+        </View>
+      )}
+      {/* Güne dokununca o günün dökümü; yoksa haftanın tek cümlesi. Yer değişmesin diye aynı satır. */}
+      {picked !== null
+        ? <Text accessibilityLiveRegion="polite" style={styles.story}>{[skyDayLine(week.days[picked], dayKeys[picked], language, timed), skyDayTasks(week.days[picked], language)].filter(Boolean).join('\n')}</Text>
+        : story ? <Text style={styles.story}>{story}</Text> : null}
 
-      <View style={{ height: H }} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
-        {todayIdx >= 0 && w > 0 && (
-          <LinearGradient
-            colors={['transparent', scene.stars[1] + '1F', 'transparent']}
-            style={{ position: 'absolute', top: 0, bottom: 0, left: (todayIdx / 7) * w, width: w / 7 }}
-            pointerEvents="none"
-          />
-        )}
-        <Canvas style={{ width: w, height: H }}>
+      <View accessible accessibilityRole="image" accessibilityLabel={[c.title, story ?? c.empty, stars.length > 0 ? c.a11yHow : ''].filter(Boolean).join('. ')} style={{ height: H }} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
+        {/* Tuval veri alanından taşar: parıltı ve ışıltı haçı kenarda kare gibi kesilmesin (kullanıcı: "parıltısı çok keskin kesilmiş"). */}
+        <Canvas pointerEvents="none" style={{ position: 'absolute', left: -OVERSCAN, top: -OVERSCAN, width: w + OVERSCAN * 2, height: H + OVERSCAN * 2 }}>
+          <Group transform={[{ translateX: OVERSCAN }, { translateY: OVERSCAN }]}>
+          {/* Bugün: köşesiz, her yönde solan aydınlık. Düşük güçte bulanıklık yok; orada günün adı kalın yazılır, yeter. */}
+          {glowIdx >= 0 && w > 0 && !low && (
+            <Oval x={(glowIdx / 7) * w} y={0} width={w / 7} height={H} color={scene.stars[1]} opacity={picked !== null ? 0.26 : 0.16}>
+              <BlurMask blur={w / 18} style="normal" />
+            </Oval>
+          )}
           {dust.map((d, i) => <Circle key={`d${i}`} cx={d.x} cy={d.y} r={d.r} color={scene.stars[0]} opacity={d.o} />)}
           {/* Takımyıldız: bulanık ikiz hafif parıltı verir (düşük güçte yok). */}
           {pts.length > 1 && (low
@@ -183,6 +207,7 @@ export function WeekSky({ sessions, dayKeys, language, timed = true, todayKey }:
           {pts.map((q, i) => (
             <Star key={i} x={q.x} y={q.y} r={q.r} at={q.at} t={t} core={scene.stars[0]} halo={c1} glint={q.glint} low={low} />
           ))}
+          </Group>
         </Canvas>
         {timed && stars.length > 0 && (
           <>
@@ -194,16 +219,33 @@ export function WeekSky({ sessions, dayKeys, language, timed = true, todayKey }:
       </View>
 
       <View style={styles.days}>
-        {c.days.map((l, i) => (
-          <Text key={i} style={[styles.dayLabel, i === todayIdx && styles.dayToday]}>{l}</Text>
-        ))}
+        {c.days.map((l, i) => {
+          const on = picked === i;
+          const min = week.days[i]?.minutes ?? 0;
+          const key = dayKeys[i];
+          return (
+            <Touchable
+              key={i}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={key && week.days[i] ? skyDayLine(week.days[i], key, language, timed) : l}
+              onPress={() => setPicked(on ? null : i)}
+              style={styles.day}
+            >
+              <Text style={[styles.dayLabel, (i === todayIdx || on) && styles.dayToday]}>{l}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.dayMin, on && styles.dayToday]}>{min > 0 ? Math.round(min) : '–'}</Text>
+            </Touchable>
+          );
+        })}
       </View>
+      {stars.length > 0 && <Text style={styles.legend}>{c.legend}</Text>}
+      {children}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: R.lg, overflow: 'hidden', padding: S.md, gap: S.sm },
+  card: { overflow: 'hidden', padding: S.md, gap: S.sm },
   head: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   title: { color: '#FFFFFF', fontSize: F.title3, fontWeight: '700' },
   total: { fontSize: F.caption, fontWeight: '700' },
@@ -211,6 +253,11 @@ const styles = StyleSheet.create({
   empty: { position: 'absolute', left: 0, right: 0, top: H / 2 - S.md, color: 'rgba(255,255,255,0.7)', fontSize: F.footnote, textAlign: 'center', paddingHorizontal: S.lg },
   mark: { position: 'absolute', left: 0, opacity: 0.35 },
   days: { flexDirection: 'row' },
+  day: { flex: 1, minHeight: MIN_TOUCH, alignItems: 'center', justifyContent: 'center', gap: S.xxs },
+  dayMin: { color: 'rgba(255,255,255,0.6)', fontSize: F.caption2, fontWeight: '500', fontVariant: ['tabular-nums'] },
+  sum: { color: '#FFFFFF', fontSize: F.display, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  delta: { color: 'rgba(255,255,255,0.7)', fontSize: F.caption, fontWeight: '500' },
+  legend: { color: 'rgba(255,255,255,0.5)', fontSize: F.caption2, textAlign: 'center' },
   dayLabel: { flex: 1, textAlign: 'center', color: 'rgba(255,255,255,0.45)', fontSize: F.caption2, fontWeight: '600' },
   dayToday: { color: '#FFFFFF', fontWeight: '700' },
 });

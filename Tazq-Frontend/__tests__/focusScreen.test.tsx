@@ -175,4 +175,22 @@ describe('odak ekranı kuralları', () => {
     expect(FOCUS).toContain('<FocusTaskPicker');
     expect(FOCUS).toContain('setCurrentTask(title, taskId)');
   });
+
+  it('alarmdan sonra geçen süre varsayılan eklenmez, kullanıcı isterse eklenir', () => {
+    const onAddIdle = jest.fn();
+    const { getByText } = render(<SessionSummary {...props} idleMinutes={4} onAddIdle={onAddIdle} />);
+    fireEvent.press(getByText('Alarmdan sonra da sürdüyse +4 dk ekle'));
+    expect(onAddIdle).toHaveBeenCalledWith(4);
+    expect(getByText('+4 dk eklendi')).toBeTruthy();
+  });
+
+  it('görevsiz seans adını sorar, görevli seans sormaz', () => {
+    const onName = jest.fn();
+    const free = render(<SessionSummary {...props} taskTitle={null} onName={onName} />);
+    fireEvent.changeText(free.getByLabelText('Neye odaklandın?'), 'Okuma');
+    fireEvent(free.getByLabelText('Neye odaklandın?'), 'endEditing');
+    expect(onName).toHaveBeenCalledWith('Okuma');
+    const withTask = render(<SessionSummary {...props} taskTitle="Rapor yaz" onName={onName} />);
+    expect(withTask.queryByLabelText('Neye odaklandın?')).toBeNull();
+  });
 });

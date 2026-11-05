@@ -6,8 +6,8 @@ export const HABIT_LIMIT_COPY = {
   tr: {
     examClosedToast: 'Sınav tarihin geçti, planı kapatıldı.',
     modeCapToast: (n: number) => `Modlarının ${n} rutini dinlenmeye alındı; serileri duruyor, Hafta'dan geri açabilirsin.`,
-    fullTitle: 'Odak yedi alışkanlıkta kalır',
-    fullBody: 'Zihin aynı anda yaklaşık yedi şeyi rahatça izler; az sayıda alışkanlığa odaklananlar daha tutarlı kalır. Yenisini eklemek için birini dinlendir — serisi ve geçmişi korunur, istediğinde tek dokunuşla geri gelir.',
+    fullTitle: 'Kendi alışkanlıkların yedide kalır',
+    fullBody: 'Hedeflerinin rutinleri bu sayıya girmez. Zihin aynı anda yaklaşık yedi şeyi rahatça izler; az sayıda alışkanlığa odaklananlar daha tutarlı kalır. Yenisini eklemek için birini dinlendir — serisi ve geçmişi korunur, istediğinde tek dokunuşla geri gelir.',
     restOne: 'Birini dinlendir', ok: 'Tamam', cancel: 'Vazgeç',
     // Kullanıcı: "neden 7 olduğunu bilimsel söylemeliyiz, tatmin etsin". Yalnız gerçek,
     // yayımlanmış bulgular; abartısız ifadeyle.
@@ -27,8 +27,8 @@ export const HABIT_LIMIT_COPY = {
   en: {
     examClosedToast: 'Your exam date passed, so its plan was closed.',
     modeCapToast: (n: number) => `${n} mode routines are resting; streaks are kept, bring them back from Week.`,
-    fullTitle: 'Focus stays at seven habits',
-    fullBody: 'The mind tracks about seven things comfortably, and people who focus on a few habits stay more consistent. To add a new one, rest one — its streak and history stay, and it comes back with a single tap.',
+    fullTitle: 'Your own habits stay at seven',
+    fullBody: 'Your goals’ routines don’t count here. The mind tracks about seven things comfortably, and people who focus on a few habits stay more consistent. To add a new one, rest one — its streak and history stay, and it comes back with a single tap.',
     restOne: 'Rest one', ok: 'OK', cancel: 'Cancel',
     whyBtn: 'Why 7?', whyTitle: 'Why seven?',
     whyBody: '• Working memory holds about 7±2 items at once (Miller, 1956).\n'

@@ -1,3 +1,4 @@
+import { finishSetup, GoalSetupHost, startFromSetup, useGoalSetupStore, type SetupResult } from '@/features/modes/components/setup/GoalSetupHost';
 import { useQuitStore } from '@/shared/store/useQuitStore';
 import { PLAN_COPY } from '@/features/modes/components/plan/planCopy';
 import { useAuthStore } from '@/features/user/store/useAuthStore';
@@ -285,7 +286,7 @@ export default function ModlarScreen() {
     }
   }, [removeTask, recordCompletion]);
 
-  const [modePreview, setModePreview] = useState<{ type: ModeType; key: number; templateId?: string; examTipTr?: string; examTipEn?: string; examName?: string; examDate?: string; examSlot?: 'exam' | 'exam2' | 'exam3'; mulakatSlot?: 'mulakat' | 'mulakat2' | 'mulakat3'; sporSlot?: 'spor' | 'spor2' | 'spor3' } | null>(null);
+  const [modePreview, setModePreview] = useState<{ setup?: { slot: string; after?: () => void; minutes?: number }; type: ModeType; key: number; templateId?: string; examTipTr?: string; examTipEn?: string; examName?: string; examDate?: string; examSlot?: 'exam' | 'exam2' | 'exam3'; mulakatSlot?: 'mulakat' | 'mulakat2' | 'mulakat3'; sporSlot?: 'spor' | 'spor2' | 'spor3' } | null>(null);
   /*
     SINAV ADI TERCİHTEN TÜRETİLİYOR — mount'ta alınan kopya eskiyordu.
 
@@ -526,6 +527,7 @@ export default function ModlarScreen() {
     focusTimersRef.current.forEach(clearTimeout);
     focusTimersRef.current = [];
   }, []);
+  const startSetup = (r: SetupResult) => startFromSetup(r, { lang: language === 'en' ? 'en' : 'tr', setSeasonalPref, runAdaptations, preview: setModePreview as never, examTemplate: levelTemplateIdFromMinutes, inputs: { tez: [setTezNameInput, setTezDateInput], mulakat: [setMulakatNameInput, setMulakatDateInput], mulakat2: [setMulakat2NameInput, setMulakat2DateInput], mulakat3: [setMulakat3NameInput, setMulakat3DateInput], spor: [setSporGoalInput, setSporDateInput], spor2: [setSpor2GoalInput, setSpor2DateInput], spor3: [setSpor3GoalInput, setSpor3DateInput] } });
   const focusCard = useCallback((key: string) => {
     clearFocusTimers();
     setOpenGoal(key);
@@ -1144,7 +1146,7 @@ export default function ModlarScreen() {
                   textColor: urgencyTextColor,
                   load: language === 'tr' ? '2 rutin · günde 1-3 görev' : '2 routines · 1-3 tasks/day',
                   sample: DISCOVERY_SAMPLE[language === 'en' ? 'en' : 'tr'].exam,
-                  onActivate: () => { setSeasonalPref('examMode', true); focusCard('exam'); },
+                  onActivate: () => { useGoalSetupStore.getState().open('exam', 'exam'); },
                 },
                 {
                   key: 'spor',
@@ -1157,7 +1159,7 @@ export default function ModlarScreen() {
                   textColor: sporTextColor,
                   load: language === 'tr' ? '2 rutin · günde 1-3 görev' : '2 routines · 1-3 tasks/day',
                   sample: DISCOVERY_SAMPLE[language === 'en' ? 'en' : 'tr'].spor,
-                  onActivate: () => { setSeasonalPref('sporMode', true); focusCard('spor'); },
+                  onActivate: () => { useGoalSetupStore.getState().open('spor', 'spor'); },
                 },
                 {
                   key: 'tez',
@@ -1170,7 +1172,7 @@ export default function ModlarScreen() {
                   textColor: tezTextColor,
                   load: language === 'tr' ? '2 rutin · günde 1-2 görev' : '2 routines · 1-2 tasks/day',
                   sample: DISCOVERY_SAMPLE[language === 'en' ? 'en' : 'tr'].tez,
-                  onActivate: () => { setSeasonalPref('tezMode', true); focusCard('tez'); },
+                  onActivate: () => { useGoalSetupStore.getState().open('tez', 'tez'); },
                 },
                 {
                   key: 'mulakat',
@@ -1183,7 +1185,7 @@ export default function ModlarScreen() {
                   textColor: mulakatTextColor,
                   load: language === 'tr' ? '2 rutin · günde 1-2 görev' : '2 routines · 1-2 tasks/day',
                   sample: DISCOVERY_SAMPLE[language === 'en' ? 'en' : 'tr'].mulakat,
-                  onActivate: () => { setSeasonalPref('mulakatMode', true); focusCard('mulakat'); },
+                  onActivate: () => { useGoalSetupStore.getState().open('mulakat', 'mulakat'); },
                 },
                 {
                   key: 'tasarruf',
@@ -1196,7 +1198,7 @@ export default function ModlarScreen() {
                   textColor: resolveModeAccentText('tasarruf', isDark),
                   load: language === 'tr' ? '2 rutin · para hareketi takibi' : '2 routines · money tracking',
                   sample: DISCOVERY_SAMPLE[language === 'en' ? 'en' : 'tr'].tasarruf,
-                  onActivate: () => { setSeasonalPref('tasarrufMode', true); focusCard('tasarruf'); },
+                  onActivate: () => { useGoalSetupStore.getState().open('tasarruf', 'tasarruf'); },
                 },
                 {
                   key: 'birakma',
@@ -1209,7 +1211,7 @@ export default function ModlarScreen() {
                   textColor: resolveModeAccentText('birakma', isDark),
                   load: language === 'tr' ? '2 rutin · her gün kısa yoklama' : '2 routines · daily review',
                   sample: DISCOVERY_SAMPLE[language === 'en' ? 'en' : 'tr'].birakma,
-                  onActivate: () => { setSeasonalPref('birakmaMode', true); focusCard('birakma'); },
+                  onActivate: () => { useGoalSetupStore.getState().open('birakma', 'birakma'); },
                 },
               ].filter(item => !item.active);
 
@@ -1345,9 +1347,11 @@ export default function ModlarScreen() {
       {tourOn && <HelpTourModal pageId="modlar" scrollRef={scrollViewRef} />}
       <BottomNavBar />
 
+      <GoalSetupHost onDone={startSetup} />
       {modePreview && (
         <TurkishModeBanner
           key={modePreview.key}
+          headless={!!modePreview.setup} onHeadlessDone={() => { const done = modePreview.setup; setModePreview(null); if (done) finishSetup(done); }}
           defaultTemplateId={modePreview.templateId}
           activeSlot={(() => {
             const t = modePreview.type;
@@ -1514,7 +1518,7 @@ export default function ModlarScreen() {
               // ekranın kendi (sessizce doldurulmuş, artık güncellenmeyen) kopyasına
               // bakıyordu; kullanıcının seçimi eziliyordu.
               const dm = meta?.dailyMinutes;
-              setPlanSpec(slot, { templateId: meta?.templateId, dailyMinutes: dm ?? undefined });
+              setPlanSpec(slot, { templateId: meta?.templateId, dailyMinutes: modePreview.setup?.minutes ?? dm ?? undefined });
             } else if (t === 'tez') {
               setPlanIds('tez', [...new Set([...tezPlanHabitIds, ...habitIds])], [...new Set([...tezPlanTaskIds, ...taskIds])]);
               setPlanSpec('tez', { templateId: meta?.templateId, dailyMinutes: meta?.dailyMinutes });

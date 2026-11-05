@@ -14,7 +14,7 @@ import { PLAN_COPY } from '@/features/modes/components/plan/planCopy';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { useSporStore } from '@/features/modes/store/useSporStore';
 import { foreignTaskIds, goalDay, goalStateOf, groupByType, nextFreeSlot, quitRoomLeft } from '@/features/modes/utils/goalRows';
-import { useGoalAddStore } from '@/features/modes/store/useGoalCloseStore';
+import { useGoalSetupStore } from '@/features/modes/components/setup/SetupShell';
 import type { SeasonalPrefs } from '@/features/modes/store/usePrefsStore';
 import { isPausedOn } from '@/features/modes/utils/planPause';
 import { daysUntil, detectSporTypeLocal } from '@/features/modes/utils/planAdaptations';
@@ -136,7 +136,7 @@ export function goalAddRows(s: SeasonalPrefs, applied: Record<'exam' | 'mulakat'
   ];
   return rows.filter(r => r.on && r.slot).map(r => ({
     key: `add-${r.key}`, active: false, title: g.addMore[r.key], desc: g.addLimit[r.key], icon: '', Icon: r.Icon as typeof BookOpen, color: modeAccent(r.key, isDark), textColor: modeAccent(r.key, isDark), load: g.addLimit[r.key], sample: g.addLimit[r.key],
-    onActivate: () => { useGoalAddStore.getState().request(r.slot as string); focus(r.key); },
+    onActivate: () => { useGoalSetupStore.getState().open(r.key, r.slot as string); },
   }));
 }
 

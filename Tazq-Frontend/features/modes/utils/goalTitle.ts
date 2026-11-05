@@ -1,6 +1,7 @@
 import { useBudgetStore } from '@/shared/store/useBudgetStore';
 import { useQuitStore } from '@/shared/store/useQuitStore';
 import { stripEmoji } from '@/shared/utils/emoji';
+import { canonicalExamName } from '@/shared/utils/examPresets';
 import { birakmaTypeLabel, tasarrufTypeLabel } from '@/shared/utils/lifeModePlans';
 import { localizeSporGoal } from './turkishModes';
 import type { ActivePlan } from './planSlots';
@@ -27,5 +28,7 @@ export function goalTitle(plan: Pick<ActivePlan, 'type' | 'name'>, lang: 'tr' | 
     if (short) return items.length > 1 ? `${first} +${items.length - 1}` : first;
     return items.map(i => quitItemName(i, lang)).join(', ');
   }
+  // Eski kayıtta "kpss" yazmış olabilir: görünen ad doğru biçimde (kayda dokunulmaz, plan görevleri ada bağlı).
+  if (/^(exam|yks|kpss)/.test(plan.type)) return canonicalExamName(stripEmoji(plan.name), lang) || fallback;
   return stripEmoji(plan.name) || fallback;
 }

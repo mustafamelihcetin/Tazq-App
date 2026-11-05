@@ -1,0 +1,25 @@
+# ODAK SEANSI UYGULAMA KAPANINCA KORUNUR (2026-11-06)
+#
+# Oturumu açık cihazda: 1 dk seans başlat → uygulamayı öldür → aç → sayaç sürmeli ya da özet gelmeli, kayıt tek olmalı.
+# clearState YOK: kullanıcının verisine dokunmaz.
+#
+# Çalıştırma (Android, dev build, Metro açık):
+#   adb reverse tcp:8081 tcp:8081
+#   ~/.maestro/bin/maestro.bat test .maestro/odak-kapatma.yaml
+appId: com.tazqapp.tazq.dev
+---
+- launchApp
+- openLink: "tazq-app-dev://focus"
+- extendedWaitUntil:
+    visible: "Süre için halkayı çevir"
+    timeout: 180000
+- tapOn:
+    text: "Başlat"
+    optional: true
+- killApp
+- launchApp
+- openLink: "tazq-app-dev://focus"
+- extendedWaitUntil:
+    visible:
+      text: "(Harika İş!|İyi Başlangıç!|Bitir)"
+    timeout: 180000

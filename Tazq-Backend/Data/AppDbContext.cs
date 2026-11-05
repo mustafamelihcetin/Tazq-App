@@ -85,6 +85,7 @@ namespace Tazq_App.Data
 				.OnDelete(DeleteBehavior.Cascade);
 			modelBuilder.Entity<RefreshToken>().HasIndex(t => t.TokenHash).IsUnique();
 			modelBuilder.Entity<RefreshToken>().HasIndex(t => t.UserId);
+			modelBuilder.Entity<RefreshToken>().HasIndex(t => t.FamilyId);
 
 			modelBuilder.Entity<ContentDocument>().HasIndex(c => c.Key).IsUnique();
 

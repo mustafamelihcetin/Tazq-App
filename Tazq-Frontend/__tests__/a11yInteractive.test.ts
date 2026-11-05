@@ -248,7 +248,6 @@ describe('arka planlar ağacın dışında', () => {
  * bilerek listede DEĞİL — orası sıfırlandı ve öyle kalacak.
  */
 const ROLE_CEILING: Record<string, number> = {
-  'app/cockpit.tsx': 2, // 5 → 2 (2026-10-30): Haftalık Merkez hafta paneline geçti (gün halkaları, takvim satırı, Ekle düğmeleri rollü) · 6 → 5 (2026-10-29): seçili gün listesi Takvim'e taşındı · 9 → 8 (2026-10-25): Bu Hafta kartının planla satırı rollü · 11 → 9: gün kutuları ve Görev Ekle rollü · 13 → 11 (2026-10-24): Bugün satırı + tamamlanan alışkanlık satırına rol
   'app/admin.tsx': 23,
   'app/focus.tsx': 1, // 3 → 1 (2026-11-01): Özel süre penceresi kalktı (süre halkadan, rollü kadran) · 4 → 3 (2026-11-01): ortam sesi düğmelerine rol + seçili/çalıyor durumu · 6 → 4 (2026-10-30): eski nefes seçicisi kaldırıldı (nefes ayrı seans) · 7 → 6 (2026-10-24): Özel süre seçeneğine rol · // 17 → 7: modlar/pomodoro sayfaları kendi dosyalarına taşındı (rolleriyle), süre seçenekleri ve sayaç adlandırıldı
   'app/profile.tsx': 1, // 3 → 1 (2026-11-01): kimlik kartı ve düzenleme sayfası yeniden yazıldı (rollü) · 4 → 3 (2026-10-24): Yenile düğmesine rol

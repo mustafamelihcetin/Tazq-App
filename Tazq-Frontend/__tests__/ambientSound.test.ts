@@ -85,7 +85,7 @@ describe('odak ekranı kararı uygular', () => {
       expect(FOCUS).toContain(`require('../assets/sounds/${s}.m4a')`);
       expect(fs.statSync(path.join(ROOT, `assets/sounds/${s}.m4a`)).size).toBeGreaterThan(500_000);
     }
-    expect(FOCUS).toContain("wind:      { icon: Wind,       labelTr: 'Rüzgar'");
+    expect(fs.readFileSync(path.join(ROOT, 'features/focus/utils/focusScreenData.ts'), 'utf8')).toContain("wind:      { icon: Wind,       labelTr: 'Rüzgar'");
   });
 
   it('nefes YAZILI ve görünür: seans başlamadan, başlatın solundaki kendi yuvasında (filtre/ses çiplerinde değil)', () => {

@@ -23,6 +23,10 @@ export const setFocusScreenVisible = (v: boolean) => { focusScreenVisible = v; }
 export const isFocusScreenVisible = () => focusScreenVisible;
 
 // ── Kayıt ────────────────────────────────────────────────────────────────────
+const ANONYMOUS_SESSION = 'Focus';
+const MAX_ADD_MINUTES = 60;
+let lastCommit: { occurredAt: string | null; id: Promise<number | null> } | null = null;
+
 export type CommitResult = 'saved' | 'too-short' | 'not-focus' | 'duplicate';
 
 /**
@@ -51,19 +55,23 @@ export function commitFocusSession(minutes: number, completed: boolean, alreadyC
     Bilinen eksiklik: sunucu seansın TARİHİNİ kabul etmiyor, aldığı anı damgalıyor.
     Eşitleme gece yarısını geçerse seans ertesi güne yazılır (bkz. OfflineOp notu).
   */
+  // Görevin adı sunucuda şifreli saklanır; adsız seans sabit 'Focus' kalır.
+  const taskName = st.currentTask.trim() || ANONYMOUS_SESSION;
+  const pausedSeconds = st.pausedTotalSeconds ?? 0;
+  const occurredAt = new Date().toISOString();
   const queueSession = () => {
-    useOfflineQueue.getState().enqueue({
-      type: 'focus-session',
-      taskName: 'Focus',
-      minutes,
-      completed,
-      occurredAt: new Date().toISOString(),
-    });
+    useOfflineQueue.getState().enqueue({ type: 'focus-session', taskName, minutes, completed, occurredAt, pausedSeconds });
+    lastCommit = { occurredAt, id: Promise.resolve(null) };
   };
   if (!useNetworkStore.getState().isOnline) {
     queueSession();
   } else {
-    FocusService.saveSession('Focus', minutes, completed).catch((e: unknown) => {
+    const saved = FocusService.saveSession(taskName, minutes, completed, pausedSeconds);
+    lastCommit = {
+      occurredAt: null,
+      id: saved.then((r) => r?.id ?? null).catch(() => null),
+    };
+    saved.catch((e: unknown) => {
       // Ağ hatası → kuyruğa al. Gerçek sunucu hatası → kaydı düşür (yeniden denemek
       // aynı reddi üretir) ama izini bırak.
       if (isNetworkError(e)) queueSession();
@@ -76,6 +84,44 @@ export function commitFocusSession(minutes: number, completed: boolean, alreadyC
   // Odağa bağlı alışkanlıklar kendiliğinden dolar (bkz. autoMark).
   if (focusQualifies(minutes, completed)) autoMarkHabits('focus');
   return 'saved';
+}
+
+/**
+ * SON SEANSA EK: özetteki ad ve alarm sonrası süre (GoodTime'ın "ek odak" fikri).
+ * Seans hâlâ kuyruktaysa kuyruktaki kayıt düzeltilir; gönderildiyse sunucuya yamalanır.
+ * Sunucuya ulaşılamazsa sessiz kalır: seans zaten kayıtlı, ek bilgi kritik değil.
+ */
+export function updateLastSession(patch: { taskName?: string; addMinutes?: number }): void {
+  const commit = lastCommit;
+  if (!commit) return;
+  const addMinutes = Math.max(0, Math.min(MAX_ADD_MINUTES, Math.round(patch.addMinutes ?? 0)));
+  const taskName = patch.taskName?.trim() || undefined;
+  if (!addMinutes && !taskName) return;
+  if (addMinutes) useFocusStore.getState().addFocusMinutes(addMinutes);
+
+  const queue = useOfflineQueue.getState();
+  const queued = commit.occurredAt
+    ? queue.ops.find((op) => op.type === 'focus-session' && op.occurredAt === commit.occurredAt)
+    : null;
+  if (queued) {
+    useOfflineQueue.setState({
+      ops: queue.ops.map((op) => (op === queued && op.type === 'focus-session'
+        ? { ...op, taskName: taskName ?? op.taskName, minutes: op.minutes + addMinutes }
+        : op)),
+    });
+    return;
+  }
+  void commit.id.then((id) => {
+    if (id == null) return;
+    return FocusService.updateSession(id, { taskName, addMinutes: addMinutes || undefined });
+  }).catch((e: unknown) => swallow('focus.updateSession', e));
+}
+
+/** Alarmın üstünden geçen süre: en az 1 dk, en çok 60. Saatler sonra açılan uygulama "çalışıyordun" demez. */
+export function idleAddMinutes(finishedAt: number | null, now: number = Date.now()): number {
+  if (!finishedAt) return 0;
+  const m = Math.floor((now - finishedAt) / 60_000);
+  return m >= 1 && m <= MAX_ADD_MINUTES ? m : 0;
 }
 
 /**
@@ -121,10 +167,9 @@ const COPY = {
     breakTitle: 'Mola bitti',
     breakBody: 'Hazırsan sıradaki odak turuna başla.',
     strictTitle: 'Odaktan çıktın',
-    strictBody: '10 saniye içinde dönmezsen seans biter.',
+    strictBody: '10 saniye içinde dönmezsen saat durur.',
     savedToast: (m: number) => `Odak seansın tamamlandı · ${m} dk kaydedildi`,
-    strictEnded: 'Katı mod: odaktan ayrıldığın için seans bitti.',
-    strictEndedSaved: (m: number) => `Katı mod: odaktan ayrıldığın için seans bitti · ${m} dk kaydedildi.`,
+    strictFrozen: 'Sen yokken saat durdu. Odak ekranından sürdürebilirsin.',
   },
   en: {
     focusTitle: 'Focus session complete ✦',
@@ -134,10 +179,9 @@ const COPY = {
     breakTitle: 'Break is over',
     breakBody: 'Start the next focus round when you are ready.',
     strictTitle: 'You left focus',
-    strictBody: 'Come back within 10 seconds or the session ends.',
+    strictBody: 'Come back within 10 seconds or the clock stops.',
     savedToast: (m: number) => `Focus session complete · ${m} min saved`,
-    strictEnded: 'Strict mode: the session ended because you left.',
-    strictEndedSaved: (m: number) => `Strict mode: the session ended because you left · ${m} min saved.`,
+    strictFrozen: 'The clock stopped while you were away. Resume from the Focus screen.',
   },
 };
 
@@ -148,6 +192,7 @@ export interface AlarmInput {
   sessionKind: 'focus' | 'break';
   pomodoroMode: boolean;
   currentTask: string;
+  openSession?: boolean;
 }
 
 /** Hangi bildirim, ne zaman? Saf fonksiyon — test edilebilir. Çalışmayan seansta alarm yok. */
@@ -156,6 +201,8 @@ export function focusAlarmSpec(st: AlarmInput, lang: Lang, hideContent: boolean)
   const c = COPY[lang];
   const minutes = Math.round(st.totalSeconds / 60);
   if (st.sessionKind === 'break') return { fireAt: st.expectedFinishAt, title: c.breakTitle, body: c.breakBody };
+  // Serbest seansın bitişi yok: bitiren kullanıcı.
+  if (st.openSession) return null;
   if (st.pomodoroMode) return { fireAt: st.expectedFinishAt, title: c.roundTitle, body: c.roundBody };
   const task = hideContent ? '' : st.currentTask.trim();
   return { fireAt: st.expectedFinishAt, title: c.focusTitle, body: c.focusBody(minutes, task) };
@@ -187,17 +234,15 @@ export function syncFocusAlarm(): void {
 }
 
 /** Yalnız testler için: modül hafızasını sıfırlar. */
-export function __resetFocusAlarmForTests() { lastAlarmKey = null; focusScreenVisible = false; leftAt = null; remainingAtLeave = 0; }
+export function __resetFocusAlarmForTests() { lastCommit = null; lastAlarmKey = null; focusScreenVisible = false; leftAt = null; remainingAtLeave = 0; }
 
 // ── Katı mod ─────────────────────────────────────────────────────────────────
 /**
- * KATI MOD: uygulamadan bu süreden uzun ayrılan seansı bitirir.
+ * KATI MOD (2026-11-06): uzun ayrılıkta seans BİTMEZ, saat ayrılış anında durur.
  *
- * Eskiden 2 saniyeydi ve ekranın kendiliğinden kararması da "ayrılmak" sayılıyordu:
- * kullanıcı hiçbir şey yapmadan seansı iptal oluyor, üstüne 10 puan kesiliyordu.
- * Artık seans sırasında ekran açık tutuluyor (odak ekranı), ayrılan kullanıcıya
- * dönmesi için süre ve bir uyarı veriliyor; puan cezası YOK — seansın bitmesi yeterli
- * sonuç, ceza kullanıcıyı uygulamadan soğutur.
+ * Eskiden seans bitiyordu; aramayı açmak ya da ekranı kilitlemek de bitiriyordu ve bunu yerel kod olmadan
+ * ayırt edemeyiz. Yeni kural ayrım gerektirmez ve adildir: ayrı geçen süre odak sayılmaz, emek kaybolmaz.
+ * Katılık başka yerden gelir: seans sürerken duraklat düğmesi yoktur. Puan cezası yok.
  */
 export const STRICT_GRACE_MS = 10_000;
 
@@ -223,36 +268,39 @@ export function onAppBackground(now: number = Date.now()): void {
   }
   leftAt = now;
   remainingAtLeave = remainingFromClock(st.expectedFinishAt, now);
+  // Saat durabileceği için "tamamlandı" bildirimi yalan olabilir; dönüşte yeniden kurulur.
+  lastAlarmKey = null;
+  void cancelFocusAlert(FOCUS_END_ID);
   let lang: Lang = 'tr';
   try { lang = toLang(require('@/shared/store/useLanguageStore').useLanguageStore.getState().language); } catch (e) { swallow('focus.strictLang', e); }
   strictLeaveWarning(lang);
 }
 
 /**
- * Uygulamaya dönüldü. Katı modda süre aşıldıysa seans BİTER: ayrılana kadarki dakikalar
- * (ayrı geçen süre DEĞİL) tamamlanmamış seans olarak kaydedilir. Seans bittiyse true.
+ * Uygulamaya dönüldü. Süre aşıldıysa saat ayrılış anına geri alınır ve durur; kayıt açılmaz.
+ * Saat durduysa true. Rehydrate'ten ÖNCE çağrılır: bitiş anı uzaktayken geçmiş olabilir.
  */
 export function onAppForeground(now: number = Date.now()): boolean {
   const was = leftAt;
   leftAt = null;
   if (was == null) return false;
   clearStrictLeaveWarning();
-  if (!strictBreached(was, now)) return false;
+  if (!strictBreached(was, now)) { syncFocusAlarm(); return false; }
   const st = useFocusStore.getState();
-  if (st.sessionKind !== 'focus' || !st.sessionId) return false; // bu arada başka yoldan bitmiş
-  const minutes = Math.floor(Math.max(0, st.totalSeconds - remainingAtLeave) / 60);
-  const res = commitFocusSession(minutes, false);
-  st.reset();
-  try {
-    const lang = toLang(require('@/shared/store/useLanguageStore').useLanguageStore.getState().language);
-    const msg = res === 'saved' ? COPY[lang].strictEndedSaved(minutes) : COPY[lang].strictEnded;
-    require('@/shared/store/useToastStore').useToastStore.getState().show(msg, 'info');
-  } catch (e) { swallow('focus.strictToast', e); }
+  if (st.sessionKind !== 'focus' || !st.sessionId || !st.isActive) return false; // bu arada başka yoldan bitmiş
+  st.freezeAfterLeaving(remainingAtLeave, now, was);
+  // Odak ekranı dönüş nefesini gösterir; başka ekrandaysa haberi olsun.
+  if (!focusScreenVisible) {
+    try {
+      const lang = toLang(require('@/shared/store/useLanguageStore').useLanguageStore.getState().language);
+      require('@/shared/store/useToastStore').useToastStore.getState().show(COPY[lang].strictFrozen, 'info');
+    } catch (e) { swallow('focus.strictToast', e); }
+  }
   return true;
 }
 
 /**
- * Ayrılış bir seansı bitirmeli mi? Saf karar.
+ * Ayrılış saati durdurmalı mı? Saf karar.
  * `leftAt`: arka plana geçiş anı. Kısa ayrılık (bildirim çekme, kontrol merkezi,
  * hızlı bir mesaj) seansı bozmaz.
  */

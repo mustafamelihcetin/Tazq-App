@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { ChevronDown, ChevronRight, CheckCircle2, Circle, CircleDot, RefreshCw } from 'lucide-react-native';
+import Reanimated, { FadeIn, FadeInDown, LinearTransition } from 'react-native-reanimated';
+import { Check, ChevronDown, ChevronRight, CheckCircle2, Circle, CircleDot, RefreshCw } from 'lucide-react-native';
+import { HabitLiquid } from '@/features/habits/components/HabitLiquid';
 import { Touchable } from '@/shared/components/Touchable';
 import { F, W, S, R, ICON, HAIRLINE, MIN_TOUCH } from '@/shared/constants/tokens';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -15,6 +17,9 @@ import type { StudyCopy } from './studyCopy';
   KONU HARİTASI (2026-11-05). Müfredata girmeden tek bakış: ne bitti, ne sürüyor. Bir dokunuşla işaretlenir; bu işaret planın en güçlü
   girdisidir (simülasyonda saat tahmini 2 kat yanlışken bile sonucu toparlıyor). Kilit konu yok: kullanıcı sırayı da plan dışını da seçer.
 */
+const HERO_DISC = 56;
+const SUBJECT_DISC = 28;
+
 type Status = 'none' | 'working' | 'done' | 'review';
 const statusOf = (s?: TopicState): Status => {
   if (!s || s.cov <= 0) return 'none';
@@ -47,26 +52,44 @@ export function StudyTopics({ plan, c, lang, today, view, onChanged }: { plan: P
   };
   const act = (fn: () => void) => { fn(); setOpenTopic(null); onChanged(); };
 
+  const totalTopics = groups.reduce((a, g) => a + g.topics.length, 0);
+  const doneTopics = groups.reduce((a, g) => a + g.topics.filter(t => (states[g.unitId]?.topics[t.id]?.cov ?? 0) >= 0.999).length, 0);
+  const allPct = totalTopics ? Math.round((doneTopics / totalTopics) * 100) : 0;
+
   return (
     <View style={{ gap: S.sm }}>
-      {groups.map(g => {
+      {totalTopics > 0 && (
+        <Reanimated.View entering={FadeInDown.duration(320)} style={[st.card, st.hero, { backgroundColor: theme.surfaceCard }]}>
+          <HabitLiquid size={HERO_DISC} stroke={3} ratio={doneTopics / totalTopics} color={theme.primary} track={theme.onSurface + '26'}>
+            <Text style={{ fontSize: F.footnote, fontWeight: W.bold, fontVariant: ['tabular-nums'], color: allPct >= 55 ? theme.onPrimary : theme.onSurface }}>%{allPct}</Text>
+          </HabitLiquid>
+          <View style={{ flex: 1, gap: S.xxs }}>
+            <Text accessibilityRole="header" style={{ fontSize: F.title3, fontWeight: W.bold, color: theme.onSurface }}>{c.topicsHero(doneTopics, totalTopics)}</Text>
+            <Text style={{ fontSize: F.footnote, color: theme.onSurfaceVariant }}>{c.topicsHeroSub(groups.length)}</Text>
+          </View>
+        </Reanimated.View>
+      )}
+      {groups.map((g, gi) => {
         const done = g.topics.filter(t => (states[g.unitId]?.topics[t.id]?.cov ?? 0) >= 0.999).length;
         const expanded = openSub === `${g.unitId}/${g.sub}`;
         return (
-          <View key={`${g.unitId}/${g.sub}`} style={[st.card, { backgroundColor: theme.surfaceCard }]}>
+          <Reanimated.View key={`${g.unitId}/${g.sub}`} entering={FadeInDown.delay(Math.min(gi, 10) * 45).duration(280)} layout={LinearTransition.duration(200)} style={[st.card, { backgroundColor: theme.surfaceCard }]}>
             <Touchable accessibilityRole="button" accessibilityState={{ expanded }} onPress={() => setOpenSub(expanded ? null : `${g.unitId}/${g.sub}`)} style={st.head}>
+              <HabitLiquid size={SUBJECT_DISC} stroke={2} ratio={g.topics.length ? done / g.topics.length : 0} color={done === g.topics.length && done > 0 ? theme.success : theme.primary} track={theme.onSurface + '26'}>
+                {done === g.topics.length && done > 0 && <Check size={ICON.xs} color={theme.onPrimary} strokeWidth={3} />}
+              </HabitLiquid>
               <Text style={{ flex: 1, fontSize: F.body, fontWeight: W.bold, color: theme.onSurface }}>{g.name}</Text>
               <Text style={{ fontSize: F.footnote, color: theme.onSurfaceMuted, fontVariant: ['tabular-nums'] }}>{done}/{g.topics.length}</Text>
               {expanded ? <ChevronDown size={ICON.sm} color={theme.onSurfaceMuted} /> : <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} />}
             </Touchable>
-            {expanded && g.topics.map(t => {
+            {expanded && g.topics.map((t, ti) => {
               const s = states[g.unitId]?.topics[t.id];
               const status = statusOf(s);
               const isOut = view.outTopics.includes(t.id);
               const open = openTopic === t.id;
               const tone = status === 'done' || status === 'review' ? theme.success : status === 'working' ? theme.primary : theme.onSurfaceMuted;
               return (
-                <View key={t.id}>
+                <Reanimated.View key={t.id} entering={FadeIn.delay(Math.min(ti, 12) * 25).duration(180)}>
                   <View style={{ height: HAIRLINE, backgroundColor: theme.separator }} />
                   <Touchable accessibilityRole="button" accessibilityState={{ expanded: open }} accessibilityLabel={`${topicName(plan, t.id, lang)}, ${c.status[status]}`} onPress={() => setOpenTopic(open ? null : t.id)} style={st.row}>
                     <IconOf s={status} color={tone} />
@@ -102,7 +125,7 @@ export function StudyTopics({ plan, c, lang, today, view, onChanged }: { plan: P
                       </Touchable>
                     </View>
                   )}
-                </View>
+                </Reanimated.View>
               );
             })}
             {expanded && bp && groups.length > 1 && (
@@ -110,7 +133,7 @@ export function StudyTopics({ plan, c, lang, today, view, onChanged }: { plan: P
                 <Text style={{ fontSize: F.footnote, color: theme.onSurfaceVariant }}>{c.excludeSubject}</Text>
               </Touchable>
             )}
-          </View>
+          </Reanimated.View>
         );
       })}
       {excludedNames.length > 0 && (
@@ -131,6 +154,7 @@ export function StudyTopics({ plan, c, lang, today, view, onChanged }: { plan: P
 }
 
 const st = StyleSheet.create({
+  hero: { flexDirection: 'row', alignItems: 'center', gap: S.md, paddingVertical: S.md },
   card: { borderRadius: R.lg, paddingHorizontal: S.md, paddingVertical: S.xxs },
   head: { flexDirection: 'row', alignItems: 'center', gap: S.sm, minHeight: MIN_TOUCH + S.xs },
   row: { flexDirection: 'row', alignItems: 'center', gap: S.sm, minHeight: MIN_TOUCH + S.xs },

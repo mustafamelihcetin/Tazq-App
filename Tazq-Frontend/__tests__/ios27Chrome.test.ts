@@ -196,7 +196,7 @@ describe('etiket tabloları DOĞRU yerde', () => {
   it('EKRAN OKUYUCUYA tam ad okunur', () => {
     const labels = NAV.slice(NAV.indexOf('const TAB_LABELS'));
     expect(labels).toContain("focus: { tr: 'Derin Odak'");
-    expect(labels).toContain("cockpit: { tr: 'Bu Hafta'");
+    expect(labels).toContain("cockpit: { tr: 'Hafta'");
   });
 
   it('görünen metin kısa tablodan, sesli ad tam tablodan geliyor', () => {

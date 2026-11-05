@@ -23,6 +23,11 @@ namespace Tazq_App.Models
 
 		public DateTime? RevokedAt { get; set; }
 
+		// Bir girişin rotasyon zinciri: her giriş yeni aile, her yenileme aynı aile. Yeniden kullanımda yalnız bu aile kapanır, başka cihaz etkilenmez.
+		// Sütundan önce üretilmiş kayıtlarda boştur: o kayıt yalnız kendisi reddedilir.
+		[MaxLength(32)]
+		public string? FamilyId { get; set; }
+
 		[ForeignKey("UserId")]
 		public User User { get; set; } = null!;
 	}

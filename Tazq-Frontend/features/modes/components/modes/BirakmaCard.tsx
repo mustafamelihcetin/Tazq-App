@@ -16,10 +16,8 @@ import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { useQuitStore, getCleanDays, QUIT_MILESTONES, type QuitType } from '@/shared/store/useQuitStore';
 import { useHabitStore, fmtDateKey } from '@/features/habits/store/useHabitStore';
 import { useTaskStore } from '@/features/tasks/store/useTaskStore';
-import { useNetworkStore } from '@/shared/store/useNetworkStore';
-import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
-import { usePlanAdaptations, makeClientKey } from '@/features/modes/hooks/usePlanAdaptations';
-import { TaskService } from '@/shared/services/api';
+import { usePlanAdaptations } from '@/features/modes/hooks/usePlanAdaptations';
+import { startBirakmaPlan } from '@/features/modes/utils/lifePlanStart';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
 import { ModeCardClose } from '../ModeCardClose';
@@ -27,7 +25,7 @@ import { DeviceOnlyNote } from '@/features/modes/components/DeviceOnlyNote';
 import { FormReveal, ModeField } from '../ModeField';
 import { renderModeEmojiIcon } from '@/features/modes/utils/modeIcons';
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
-import { buildBirakmaPlan, birakmaTypeTasks, birakmaTypeLabel, BIRAKMA_COLOR, triggerLabel, type TriggerId } from '@/shared/utils/lifeModePlans';
+import { birakmaTypeLabel, BIRAKMA_COLOR, triggerLabel, type TriggerId } from '@/shared/utils/lifeModePlans';
 import { retirePlanTask , retireModeTasksByTag} from '@/features/modes/utils/planTaskOps';
 import { swallow } from '@/shared/utils/swallow';
 import { Ban, Shield } from 'lucide-react-native';
@@ -36,9 +34,6 @@ import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { PlanLifecycleRow } from '@/features/modes/components/PlanPauseRow';
 import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 import { haptic } from '@/shared/utils/haptics';
-import { modeRoomLeft } from '@/features/habits/utils/habitLimit';
-import { splitForFirstDay, interleaveStaged } from '@/features/modes/utils/stagedRollout';
-import { useStagedPlanStore } from '@/features/modes/store/useStagedPlanStore';
 import { HABIT_LIMIT_COPY } from '@/features/habits/utils/habitLimitCopy';
 
 export function BirakmaCard() {
@@ -93,62 +88,6 @@ export function BirakmaCard() {
   const full = quitRoomLeft(items.length) === 0;
   const addValid = selectedKeys.length > 0 && !full && items.length + selectedKeys.length <= GOAL_LIMITS.birakma && (!sel['ozel'] || customName.trim().length > 0);
 
-  // Sunucu tarafı idempotency — bkz. usePlanAdaptations.ts `makeClientKey` notu:
-  // aynı kullanıcı + aynı anahtar + tamamlanmamışsa sunucu yenisini oluşturmaz.
-  // İstemci tarafındaki `applyingRef` kilidinin yanına ikinci bir güvenlik ağı.
-  const createPlanTask = async (rawPayload: any): Promise<number | null> => {
-    const payload = { ...rawPayload, clientKey: rawPayload.clientKey ?? makeClientKey(rawPayload) };
-    if (!useNetworkStore.getState().isOnline) {
-      const tempId = -Date.now() - Math.floor(Math.random() * 1000);
-      useOfflineQueue.getState().enqueue({ type: 'create-task', tempId, payload });
-      useTaskStore.getState().addTask({ ...payload, id: tempId });
-      return tempId;
-    }
-    try { const t = await TaskService.createTask(payload); if (t?.id) { useTaskStore.getState().addTask(t); return t.id; } } catch (e) { swallow('BirakmaCard.createTask', e, { capture: true }); }
-    return null;
-  };
-
-  // Temel (paylaşılan, türden bağımsız) planı yoksa bir kez oluşturur; ister yeni
-  // ister var olan, güncel id'leri döndürür ki çağıran tipe özel görevleri ekleyip
-  // tek bir setPlanIds ile birleştirebilsin.
-  const ensureBasePlan = async (): Promise<{ habitIds: string[]; taskIds: number[] }> => {
-    if (birakmaPlanHabitIds.length > 0 || birakmaPlanTaskIds.length > 0) {
-      return { habitIds: [...birakmaPlanHabitIds], taskIds: [...birakmaPlanTaskIds] };
-    }
-    const content = buildBirakmaPlan('' as QuitType, trigger);
-    const habitIds: string[] = [];
-    // Kademeli açılım (2026-11-05, "ilk gün aşırı yığılma"): ilk gün 1 rutin + 1 görev, kalanı her gün birer sıradan gelir.
-    const staged = splitForFirstDay(content.habits, content.tasks);
-    const room = modeRoomLeft(useHabitStore.getState().habits, 'birakma');
-    staged.habitsNow.slice(0, room).forEach((h, i) => {
-      const id = `habit_birakma_${i}_${Date.now()}`;
-      addHabit(h.name, h.emoji, h.color, id, 'birakma');
-      habitIds.push(id);
-    });
-    const taskIds: number[] = [];
-    // Önek metnin dilinde: İngilizce başlığa Türkçe önek gidiyordu.
-    const withLabel = (text: string, isTr: boolean) => { const l = isTr ? 'Bırakma' : 'Quit'; return text.toLowerCase().includes(l.toLowerCase()) ? text : `${l}: ${text}`; };
-    useStagedPlanStore.getState().setQueue('birakma', interleaveStaged(
-      staged.tasksLater.map(t => ({ titleTr: withLabel(t.title, true), titleEn: withLabel(t.titleEn, false), descTr: t.desc, descEn: t.descEn, priority: t.priority, tags: t.tags ?? [] })),
-      [...staged.habitsNow.slice(room), ...staged.habitsLater].map(h => ({ nameTr: h.name, nameEn: h.nameEn ?? h.name, emoji: h.emoji, color: h.color, modeType: 'birakma' })),
-    ));
-    for (const t of staged.tasksNow) {
-      let taskTitleTr = t.title;
-      let taskTitleEn = t.titleEn;
-      taskTitleTr = withLabel(taskTitleTr, true);
-      taskTitleEn = withLabel(taskTitleEn, false);
-      const id = await createPlanTask({
-        title: tr ? taskTitleTr : taskTitleEn,
-        description: JSON.stringify({ tr: taskTitleTr, en: taskTitleEn, descTr: t.desc, descEn: t.descEn }),
-        priority: t.priority,
-        isCompleted: false,
-        tags: t.tags
-      });
-      if (id != null) taskIds.push(id);
-    }
-    return { habitIds, taskIds };
-  };
-
   const refreshName = () => {
     const list = useQuitStore.getState().items;
     const name = list.length ? list[0].name + (list.length > 1 ? ` +${list.length - 1}` : '') : '';
@@ -166,22 +105,7 @@ export function BirakmaCard() {
     applyingRef.current = true;
     try {
     haptic.success();
-    const { habitIds, taskIds } = await ensureBasePlan();
-    // Yeni seçilen her tür için TİPE ÖZEL görevleri paylaşılan plana ekle.
-    // (Tür çipleri zaten eklenmişse devre dışı → aynı türün görevleri tekrarlanmaz.)
-    // Sıraya girer, her gün biri açılır: iki şey seçen kullanıcı ilk gün 5 işle başlıyordu (cihazda görüldü).
-    const later = selectedKeys.flatMap(k => birakmaTypeTasks(k)).map(t => ({ titleTr: t.title, titleEn: t.titleEn, descTr: t.desc, descEn: t.descEn, priority: t.priority, tags: t.tags ?? [] }));
-    const staged = useStagedPlanStore.getState();
-    staged.setQueue('birakma', [...interleaveStaged(later, []), ...(staged.queues.birakma?.items ?? [])]);
-    setPlanIds('birakma', habitIds, taskIds);
-    usePrefsStore.getState().setPlanSpec('birakma', { ...usePrefsStore.getState().planSpecs.birakma });
-    setSeasonalPref('birakmaMode', true);
-    selectedKeys.forEach(k => {
-      const label = k === 'ozel' ? customName.trim() : birakmaTypeLabel(k, tr);
-      if (k === 'ozel' && !label) return;
-      addItem(k, label);
-    });
-    refreshName();
+    await startBirakmaPlan({ keys: selectedKeys, custom: customName, trigger, lang: tr ? 'tr' : 'en' });
     setSel({}); setCustomName(''); setExpanded(false);
     setTimeout(() => runAdaptations(true), 300);
     } finally {

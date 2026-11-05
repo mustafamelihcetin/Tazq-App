@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { HabitBubble, HABIT_SLOT } from '@/features/habits/components/HabitBubble';
+import { keepOrder } from '@/features/habits/utils/habitSchedule';
 import { SectionHeader } from '@/shared/components/SectionHeader';
 import { Touchable } from '@/shared/components/Touchable';
 import { F, S, R, W, ICON, B, MIN_TOUCH } from '@/shared/constants/tokens';
@@ -48,6 +49,9 @@ export interface MyDayHabitsProps {
 
 export const MyDayHabits = React.memo<MyDayHabitsProps>(
   ({ habits, onToggle, onSkip, onAddHabit, theme, isDark, tr }) => {
+    const orderRef = useRef<string[]>([]);
+    const ordered = keepOrder(orderRef.current, habits as { id: string }[]) as typeof habits;
+    orderRef.current = ordered.map((h: { id: string }) => h.id);
     // Sayaç: mola günleri paydadan düşer (mola bir kaçırma değildir).
     const counted = habits.filter(h => !h.isSkipped).length;
     const done = habits.filter(h => h.isCompleted && !h.isSkipped).length;
@@ -117,7 +121,7 @@ export const MyDayHabits = React.memo<MyDayHabitsProps>(
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.row}
       >
-        {habits.map((item) => (
+        {ordered.map((item) => (
           <HabitBubble
             key={`habit-${item.id}`}
             item={item}

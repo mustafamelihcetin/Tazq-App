@@ -28,7 +28,7 @@ describe('fitMaxLength', () => {
     ['app/profile.tsx', 'fitMaxLength(50, newName)'],
     ['app/profile.tsx', 'fitMaxLength(60, newMotto)'],
     ['features/user/components/ProfileSetupModal.tsx', 'fitMaxLength(30, name)'],
-    ['features/modes/components/modes/ExamCard.tsx', 'fitMaxLength(60, name)'],
+    ['features/modes/components/modes/ExamNameField.tsx', 'fitMaxLength(60, name)'],
   ])('kayıtlı veriyi yükleyen alan korumalı: %s', (file, call) => {
     expect(read(file)).toContain(`maxLength={${call}}`);
   });

@@ -283,6 +283,7 @@ function norm(s: string): string {
   return s
     .replace(/İ/g, 'i')
     .toLowerCase()
+    .replace(/\u0307/g, '')
     .replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g')
     .replace(/ü/g, 'u').replace(/ö/g, 'o')
     .replace(/ı/g, 'i').replace(/I(?=[a-z])/g, 'i')
@@ -319,10 +320,78 @@ export function detectExamFromInput(input: string): ExamPreset | null {
   const q = norm(input);
   if (q.length < 2) return null;
   for (const preset of EXAM_PRESETS) {
-    if (preset.aliases.some(a => norm(a) === q)) return preset;
+    if (norm(preset.shortName) === q || norm(preset.displayName) === q || preset.aliases.some(a => norm(a) === q)) return preset;
   }
   return null;
 }
+
+/**
+ * Yarım yazılmış KISA ad (kps → KPSS). Konu listesi eşlemesinde yalnız bu kullanılır (2026-11-05, ölçüldü): takma adın içinde arama "Sınav"a YKS, "Staj"a SMMM, "Eğitim"e KPSS, "Hukuk"a HMGS konularını sessizce veriyordu.
+ */
+export function examFromPartialShortName(input: string): ExamPreset | null {
+  const q = norm(input);
+  if (q.length < 3) return null;
+  return EXAM_PRESETS.find(p => norm(p.shortName).startsWith(q)) ?? null;
+}
+
+const UPPER_LOCALE = { tr: 'tr-TR', en: 'en-US' };
+const collapse = (s: string) => s.trim().replace(/\s+/g, ' ');
+
+/** Yazarken: sınavın kısa adı tamamlanınca doğru biçime oturur (kpss → KPSS). Boşlukla bitiyorsa kullanıcı devam ediyordur, dokunulmaz. */
+export function liveExamName(input: string): string {
+  if (/\s$/.test(input)) return input;
+  const q = norm(input);
+  const hit = EXAM_PRESETS.find(p => norm(p.shortName) === q);
+  return hit ? hit.shortName : input;
+}
+
+/**
+ * Alan bırakılınca: takma ad da kesinleşir (kamu → KPSS).
+ * LİSTEDE YOKSA (2026-11-05, kullanıcı: "yazılan ad listede yoksa ne olacak"): engellenmez, kullanıcının adıdır. Yalnız düzenlenir: boşluklar temizlenir, ilk harf büyür (ehliyet → Ehliyet). Geri kalanına dokunulmaz (iPhone sınavı, TOBB).
+ */
+export function canonicalExamName(input: string, lang: 'tr' | 'en' = 'tr'): string {
+  const known = detectExamFromInput(input);
+  if (known) return known.shortName;
+  const v = collapse(input);
+  return v ? v[0].toLocaleUpperCase(UPPER_LOCALE[lang]) + v.slice(1) : v;
+}
+
+export function customExamPreset(name: string): ExamPreset {
+  return {
+    id: 'custom-' + encodeURIComponent(name),
+    displayName: name,
+    shortName: name,
+    aliases: [name.toLowerCase()],
+    category: 'other',
+    defaultDailyMinutes: 90,
+    preferredTemplates: ['active-recall', 'spaced-repetition', 'deep-work', 'sprint'],
+    tipTr: 'Özel çalışma planı — kendi hızında, düzenli konu tekrarları ve soru çözümü.',
+    tipEn: 'Custom study plan — self-paced, regular concept review and practice.',
+  };
+}
+
+/** Tek harf eksik, fazla, yanlış ya da yer değiştirmiş mi (kpps → kpss). */
+function oneEditAway(a: string, b: string): boolean {
+  if (a === b || Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  if (a.length === b.length && a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2)) return true;
+  return a.slice(i + (a.length >= b.length ? 1 : 0)) === b.slice(i + (b.length >= a.length ? 1 : 0));
+}
+
+/** Kutudaki öneriler: eşleşenler, yoksa yazım hatası affıyla kısa adlar. `matchExamName` konu listesi eşlemesinde de kullanıldığı için affı burada. */
+export function suggestExams(input: string): ExamPreset[] {
+  const hits = matchExamName(input);
+  const q = norm(input);
+  if (hits.length > 0 || q.length < 3) return hits;
+  return EXAM_PRESETS.filter(p => oneEditAway(q, norm(p.shortName))).slice(0, 4);
+}
+
+const POPULAR: Record<'tr' | 'en', string[]> = {
+  tr: ['yks', 'kpss', 'ales', 'dgs', 'yds', 'lgs'],
+  en: ['ielts', 'toefl', 'sat', 'gre', 'gmat', 'act'],
+};
+export const popularExams = (lang: 'tr' | 'en'): ExamPreset[] => POPULAR[lang].flatMap(id => EXAM_PRESETS.filter(p => p.id === id));
 
 /**
  * Eğitim uzmanı fazlama modeli:

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, Modal, TextInput, ScrollView } from 'react-native';
-import { X, Check, Target, BookOpen, Wind, Flower2, Moon } from 'lucide-react-native';
+import { X, Check, Target, BookOpen, Flower2, Moon } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { SheetGrabber } from '@/shared/components/DragToClose';
@@ -22,9 +22,10 @@ import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
  * bitince sorulacak bir şey kalmıyordu.
  *
  * ── BU EKRAN YALNIZ "ÇALIŞMA" DEĞİL ────────────────────────────────────────
- * Nefes rehberi, ortam sesleri, zen modu ve aurora bu ekranı bir dinlenme/meditasyon
+ * Nefes burada konu değil (2026-11-05, kullanıcı: "burada nefes neden var, soldaki buton zaten nefes"): ayrı seansı var.
+ * Ortam sesleri, zen modu ve aurora bu ekranı bir dinlenme/meditasyon
  * yüzeyi de yapıyor. Bu yüzden başlık "ne üzerinde çalışacaksın" demiyor: hazır
- * konular (dinlenme, nefes, meditasyon, okuma) görev listesiyle EŞİT konumda duruyor.
+ * konular (dinlenme, meditasyon, okuma) görev listesiyle EŞİT konumda duruyor.
  * Etiketler emir kipinde DEĞİL — seçim isteğe bağlı, boş bırakılan seans da geçerli.
  */
 
@@ -37,7 +38,6 @@ const COPY = {
     intents: [
       { Icon: Target, label: 'Çalışma' },
       { Icon: BookOpen, label: 'Okuma' },
-      { Icon: Wind, label: 'Nefes' },
       { Icon: Flower2, label: 'Meditasyon' },
       { Icon: Moon, label: 'Dinlenme' },
     ],
@@ -57,7 +57,6 @@ const COPY = {
     intents: [
       { Icon: Target, label: 'Deep work' },
       { Icon: BookOpen, label: 'Reading' },
-      { Icon: Wind, label: 'Breathing' },
       { Icon: Flower2, label: 'Meditation' },
       { Icon: Moon, label: 'Unwind' },
     ],

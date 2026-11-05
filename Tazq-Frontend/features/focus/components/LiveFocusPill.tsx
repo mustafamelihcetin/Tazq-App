@@ -4,6 +4,7 @@ import { MotiView } from 'moti';
 import Svg, { Circle } from 'react-native-svg';
 import { Pause } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { focusClock } from '@/features/focus/store/useFocusStore';
 import { useFocusStore } from '@/features/focus/store/useFocusStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -33,13 +34,16 @@ export function LiveFocusPill() {
   const isActive = useFocusStore(s => s.isActive);
   const seconds = useFocusStore(s => s.seconds);
   const total = useFocusStore(s => s.totalSeconds);
+  const openSession = useFocusStore(s => s.openSession);
+  const sessionKind = useFocusStore(s => s.sessionKind);
   const task = useFocusStore(s => s.currentTask);
   const isBreak = useFocusStore(s => s.sessionKind === 'break' || (s.pomodoroMode && s.pomodoroPhase === 'break'));
   const started = isActive || total - seconds > 0;
   if (!started || seconds <= 0) return null;
 
-  const mm = Math.floor(seconds / 60);
-  const ss = seconds % 60;
+  const shown = focusClock({ openSession, sessionKind, totalSeconds: total, seconds });
+  const mm = Math.floor(shown / 60);
+  const ss = shown % 60;
   const time = `${mm}:${ss.toString().padStart(2, '0')}`;
   const tint = isBreak ? theme.tertiary : theme.primary;
   const frac = total > 0 ? 1 - seconds / total : 0;

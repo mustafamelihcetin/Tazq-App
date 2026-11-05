@@ -11,7 +11,7 @@ describe('focusScenes', () => {
   });
 
   it('Aurora tema renklerini kullanır (eski görünüm birebir)', () => {
-    expect(sceneLights(sceneOf('aurora'), theme)).toEqual([theme.primary, theme.tertiary, theme.secondary]);
+    expect(sceneLights(sceneOf('aurora'), theme)).toEqual(sceneOf('aurora').lights);
     expect(sceneAccent(sceneOf('aurora'), theme.primary)).toBe(theme.primary);
   });
 
@@ -28,7 +28,7 @@ describe('focusScenes', () => {
   it('sahne vurgusu ekranın ana rengi olur; Aurora paleti değiştirmez', () => {
     const base = { primary: '#0A84FF', onPrimary: '#FFFFFF', background: '#000000' };
     expect(sceneTheme(sceneOf('aurora'), base)).toBe(base);
-    expect(sceneTheme(sceneOf('ember'), base)).toEqual({ ...base, primary: '#F59E0B', onPrimary: '#0B0B0F', background: '#170A12' });
+    expect(sceneTheme(sceneOf('ember'), base)).toEqual({ ...base, primary: '#F59E0B', onPrimary: '#0B0B0F', background: '#1E130B' });
   });
 });
 

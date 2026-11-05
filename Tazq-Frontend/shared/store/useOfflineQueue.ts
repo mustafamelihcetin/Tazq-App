@@ -24,7 +24,7 @@ export type OfflineOp =
     eksiklik — hiç kaydedilmemesinden iyidir. Alan burada duruyor ki sunucu tarafı
     `occurredAt`i kabul ettiğinde veri zaten elimizde olsun.
   */
-  | { type: 'focus-session'; taskName: string; minutes: number; completed: boolean; occurredAt: string }
+  | { type: 'focus-session'; taskName: string; minutes: number; completed: boolean; occurredAt: string; pausedSeconds?: number }
   // Ödemeler — GÖREV kuyruk tiplerinden AYRI isim uzayı (create-payment vs create-task),
   // çünkü tempId/realId eşlemesi (bkz. useOfflineSync) görev ve ödeme için AYRI haritalarda
   // tutulur. İki kaynak aynı haritayı paylaşsaydı, aynı sayısal tempId ikisine birden

@@ -427,6 +427,12 @@ export interface FocusSessionRowResponse {
   /** ISO (UTC) — yerel güne istemci çevirir. */
   startedAt: string;
   minutes: number;
+  id?: number;
+  /** Çözülmüş ad; adsız seansta null. */
+  taskName?: string | null;
+  completed?: boolean;
+  /** Null: bilinmiyor (bu alandan önceki kayıtlar). */
+  pausedSeconds?: number | null;
 }
 
 export interface UserStatsResponse {
@@ -502,9 +508,12 @@ export const TaskService = {
 };
 
 export const FocusService = {
-  saveSession: async (taskName: string, durationMinutes: number, completed: boolean) => {
-    const response = await api.post('/api/focus/save', { taskName, durationMinutes, completed });
+  saveSession: async (taskName: string, durationMinutes: number, completed: boolean, pausedSeconds?: number): Promise<{ id?: number } | undefined> => {
+    const response = await api.post('/api/focus/save', { taskName, durationMinutes, completed, pausedSeconds });
     return response.data;
+  },
+  updateSession: async (id: number, patch: { taskName?: string; addMinutes?: number }) => {
+    await api.patch(`/api/focus/sessions/${id}`, patch);
   },
   getStats: async (): Promise<UserStatsResponse> => {
     const response = await api.get('/api/focus/stats');

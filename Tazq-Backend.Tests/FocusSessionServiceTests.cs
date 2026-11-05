@@ -202,5 +202,98 @@ namespace Tazq_Backend.Tests
             Assert.Empty(await _service.GetSessionsAsync(1, 0));
         }
 
+
+        private sealed class FakeCrypto : ICryptoService
+        {
+            public string Encrypt(string plainText, byte[] key) => "enc:" + plainText;
+            public string Decrypt(string cipherTextBase64, byte[] key) =>
+                cipherTextBase64.StartsWith("enc:") ? cipherTextBase64[4..] : throw new FormatException();
+            public byte[] GetKeyForUser(int userId) => new byte[32];
+            public IReadOnlyList<byte[]> GetLegacyKeysForUser(int userId) => Array.Empty<byte[]>();
+            public string ComputeBlindIndex(string input, byte[] key) => input;
+        }
+
+        private FocusSessionService Secure() => new FocusSessionService(_context, new FakeCrypto());
+
+        [Fact]
+        public async Task SessionName_IsStoredEncrypted_AndReturnedDecrypted()
+        {
+            var service = Secure();
+            var saved = await service.SaveSessionAsync(1, "Tez", 25, true, 0);
+            var row = await _context.FocusSessions.FindAsync(saved.Id);
+            Assert.Equal("enc:Tez", row!.TaskName);
+
+            var rows = await service.GetSessionsAsync(1, 30);
+            var only = Assert.Single(rows);
+            Assert.Equal(saved.Id, only.Id);
+            Assert.Equal("Tez", only.TaskName);
+            Assert.Equal(0, only.PausedSeconds);
+            Assert.True(only.Completed);
+        }
+
+        [Theory]
+        [InlineData("Focus")]
+        [InlineData("")]
+        public async Task AnonymousSession_HasNoName(string name)
+        {
+            var service = Secure();
+            await service.SaveSessionAsync(1, name, 25, true);
+            var row = Assert.Single(await service.GetSessionsAsync(1, 30));
+            Assert.Null(row.TaskName);
+            Assert.Null(row.PausedSeconds);
+        }
+
+        [Fact]
+        public async Task UnreadableName_DoesNotBreakHistory()
+        {
+            _context.FocusSessions.Add(new FocusSession { UserId = 1, TaskName = "bozuk", DurationMinutes = 10, StartedAt = DateTime.UtcNow });
+            await _context.SaveChangesAsync();
+            var row = Assert.Single(await Secure().GetSessionsAsync(1, 30));
+            Assert.Null(row.TaskName);
+            Assert.Equal(10, row.Minutes);
+        }
+
+        [Fact]
+        public async Task Sessions_OfOtherUsers_AreNeverReturned()
+        {
+            var service = Secure();
+            await service.SaveSessionAsync(2, "Gizli", 25, true);
+            Assert.Empty(await service.GetSessionsAsync(1, 30));
+        }
+
+        [Fact]
+        public async Task Update_NamesAndExtendsOwnSession()
+        {
+            var service = Secure();
+            var saved = await service.SaveSessionAsync(1, "Focus", 25, true);
+            Assert.True(await service.UpdateSessionAsync(1, saved.Id, "Tez", 4));
+            var row = Assert.Single(await service.GetSessionsAsync(1, 30));
+            Assert.Equal("Tez", row.TaskName);
+            Assert.Equal(29, row.Minutes);
+        }
+
+        [Fact]
+        public async Task Update_CannotTouchOtherUsersSession()
+        {
+            var service = Secure();
+            var saved = await service.SaveSessionAsync(2, "Gizli", 25, true);
+            Assert.False(await service.UpdateSessionAsync(1, saved.Id, "Ele geçirildi", 60));
+            var row = await _context.FocusSessions.FindAsync(saved.Id);
+            Assert.Equal("enc:Gizli", row!.TaskName);
+            Assert.Equal(25, row.DurationMinutes);
+        }
+
+        [Theory]
+        [InlineData(500, 85)]
+        [InlineData(-30, 25)]
+        public async Task Update_AddMinutesIsBounded(int add, int expected)
+        {
+            var service = Secure();
+            var saved = await service.SaveSessionAsync(1, "Tez", 25, true);
+            await service.UpdateSessionAsync(1, saved.Id, null, add);
+            var row = Assert.Single(await service.GetSessionsAsync(1, 30));
+            Assert.Equal(expected, row.Minutes);
+            Assert.Equal("Tez", row.TaskName);
+        }
     }
 }

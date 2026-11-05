@@ -92,14 +92,14 @@ const TAB_SHORT: Record<string, { tr: string; en: string }> = {
  * Ekran okuyucuya (VoiceOver/TalkBack) okunan TAM ad — kısaltma yalnız görsel.
  *
  * Sesli okunan ad, kullanıcının uygulamanın başka yerlerinde duyduğu adla AYNI
- * olmalı: ekranın kendi BAŞLIĞI ("Derin Odak", "Bu Hafta", "Hedefler"). Özelliği
+ * olmalı: ekranın kendi BAŞLIĞI ("Derin Odak", "Hafta", "Hedefler"). Özelliği
  * arayan kişi onu bu adla arar.
  */
 const TAB_LABELS: Record<string, { tr: string; en: string }> = {
   home: { tr: 'Bugün', en: 'Today' },
   tasks: { tr: 'Görevler', en: 'Tasks' },
   focus: { tr: 'Derin Odak', en: 'Deep Focus' },
-  cockpit: { tr: 'Bu Hafta', en: 'This Week' },
+  cockpit: { tr: 'Hafta', en: 'Week' },
   modlar: { tr: 'Hedefler', en: 'Goals' },
 };
 

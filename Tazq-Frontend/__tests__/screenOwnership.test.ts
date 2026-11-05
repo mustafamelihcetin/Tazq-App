@@ -45,7 +45,7 @@ const CARD_QUESTION: Record<string, Question> = {
   WeekDisplay: 'past',
   WeekChart: 'past',
   HabitWeekList: 'past',
-  WeekSky: 'past',
+  WeekSky: 'past', // Odak ekranı bu tabloda yok: oradan da açılır (WeekSkySheet), sebebin yaşandığı yer.
   WeekBars: 'past',
   TrendLine: 'past',
 };
@@ -141,8 +141,11 @@ describe('başlık düğmeleri sahibine götürür (A5)', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('kalıp gerçekten okuyor — Bu Hafta başlığı Gün ve Rapor\'a götürür', () => {
-    expect(headerTargets('app/cockpit.tsx')).toEqual(expect.arrayContaining(['/gun', '/report']));
+  it('kalıp gerçekten okuyor — Hafta başlığı Takvim ve Rapor\'a götürür, günün saatlerine değil', () => {
+    const targets = headerTargets('app/cockpit.tsx');
+    expect(targets).toContain('/report');
+    expect(targets).not.toContain('/gun');
+    expect(read('app/cockpit.tsx')).toContain("pathname: '/takvim'");
   });
 });
 

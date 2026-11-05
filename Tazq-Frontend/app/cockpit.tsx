@@ -7,8 +7,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MotiView, AnimatePresence } from 'moti';
 import {
   Plus, Check, Flame, Clock,
-  ChevronRight, Sparkles, CalendarDays, Trash2, ArrowLeft, BarChart3, Coffee,
-  CalendarCheck, Sunrise,
+  ChevronRight, CalendarDays, Trash2, ArrowLeft, BarChart3, Coffee,
+  CalendarCheck,
 } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
@@ -19,7 +19,6 @@ import { useToastStore } from '@/shared/store/useToastStore';
 import { useTaskStore, useActiveTasks, getLocalizedTaskTitle } from '@/features/tasks';
 import { useFocusStore } from '@/features/focus';
 import { useHabitStore, Habit, fmtDateKey } from '@/features/habits';
-import { calendarDayOf } from '@/shared/utils/dateKey';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { describeHabit, rowHint } from '@/shared/utils/a11y';
 import { celebrate } from '@/features/user/utils/celebrate';
@@ -34,7 +33,6 @@ import { ICON, S, R, F, B, TRACKING, MAX_W, contentMaxWidth, sideInset, HAIRLINE
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { WideSplit, WideCol } from '@/shared/components/ResponsiveColumns';
-import { ChromeShell } from '@/shared/components/ChromeShell';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { SwipeableHabitItem } from '@/features/habits/components/SwipeableHabitItem';
 import { TourTarget } from '@/shared/components/TourContext';
@@ -50,7 +48,10 @@ import { HabitPlanSheet } from '@/features/habits/components/HabitPlanSheet';
 import { HabitBubble } from '@/features/habits/components/HabitBubble';
 import { WeekPanel, type WeekSeg } from '@/features/week/WeekPanel';
 import { WeekHabits } from '@/features/week/WeekHabits';
-import { habitWeekStory } from '@/features/week/habitWeek';
+import { ChromeShell } from '@/shared/components/ChromeShell';
+import { WeekDayList } from '@/features/week/WeekDayList';
+import { WeekPriority } from '@/features/week/WeekPriority';
+import { tasksOnDay, WEEK_COPY } from '@/features/week/weekDay';
 import { buildWeekSentence } from '@/features/week/weekSentence';
 import { weekdayIndex } from '@/features/dashboard/utils/streakDay';
 import { planSummary } from '@/features/habits/utils/planCopy';
@@ -61,12 +62,11 @@ import { suggestHabitIcon } from '@/features/habits/utils/habitIcon';
 import { localeOf } from '@/shared/utils/lang';
 import { upperFor } from '@/shared/utils/localeCase';
 import { useActiveHabitList } from '@/features/habits';
-import { HABIT_LIMIT, roomLeft, modeRoomLeft, modeOf, activeHabits, restSuggestions } from '@/features/habits/utils/habitLimit';
+import { HABIT_LIMIT, roomLeft, manualRoutineRoom, modeOf, activeHabits, restSuggestions } from '@/features/habits/utils/habitLimit';
 import { habitColor, HABIT_PALETTE, type PaletteColor } from '@/features/habits/utils/habitColor';
 import { HABIT_LIMIT_COPY } from '@/features/habits/utils/habitLimitCopy';
+import { PLAN_COPY } from '@/features/modes/components/plan/planCopy';
 
-// Alışkanlık odaklı kalmalı — mantıklı üst sınır (plan + manuel toplam).
-const MAX_HABITS = 15;
 
 /**
  * Alışkanlık simgeleri — 16'dan 28'e çıkarıldı ve HEPSİ FARKLI glif.
@@ -205,13 +205,9 @@ export default function CockpitScreen() {
   const rawHabits = useActiveHabitList();
   const restedHabits = useMemo(() => allHabits.filter(h => !!h.pausedAt), [allHabits]);
   const lc = HABIT_LIMIT_COPY[language === 'en' ? 'en' : 'tr'];
+  const pc = PLAN_COPY[language === 'en' ? 'en' : 'tr'];
   const {
     seasonal,
-    examPlanTaskIds, exam2PlanTaskIds, exam3PlanTaskIds,
-    tezPlanTaskIds,
-    mulakatPlanTaskIds, mulakat2PlanTaskIds, mulakat3PlanTaskIds,
-    sporPlanTaskIds, spor2PlanTaskIds, spor3PlanTaskIds,
-    ramazanPlanTaskIds, tasarrufPlanTaskIds, birakmaPlanTaskIds,
     examPlanHabitIds, exam2PlanHabitIds, exam3PlanHabitIds,
     tezPlanHabitIds,
     mulakatPlanHabitIds, mulakat2PlanHabitIds, mulakat3PlanHabitIds,
@@ -279,26 +275,6 @@ export default function CockpitScreen() {
 
   const hasActiveSeasonalMode = seasonal.ramazan || seasonal.examMode || seasonal.tezMode || seasonal.mulakatMode || seasonal.sporMode;
 
-  /*
-    TASARRUF VE BIRAKMA EKSİKTİ — ikisi de gerçek plan görevi üretir (haftalık
-    "birikimini gir", günlük destek görevleri). Kümede yoklarsa bu görevler
-    aşağıdaki `tasks` filtresinden (satır ~360) geçemiyor ve genel listede
-    mod bölümüyle ÇİFT görünüyordu.
-  */
-  const planTaskIdSet = useMemo(() => new Set([
-    ...examPlanTaskIds, ...exam2PlanTaskIds, ...exam3PlanTaskIds,
-    ...tezPlanTaskIds,
-    ...mulakatPlanTaskIds, ...mulakat2PlanTaskIds, ...mulakat3PlanTaskIds,
-    ...sporPlanTaskIds, ...spor2PlanTaskIds, ...spor3PlanTaskIds,
-    ...ramazanPlanTaskIds, ...tasarrufPlanTaskIds, ...birakmaPlanTaskIds,
-  ]), [
-    examPlanTaskIds, exam2PlanTaskIds, exam3PlanTaskIds,
-    tezPlanTaskIds,
-    mulakatPlanTaskIds, mulakat2PlanTaskIds, mulakat3PlanTaskIds,
-    sporPlanTaskIds, spor2PlanTaskIds, spor3PlanTaskIds,
-    ramazanPlanTaskIds, tasarrufPlanTaskIds, birakmaPlanTaskIds,
-  ]);
-
   const planHabitIdSet = useMemo(() => new Set([
     ...examPlanHabitIds, ...exam2PlanHabitIds, ...exam3PlanHabitIds,
     ...tezPlanHabitIds,
@@ -322,8 +298,7 @@ export default function CockpitScreen() {
   const [addVisible, setAddVisible] = useState(false);
   const [showDayHint, setShowDayHint] = useState(false);
   const [showSwipeHint, setShowSwipeHint] = useState(false);
-  const [planVisible, setPlanVisible] = useState(false);
-  useUiDepth(addVisible || planVisible);
+  useUiDepth(addVisible);
   const [newName, setNewName] = useState('');
   const [newEmoji, setNewEmoji] = useState('💪');
   // Simge addan tahmin edilir ("Su iç" → 💧) — kullanıcı elle seçtiği an tahmin susar ve seçimi kalır.
@@ -346,7 +321,6 @@ export default function CockpitScreen() {
   */
   const focusSessions = useFocusHistoryStore(s => s.sessions);
   const refreshFocusHistory = useFocusHistoryStore(s => s.refresh);
-  const [planGoal, setPlanGoal] = useState('');
   const nameInputRef = useRef<any>(null);
   /*
     SATIR ANİMASYONLARI SAYFA DURUMU DEĞİL (2026-10-25, cihazda ölçüldü).
@@ -359,9 +333,6 @@ export default function CockpitScreen() {
 
   const { panResponder: addPan, animatedStyle: addSlide, prepare: prepareAdd, slideIn: addSlideIn } = useSwipeToDismiss({
     onDismiss: () => setAddVisible(false),
-  });
-  const { panResponder: planPan, animatedStyle: planSlide, prepare: preparePlan, slideIn: planSlideIn } = useSwipeToDismiss({
-    onDismiss: () => setPlanVisible(false),
   });
 
   useFocusEffect(useCallback(() => { void refreshFocusHistory(); }, [refreshFocusHistory]));
@@ -404,11 +375,6 @@ export default function CockpitScreen() {
   const dayLabels = tr ? DAY_LABELS_TR : (weekStart === 0 ? DAY_LABELS_EN_SUN : DAY_LABELS_EN_MON);
 
   // Personal tasks only — plan tasks are managed in modlar, not here
-  const personalTasks = useMemo(
-    () => tasks.filter((t) => !planTaskIdSet.has(t.id)),
-    [tasks, planTaskIdSet]
-  );
-
   /*
     ŞERİT VERİSİ — gün noktası GÖREVİ DE ALIŞKANLIĞI DA sayar.
 
@@ -420,9 +386,7 @@ export default function CockpitScreen() {
     const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
     return weekDays.map((d) => {
       const key = fmtDateKey(d);
-      const dayTasks = personalTasks.filter(
-        (t) => calendarDayOf(t.dueDate) === key
-      );
+      const dayTasks = tasksOnDay(tasks, key, todayKey);
       const isPast = d < todayMidnight;
       const isFuture = key > todayKey;
       const habitsDone = habits.filter((h) => (h.completedDates ?? []).includes(key)).length;
@@ -438,11 +402,12 @@ export default function CockpitScreen() {
         key,
         isToday: key === todayKey,
         isPast,
+        habitsExpected,
         total: taskTotal + habitsExpected,
         completed: taskDone + habitsDone,
       };
     });
-  }, [personalTasks, habits, weekDays, todayKey]);
+  }, [tasks, habits, weekDays, todayKey]);
   const weekHasTasks = weekData.some(d => d.total > 0);
 
   /*
@@ -455,13 +420,8 @@ export default function CockpitScreen() {
   const isSelectedToday = selectedDay === todayKey;
   const isFutureDay = selectedDay > todayKey;
   const dc = DAY_COPY[language === 'en' ? 'en' : 'tr'];
-
-  // Tasks for selected day
-  const selectedDayTasks = useMemo(() =>
-    personalTasks.filter((t) => calendarDayOf(t.dueDate) === selectedDay),
-    [personalTasks, selectedDay]
-  );
-
+  const wl = language === 'en' ? 'en' as const : 'tr' as const;
+  const wc = WEEK_COPY[wl];
 
   /*
     Haftanın özeti ORTAK motordan. Eski hesap iki yerden ayrışıyordu:
@@ -491,21 +451,12 @@ export default function CockpitScreen() {
   const habitsThisWeekPct = weekSummary.habitPct;
 
   const todayDow = new Date().getDay(); // 0 Sun … 6 Sat
-  const showPlanButton = todayDow === 0 || todayDow >= 4;
 
   const handleAddHabit = () => {
     const name = newName.trim();
     if (!name) return;
     // Uyarı klavyenin ALTINDA kalıyordu (cihazda görüldü): önce klavye kapanır.
     Keyboard.dismiss();
-    // Üst sınır — alışkanlık odaklı olmalı, sınırsız liste değil
-    if (habits.length >= MAX_HABITS) {
-      Alert.alert(
-        tr ? 'Sınıra ulaşıldı' : 'Limit reached',
-        tr ? `En fazla ${MAX_HABITS} alışkanlık takip edebilirsin. Odaklı kalmak için birini sil, sonra yenisini ekle.` : `You can track up to ${MAX_HABITS} habits. Remove one to add another and stay focused.`
-      );
-      return;
-    }
     // Aynı alışkanlık iki kez eklenmesin (büyük/küçük harf duyarsız)
     const dup = habits.some(h => h.name.trim().toLocaleLowerCase('tr') === name.toLocaleLowerCase('tr'));
     if (dup) {
@@ -650,7 +601,7 @@ export default function CockpitScreen() {
   const bringBack = (id: string, name: string) => {
     const mode = modeOf(allHabits.find(h => h.id === id) ?? {});
     if (mode) {
-      if (modeRoomLeft(allHabits, mode) === 0) { useToastStore.getState().show(lc.fullTitle, 'info'); return; }
+      if (manualRoutineRoom(allHabits, mode) === 0) { useToastStore.getState().show(pc.routineFull, 'info'); return; }
     } else if (roomLeft(allHabits) === 0) { openAddHabit(); return; }
     resumeHabit(id);
     haptic.success();
@@ -703,11 +654,16 @@ export default function CockpitScreen() {
   };
 
   const selectedDayObj = weekData.find((d) => d.key === selectedDay);
+  // Payda o günün beklenen sayısı (sütunla aynı): henüz kurulmamış alışkanlık o gün için sayılmaz.
+  const habitsDoneOnDay = personalHabits.filter(h => (h.completedDates ?? []).includes(selectedDay)).length;
+  const habitsDueOnDay = Math.max(habitsDoneOnDay, selectedDayObj?.habitsExpected ?? 0);
   const selectedDayLabel = selectedDayObj?.isToday
     ? (tr ? 'BUGÜN' : 'TODAY')
     : selectedDayObj?.date.toLocaleDateString(tr ? 'tr-TR' : 'en-US', {
         weekday: 'long', day: 'numeric',
       }) ?? '';
+
+  const habitCountLine = `${isSelectedToday ? wc.today : selectedDayLabel}${habitsDueOnDay > 0 ? ` ${habitsDoneOnDay}/${habitsDueOnDay}` : ''}`;
 
   // Haftanın cümlesi — ortak motordan (bkz. features/week/weekSentence): gün bilen boş cümle,
   // sıfır olan kısım cümleye girmez, süre "6 sa 15 dk".
@@ -722,51 +678,28 @@ export default function CockpitScreen() {
       <DottedBackground color={theme.onBackground} opacity={isDark ? 0.05 : 0.08} size={24} dotSize={1} />
 
         {/*
-          BAŞLIK = ZAMAN ÖLÇEĞİ: sol GÜNE yakınlaşır, orta BU HAFTA, sağ GEÇMİŞ haftalar.
-
-          Eskiden sağdaki düğme alışkanlık ekliyordu; aynı iş ekranın İÇİNDE iki yerde
-          daha duruyordu (boş durum kartı ve alışkanlıklar bölümünün altındaki düğme),
-          görev ekleme de seçili günün başlığında. Yani çubuktaki düğme yeni bir şey
-          sunmuyor, yalnız tekrar ediyordu.
-
-          Sağ: GERİ BAKIŞ (/report). İkon soldan sağa taşındı; sol yuva geri tuşunun
-          yeridir, oraya konan bir eylem "geri dön" gibi okunuyordu.
-
-          Sol: BUGÜN ekranı (/gun) — günün saat ekseni ve "günü kapat" ritüeli. Adı
-          "Bugün" olduğu için hep bugünü açması dürüst: bu bir DESTİNASYON, ekran içindeki
-          gün seçimiyle ilgisi yok (seçimi bugüne almak şeritteki "Bugün" etiketinin işi).
-          O ekran alt menüde yok; yalnız Görevler'deki tek bir düğmeden ya da sabah/akşam
-          bildiriminden gidilebiliyordu, yani pratikte gizliydi.
-
-          Başlık böylece iki KALICI hedef taşıyor: solda gün, sağda geçmiş haftalar.
+          ÜST BAR SİMETRİK (2026-11-05, kullanıcı: "simetriyi bozamayız, sağda solda işe yarar olmalı"). Sol: TAKVİM, haftanın büyüğü. Sağ: ÖZET, haftanın sayıları.
+          Gün saatleri sol üstten kalktı ("yeri burası değil"): o ekran ana sayfanın tarihinden açılır.
         */}
         <ScreenHeader
           left={
-            <Touchable
-              onPress={() => router.push('/gun')}
-              style={styles.headerIconBtn}
-              accessibilityRole="button"
-              accessibilityLabel={dc.today}
-            >
+            <Touchable onPress={() => router.push({ pathname: '/takvim', params: { date: selectedDay } })} style={styles.headerIconBtn} accessibilityRole="link" accessibilityLabel={wc.calendar}>
               <ChromeShell />
-              <Sunrise size={ICON.md} color={theme.onSurface} />
+              <CalendarDays size={ICON.md} color={theme.onSurface} />
             </Touchable>
           }
-          title={tr ? 'Bu Hafta' : 'This Week'}
+          right={
+            <TourTarget id="weeklyReview" spotRadius={R.full}>
+              <Touchable onPress={() => router.push('/report')} style={styles.headerIconBtn} accessibilityRole="link" accessibilityLabel={wc.summary}>
+                <ChromeShell />
+                <BarChart3 size={ICON.md} color={theme.onSurface} />
+              </Touchable>
+            </TourTarget>
+          }
+          title={wc.title}
           // Ay değişen haftada ilk günün ayı da yazılır: "26 – 1 KAS" 26 Kasım gibi okunuyordu.
           subtitle={`${weekDays[0].getDate()}${weekDays[0].getMonth() !== weekDays[6].getMonth() ? ` ${upperFor(weekDays[0].toLocaleString(localeOf(language), { month: 'short' }), tr)}` : ''} – ${weekDays[6].getDate()} ${upperFor(weekDays[6].toLocaleString(tr ? 'tr-TR' : 'en-US', { month: 'short' }), tr)}`}
           scrollY={scrollY}
-          right={
-            <Touchable
-              onPress={() => router.push('/report')}
-              style={styles.headerIconBtn}
-              accessibilityRole="button"
-              accessibilityLabel={tr ? 'Haftalık geri bakış' : 'Weekly review'}
-            >
-              <ChromeShell />
-              <BarChart3 size={ICON.md} color={theme.onSurface} />
-            </Touchable>
-          }
         />
 
       <View style={{ flex: 1 }}>
@@ -779,12 +712,9 @@ export default function CockpitScreen() {
           scrollEventThrottle={16}
         >
 
-          {/* ── HAFTA PANELİ (bkz. features/week/WeekPanel): cümle, gün halkaları, seçili günün
-              alışkanlıkları ve takvim satırı, hafta sayıları — tek ekran. Tur hedefleri burada. ── */}
+          {/* ── HAFTA: haftanın resmi, seçili günün işleri, bu haftanın önceliği. Tek panel. ── */}
           <TourTarget id="weekStrip" spotRadius={R.md} style={{ marginBottom: S.lg }}>
             <WeekPanel
-              // Tarih aralığı başlıkta (alt başlık) zaten yazıyor; panelde ikinci kez yazılıyordu.
-              label={upperFor(tr ? 'Bu hafta' : 'This week', tr)}
               sentence={weekSentence}
               days={weekData.map((d, i) => ({
                 key: d.key, abbr: dayLabels[i], num: d.date.getDate(), isToday: d.isToday, isFuture: d.key > todayKey,
@@ -794,47 +724,8 @@ export default function CockpitScreen() {
               selectedKey={selectedDay}
               onSelectDay={setSelectedDay}
               day={
-                /* Seçili günün işleri Takvim'de (madde 5); burada tek satır. */
                 <TourTarget id="dailySection" spotRadius={R.md}>
-                  <Touchable
-                    onPress={() => router.push({ pathname: '/takvim', params: { date: selectedDay } })}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${selectedDayLabel}, ${dc.dayTaskCount(selectedDayTasks.length)} — ${t.dayView.openInCalendar}`}
-                    style={styles.dayLine}
-                  >
-                    <Text style={{ fontSize: F.caption, fontWeight: '700', letterSpacing: 0.8, color: isSelectedToday ? theme.primary : theme.onSurface }} numberOfLines={1}>{upperFor(selectedDayLabel, tr)}</Text>
-                    <Text style={{ flex: 1, fontSize: F.caption, color: theme.onSurfaceVariant }} numberOfLines={1}>{`· ${dc.dayTaskCount(selectedDayTasks.length)}`}</Text>
-                    <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.primary }}>{t.dayView.openInCalendar}</Text>
-                    <ChevronRight size={ICON.xs} color={theme.primary} />
-                  </Touchable>
-                </TourTarget>
-              }
-              stats={
-                <TourTarget id="weeklyReview" spotRadius={R.md}>
-                  {/* HEDEF + PLAN TEK SATIR — hedef metni satırın alt yazısı. */}
-                  <Touchable
-                    onPress={() => {
-                      setPlanGoal(weeklyGoal);
-                      preparePlan();
-                      setPlanVisible(true);
-                      haptic.commit();
-                    }}
-                    accessibilityRole="button"
-                    style={[styles.planRow, { borderTopWidth: 0, paddingTop: 0 }]}
-                  >
-                    <Sparkles size={ICON.sm} color={theme.primary} />
-                    <View style={{ flex: 1, gap: S.xxs }}>
-                      <Text style={[styles.planBtnText, { color: theme.onSurface }]}>
-                        {showPlanButton
-                          ? (tr ? 'Gelecek haftayı planla' : 'Plan Next Week')
-                          : (tr ? 'Haftalık hedefi güncelle' : 'Update Weekly Goal')}
-                      </Text>
-                      {!!weeklyGoal && (
-                        <Text numberOfLines={2} style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{weeklyGoal}</Text>
-                      )}
-                    </View>
-                    <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} />
-                  </Touchable>
+                  <WeekDayList tasks={tasks} dayKey={selectedDay} todayKey={todayKey} dayLabel={selectedDayLabel} lang={wl} />
                 </TourTarget>
               }
             />
@@ -845,14 +736,17 @@ export default function CockpitScreen() {
           {personalHabits.length > 0 && (
             <View style={{ marginBottom: S.md }}>
               <WeekHabits
-                label={tr ? 'ALIŞKANLIKLAR' : 'HABITS'}
-                story={habitWeekStory(personalHabits, weekData.map(d => d.key), todayKey, tr ? 'tr' : 'en',
-                  k => new Date(`${k}T12:00:00`).toLocaleDateString(localeOf(language), { weekday: 'long' }), h => habitColor(h, isDark))}
+                label={wc.habits}
+                count={habitCountLine}
+                dayKey={selectedDay}
+                ownLabel={wc.ownHabits}
+                ownLimit={HABIT_LIMIT}
+                goalLabel={wc.goalHabits}
                 habits={personalHabits}
                 weekKeys={weekData.map(d => d.key)}
                 todayKey={todayKey}
-                onToday={h => handleToggleHabit(h.id, todayKey)}
-                onTodayHold={h => { haptic.commit(); toggleSkipDate(h.id, todayKey); }}
+                onToday={h => handleToggleHabit(h.id, selectedDay)}
+                onTodayHold={h => { haptic.commit(); toggleSkipDate(h.id, selectedDay); }}
                 onOpen={h => router.push({ pathname: '/aliskanlik', params: { id: h.id } })}
                 todayLabel={(h, done) => dc.todayA11y(h.name, done)}
                 streakLabel={(n, unit) => dc.streakText(n, unit)}
@@ -928,6 +822,9 @@ export default function CockpitScreen() {
           </WideCol>
 
           </WideSplit>
+          <View style={{ marginTop: S.md }}>
+            <WeekPriority weekEnd={weekData[6].key} today={todayKey} lang={wl} note={weeklyGoal} onClearNote={() => setWeeklyGoal('')} />
+          </View>
         </Animated.ScrollView>
       </View>
 
@@ -998,89 +895,6 @@ export default function CockpitScreen() {
         );
       })()}
 
-      {/* ══ PLAN WEEK SHEET ══ */}
-      <Modal supportedOrientations={['portrait', 'landscape']}
-        visible={planVisible}
-        transparent
-        animationType="none"
-        onRequestClose={() => setPlanVisible(false)}
-        onShow={() => planSlideIn()}
-      >
-        <KeyboardAvoidingView
-          behavior="padding"
-          style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: SCRIM }}
-        >
-          <Touchable style={{ flex: 1 }} activeOpacity={1} onPress={() => setPlanVisible(false)} />
-          <Animated.View
-            style={[
-              styles.sheet,
-              planSlide,
-              {
-                paddingBottom: Math.max(insets.bottom, S.xl),
-                maxHeight: sheetMaxHeight(screenHeight, insets.top),
-              },
-            ]}
-          >
-            <GlassSurface corners="top" />
-            <View
-              {...planPan.panHandlers}
-              style={styles.handleArea}
-            >
-              <View style={[styles.sheetHandle, { backgroundColor: theme.outline }]} />
-            </View>
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface }]}>
-              {showPlanButton
-                ? (tr ? 'Gelecek hafta' : 'Next Week')
-                : (tr ? 'Haftalık hedef' : 'Weekly Goal')}
-            </Text>
-            <Text style={[styles.sheetSub, { color: theme.onSurfaceVariant }]}>
-              {tr
-                ? 'Bu haftanın ana hedefi ne olsun?'
-                : "What's your main goal for this week?"}
-            </Text>
-
-            <TextInput
-              value={planGoal}
-              onChangeText={setPlanGoal}
-              placeholder={
-                tr
-                  ? 'Örn: Her gün 2 saat derin odak...'
-                  : 'e.g. 2 hours of deep focus every day...'
-              }
-              placeholderTextColor={theme.onSurfaceVariant + '80'}
-              style={[
-                styles.goalInput,
-                {
-                  backgroundColor: isDark
-                    ? theme.surfaceContainerHighest
-                    : theme.surfaceContainerLowest,
-                  borderColor: theme.outline,
-                  color: theme.onSurface,
-                },
-              ]}
-              multiline
-              numberOfLines={3}
-              maxLength={200}
-              textAlignVertical="top"
-              underlineColorAndroid="transparent"
-            />
-
-            <Touchable
-              onPress={() => {
-                setWeeklyGoal(planGoal);
-                setPlanVisible(false);
-                haptic.success();
-              }}
-              style={[styles.saveBtn, { backgroundColor: theme.primary }]}
-            >
-              <Text style={[styles.saveBtnText, { color: theme.onPrimary }]}>
-                {tr ? 'Kaydet' : 'Save'}
-              </Text>
-            </Touchable>
-          </Animated.View>
-        </KeyboardAvoidingView>
-        <AlertHost />{/* modal içinden açılan uyarı burada, modalın üstünde (bkz. CustomAlert) */}
-      </Modal>
       <BottomNavBar />
       {tourOn && (
         <HelpTourModal
@@ -1177,11 +991,8 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: F.caption, fontWeight: '500' },
   goalChip: { flexDirection: 'row', alignItems: 'center', gap: S.sm, padding: S.md, borderRadius: R.md, borderWidth: B.thin },
   goalText: { flex: 1, fontSize: F.body, fontWeight: '500' },
-  dayLine: { flexDirection: 'row', alignItems: 'center', gap: S.xs, minHeight: 32 },
   gridHead: { flexDirection: 'row', alignItems: 'center', gap: S.sm, minHeight: 28 },
   habitLine: { flexDirection: 'row', alignItems: 'center', gap: S.smd, paddingVertical: S.smd, paddingHorizontal: S.md },
-  planRow: { flexDirection: 'row', alignItems: 'center', gap: S.smd, minHeight: 56, paddingHorizontal: S.md, paddingVertical: S.smd, borderTopWidth: HAIRLINE },
-  planBtnText: { fontSize: F.body, fontWeight: '600' },
 
   // Sheets
   // Ölçüler Yeni Hedef formuyla AYNI (yan 24 dp, ince tutamaç bandı): yan boşluk 40 dp idi ve

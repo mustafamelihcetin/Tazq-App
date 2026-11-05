@@ -15,7 +15,7 @@ import { MotiView } from 'moti';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Angry, CalendarClock, Check, CheckCircle2, Circle, Flame, Frown, Laugh, Meh, MoreHorizontal, Play, Plus, Shuffle, Smile } from 'lucide-react-native';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
-import { modeRoomLeft } from '@/features/habits/utils/habitLimit';
+import { manualRoutineRoom } from '@/features/habits/utils/habitLimit';
 import { ROUTINE_SUGGESTIONS } from '@/features/modes/data/planLibrary';
 import { addOwnTask, addRoutine, bringPostponedToday, hidePlanTask, postponePlanTask, removeRoutine, skipPlanTaskToday, swapPlanTask, undoPostpone } from '@/features/modes/utils/planManage';
 import { Touchable } from '@/shared/components/Touchable';
@@ -199,7 +199,7 @@ export function PlanRoutines({ slot, type, items, c, accent, lang }: { slot: str
   const pause = useHabitStore(s => s.pauseHabit);
   const allHabits = useHabitStore(s => s.habits);
   const [open, setOpen] = useState<string | null>(null);
-  const room = modeRoomLeft(allHabits, slot);
+  const room = manualRoutineRoom(allHabits, slot);
   const names = new Set(items.planHabits.flatMap(x => [x.h.name, x.h.nameTr, x.h.nameEn]));
   const ideas = (ROUTINE_SUGGESTIONS[type] ?? []).filter(s => !names.has(s.tr) && !names.has(s.en));
   return (

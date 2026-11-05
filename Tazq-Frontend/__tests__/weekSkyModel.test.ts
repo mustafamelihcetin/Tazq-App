@@ -1,4 +1,4 @@
-import { skyStars, skyStory, hourFrac, partOf } from '@/features/report/weekSky';
+import { skyStars, skyStory, hourFrac, partOf, skyWeek, skyDelta, skyDuration, skyDayLine, skyTop, skyDayTasks } from '@/features/report/weekSky';
 
 /**
  * HAFTANIN GÖKYÜZÜ v2 (2026-11-01, kullanıcı: "daha ön plana çıksın, daha anlamlı olsun").
@@ -72,5 +72,82 @@ describe('skyStory', () => {
   it('saat bilinmiyorsa yalnız en parlak gün; seans yoksa null', () => {
     expect(skyStory([{ startedAt: at('2026-10-27', 12), minutes: 30 }], DAYS, 'tr', false)).toBe('En parlak gün Salı');
     expect(skyStory([], DAYS, 'tr', true)).toBeNull();
+  });
+});
+
+describe('gökyüzünün karşılığı', () => {
+  const week = ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07', '2026-11-08'];
+  const rows = [
+    { startedAt: '2026-11-02T09:00:00', minutes: 25 },
+    { startedAt: '2026-11-05T23:10:00', minutes: 25 },
+    { startedAt: '2026-11-05T21:00:00', minutes: 50 },
+    // geçen hafta: Pzt ve Per bugüne kadar sayılır, Cuma sayılmaz
+    { startedAt: '2026-10-26T09:00:00', minutes: 30 },
+    { startedAt: '2026-10-29T09:00:00', minutes: 30 },
+    { startedAt: '2026-10-30T09:00:00', minutes: 100 },
+  ];
+
+  it('toplam ve gün dökümü gerçek seanslardan gelir', () => {
+    const w = skyWeek(rows, week, '2026-11-05', true);
+    expect(w.totalMinutes).toBe(100);
+    expect(w.count).toBe(3);
+    expect(w.days[3]).toMatchObject({ minutes: 75, count: 2, longest: 50 });
+    expect(w.days[3].firstAt?.getHours()).toBe(21);
+  });
+
+  it('kıyas geçen haftanın AYNI noktasıyla: yarım hafta tam haftayla kıyaslanmaz', () => {
+    expect(skyWeek(rows, week, '2026-11-05', true).delta).toBe(40);
+  });
+
+  it('geçen hafta veri yoksa ya da saat bilinmiyorsa kıyas uydurulmaz', () => {
+    expect(skyWeek(rows.slice(0, 3), week, '2026-11-05', true).delta).toBeNull();
+    expect(skyWeek(rows, week, '2026-11-05', false).delta).toBeNull();
+    expect(skyDelta(null, 'tr')).toBeNull();
+  });
+
+  it('metinler okunur ve iki dilde', () => {
+    expect(skyDuration(192, 'tr')).toBe('3 sa 12 dk');
+    expect(skyDuration(45, 'en')).toBe('45 min');
+    expect(skyDelta(40, 'tr')).toBe('Geçen haftanın bu noktasına göre +40 dk');
+    expect(skyDelta(-90, 'en')).toBe('−1 h 30 min vs this point last week');
+    expect(skyDelta(0, 'tr')).toBe('Geçen haftanın bu noktasıyla aynı');
+    const w = skyWeek(rows, week, '2026-11-05', true);
+    expect(skyDayLine(w.days[3], week[3], 'tr', true)).toBe('Perşembe · 2 seans · 1 sa 15 dk · en uzunu 50 dk · ilki 21:00');
+    expect(skyDayLine(w.days[1], week[1], 'tr', true)).toBe('Salı · seans yok');
+    expect(skyDayLine(w.days[0], week[0], 'en', false)).toBe('Monday · 1 session · 25 min');
+  });
+});
+
+describe('neye odaklandın', () => {
+  const week = ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07', '2026-11-08'];
+  const rows = [
+    { startedAt: '2026-11-05T10:00:00', minutes: 50, taskName: 'Tez', pausedSeconds: 0 },
+    { startedAt: '2026-11-05T12:00:00', minutes: 25, taskName: 'Okuma', pausedSeconds: 120 },
+    { startedAt: '2026-11-05T14:00:00', minutes: 10, taskName: null, pausedSeconds: null },
+    { startedAt: '2026-11-06T10:00:00', minutes: 50, taskName: 'Tez' },
+  ];
+
+  it('haftanın en çok süre alan işi', () => {
+    expect(skyTop(skyWeek(rows, week, undefined, true), 'tr')).toBe('En çok: Tez · 1 sa 40 dk');
+  });
+
+  it('hiç ad yoksa satır yok: uydurulmaz', () => {
+    expect(skyTop(skyWeek([{ startedAt: '2026-11-05T10:00:00', minutes: 50 }], week, undefined, true), 'tr')).toBeNull();
+  });
+
+  it('gün dökümü işleri büyükten küçüğe, adsız süre Diğer', () => {
+    const w = skyWeek(rows, week, undefined, true);
+    expect(skyDayTasks(w.days[3], 'tr')).toBe('Tez 50 dk · Okuma 25 dk · Diğer 10 dk');
+    expect(skyDayTasks(w.days[1], 'tr')).toBeNull();
+  });
+
+  it('en çok üç iş; gerisi Diğer', () => {
+    const many = ['A', 'B', 'C', 'D'].map((n, i) => ({ startedAt: `2026-11-05T1${i}:00:00`, minutes: 40 - i, taskName: n }));
+    expect(skyDayTasks(skyWeek(many, week, undefined, true).days[3], 'en')).toBe('A 40 min · B 39 min · C 38 min · Other 37 min');
+  });
+
+  it('yıldız kesintisiz bilgisini taşır; eski kayıtta bilinmiyor', () => {
+    const stars = skyStars(rows, week, true);
+    expect(stars.map((x) => x.clean)).toEqual([true, false, null, null]);
   });
 });

@@ -32,7 +32,7 @@ describe('geçmiş indirme', () => {
     mockSessions.mockResolvedValue([{ startedAt: '2026-09-15T09:00:00.000Z', minutes: 25 }]);
     await useFocusHistoryStore.getState().refresh();
     const st = useFocusHistoryStore.getState();
-    expect(st.sessions).toEqual([{ startedAt: '2026-09-15T09:00:00.000Z', minutes: 25 }]);
+    expect(st.sessions).toEqual([{ startedAt: '2026-09-15T09:00:00.000Z', minutes: 25, taskName: null, pausedSeconds: null }]);
     expect(st.neverLoaded).toBe(false);
     expect(st.usingLegacyFallback).toBe(false);
   });

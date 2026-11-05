@@ -21,7 +21,10 @@ import { FormReveal, ModeField } from '../ModeField';
 import { renderModeEmojiIcon } from '../../utils/modeIcons';
 import { retirePlanTask, formatPlanDate, isDatePast, daysLeftOf , retireModeTasksByTag} from '@/features/modes/utils/planTaskOps';
 import { cancelExamCountdownNotifs } from '@/shared/utils/notifications';
-import { matchExamName, detectExamFromInput, HOURS_OPTIONS, type ExamPreset } from '@/shared/utils/examPresets';
+import { detectExamFromInput, HOURS_OPTIONS, type ExamPreset, customExamPreset } from '@/shared/utils/examPresets';
+import { ExamNameField } from './ExamNameField';
+import { ExamDatePicker } from './ExamDatePicker';
+import { useGoalSetupStore } from '../setup/SetupShell';
 import { isSeasonalExamActive } from '../../utils/turkishModes';
 import { findExamCurriculum, listTopics } from '@/shared/utils/curriculum';
 import type { PlanMode } from '../../store/usePrefsStore';
@@ -43,126 +46,11 @@ const BASE_CALENDAR_WIDTH = 340;
 type Slot = 'exam' | 'exam2' | 'exam3';
 type PreviewPayload = { templateId?: string; examSlot: Slot; examTipTr?: string; examTipEn?: string; examName: string; examDate: string };
 
-function levelTemplateIdFromMinutes(min?: number): string {
+export function levelTemplateIdFromMinutes(min?: number): string {
   const m = min ?? 90;
   if (m <= 60) return 'level-temel';
   if (m <= 120) return 'level-orta';
   return 'level-ileri';
-}
-
-function useCalScale() {
-  const { width } = useWindowDimensions();
-  const aw = width - S.lg * 2 - S.md * 2;
-  return aw < BASE_CALENDAR_WIDTH ? aw / BASE_CALENDAR_WIDTH : 1;
-}
-
-function ExamDatePicker({ value, onPick, onClose }: { value: Date; onPick: (iso: string) => void; onClose: () => void }) {
-  const { isDark } = useAppTheme();
-  const { language } = useLanguageStore();
-  const calendarScale = useCalScale();
-  // bkz. SporCard'daki SporDatePicker'daki aynı not: iOS inline takvim açılır
-  // açılmaz `value`'yu zaten seçili gösteriyor ama onChange kullanıcı dokunana
-  // kadar ateşlenmiyor — görünen ile kayıtlı durumu mount'ta eşitliyoruz.
-  useEffect(() => { onPick(toDateKey(value)); }, []);
-  return (
-    <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH * calendarScale, height: 320 * calendarScale, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: S.xs } : { alignSelf: 'center', marginVertical: S.xs }}>
-      <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH, height: 320, transform: [{ scale: calendarScale }], justifyContent: 'center', alignItems: 'center' } : undefined}>
-        <DateTimePicker
-          style={Platform.OS === 'ios' ? { width: 320, height: 320 } : undefined}
-          value={value} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'}
-          themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'}
-          minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setMonth(d.getMonth() + 18); return d; })()}
-          onChange={(event: DateTimePickerEvent, date?: Date) => {
-            if (Platform.OS === 'android') onClose();
-            if (event.type === 'dismissed') { onClose(); return; }
-            if (date) { onPick(toDateKey(date)); }
-          }}
-        />
-      </View>
-    </View>
-  );
-}
-
-/** Preset adı + öneri dropdown + saat seçici (slot içi). */
-function PresetEditor({ name, onName, preset, onPreset, suggestions, onSuggestions, dailyMinutes, onDailyMinutes, placeholder, withLevelLabels }: {
-  name: string; onName: (v: string) => void; preset: ExamPreset | null; onPreset: (p: ExamPreset | null) => void;
-  suggestions: ExamPreset[]; onSuggestions: (s: ExamPreset[]) => void; dailyMinutes: number | null; onDailyMinutes: (m: number | null) => void;
-  placeholder: string; withLevelLabels?: boolean;
-}) {
-  const { accent: ACCENT, accentText: ACCENT_TX, onAccent: ACCENT_ON } = useModeAccent('exam');
-  const { theme, isDark } = useAppTheme();
-  const { language } = useLanguageStore();
-  const tr = language === 'tr';
-  return (
-    <>
-      <ModeField
-          accent={ACCENT}
-          value={name}
-          onChangeText={(v) => {
-            onName(v);
-            if (!v.trim()) { onSuggestions([]); onPreset(null); onDailyMinutes(null); return; }
-            const d = detectExamFromInput(v);
-            if (d) {
-              onPreset(d);
-              onSuggestions([]);
-            } else {
-              const trimmed = v.trim();
-              const customPreset: ExamPreset = {
-                id: 'custom-' + encodeURIComponent(trimmed),
-                displayName: trimmed,
-                shortName: trimmed,
-                aliases: [trimmed.toLowerCase()],
-                category: 'other',
-                defaultDailyMinutes: 90,
-                preferredTemplates: ['active-recall', 'spaced-repetition', 'deep-work', 'sprint'],
-                tipTr: 'Özel çalışma planı — kendi hızında, düzenli konu tekrarları ve soru çözümü.',
-                tipEn: 'Custom study plan — self-paced, regular concept review and practice.',
-              };
-              onPreset(customPreset);
-              onSuggestions(matchExamName(v));
-            }
-          }}
-          placeholder={placeholder}
-          returnKeyType="done" maxLength={fitMaxLength(60, name)}
-          onSubmitEditing={() => { if (suggestions.length > 0) { const top = suggestions[0]; onName(top.shortName); onPreset(top); onSuggestions([]); } }}
-        />
-      {(suggestions.length > 0 || (name.trim().length > 0 && !preset)) && (
-        <View style={{ borderRadius: R.md, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.09)', backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surface, overflow: 'hidden', marginTop: -S.xs }}>
-          {suggestions.map((p, idx) => (
-            <Touchable accessibilityRole="button" key={p.id} onPress={() => { haptic.select(); onName(p.shortName); onPreset(p); onSuggestions([]); }} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.smd, borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }} activeOpacity={0.7}>
-              <Text style={{ fontSize: F.body, fontWeight: '500', color: theme.onSurface, minWidth: 44 }}>{p.shortName}</Text>
-              <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, flex: 1 }} numberOfLines={1}>{p.displayName}</Text>
-            </Touchable>
-          ))}
-          {name.trim().length > 0 && !preset && (
-            <Touchable accessibilityRole="button" onPress={() => {
-              haptic.select();
-              const trimmed = name.trim();
-              const customPreset: ExamPreset = {
-                id: 'custom-' + encodeURIComponent(trimmed),
-                displayName: trimmed,
-                shortName: trimmed,
-                aliases: [trimmed.toLowerCase()],
-                category: 'other',
-                defaultDailyMinutes: 90,
-                preferredTemplates: ['active-recall', 'spaced-repetition', 'deep-work', 'sprint'],
-                tipTr: 'Özel çalışma planı — kendi hızında, düzenli konu tekrarları ve soru çözümü.',
-                tipEn: 'Custom study plan — self-paced, regular concept review and practice.',
-              };
-              onName(trimmed);
-              onPreset(customPreset);
-              onSuggestions([]);
-            }} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.smd }} activeOpacity={0.7}>
-              <Sparkles size={ICON.xs} color={ACCENT} style={{ marginRight: S.sm }} />
-              <Text style={{ fontSize: F.body, fontWeight: '600', color: ACCENT, flex: 1 }}>
-                {tr ? `+ Yeni Ekle: "${name}"` : `+ Add Custom: "${name}"`}
-              </Text>
-            </Touchable>
-          )}
-        </View>
-      )}
-    </>
-  );
 }
 
 function HoursSelector({ preset, dailyMinutes, onPick, withLevelLabels }: { preset: ExamPreset; dailyMinutes: number | null; onPick: (m: number | null) => void; withLevelLabels?: boolean }) {
@@ -237,17 +125,7 @@ function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview
     if (!name) return null;
     const detected = detectExamFromInput(name);
     if (detected) return detected;
-    return {
-      id: 'custom-' + encodeURIComponent(name),
-      displayName: name,
-      shortName: name,
-      aliases: [name.toLowerCase()],
-      category: 'other',
-      defaultDailyMinutes: 90,
-      preferredTemplates: ['active-recall', 'spaced-repetition', 'deep-work', 'sprint'],
-      tipTr: 'Özel çalışma planı — kendi hızında, düzenli konu tekrarları ve soru çözümü.',
-      tipEn: 'Custom study plan — self-paced, regular concept review and practice.',
-    };
+    return customExamPreset(name);
   });
 
   const past = isDatePast(date);
@@ -304,7 +182,7 @@ function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview
     setPreset(null); setDailyMinutes(null); setExpanded(false);
   };
   useCloseRequest(slot, del);
-  useAddRequest(slot, () => setExpanded(true));
+  useAddRequest(slot, () => useGoalSetupStore.getState().open('exam', slot));
 
   return (
     <View style={{ marginTop: S.xs }}>
@@ -321,14 +199,14 @@ function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview
           </Touchable>
         </Touchable>
       ) : !complete && !expanded ? (
-        <Touchable accessibilityRole="button" onPress={() => { haptic.select(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.7}>
+        <Touchable accessibilityRole="button" onPress={() => { haptic.select(); useGoalSetupStore.getState().open('exam', slot); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.7}>
           <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>＋</Text>
           <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption, flex: 1 }}>{addLabel}</Text>
         </Touchable>
       ) : null}
       {expanded && (
         <FormReveal style={{ gap: S.sm }}>
-          <PresetEditor name={name} onName={(v) => setSeasonalPref(nameKey, v)} preset={preset} onPreset={setPreset} suggestions={suggestions} onSuggestions={setSuggestions} dailyMinutes={dailyMinutes} onDailyMinutes={pickDailyMinutes} placeholder={placeholder} />
+          <ExamNameField name={name} onName={(v) => setSeasonalPref(nameKey, v)} preset={preset} onPreset={setPreset} suggestions={suggestions} onSuggestions={setSuggestions} onClearHours={() => pickDailyMinutes(null)} placeholder={placeholder} />
           <Touchable accessibilityRole="button" hitSlop={{ top: 2, bottom: 2, left: 0, right: 0 }} onPress={() => { haptic.select(); setShowPicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
             <Text style={{ color: date ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.caption, fontWeight: '600', flex: 1 }}>{date ? formatPlanDate(date, tr) : (tr ? 'Sınav tarihi seç' : 'Select date')}</Text>
             <CalendarDays size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
@@ -398,17 +276,7 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
     if (!name) return null;
     const detected = detectExamFromInput(name);
     if (detected) return detected;
-    return {
-      id: 'custom-' + encodeURIComponent(name),
-      displayName: name,
-      shortName: name,
-      aliases: [name.toLowerCase()],
-      category: 'other',
-      defaultDailyMinutes: 90,
-      preferredTemplates: ['active-recall', 'spaced-repetition', 'deep-work', 'sprint'],
-      tipTr: 'Özel çalışma planı — kendi hızında, düzenli konu tekrarları ve soru çözümü.',
-      tipEn: 'Custom study plan — self-paced, regular concept review and practice.',
-    };
+    return customExamPreset(name);
   });
 
   const past = isDatePast(date);
@@ -425,9 +293,8 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
     const s = usePrefsStore.getState().seasonal;
     const comp = (s.examName || '').trim() !== '' && (s.examDate || '') !== '';
     const hasActivePlan = (usePrefsStore.getState().examPlanHabitIds.length > 0 || usePrefsStore.getState().examPlanTaskIds.length > 0);
-    // Kurulum devam ederken (plan henüz uygulanmamışsa) kart DAİMA açık kalır.
-    // Tarih seçildiğinde kart kendi kendine daralmaz ("Kurulumu tamamla"ya geçip yukarı zıplamaz).
-    if (!hasActivePlan) return true;
+    // Plan başlamadıysa kurulum adım adım ekranda (bkz. ExamSetup); form yalnız başlamış planı düzenler.
+    if (!hasActivePlan) return false;
     return !comp;
   });
   const [showPicker, setShowPicker] = useState(false);
@@ -536,7 +403,7 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
     clearPlanIds('exam'); setSeasonalPref('examName', ''); setSeasonalPref('examDate', null); setPreset(null); setExpanded(false);
     if (!exam2Complete && !exam3Complete) setSeasonalPref('examMode', false);
   };
-  useAddRequest('exam', () => setExpanded(true));
+  useAddRequest('exam', () => useGoalSetupStore.getState().open('exam', 'exam'));
   useCloseRequest('exam', () => { if (exam2Complete || exam3Complete) delSlot1(); else closeModeWithUndo('exam', closeWithReview, tr ? 'Sınav modu kapatıldı' : 'Exam mode closed', tr ? 'Geri al' : 'Undo'); });
 
   return (
@@ -559,7 +426,7 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
         <View style={{ paddingHorizontal: S.md, paddingBottom: S.md, gap: S.sm }}>
           <Separator theme={theme} />
           {!isComplete && !expanded && (
-            <Touchable accessibilityRole="button" onPress={() => { haptic.select(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.md }} activeOpacity={0.7}>
+            <Touchable accessibilityRole="button" onPress={() => { haptic.select(); useGoalSetupStore.getState().open('exam', 'exam'); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.md }} activeOpacity={0.7}>
               <AppIcon Icon={Target} color={theme.onSurfaceVariant} size={24} radius={R.sm} iconSize={ICON.sm} />
               {/*
                 YARIM KURULUM "EKLE" DEMEZ.
@@ -590,7 +457,7 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
                     <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{name}</Text>
                     {!hasPlan && (
                       <>
-                        <Touchable accessibilityRole="button" onPress={() => { haptic.surface(); onOpenPreview({ templateId: !hasPlan ? levelTemplateIdFromMinutes(dailyMinutes ?? preset?.defaultDailyMinutes ?? 90) : undefined, examSlot: 'exam', examTipTr: preset?.tipTr, examTipEn: preset?.tipEn, examName: name, examDate: date }); }} activeOpacity={0.7} style={{ paddingVertical: S.xs, paddingHorizontal: S.xxs }}>
+                        <Touchable accessibilityRole="button" onPress={() => { haptic.surface(); useGoalSetupStore.getState().open('exam', 'exam'); }} activeOpacity={0.7} style={{ paddingVertical: S.xs, paddingHorizontal: S.xxs }}>
                           <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text>
                         </Touchable>
                         <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
@@ -632,7 +499,7 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
 
           {expanded && (
             <FormReveal style={{ gap: S.sm }}>
-              <PresetEditor name={name} onName={(v) => setSeasonalPref('examName', v)} preset={preset} onPreset={setPreset} suggestions={suggestions} onSuggestions={setSuggestions} dailyMinutes={dailyMinutes} onDailyMinutes={pickDailyMinutes} placeholder={tr ? 'Sınav adı (örn: ALES, DGS, KPSS...)' : 'Exam name (e.g. SAT, GRE, IELTS...)'} />
+              <ExamNameField name={name} onName={(v) => setSeasonalPref('examName', v)} preset={preset} onPreset={setPreset} suggestions={suggestions} onSuggestions={setSuggestions} onClearHours={() => pickDailyMinutes(null)} placeholder={tr ? 'Sınav adı (örn: ALES, DGS, KPSS...)' : 'Exam name (e.g. SAT, GRE, IELTS...)'} />
               {conflict && (<Text style={{ fontSize: F.caption, color: theme.warning, fontWeight: '500', paddingHorizontal: S.xxs }}>{conflict}</Text>)}
               <Touchable accessibilityRole="button" onPress={() => { haptic.select(); setShowPicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
                 <Text style={{ color: date ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.body, fontWeight: '600', flex: 1 }}>{date ? formatPlanDate(date, tr) : (tr ? 'Sınav tarihi seç' : 'Select exam date')}</Text>

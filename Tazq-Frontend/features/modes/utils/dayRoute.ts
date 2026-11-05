@@ -7,7 +7,7 @@ import { dayKeyOf, dayNum } from '@/features/studyplan/utils/scheduler';
   Listeyi kısaltmak yetmez. Üç soru: bu kişi bir günde gerçekten kaç şey yapıyor (kapasite), bugün hangileri (adil seçim, her seçimin nedeni var), hangi sırayla (önce kısa kazanım).
   Dışarıda kalan iş silinmez, hedef "dinleniyor" der; dokunulmadıkça öne çıkar, hiçbir hedef unutulmaz. Kapasite gerçek davranıştan gelir: rota bitirildikçe büyür, zorlanınca küçülür, suçlamaz.
 */
-export type StopReason = 'streak' | 'soon' | 'neglected' | 'overdue' | 'next';
+export type StopReason = 'streak' | 'soon' | 'neglected' | 'overdue' | 'priority' | 'next';
 
 export interface RouteItem {
   key: string;
@@ -30,7 +30,7 @@ export interface RouteItem {
   water?: WaterGoal | null;
 }
 
-export interface RouteGoal { slot: string; type: string; goal: string; daysLeft: number | null; lastActive: string | null; items: RouteItem[] }
+export interface RouteGoal { slot: string; type: string; goal: string; daysLeft: number | null; lastActive: string | null; items: RouteItem[]; /** Kullanıcının bu hafta seçtiği öncelik. */ priority?: boolean }
 export interface DayLog { day: string; planned: number; done: number }
 export interface ComposedRoute { keys: string[]; resting: string[]; reasons: Record<string, StopReason> }
 
@@ -44,6 +44,8 @@ const FASTING_CAPACITY = 4;
 const EID_CAPACITY = 2;
 const DEFAULT_TASK_MIN = 15;
 const DEFAULT_HABIT_MIN = 5;
+/** Tarihi çok yakın sınavı geçmez (urgency 1), onun altındaki her şeyi geçer: tarih gerçektir, öncelik tercihtir. */
+const PRIORITY_WEIGHT = 0.5;
 
 /** "… · 35 dk" başlıktan süre; yoksa makul varsayım. Yalnız tahmin, ekranda "yaklaşık" yazar. */
 export function minutesOf(kind: 'task' | 'habit', title: string): number {
@@ -91,14 +93,15 @@ function scoreOf(goal: RouteGoal, item: RouteItem, today: string): { score: numb
     ['streak', atRisk ? 0.75 : 0],
     ['neglected', Math.min(0.9, since * 0.15)],
     ['overdue', item.overdue ? 0.3 : 0],
+    ['priority', goal.priority ? PRIORITY_WEIGHT : 0],
   ];
   const score = parts.reduce((a, [, v]) => a + v, 0) + ((item.liking ?? 0.5) - 0.5) * 0.4 + (item.high ? 0.1 : 0);
   // Neden: en güçlü gerekçe. Sınav yakın değilse "yakın" demeyiz.
-  const reason: StopReason = atRisk ? 'streak' : since >= 3 ? 'neglected' : item.overdue ? 'overdue' : (goal.daysLeft != null && goal.daysLeft <= 30) ? 'soon' : 'next';
+  const reason: StopReason = atRisk ? 'streak' : goal.priority ? 'priority' : since >= 3 ? 'neglected' : item.overdue ? 'overdue' : (goal.daysLeft != null && goal.daysLeft <= 30) ? 'soon' : 'next';
   return { score, reason };
 }
 
-const perGoalLimit = (g: RouteGoal) => (g.daysLeft != null && g.daysLeft <= 14 ? 3 : 2);
+const perGoalLimit = (g: RouteGoal) => (g.priority || (g.daysLeft != null && g.daysLeft <= 14) ? 3 : 2);
 
 /** Önce her hedefe birer adım (en gerekliden), yer kalırsa en güçlü adaylar. Yapılmış işler de rotanın parçası: gün içinde bitirilen boşa gitmez. */
 export function composeRoute(goals: RouteGoal[], capacity: number, today: string): ComposedRoute {

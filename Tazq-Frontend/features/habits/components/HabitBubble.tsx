@@ -1,11 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
-import { Canvas, Circle, Path, Skia } from '@shopify/react-native-skia';
-import { Easing, useDerivedValue, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { Coffee } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { CompletionBurst } from '@/shared/components/CompletionBurst';
-import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
+import { HabitLiquid } from '@/features/habits/components/HabitLiquid';
 // Saf metin yardımcısı utils'e taşındı (uyku sınıflandırıcısı da kullanıyor);
 // buradan yeniden dışa veriliyor ki mevcut içe aktarmalar kırılmasın.
 import { compactHabitLabel } from '@/features/habits/utils/habitLabel';
@@ -28,9 +26,8 @@ import { F, S, R, ICON } from '@/shared/constants/tokens';
   yukarıdaki ekranla uyumlu, şık, premium, işlevsel, minimalist; animasyonel de olabilir".
   Eski baloncuk: nötr çerçeve + dolgu + iki rozet (alev, tik) + dört renk kuralı.
   Yeni dil — üstteki dijital panelin ve gün çiçeğinin akrabası:
-    · İnce bir İZ halkası; ilerleme alışkanlığın renginde bir YAY olarak dolar (Skia, animasyonlu).
-      Miktarlıda yay adım adım (3/8), tekilde tek dokunuşta tam tur.
-    · Tamamlanınca iç disk yumuşakça renklenir + tek seferlik kıvılcım. Rozet yok, yay söyler.
+    · 2026-11-05: halka SIVIYLA dolar (bkz. HabitLiquid, su bardağının dili). Miktarlıda adım adım (3/8), tekilde tek dokunuşta.
+    · Tamamlanınca tek seferlik kıvılcım. Rozet yok, doluluk söyler.
     · Mola: kehribar kesik iz + fincan. Dün kaçtıysa ("iki kez kaçırma") köşede küçük nokta:
       bugün yaparsan zincir sürer.
     · Sayaç (3/8, haftalık 2/3) eş aralıklı rakamla, panelle aynı dijital yazı.
@@ -46,20 +43,8 @@ const LABEL_LINE = 12;
  */
 export const HABIT_SLOT = 78;
 
-const SIZE = 52;
+const SIZE = 56;
 const STROKE = 3;
-
-/** İlerleme yayı — Canvas'ın İÇİNDE (yol nesnesi yalnız gerçek Skia ortamında kurulur). */
-const Arc = ({ progress, color }: { progress: SharedValue<number>; color: string }) => {
-  const path = useMemo(() => {
-    const p = Skia.Path.Make();
-    const r = SIZE / 2 - STROKE / 2;
-    p.addArc({ x: SIZE / 2 - r, y: SIZE / 2 - r, width: r * 2, height: r * 2 }, -90, 359.9);
-    return p;
-  }, []);
-  const end = useDerivedValue(() => progress.value);
-  return <Path path={path} style="stroke" strokeWidth={STROKE} strokeCap="round" color={color} start={0} end={end} />;
-};
 
 export interface HabitBubbleProps {
   item: any;
@@ -71,7 +56,6 @@ export interface HabitBubbleProps {
 }
 
 export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, tr, onPress, onLongPress }) => {
-  const reduce = useReduceMotion();
   /*
     İYİMSER ÇİZİM (2026-10-25, cihazda ölçüldü): halka ana sayfa baştan çizilmeden önce
     yerel durumla dolar; asıl kayıt bir sonraki karede yapılır.
@@ -84,16 +68,6 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
   const count: number = optCount ?? item.count ?? (item.isCompleted ? target : 0);
   const isSkipped: boolean = !!item.isSkipped;
   const ratio = isSkipped ? 0 : isCompleted ? 1 : Math.min(1, count / target);
-
-  // Yay ve iç disk animasyonla gelir (ilk çizimde de: şerit açılırken halkalar dolar).
-  const progress = useSharedValue(0);
-  const fill = useSharedValue(0);
-  useEffect(() => {
-    const cfg = { duration: reduce ? 0 : 520, easing: Easing.out(Easing.cubic) };
-    progress.value = withTiming(ratio, cfg);
-    fill.value = withTiming(isCompleted ? 1 : 0, { duration: reduce ? 0 : 360 });
-  }, [ratio, isCompleted, reduce]);
-  const discOpacity = useDerivedValue(() => fill.value * (isDark ? 0.24 : 0.16));
 
   const [burst, setBurst] = useState(0);
   const handlePress = () => {
@@ -113,7 +87,8 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
     : target > 1 && !isCompleted && count > 0 ? `${count}/${target}`
     : (item.weekBadge ?? null);
   const track = isSkipped ? theme.warning + '66' : theme.onSurface + (isDark ? '33' : '24');
-  const iconColor = isSkipped ? theme.warning : isCompleted ? item.color : theme.onSurfaceVariant;
+  // Sıvı yarıyı geçince simge üstünde okunmalı.
+  const iconColor = isSkipped ? theme.warning : ratio >= 0.5 ? theme.onPrimary : theme.onSurfaceVariant;
   const a11yLabel = item.title ?? item.name ?? '';
 
   return (
@@ -128,13 +103,10 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
       style={{ alignItems: 'center', width: HABIT_SLOT, gap: S.sm }}
     >
       <View style={{ width: SIZE, height: SIZE, alignItems: 'center', justifyContent: 'center' }}>
-        <Canvas style={{ position: 'absolute', width: SIZE, height: SIZE }}>
-          <Circle cx={SIZE / 2} cy={SIZE / 2} r={SIZE / 2 - STROKE * 1.5} color={item.color} opacity={discOpacity} />
-          <Circle cx={SIZE / 2} cy={SIZE / 2} r={SIZE / 2 - STROKE / 2} style="stroke" strokeWidth={STROKE} color={track} />
-          <Arc progress={progress} color={item.color} />
-        </Canvas>
+        <HabitLiquid size={SIZE} stroke={STROKE} ratio={ratio} color={item.color} track={isCompleted ? item.color : track}>
+          {isSkipped ? <Coffee size={ICON.md} color={theme.warning} /> : renderModeEmojiIcon(item.emoji ?? '📌', 20, iconColor)}
+        </HabitLiquid>
         <CompletionBurst trigger={burst} color={item.color} radius={SIZE / 2} />
-        {isSkipped ? <Coffee size={ICON.md} color={theme.warning} /> : renderModeEmojiIcon(item.emoji ?? '📌', 20, iconColor)}
         {item.missed && !isCompleted && !isSkipped && (
           <View accessible={false} style={{ position: 'absolute', top: 1, right: 1, width: S.sm, height: S.sm, borderRadius: R.full, backgroundColor: theme.warning, borderWidth: 1.5, borderColor: theme.surfaceCard }} />
         )}

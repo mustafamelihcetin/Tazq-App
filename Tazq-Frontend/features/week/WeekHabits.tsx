@@ -1,18 +1,16 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { MotiView } from 'moti';
 import { Check, Coffee } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
-import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
+import { HabitLiquid } from '@/features/habits/components/HabitLiquid';
+import { modeOf } from '@/features/habits/utils/habitLimit';
 import { S, R, F, W, ICON, HAIRLINE } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { DisplayPanel, useDisplayColors } from '@/shared/components/DisplayPanel';
-import { PillSentence } from '@/shared/components/PillSentence';
 import { countOn, targetOf, type HabitLike } from '@/features/habits/utils/habitSchedule';
 import { habitWeek } from '@/features/week/habitWeek';
 import { cellState, streakStats } from '@/features/habits/utils/habitStats';
 import { habitColor } from '@/features/habits/utils/habitColor';
-import type { WeekSeg } from '@/features/week/WeekPanel';
 
 /*
   ALIŞKANLIKLAR — Haftalık Merkez kartı (2026-10-31). 7 alışkanlıkla cihazda ölçüldü: iki satırlık
@@ -20,67 +18,62 @@ import type { WeekSeg } from '@/features/week/WeekPanel';
   ben bile anlamadım". Uygulamanın kullanıcıya zaten öğrettiği kalıba döndü: GÖREV SATIRI.
     · SOLDA yuvarlak ✓ = bugün yapıldı (görevlerdeki gibi; basılı tut = mola). Tek eylem, tek yer.
     · ORTADA ad + "seri · tutarlılık".
-    · SAĞDA haftanın 7 küçük çubuğu — yalnız BİLGİ: dolu = yapıldı, kısa = plan dışı/henüz değil.
+    · SAĞDA haftanın 7 noktası — yalnız BİLGİ: dolu = yapıldı.
     · Satıra dokun → alışkanlığın sayfası (takvim: geçmiş günü düzeltmek orada).
   Gün başlığı ve açıklama satırı yok: kalıp kendini anlatıyor.
+  2026-11-05 (kullanıcı: "ulaşması zor, mantıksal olarak havada kalıyor"): kart üstteki gün seçimini izler. Yuvarlak SEÇİLİ güne işaretler; geçmişi unutan buradan düzeltir, gelecek gün işaretlenmez.
 */
 
-const CHECK = 28;
+const CHECK = 32;
 
-function TodayCheck({ h, today, color, onTap, onHold, label }: {
-  h: HabitLike; today: string; color: string; onTap: () => void; onHold: () => void; label: string;
+function TodayCheck({ h, today, color, onTap, onHold, label, disabled }: {
+  h: HabitLike; today: string; color: string; onTap: () => void; onHold: () => void; label: string; disabled: boolean;
 }) {
   const { theme } = useAppTheme();
-  const reduce = useReduceMotion();
   const done = (h.completedDates ?? []).includes(today);
   const rest = (h.skippedDates ?? []).includes(today);
   const target = targetOf(h);
   const count = countOn(h, today);
-  const state = done ? 'done' : rest ? 'rest' : `c${count}`;
   return (
-    <Touchable onPress={onTap} onLongPress={onHold} accessibilityRole="checkbox" accessibilityState={{ checked: done }} accessibilityLabel={label}
+    <Touchable disabled={disabled} onPress={onTap} onLongPress={onHold} accessibilityRole="checkbox" accessibilityState={{ checked: done, disabled }} accessibilityLabel={label}
       hitSlop={{ top: S.sm, bottom: S.sm, left: S.sm, right: S.sm }}>
-      <MotiView key={state} from={{ scale: reduce || !done ? 1 : 0.6 }} animate={{ scale: 1 }} transition={{ type: 'spring', damping: 12, stiffness: 280 }}
-        style={[styles.check, done ? { backgroundColor: color } : rest ? { borderWidth: 1.5, borderColor: theme.warning } : { borderWidth: 2, borderColor: color }]}>
-        {done ? <Check size={ICON.sm} color={theme.onPrimary} strokeWidth={3} />
-          : rest ? <Coffee size={ICON.xs} color={theme.warning} />
-          : target > 1 && count > 0 ? <Text style={{ fontSize: F.caption2, fontWeight: W.bold, color, fontVariant: ['tabular-nums'] }}>{count}</Text>
-          : null}
-      </MotiView>
+      <View style={disabled ? { opacity: 0.35 } : undefined}>
+        <HabitLiquid size={CHECK} stroke={2} ratio={rest ? 0 : done ? 1 : Math.min(1, count / target)} color={color} track={rest ? theme.warning : color}>
+          {done ? <Check size={ICON.sm} color={theme.onPrimary} strokeWidth={3} />
+            : rest ? <Coffee size={ICON.xs} color={theme.warning} />
+            : target > 1 && count > 0 ? <Text style={{ fontSize: F.caption2, fontWeight: W.bold, color: theme.onSurface, fontVariant: ['tabular-nums'] }}>{count}</Text>
+            : null}
+        </HabitLiquid>
+      </View>
     </Touchable>
   );
 }
 
-/** Haftanın 7 çubuğu — yalnız bilgi. */
-/** Bugünün (henüz yapılmamış) çubuğu: alışkanlığın renginde soluk dolgu. */
+/** Bugünün (henüz yapılmamış) noktası: alışkanlığın renginde soluk dolgu. */
 const TODAY_ALPHA = '4D';
+const DOT = 7;
 
-function WeekBars({ h, weekKeys, today, color }: { h: HabitLike; weekKeys: string[]; today: string; color: string }) {
+/** Haftanın 7 noktası — Planım'daki rutinlerle aynı dil (2026-11-05: minik çubuklar okunmuyordu). Yalnız bilgi. */
+function WeekDots({ h, weekKeys, today, color }: { h: HabitLike; weekKeys: string[]; today: string; color: string }) {
   const { theme, isDark } = useAppTheme();
   const faint = theme.onSurface + (isDark ? '24' : '17');
   return (
-    <View style={styles.bars} accessible={false}>
+    <View style={styles.dots} accessible={false}>
       {weekKeys.map(k => {
         const st = cellState(h, k, today);
-        const tall = st === 'done' || st === 'missed' || st === 'today' || st === 'rest';
-        return (
-          <View key={k} style={[styles.bar, {
-            height: tall ? S.smd : S.xs,
-            // Bugün SOLUK DOLGU: eskiden 5 px'lik çerçeveli hap bu boyutta "0" rakamı gibi okunuyordu
-            // (cihazda görüldü, "bu hafta 0/7" yazısının hemen yanında).
-            backgroundColor: st === 'done' ? color : st === 'rest' ? theme.warning + '99' : st === 'today' ? color + TODAY_ALPHA : faint,
-          }]} />
-        );
+        return <View key={k} style={[styles.dot, { backgroundColor: st === 'done' ? color : st === 'rest' ? theme.warning + '99' : st === 'today' ? color + TODAY_ALPHA : faint }]} />;
       })}
     </View>
   );
 }
 
 export function WeekHabits<T extends HabitLike & { id: string; name: string; color?: string; planMode?: string | null }>({
-  label, story, habits, weekKeys, todayKey, onToday, onTodayHold, onOpen, renderName, todayLabel, streakLabel, weekLabel,
+  label, count, ownLabel, ownLimit, goalLabel, habits, weekKeys, todayKey, dayKey, onToday, onTodayHold, onOpen, renderName, todayLabel, streakLabel, weekLabel,
 }: {
-  label: string; story: WeekSeg[];
+  label: string; count: string; ownLabel: string; ownLimit: number; goalLabel: string;
   habits: T[]; weekKeys: string[]; todayKey: string;
+  /** Üstte seçili gün: yuvarlak bu güne işaretler. */
+  dayKey: string;
   onToday: (h: T) => void; onTodayHold: (h: T) => void; onOpen: (h: T) => void;
   /** Ad + alt bilgi (erişilebilirlik çağıranda kalır). */
   renderName: (h: T, sub: string) => React.ReactNode;
@@ -91,43 +84,52 @@ export function WeekHabits<T extends HabitLike & { id: string; name: string; col
 }) {
   const { theme, isDark } = useAppTheme();
   const dc = useDisplayColors();
+  const own = habits.filter(h => !modeOf(h));
+  const fromGoals = habits.filter(h => !!modeOf(h));
   return (
     <DisplayPanel padding={S.md}>
-      <Text style={[styles.label, { color: dc.label }]}>{label}</Text>
-      <PillSentence parts={story} size="body" />
-      <View style={styles.list}>
-        {habits.map((h, i) => {
-          const color = habitColor(h, isDark);
-          const st = streakStats(h, todayKey);
-          /*
-            HAFTANIN SAYISI ("bu hafta 6/7"). Eskiden son 30 günün tutarlılığı etiketsiz "%20" diye
-            yazıyordu: bu hafta her gün yapılmış alışkanlığın yanında %20 — haftalık ekranda yanlış
-            okunuyordu, üstelik cümledeki haftalık yüzdeyle yan yana iki farklı yüzde.
-          */
-          const wk = habitWeek(h, weekKeys, todayKey);
-          const sub = [st.current > 0 ? streakLabel(st.current, st.unit) : '', weekLabel(wk.done, wk.goal)].filter(Boolean).join(' · ');
-          return (
-            <View key={h.id} style={[styles.row, i > 0 && { borderTopWidth: HAIRLINE, borderTopColor: theme.separator }]}>
-              <TodayCheck h={h} today={todayKey} color={color} onTap={() => onToday(h)} onHold={() => onTodayHold(h)}
-                label={todayLabel(h, (h.completedDates ?? []).includes(todayKey))} />
-              <Touchable onPress={() => onOpen(h)} style={styles.body} accessible={false}>
-                <View style={{ flex: 1, minWidth: 0 }}>{renderName(h, sub)}</View>
-                <WeekBars h={h} weekKeys={weekKeys} today={todayKey} color={color} />
-              </Touchable>
-            </View>
-          );
-        })}
+      <View style={styles.head}>
+        <Text accessibilityRole="header" style={{ flex: 1, fontSize: F.body, fontWeight: W.bold, color: dc.ink }}>{label}</Text>
+        <Text style={{ fontSize: F.footnote, fontWeight: W.semibold, fontVariant: ['tabular-nums'], color: dc.muted }}>{count}</Text>
       </View>
+      {/* İki ayrı hesap (bkz. habitLimit): kullanıcının kendi hakkı görünür, hedeflerin rutinleri ona karışmaz. */}
+      {[{ key: 'own', list: own, title: `${ownLabel} ${own.length}/${ownLimit}` }, { key: 'goal', list: fromGoals, title: goalLabel }].filter(g => g.list.length > 0).map(g => (
+        <View key={g.key} style={styles.list}>
+          {own.length > 0 && fromGoals.length > 0 && <Text style={[styles.group, { color: dc.muted }]}>{g.title}</Text>}
+          {g.list.map((h, i) => {
+            const color = habitColor(h, isDark);
+            const st = streakStats(h, todayKey);
+            /*
+              HAFTANIN SAYISI ("bu hafta 6/7"). Eskiden son 30 günün tutarlılığı etiketsiz "%20" diye
+              yazıyordu: bu hafta her gün yapılmış alışkanlığın yanında %20 — haftalık ekranda yanlış
+              okunuyordu, üstelik cümledeki haftalık yüzdeyle yan yana iki farklı yüzde.
+            */
+            const wk = habitWeek(h, weekKeys, todayKey);
+            const sub = [st.current > 0 ? streakLabel(st.current, st.unit) : '', weekLabel(wk.done, wk.goal)].filter(Boolean).join(' · ');
+            return (
+              <View key={h.id} style={[styles.row, i > 0 && { borderTopWidth: HAIRLINE, borderTopColor: theme.separator }]}>
+                <TodayCheck h={h} today={dayKey} color={color} disabled={dayKey > todayKey} onTap={() => onToday(h)} onHold={() => onTodayHold(h)}
+                  label={todayLabel(h, (h.completedDates ?? []).includes(dayKey))} />
+                <Touchable onPress={() => onOpen(h)} style={styles.body} accessible={false}>
+                  <View style={{ flex: 1, minWidth: 0 }}>{renderName(h, sub)}</View>
+                  <WeekDots h={h} weekKeys={weekKeys} today={todayKey} color={color} />
+                </Touchable>
+              </View>
+            );
+          })}
+        </View>
+      ))}
     </DisplayPanel>
   );
 }
 
 const styles = StyleSheet.create({
-  label: { fontSize: F.caption, fontWeight: W.semibold, letterSpacing: 1.2, marginBottom: S.sm },
+  head: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
   list: { marginTop: S.sm },
+  group: { fontSize: F.caption, fontWeight: W.semibold, marginBottom: S.xxs },
   row: { flexDirection: 'row', alignItems: 'center', gap: S.smd, minHeight: 56 },
   check: { width: CHECK, height: CHECK, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.sm, alignSelf: 'stretch' },
-  bars: { flexDirection: 'row', alignItems: 'flex-end', gap: S.xxs, height: S.smd },
-  bar: { width: S.xs + 1, borderRadius: R.full },
+  dots: { flexDirection: 'row', alignItems: 'center', gap: S.xxs },
+  dot: { width: DOT, height: DOT, borderRadius: R.full },
 });

@@ -40,6 +40,9 @@ interface Props {
   showSheetImmediately?: boolean;
   onApplied?: (habitIds: string[], taskIds: number[], meta?: { templateId?: string; dailyMinutes?: number }) => void;
   onSheetClose?: () => void;
+  /** Kurulum ekranı soruları sordu: burada ikinci kez sorulmaz, plan görünmeden uygulanır (bkz. SetupShell). */
+  headless?: boolean;
+  onHeadlessDone?: () => void;
   planApplied?: boolean;
   planHabitIds?: string[];
   planTaskIds?: number[];
@@ -52,7 +55,7 @@ interface Props {
 export const TurkishModeBanner: React.FC<Props> = ({
   mode, onDismiss, showSheetImmediately, onApplied, onSheetClose,
   planApplied, planHabitIds = [], planTaskIds = [], onClearPlan,
-  defaultTemplateId, activeSlot,
+  defaultTemplateId, activeSlot, headless, onHeadlessDone,
 }) => {
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
@@ -410,7 +413,18 @@ export const TurkishModeBanner: React.FC<Props> = ({
     applyingRef.current = false;
     appliedRef.current = true;
     setApplied(true);
+    if (headless) onHeadlessDone?.();
   };
+
+  const headlessStarted = React.useRef(false);
+  useEffect(() => {
+    if (!headless || headlessStarted.current) return;
+    const wanted = defaultTemplateId ? mode.templates?.find(t => t.id === defaultTemplateId) : null;
+    if (wanted && selectedTemplate?.id !== wanted.id) { setSelectedTemplate(wanted); return; }
+    headlessStarted.current = true;
+    if (allDone) { onApplied?.([], [], { templateId: selectedTemplate?.id, dailyMinutes: selectedTemplate?.dailyGoalMinutes }); onHeadlessDone?.(); return; }
+    void applyAll();
+  }, [headless, selectedTemplate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Mod vurgu paleti Colors.ts'te (ModeAccents) — eskiden burada ve modlar.tsx'te
   // ayrı ayrı elle yazılıydı, yani iki kopya vardı ve hiçbiri tanımlı değildi.
@@ -675,6 +689,8 @@ export const TurkishModeBanner: React.FC<Props> = ({
       </Touchable>
     </View>
   );
+
+  if (headless) return null;
 
   return (
     <>

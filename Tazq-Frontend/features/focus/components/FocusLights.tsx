@@ -22,7 +22,7 @@ const DOT = 5;
 
 export const FocusLights = React.memo(({ size, color, active }: { size: number; color: string; active: boolean }) => {
   const reduce = useReduceMotion();
-  const count = useFocusStore((s) => Math.min(MAX_RING_LIGHTS, lightsFor((s.totalSeconds - s.seconds) / 60)));
+  const count = useFocusStore((s) => Math.min(MAX_RING_LIGHTS, lightsFor(((s.run?.doneSeconds ?? 0) + s.totalSeconds - s.seconds) / 60)));
   const spin = useRef(new Animated.Value(0)).current;
   const prev = useRef(count);
 

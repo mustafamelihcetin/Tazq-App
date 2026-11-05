@@ -44,13 +44,9 @@ namespace Tazq_App.Services
         private const int MaxTaskNameLength = 200;
         private const int MaxDurationMinutes = 24 * 60;
 
-        public async Task<FocusSession> SaveSessionAsync(int userId, string taskName, int durationMinutes, bool completed)
+        public async Task<FocusSession> SaveSessionAsync(int userId, string taskName, int durationMinutes, bool completed, int? pausedSeconds = null)
         {
-            var name = (taskName ?? string.Empty).Trim();
-            if (name.Length > MaxTaskNameLength) name = name[..MaxTaskNameLength];
-
-            // Boş ad şifrelenmez (anlamsız, ve "boş mu" bilgisini gizlemeye değmez).
-            var stored = _crypto != null && name.Length > 0 ? _crypto.Encrypt(name, _crypto.GetKeyForUser(userId)) : name;
+            var stored = StoreName(userId, taskName);
 
             var session = new FocusSession
             {
@@ -58,11 +54,56 @@ namespace Tazq_App.Services
                 TaskName = stored,
                 DurationMinutes = Math.Clamp(durationMinutes, 0, MaxDurationMinutes),
                 Completed = completed,
-                StartedAt = DateTime.UtcNow
+                StartedAt = DateTime.UtcNow,
+                PausedSeconds = pausedSeconds.HasValue ? Math.Clamp(pausedSeconds.Value, 0, MaxDurationMinutes * 60) : null
             };
             _db.FocusSessions.Add(session);
             await _db.SaveChangesAsync();
             return session;
+        }
+
+        private const int MaxAddMinutes = 60;
+        private const string AnonymousTaskName = "Focus";
+
+        public async Task<bool> UpdateSessionAsync(int userId, int sessionId, string? taskName, int? addMinutes)
+        {
+            var session = await _db.FocusSessions.FirstOrDefaultAsync(f => f.Id == sessionId && f.UserId == userId);
+            if (session == null) return false;
+            if (!string.IsNullOrWhiteSpace(taskName)) session.TaskName = StoreName(userId, taskName);
+            if (addMinutes.HasValue)
+                session.DurationMinutes = Math.Clamp(session.DurationMinutes + Math.Clamp(addMinutes.Value, 0, MaxAddMinutes), 0, MaxDurationMinutes);
+            await _db.SaveChangesAsync();
+            return true;
+        }
+
+        private string StoreName(int userId, string? taskName)
+        {
+            var name = (taskName ?? string.Empty).Trim();
+            if (name.Length > MaxTaskNameLength) name = name[..MaxTaskNameLength];
+            // Boş ad şifrelenmez (anlamsız, ve "boş mu" bilgisini gizlemeye değmez).
+            return _crypto != null && name.Length > 0 ? _crypto.Encrypt(name, _crypto.GetKeyForUser(userId)) : name;
+        }
+
+        /// <summary>Saklı adı açar; açılamıyorsa ad yok sayılır, seans yine görünür. Sabit "Focus" adsız demektir.</summary>
+        private string? ReadName(int userId, string stored)
+        {
+            if (string.IsNullOrEmpty(stored) || stored == AnonymousTaskName) return null;
+            if (_crypto == null) return stored;
+            var keys = new List<byte[]> { _crypto.GetKeyForUser(userId) };
+            keys.AddRange(_crypto.GetLegacyKeysForUser(userId));
+            foreach (var key in keys)
+            {
+                try
+                {
+                    var plain = _crypto.Decrypt(stored, key);
+                    return plain == AnonymousTaskName ? null : plain;
+                }
+                catch (Exception e) when (e is System.Security.Cryptography.CryptographicException or FormatException or ArgumentException)
+                {
+                    // sıradaki anahtar
+                }
+            }
+            return null;
         }
 
         public async Task<UserStats> GetUserStatsAsync(int userId)
@@ -181,12 +222,21 @@ namespace Tazq_App.Services
             var window = Math.Clamp(days, 1, 120);
             var since = DateTime.UtcNow.Date.AddDays(-window);
 
-            return await _db.FocusSessions
+            var rows = await _db.FocusSessions
                 .AsNoTracking()
                 .Where(f => f.UserId == userId && f.StartedAt >= since) // erken bitenler dahil (bkz. GetUserStatsAsync)
                 .OrderBy(f => f.StartedAt)
-                .Select(f => new FocusSessionRow { StartedAt = f.StartedAt, Minutes = f.DurationMinutes })
+                .Select(f => new { f.Id, f.StartedAt, f.DurationMinutes, f.TaskName, f.Completed, f.PausedSeconds })
                 .ToListAsync();
+            return rows.Select(f => new FocusSessionRow
+            {
+                Id = f.Id,
+                StartedAt = f.StartedAt,
+                Minutes = f.DurationMinutes,
+                TaskName = ReadName(userId, f.TaskName),
+                Completed = f.Completed,
+                PausedSeconds = f.PausedSeconds
+            }).ToList();
         }
     }
 }

@@ -87,9 +87,9 @@ describe('çoklu hedef', () => {
   });
   it('Keşfet satırı kartın formunu açar; üç kartta da bağlı', () => {
     const read = (f: string) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
-    expect(read('features/modes/components/GoalRows.tsx')).toContain('useGoalAddStore.getState().request(');
+    expect(read('features/modes/components/GoalRows.tsx')).toContain('useGoalSetupStore.getState().open(r.key, r.slot as string)'); // 2026-11-05: ekleme adım adım kurulumdan
     expect(read('app/modlar.tsx')).toContain('goalAddRows(seasonal');
-    for (const f of ['Exam', 'Mulakat', 'Spor']) expect(read(`features/modes/components/modes/${f}Card.tsx`)).toContain('useAddRequest(slot, () => setExpanded(true))');
+    for (const f of ['Mulakat', 'Spor']) expect(read(`features/modes/components/modes/${f}Card.tsx`)).toContain('useAddRequest(slot, () => setExpanded(true))');
   });
 });
 
@@ -114,9 +114,9 @@ describe('hedef sınırları', () => {
   });
   it('bırakmada türe özel görevler ilk gün yığılmaz, önek metnin dilinde', () => {
     const card = read('features/modes/components/modes/BirakmaCard.tsx');
-    expect(card).toContain("staged.setQueue('birakma'");
-    expect(card).toContain("isTr ? 'Bırakma' : 'Quit'");
-    expect(read('features/modes/components/modes/TasarrufCard.tsx')).toContain('withLabel(t.titleEn, false)');
+    expect(read('features/modes/utils/lifePlanStart.ts')).toContain("staged.setQueue('birakma'");
+    expect(read('features/modes/utils/lifePlanStart.ts')).toContain("pick(isTr, 'Bırakma', 'Quit')");
+    expect(read('features/modes/utils/lifePlanStart.ts')).toContain('withLabel(t.titleEn, false)');
   });
   it('boş kutu tutarı sıfırlamaz; veri bu cihazda yoksa boş kumbara gösterilmez', () => {
     const src = read('features/modes/components/plan/track/SavingsTrack.tsx');

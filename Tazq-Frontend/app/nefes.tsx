@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { MotiView } from 'moti';
-import { useSharedValue } from 'react-native-reanimated';
+import Reanimated, { FadeIn, FadeOut, useSharedValue } from 'react-native-reanimated';
 import { X } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { BreathPalette } from '@/shared/constants/Colors';
@@ -19,6 +19,7 @@ import { useBreathStore } from '@/features/breath/useBreathStore';
 import { BreathPicker } from '@/features/breath/components/BreathPicker';
 import { BreathRun } from '@/features/breath/components/BreathRun';
 import { BreathOrb } from '@/features/breath/components/BreathOrb';
+import { BreathBackdrop, BreathEdge } from '@/features/breath/components/BreathBackdrop';
 import { previewBreathSound, hushBreathCues, releaseBreathCues, ensureBreathAudioMode, type BreathSound } from '@/features/breath/breathCues';
 import { autoMarkHabits } from '@/features/habits/utils/autoMark';
 import { preloadCompletionChime, playCompletionChime } from '@/features/focus/completionChime';
@@ -29,6 +30,7 @@ import { preloadCompletionChime, playCompletionChime } from '@/features/focus/co
   saymak dikkati böler. Giriş iki yerden: odak modları ("Nefes") ve odak bitiş özeti
   (iki iş bloğu arası kısa nefes molası). Seans ODAK DAKİKASINA SAYILMAZ (mola ≠ odak).
   Ekran temadan bağımsız koyu: göz kapanmaya yakınken parlak zemin rahatsız eder.
+  2026-11-05 ("daha meditasyonel, minimalist, filmli"): zemin yaşıyor ve nefesle parlıyor, seçici tek ekran. Seansta küre büyüyerek ortaya oturur, kenar ışığı nefesle açılır (bkz. BreathEdge).
 */
 const INK = '#FFFFFF';
 const MIN_RECORD_SEC = 20; // bundan kısası "denedim, vazgeçtim" — geçmişe yazılmaz
@@ -49,6 +51,8 @@ export default function BreathScreen() {
   const [stage, setStage] = useState<Stage>({ kind: 'pick' });
   const pal = BreathPalette[id];
   const restLevel = useSharedValue(0.35);
+  // Seansın nefesi: zemin de bununla parlar (bkz. BreathBackdrop).
+  const breathLevel = useSharedValue(0);
 
   const close = () => (router.canGoBack() ? router.back() : goHome(router));
   const start = () => { haptic.commit(); setLast(id); preloadCompletionChime(); setStage({ kind: 'run', key: Date.now() }); };
@@ -78,19 +82,18 @@ export default function BreathScreen() {
     <View style={{ flex: 1, backgroundColor: pal.bg[1] }}>
       <StatusBar style="light" />
       <LinearGradient colors={[pal.bg[0], pal.bg[1]]} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+      <BreathBackdrop id={id} hold={breathLevel} />
+      {stage.kind === 'run' && <BreathEdge level={breathLevel} />}
       <View style={{ flex: 1, paddingTop: insets.top + S.xs, paddingBottom: insets.bottom }}>
         {stage.kind === 'pick' && (
-          <>
+          <Reanimated.View entering={FadeIn.duration(600)} exiting={FadeOut.duration(350)} style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', paddingHorizontal: S.sm }}>
               <Touchable onPress={close} accessibilityRole="button" accessibilityLabel={c.close} style={{ width: MIN_TOUCH, height: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' }}>
                 <X size={ICON.lg} color={INK} />
               </Touchable>
             </View>
             <BreathPicker lang={lang} id={id} minutes={minutes} sound={sound} theme={soundTheme} onPick={pick} onMinutes={pickMinutes} onTheme={pickTheme} onMute={mute} onStart={start} />
-          </>
-        )}
-        {stage.kind === 'run' && (
-          <BreathRun key={stage.key} lang={lang} id={id} minutes={minutes} sound={sound} theme={soundTheme} onSound={toggleSound} onEnd={end} />
+          </Reanimated.View>
         )}
         {stage.kind === 'done' && (
           <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ type: 'timing', duration: 500 }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.lg, gap: S.md }}>
@@ -113,6 +116,12 @@ export default function BreathScreen() {
           </MotiView>
         )}
       </View>
+      {/* Seans güvenli alanın dışına da taşar: küre ekranın gerçek ortasında durur (bkz. BreathRun). */}
+      {stage.kind === 'run' && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          <BreathRun key={stage.key} level$={breathLevel} lang={lang} id={id} minutes={minutes} sound={sound} theme={soundTheme} onSound={toggleSound} onEnd={end} />
+        </View>
+      )}
     </View>
   );
 }

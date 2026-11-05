@@ -111,7 +111,7 @@ export function useOfflineSync() {
               etmiyor, seansı aldığı ana damgalıyor (bkz. OfflineOp notu). Eşitleme
               gece yarısını geçerse seans ertesi güne yazılır — bilinen eksiklik.
             */
-            await FocusService.saveSession(op.taskName, op.minutes, op.completed);
+            await FocusService.saveSession(op.taskName, op.minutes, op.completed, op.pausedSeconds);
           } else if (op.type === 'create-payment') {
             const created = await PaymentService.createPayment(op.payload as any);
             paymentIdMap.set(op.tempId, created.id);

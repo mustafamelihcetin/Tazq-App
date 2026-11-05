@@ -75,7 +75,7 @@ describe('kapının SINIRI — evrensel modlar dokunulmaz', () => {
   it('kullanıcının KENDİ adını yazdığı sınav modu kapıya takılmaz', () => {
     // "Sınav Takibi" serbest metinlidir; İngilizcede de "Study plan for any exam"
     expect(MODLAR).toContain("Study plan for any exam");
-    expect(MODLAR).toContain("setSeasonalPref('examMode', true)");
+    expect(fs.readFileSync(path.join(__dirname, '../features/modes/components/setup/startFromSetup.ts'), 'utf8')).toContain("set('examMode', true)"); // 2026-11-05: mod kurulum bitince açılır
   });
 });
 
