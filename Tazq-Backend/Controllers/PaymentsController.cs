@@ -46,6 +46,9 @@ namespace Tazq_App.Controllers
             public int? InstallmentCount { get; set; }
             /// <summary>İlk taksit dönemi ("YYYY-MM" / yıllıkta "YYYY").</summary>
             public string? InstallmentStart { get; set; }
+            public string? Icon { get; set; }
+            public string? Color { get; set; }
+            public int? ReminderDays { get; set; }
         }
 
         public class MarkPaidRequest
@@ -73,7 +76,7 @@ namespace Tazq_App.Controllers
 
             try
             {
-                var payment = await _paymentService.CreatePaymentAsync(userId.Value, req.Title, req.Amount, req.DueDay, req.Recurrence, req.NextDueDate, req.Category, req.Currency, req.IsVariable, req.InstallmentCount, req.InstallmentStart);
+                var payment = await _paymentService.CreatePaymentAsync(userId.Value, req.Title, req.Amount, req.DueDay, req.Recurrence, req.NextDueDate, req.Category, req.Currency, req.IsVariable, req.InstallmentCount, req.InstallmentStart, req.Icon, req.Color, req.ReminderDays);
                 return Ok(payment);
             }
             catch (InvalidOperationException ex) when (ex.Message.StartsWith("PAYMENT_LIMIT_REACHED"))
@@ -88,7 +91,7 @@ namespace Tazq_App.Controllers
             var userId = GetUserId();
             if (userId == null) return Unauthorized();
 
-            var payment = await _paymentService.UpdatePaymentAsync(userId.Value, id, req.Title, req.Amount, req.DueDay, req.Recurrence, req.NextDueDate, req.Category, req.Currency, req.IsVariable, req.InstallmentCount, req.InstallmentStart);
+            var payment = await _paymentService.UpdatePaymentAsync(userId.Value, id, req.Title, req.Amount, req.DueDay, req.Recurrence, req.NextDueDate, req.Category, req.Currency, req.IsVariable, req.InstallmentCount, req.InstallmentStart, req.Icon, req.Color, req.ReminderDays);
             if (payment == null) return NotFound();
             return Ok(payment);
         }

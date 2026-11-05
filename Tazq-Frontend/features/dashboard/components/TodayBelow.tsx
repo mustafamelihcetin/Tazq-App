@@ -93,8 +93,8 @@ export function TodayBelow({ tasks, habits, sessions, today, dayClosed, theme, i
   const lit = Math.min(stars, field.length);
 
   // "BUGÜN" KAVRAMI (kullanıcı: "önümüzdeki günler ve altındakiler bir şey yapılırsa açılmalı"): sayfa bugünü anlatır.
-  // Gök ilk yıldız yanınca, ileriye bakan iki bölüm ancak bugünün işi kapanınca açılır — bir sonraki adım olarak.
-  if (!dayClosed && stars === 0) return null;
+  // Gök ilk yıldız yanınca, "önümüzdeki günler" bugünün işi kapanınca açılır. "Bu hafta" HEP görünür (2026-11-05,
+  // kullanıcı: "görev ekledim, Bu hafta yok oldu"): bugünün durumu haftanın özetini saklamamalı.
 
   return (
     <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 420 }}>
@@ -128,6 +128,8 @@ export function TodayBelow({ tasks, habits, sessions, today, dayClosed, theme, i
         </BentoCard>
       </View>
 
+      </>}
+
       {/* 2 · BU HAFTA */}
       <View style={styles.wrap}>
         <Text style={[styles.label, { color: theme.onSurfaceVariant }]}>{c.week}</Text>
@@ -138,8 +140,6 @@ export function TodayBelow({ tasks, habits, sessions, today, dayClosed, theme, i
           </BentoCard>
         </Touchable>
       </View>
-
-      </>}
 
       {/* 3 · GÜNÜN GÖĞÜ — kapanış */}
       {stars > 0 && <View style={styles.wrap}>

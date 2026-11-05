@@ -22,6 +22,9 @@ import { createPaymentAction, updatePaymentAction, deletePaymentAction, markPaym
 import { nextDueDateOf, activeCycleKeyOf, paymentView, type PaymentView } from '@/features/payments/utils/paymentDates';
 import { PaymentRow } from '@/features/payments/components/PaymentRow';
 import { PaidAmountSheet } from '@/features/payments/components/PaidAmountSheet';
+import { PaymentAppearance } from '@/features/payments/components/PaymentAppearance';
+import { PaymentsCalendar } from '@/features/payments/components/PaymentsCalendar';
+import { DEFAULT_REMINDER_DAYS, reminderDaysOf } from '@/features/payments/utils/paymentLook';
 import { ToggleRow } from '@/shared/components/SettingsRows';
 import { PaymentsMonthCard } from '@/features/payments/components/PaymentsMonthCard';
 import { PaymentsHistoryCard } from '@/features/payments/components/PaymentsHistoryCard';
@@ -37,6 +40,7 @@ import { upperFor } from '@/shared/utils/localeCase';
  *  dosya metinlerini TAMAMEN `t.payments` sözlüğünden alıyor, sayı/tarih biçimi
  *  için de aynı ilke: eşleme bir tabloda, dallanma yok. */
 const INTL_LOCALE: Record<'tr' | 'en', string> = { tr: 'tr-TR', en: 'en-US' };
+const VIEW_COPY = { tr: { list: 'Liste', calendar: 'Takvim' }, en: { list: 'List', calendar: 'Calendar' } };
 
 /**
  * Ödeme takibi — GÖREVLERDEN AYRI ekran. Bottom tab EKLENMEDİ (5 sekme zaten dar
@@ -104,6 +108,10 @@ export default function OdemelerScreen() {
   const [isVariable, setIsVariable] = useState(false);
   const [installmentOn, setInstallmentOn] = useState(false);
   const [installmentCount, setInstallmentCount] = useState('12');
+  const [payIcon, setPayIcon] = useState<string | null>(null);
+  const [payColor, setPayColor] = useState<string | null>(null);
+  const [payReminder, setPayReminder] = useState<number>(DEFAULT_REMINDER_DAYS);
+  const [view, setView] = useState<'list' | 'calendar'>('list');
   // Değişken tutarlıda "ödendi" → o ayın gerçek tutarı sorulur (bkz. PaidAmountSheet).
   const [paidPrompt, setPaidPrompt] = useState<Payment | null>(null);
   // Bildirimdeki "Tutarı gir" buraya `pay=<id>` ile gelir: o ödemenin tutar penceresi doğrudan açılır.
@@ -128,6 +136,7 @@ export default function OdemelerScreen() {
   const resetForm = () => {
     setEditingId(null); setTitle(''); setAmount(''); setRecurrence('Monthly'); setPayCurrency(currency); setDueDayValue(new Date().getDate()); setAnchorDate(new Date()); setShowPicker(false); setProviderSuggestions([]);
     setIsVariable(false); setInstallmentOn(false); setInstallmentCount('12');
+    setPayIcon(null); setPayColor(null); setPayReminder(DEFAULT_REMINDER_DAYS);
   };
 
   const openAdd = () => { haptic.select(); setShowAdd(true); };
@@ -141,6 +150,7 @@ export default function OdemelerScreen() {
     setIsVariable(!!p.isVariable);
     setInstallmentOn(!!p.installmentCount);
     setInstallmentCount(String(p.installmentCount ?? 12));
+    setPayIcon(p.icon ?? null); setPayColor(p.color ?? null); setPayReminder(reminderDaysOf(p));
     setDueDayValue(p.dueDay);
     setAnchorDate(p.nextDueDate ? new Date(p.nextDueDate) : new Date());
     setShowPicker(false); setProviderSuggestions([]);
@@ -178,6 +188,7 @@ export default function OdemelerScreen() {
       isVariable,
       installmentCount: useInst ? Math.min(120, count) : null,
       installmentStart: useInst ? (editing?.installmentStart ?? activeCycleKeyOf(draft, today)) : null,
+      icon: payIcon, color: payColor, reminderDays: payReminder,
     };
 
     if (editingId != null) {
@@ -246,9 +257,13 @@ export default function OdemelerScreen() {
     for (const { p, due } of rows) {
       if (p.id > 0) {
         const dueTime = due.getTime();
-        if (scheduledRef.current.get(p.id) !== dueTime) {
-          scheduledRef.current.set(p.id, dueTime);
-          void schedulePaymentDueNotif(p.id, p.title, due, language, 3, !!p.isVariable);
+        const schedKey = dueTime + reminderDaysOf(p);
+        if (scheduledRef.current.get(p.id) !== schedKey) {
+          scheduledRef.current.set(p.id, schedKey);
+          // Hatırlatma ödeme başına (2026-11-05): -1 kapalı, 0 aynı gün, N gün önce.
+          const days = reminderDaysOf(p);
+          if (days < 0) void cancelPaymentDueNotif(p.id);
+          else void schedulePaymentDueNotif(p.id, p.title, due, language, days, !!p.isVariable);
         }
       }
     }
@@ -257,7 +272,8 @@ export default function OdemelerScreen() {
   const lang: 'tr' | 'en' = language === 'en' ? 'en' : 'tr';
   const locale = INTL_LOCALE[language];
   const formatAmount = (n: number) => `${n.toLocaleString(locale, { maximumFractionDigits: 2 })} ${symbol}`;
-  const formatDue = (d: Date) => d.toLocaleDateString(locale, { day: 'numeric', month: 'long' });
+  // Gün adı da yazılır (2026-11-05): "17 Aralık Perşembe" — hangi güne denk geldiği bilinsin.
+  const formatDue = (d: Date) => d.toLocaleDateString(locale, { day: 'numeric', month: 'long', weekday: 'long' });
 
   // Birim birim kesin toplamlar; ilerleme ve "≈" ana birimde (kur varsa).
   const totalsOf = (list: PaymentView[]) => totalsByCurrency(list.map(v => ({ amount: v.p.amount, currency: v.p.currency })), currency);
@@ -385,6 +401,10 @@ export default function OdemelerScreen() {
                     </View>
                   )}
                 </View>
+
+                <PaymentAppearance theme={theme} lang={lang} icon={payIcon} color={payColor} reminder={payReminder}
+                  onIcon={setPayIcon} onColor={setPayColor} onReminder={setPayReminder}
+                  onKind={(name, ic, col) => { setPayIcon(ic); setPayColor(col); if (!title.trim()) setTitle(name); }} />
 
                 <View style={{ gap: S.sm }}>
                   <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.3, textTransform: 'uppercase' }}>{upperFor(t.sectionHowMuch, language)}</Text>
@@ -534,14 +554,30 @@ export default function OdemelerScreen() {
 
             {/* KOMPAKT SIRA (2026-11-01, kullanıcı: "ödemeler daha kompakt, minimalist, kolay yönetilebilir olmalı"):
                 özet → liste (yönetilen şey) → geçmiş → ana para birimi. Liste eskiden grafik ve para biriminin altında kalıyordu. */}
-            {thisMonth.length > 0 && (
+            {payments.length > 0 && !showAdd && (
+              <View accessibilityRole="tablist" style={{ flexDirection: 'row', padding: S.xxs, borderRadius: R.full, backgroundColor: theme.surfaceField }}>
+                {(['list', 'calendar'] as const).map(k => (
+                  <Touchable key={k} onPress={() => { haptic.select(); setView(k); }} accessibilityRole="tab" accessibilityState={{ selected: view === k }}
+                    style={{ flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, backgroundColor: view === k ? theme.surfaceCard : 'transparent' }}>
+                    <Text style={{ fontSize: F.footnote, fontWeight: '600', color: view === k ? theme.onSurface : theme.onSurfaceVariant }}>{VIEW_COPY[lang][k]}</Text>
+                  </Touchable>
+                ))}
+              </View>
+            )}
+
+            {view === 'calendar' && !showAdd && payments.length > 0 && (
+              <PaymentsCalendar payments={payments} theme={theme} lang={lang} locale={locale} onOpen={openEdit}
+                formatAmount={p => formatMoney(p.amount, p.currency || currency, lang)} />
+            )}
+
+            {view === 'list' && thisMonth.length > 0 && (
               <View style={{ gap: S.sm }}>
                 {sectionTitle(t.thisMonth)}
                 {renderGroup(thisMonth)}
               </View>
             )}
 
-            {later.length > 0 && (
+            {view === 'list' && later.length > 0 && (
               <View style={{ gap: S.sm }}>
                 {sectionTitle(t.upcoming)}
                 {renderGroup(later)}

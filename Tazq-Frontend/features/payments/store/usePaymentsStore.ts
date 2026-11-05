@@ -37,6 +37,11 @@ export interface Payment {
   installmentCount?: number | null;
   /** İlk taksitin dönemi ("YYYY-MM"; yıllıkta "YYYY"). */
   installmentStart?: string | null;
+  /** Görünüm (bkz. paymentLook): ikon anahtarı ve renk; boşsa başlıktan tahmin edilir. */
+  icon?: string | null;
+  color?: string | null;
+  /** Vadeden kaç gün önce hatırlatılır (0 = aynı gün, -1 = kapalı). Boş = 3. */
+  reminderDays?: number | null;
 }
 
 interface PaymentsState {

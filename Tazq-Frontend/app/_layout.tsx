@@ -48,6 +48,7 @@ if ((TextInput as any).defaultProps == null) {
 // ------------------------------------
 import { Colors } from '@/shared/constants/Colors';
 import { useAuthStore } from '@/features/user';
+import { isKeychainUnavailable } from '@/features/user/store/useAuthStore';
 import { useSessionStore } from '@/shared/store/useSessionStore';
 import { AuthService, api } from '@/shared/services/api';
 
@@ -794,7 +795,8 @@ export default function RootLayout() {
       // Hem access hem refresh token yoksa kurtarılamaz → çıkış. Refresh token
       // varsa süresi dolmuş/eksik access token interceptor tarafından yenilenir.
       if (!t && !rt) {
-        logout();
+        // Kilitli telefonda arka plan uyanışı: anahtarlık okunamadı, oturum bitmedi (bkz. useAuthStore).
+        if (!isKeychainUnavailable() && AppState.currentState === 'active') logout({ forced: true, reason: 'no-tokens' });
         return;
       }
       try {
@@ -808,7 +810,7 @@ export default function RootLayout() {
         // ve `clearLocalUserData` bekleyen çevrimdışı değişiklikleri siler.
         const transient = (error as { __authTransient?: boolean })?.__authTransient === true;
         if (httpStatusOf(error) === 401 && !transient) {
-          logout();
+          logout({ forced: true, reason: 'profile-401' });
         } else {
           // Ağ/sunucu hatası ya da geçici yenileme başarısızlığı → oturumu koru.
           swallow('layout.sessionSync', error);

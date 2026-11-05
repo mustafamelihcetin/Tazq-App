@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { hasActiveMode, isModeDecision, localPlansWin, wouldWipeModes } from '@/features/modes/utils/planAuthority';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthService } from '@/shared/services/api';
@@ -355,6 +356,11 @@ interface PrefsState {
   // Cihazlar arası eşitleme: seçili tercihleri backend'e gönderir / login sonrası geri yükler.
   /** true = buluta yazıldı · false = yazılamadı (çağıran "bekliyor" işaretini korumalı). */
   syncToCloud: () => Promise<boolean>;
+  /** Son kullanıcı mod kararının anı (bkz. planAuthority). 0 = bu kurulumda karar yok. */
+  seasonalAt: number;
+  /** Bulut kopyası bu kullanıcı için yüklendi mi: yüklenmeden gönderim ve otomatik temizlik yapılmaz. */
+  cloudHydratedFor: number | null;
+  markCloudHydrated: (userId: number) => void;
   hydrateFromCloud: (prefsJson?: string | null) => void;
   _hasHydrated: boolean;
   setHasHydrated: (v: boolean) => void;
@@ -482,8 +488,14 @@ export const usePrefsStore = create<PrefsState>()(
       },
       _hasHydrated: false,
       setHasHydrated: (v) => set({ _hasHydrated: v }),
+      seasonalAt: 0,
+      cloudHydratedFor: null,
+      markCloudHydrated: (userId) => set({ cloudHydratedFor: userId }),
       setSeasonalPref: (key, value) =>
-        set((s) => ({ seasonal: { ...s.seasonal, [key]: value } })),
+        set((s) => ({
+          seasonal: { ...s.seasonal, [key]: value },
+          ...(isModeDecision(String(key), value) ? { seasonalAt: Date.now() } : null),
+        })),
       planSpecs: {},
       setPlanSpec: (mode, spec) =>
         set((s) => {
@@ -705,6 +717,8 @@ export const usePrefsStore = create<PrefsState>()(
       },
 
       resetUserData: () => set({
+        seasonalAt: 0,
+        cloudHydratedFor: null,
         seasonal: {
           ramazan: false,
           examMode: false, examName: '', examDate: null,
@@ -778,8 +792,24 @@ export const usePrefsStore = create<PrefsState>()(
 
       syncToCloud: async () => {
         const state = get() as any;
+        /*
+          GÖNDERİM KAPILARI (2026-11-05, modların silinmesi; bkz. planAuthority). Bulut yüklenmeden gönderim yok;
+          bulutta açık mod varken kullanıcı kararı olmadan "hepsi kapalı" gönderilmez.
+        */
+        try {
+          const authUser = require('@/features/user/store/useAuthStore').useAuthStore.getState().user;
+          if (authUser?.id != null) {
+            if (state.cloudHydratedFor !== authUser.id) return false;
+            const cloud = typeof authUser.preferences === 'string' && authUser.preferences ? JSON.parse(authUser.preferences) : null;
+            if (cloud && wouldWipeModes({ localSeasonal: state.seasonal, cloudSeasonal: cloud.seasonal, localAt: state.seasonalAt ?? 0, cloudAt: Number(cloud.__seasonalAt) || 0 })) {
+              swallow('prefsStore.blockedModeWipe', new Error('blocked mode wipe'), { capture: true });
+              return false;
+            }
+          }
+        } catch (e) { swallow('prefsStore.syncGate', e); }
         const snapshot: Record<string, any> = { ...require('@/features/payments/currencyCloud').currencySnapshot() }; // para birimi
         for (const key of CLOUD_PREF_KEYS) snapshot[key] = state[key];
+        snapshot.__seasonalAt = state.seasonalAt ?? 0;
         // Başarımları da aynı transport ile taşı (sahibi useAchievementStore).
         // Böylece "kutlandı" hafızası, kutladığı metrik (sunucudaki streak) kadar kalıcı olur.
         try {
@@ -849,12 +879,9 @@ export const usePrefsStore = create<PrefsState>()(
           // (bulut yalnızca local boşken — yeni cihaz/ilk kurulum — doldurur).
           const local = get() as any;
           const s = local.seasonal || {};
-          const localHasPlans =
-            !!(s.examMode || s.tezMode || s.mulakatMode || s.sporMode || s.ramazan || s.tasarrufMode || s.birakmaMode ||
-               s.examName || s.tezName || s.mulakatName || s.sporGoal || s.tasarrufName || s.birakmaName) ||
-            CLOUD_PREF_KEYS.some(k =>
-              (k.endsWith('PlanHabitIds') || k.endsWith('PlanTaskIds')) &&
-              Array.isArray(local[k]) && local[k].length > 0);
+          const cloudAt = Number(parsed.__seasonalAt) || 0;
+          // Kırıntı (eski ad/kimlik) artık yetki sayılmaz: yalnız zaman ve gerçekten açık mod (bkz. planAuthority).
+          const localHasPlans = localPlansWin({ localAt: local.seasonalAt ?? 0, cloudAt, localActive: hasActiveMode(s) });
           const isPlanKey = (k: string) =>
             k === 'seasonal' || k === 'planSpecs' || k.endsWith('PlanHabitIds') || k.endsWith('PlanTaskIds');
 
@@ -865,6 +892,7 @@ export const usePrefsStore = create<PrefsState>()(
             patch[key] = parsed[key];
           }
           sanitizePlanIds(patch);
+          if (!localHasPlans) patch.seasonalAt = cloudAt;
           if (Object.keys(patch).length > 0) set(patch as any);
           // Buluttaki başarım durumunu achievement store'a birleştir (union).
           // Yeni kurulum/cihazda streak ile birlikte "kutlandı" bilgisi de geri gelir →

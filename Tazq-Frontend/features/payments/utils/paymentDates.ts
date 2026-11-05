@@ -137,3 +137,36 @@ export function paymentView(p: Payment, today: Date = new Date()): PaymentView |
   const status: PaymentStatus = days < 0 ? 'overdue' : 'due';
   return { p, date: next, status, days, thisMonth: status === 'overdue' || sameMonth(next), installment };
 }
+
+export interface PaymentOccurrence { p: Payment; date: Date; status: PaymentStatus | 'past'; installment?: { no: number; total: number } }
+
+/**
+ * TAKVİM İÇİN (2026-11-05): ödemenin verilen aydaki vadesi. Geçmiş dönemlerin "ödendi" bilgisi modelde yok (yalnız son
+ * dönem tutuluyor), bu yüzden geçmiş ay "past" döner: ödendi ya da gecikti diye uydurulmaz.
+ */
+export function occurrenceInMonth(p: Payment, year: number, month0: number, today: Date = new Date()): PaymentOccurrence | null {
+  let date: Date;
+  if (p.recurrence === 'Monthly') {
+    date = new Date(year, month0, Math.min(p.dueDay, daysInMonth(year, month0)));
+  } else {
+    if (!p.nextDueDate) return null;
+    const a = new Date(p.nextDueDate);
+    if (a.getMonth() !== month0 && p.recurrence === 'Yearly') return null;
+    if (p.recurrence === 'Once') {
+      if (a.getFullYear() !== year || a.getMonth() !== month0) return null;
+      date = a;
+    } else {
+      if (year < a.getFullYear()) return null;
+      date = new Date(year, month0, Math.min(a.getDate(), daysInMonth(year, month0)));
+    }
+  }
+  const key = cycleKeyOf(p, date);
+  const no = installmentNo(p, key);
+  if (no != null && (no < 1 || no > (p.installmentCount as number))) return null;
+  const installment = no == null ? undefined : { no, total: p.installmentCount as number };
+  const t0 = startOfDay(today).getTime();
+  const curKey = cycleKeyOf(p, currentCycleDate(p, today));
+  if (isPaidForCycle(p, key)) return { p, date, status: 'paid', installment };
+  if (key < curKey) return { p, date, status: 'past', installment };
+  return { p, date, status: startOfDay(date).getTime() < t0 ? 'overdue' : 'due', installment };
+}

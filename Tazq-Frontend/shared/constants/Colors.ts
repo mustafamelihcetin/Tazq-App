@@ -341,6 +341,9 @@ export const SettingsChip = {
  * aksine açık/koyu ayrımı yok) çünkü kalıcı veriye yazılmaz, her render'da sağlayıcı
  * id'sinden türer.
  */
+/** Ödemelerde kullanıcının seçebildiği renkler (bkz. paymentLook). */
+export const PaymentPalette = ['#2563EB', '#0891B2', '#059669', '#65A30D', '#D97706', '#EA580C', '#DC2626', '#DB2777', '#7C3AED', '#475569'] as const;
+
 export const PaymentProviderColors = {
   // Doğalgaz — turuncu/kehribar ailesi
   igdas: '#EA580C',

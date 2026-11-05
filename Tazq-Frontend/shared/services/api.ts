@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useAuthStore } from '@/features/user/store/useAuthStore';
+import { useAuthStore, isKeychainUnavailable } from '@/features/user/store/useAuthStore';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { isGuestSession } from '@/shared/store/useSessionStore';
 import { Platform } from 'react-native';
@@ -157,6 +157,8 @@ async function tryRefreshToken(): Promise<RefreshResult> {
   refreshPromise = (async (): Promise<RefreshResult> => {
     try {
       const refreshToken = useAuthStore.getState().refreshToken;
+      // Anahtarlık kilitliyken token okunamadı: oturum bitmedi, öne gelince yeniden okunur.
+      if (!refreshToken && isKeychainUnavailable()) return { status: 'transient' };
       if (!refreshToken) return { status: 'invalid' };
       // api instance'ı değil ham axios — interceptor döngüsüne girmesin
       const res = await axios.post(`${BASE_URL}/api/users/refresh`, { refreshToken }, {
@@ -266,7 +268,7 @@ api.interceptors.response.use(
 
       // Buraya yalnız yenileme AÇIKÇA reddedildiğinde gelinir → oturum gerçekten bitti.
       if (isLoggedIn && _hasHydrated) {
-        useAuthStore.getState().logout();
+        useAuthStore.getState().logout({ forced: true, reason: `401:${url.split('?')[0]}` });
       }
       return Promise.reject(error);
     }
@@ -526,6 +528,9 @@ export interface PaymentPayload {
   isVariable?: boolean;
   installmentCount?: number | null;
   installmentStart?: string | null;
+  icon?: string | null;
+  color?: string | null;
+  reminderDays?: number | null;
 }
 
 /** Ödeme geçmişinin bir kaydı — "ödendi" anının fotoğrafı (bkz. backend PaymentRecord). */

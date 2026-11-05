@@ -793,7 +793,7 @@ export default function CockpitScreen() {
                 /* Seçili günün işleri Takvim'de (madde 5); burada tek satır. */
                 <TourTarget id="dailySection" spotRadius={R.md}>
                   <Touchable
-                    onPress={() => router.push({ pathname: '/gun', params: { date: selectedDay } })}
+                    onPress={() => router.push({ pathname: '/takvim', params: { date: selectedDay } })}
                     accessibilityRole="button"
                     accessibilityLabel={`${selectedDayLabel}, ${dc.dayTaskCount(selectedDayTasks.length)} — ${t.dayView.openInCalendar}`}
                     style={styles.dayLine}

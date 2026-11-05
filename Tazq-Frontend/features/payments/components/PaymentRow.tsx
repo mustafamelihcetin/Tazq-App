@@ -1,14 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
-import { Check, Wallet } from 'lucide-react-native';
+import { Check } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { SwipeableItem } from '@/shared/components/SwipeableItem';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { ICON, S, R, F, W, B, HAIRLINE, RSPRING, touchSlop } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 import type { TranslationKeys } from '@/shared/constants/i18n';
-import { matchProvider } from '@/shared/utils/paymentProviders';
+import { paymentLook } from '@/features/payments/utils/paymentLook';
 import type { PaymentView } from '@/features/payments/utils/paymentDates';
 
 /*
@@ -55,7 +55,8 @@ export const PaymentRow = React.memo(({ view, position, theme, t, amountLabel, d
   const paid = status === 'paid';
   const isTop = position === 'first' || position === 'only';
   const isBottom = position === 'last' || position === 'only';
-  const provider = matchProvider(p.title);
+  const look = paymentLook(p);
+  const LookIcon = look.icon;
   const baseDue = dueText(view, t, dateLabel);
   // Taksitliyse kaçıncı taksit olduğu vade yazısının yanında ("3/12. taksit").
   const due = view.installment ? { ...baseDue, text: `${baseDue.text} · ${t.installmentOf(view.installment.no, view.installment.total)}` } : baseDue;
@@ -95,13 +96,13 @@ export const PaymentRow = React.memo(({ view, position, theme, t, amountLabel, d
         {/* Ayırıcı halkanın sağından başlar — Apple listelerinin imzası. */}
         <View style={[styles.body, { borderBottomWidth: isBottom ? 0 : HAIRLINE, borderBottomColor: theme.separator }]}>
           <MotiView animate={{ opacity: paid ? 0.5 : 1 }} transition={{ type: 'timing', duration: 220 }} style={styles.inner}>
-            {provider
-              ? <AppIcon Icon={provider.icon} color={provider.color} size={32} radius={R.sm} iconSize={ICON.sm} />
+            {look.color
+              ? <AppIcon Icon={LookIcon} color={look.color} size={32} radius={R.sm} iconSize={ICON.sm} />
               : (
                 // Sağlayıcı yoksa NÖTR kutu: gri dolgu + beyaz glif koyu temada açık gri
                 // bir kare olarak parlıyordu. Soluk nötr dolgu + ikincil glif iki temada da sakin durur.
                 <View style={[styles.generic, { backgroundColor: theme.onSurfaceMuted + '26' }]}>
-                  <Wallet size={ICON.sm} color={theme.onSurfaceVariant} />
+                  <LookIcon size={ICON.sm} color={theme.onSurfaceVariant} />
                 </View>
               )}
             <View style={{ flex: 1, gap: S.xxs }}>

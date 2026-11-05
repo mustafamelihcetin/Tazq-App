@@ -83,6 +83,17 @@ namespace Tazq_App.Models
 		[MaxLength(7)]
 		public string? InstallmentStart { get; set; }
 
+		/// <summary>Kullanıcının seçtiği ikon anahtarı (istemci sözlüğü); null = başlıktan tahmin.</summary>
+		[MaxLength(16)]
+		public string? Icon { get; set; }
+
+		/// <summary>Kullanıcının seçtiği renk ("#RRGGBB"); null = varsayılan.</summary>
+		[MaxLength(7)]
+		public string? Color { get; set; }
+
+		/// <summary>Vadeden kaç gün önce hatırlatılır: 0 aynı gün, -1 kapalı, null = varsayılan (3).</summary>
+		public int? ReminderDays { get; set; }
+
 		public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 	}
 

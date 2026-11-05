@@ -498,6 +498,8 @@ namespace Tazq_App.Services
             return await _context.SaveChangesAsync() > 0;
         }
 
+        private const int RefreshReuseGraceSeconds = 60;
+
         public async Task<AuthTokens?> RotateRefreshTokenAsync(string refreshToken)
         {
             if (string.IsNullOrWhiteSpace(refreshToken)) return null;
@@ -508,6 +510,15 @@ namespace Tazq_App.Services
 
             // Yeniden Kullanım Tespiti (Reuse Detection): Token zaten iptal edilmişse,
             // bu bir çalınma/replay belirtisidir. Kullanıcının tüm aktif oturumlarını kapat!
+            // TOLERANS (2026-11-05): yanıtı kaybolan ya da eşzamanlı yenileme hırsızlık değildir. Rotasyondan sonraki
+            // kısa süre içindeki tekrar yeni çift alır; bütün oturumları kapatmak meşru kullanıcıyı çıkarıyordu.
+            if (stored.RevokedAt != null && stored.RevokedAt.Value.AddSeconds(RefreshReuseGraceSeconds) > DateTime.UtcNow)
+            {
+                var graceUser = await _context.Users.FindAsync(stored.UserId);
+                if (graceUser == null || graceUser.DeletedAt != null || graceUser.IsCurrentlyBanned) return null;
+                var graceAccess = _jwtService.GenerateToken(graceUser.Id.ToString(), graceUser.Role ?? "User");
+                return new AuthTokens(graceAccess, await IssueRefreshTokenAsync(graceUser.Id));
+            }
             if (stored.RevokedAt != null)
             {
                 var allActive = await _context.RefreshTokens

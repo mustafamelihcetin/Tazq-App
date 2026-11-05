@@ -482,6 +482,9 @@ export function usePlanAdaptations() {
     const habitHyd = (useHabitStore as any).persist?.hasHydrated?.() ?? true;
     const taskHyd = (useTaskStore as any).persist?.hasHydrated?.() ?? true;
     if (!prefsHyd || !habitHyd || !taskHyd) return;
+    // Bulut kopyası bu kullanıcı için yüklenmeden temizlik YOK: yerel "kapalı" görünen modlar gerçekte kapalı olmayabilir.
+    const adaptUserId = require('@/features/user/store/useAuthStore').useAuthStore.getState().user?.id ?? null;
+    if (adaptUserId != null && usePrefsStore.getState().cloudHydratedFor !== adaptUserId) return;
 
     // Duraklı planların bugünü seriyi kırmadan geçsin (üretim kapısından ÖNCE:
     // günde bir çalışan kapıya takılırsa duraklı günler işaretsiz kalırdı).

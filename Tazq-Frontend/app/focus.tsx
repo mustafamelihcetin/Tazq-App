@@ -6,7 +6,7 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
-import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Coffee, Wind, CloudRain, Flame, Waves, Music2, Headphones, AudioLines, SlidersHorizontal, SkipForward, Trees, Minus, Plus, ChevronDown } from 'lucide-react-native';
+import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Coffee, Wind, CloudRain, Flame, Waves, Music2, Headphones, AudioLines, SlidersHorizontal, SkipForward, Trees, Minus, Plus, ChevronDown, ListChecks } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore, focusDayKey } from '@/features/focus';
@@ -31,7 +31,7 @@ import { sessionDayKey } from '@/features/report/weeklyReport';
 import { toDateKey } from '@/shared/utils/dateKey';
 import { QuoteScene } from '@/features/focus/components/QuoteScene';
 import { DurationDial } from '@/features/focus/components/DurationDial';
-import { ICON, S, R, F, B, SPRING_SOFT } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, SPRING_SOFT, MIN_TOUCH } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
@@ -145,7 +145,7 @@ const ProgressDriver = React.memo(({ progressAnim, nativeProgressAnim }: { progr
  */
 const FOCUS_COPY = {
   tr: {
-    pickTask: 'Konu seç',
+    pickTask: 'Neye odaklanıyorsun?',
     paused: 'DURAKLATILDI',
     skipBreak: 'Molayı atla',
     endConfirm: 'Emin misin?',
@@ -163,7 +163,7 @@ const FOCUS_COPY = {
     customLabel: 'Özel süre',
   },
   en: {
-    pickTask: 'Pick a topic',
+    pickTask: 'What are you focusing on?',
     paused: 'PAUSED',
     skipBreak: 'Skip break',
     endConfirm: 'Are you sure?',
@@ -1333,40 +1333,6 @@ export default function FocusScreen() {
                 />
               </TourTarget>
             )}
-            {!sessionStarted && !pomodoroMode && (
-              <MotiView
-                pointerEvents={dialDragging ? 'none' : 'box-none'}
-                animate={{ opacity: dialDragging ? 0 : 1 }}
-                transition={{ type: 'timing', duration: dialDragging ? 80 : 300 }}
-                style={{ position: 'absolute', width: timerSize, height: timerSize, zIndex: 14, alignItems: 'center', justifyContent: 'center' }}
-              >
-                {/* Sayaç metninin yüksekliği kadar boşluk: düğme eski yerinde (sayacın altında) durur. */}
-                <View pointerEvents="none" style={{ height: Math.round(timerSize * 0.205) * 1.2 }} />
-                      /*
-                  KADRANIN ÜSTÜNDE (2026-11-02, TestFlight: "Konu seç'e basılmıyor"): süre kadranı bütün daireyi
-                  kaplayan bir sürükleme katmanı; düğme onun altında kaldığı için dokunuşu kadran yutuyordu.
-                  KONU SEÇİCİ BELİRGİN (2026-11-02, kullanıcı: "halkada konu yazıyor, deaktif ve işlevsiz görünüyor").
-                  Soluk nokta + soluk "Konu" devre dışı bir etiket gibi okunuyordu. Artık açıkça bir düğme:
-                  boşken artı + "Konu seç", seçiliyken konu adı; ikisinde de aşağı ok "değiştirilebilir" der.
-                */
-                <Touchable
-                  accessibilityRole="button"
-                  accessibilityLabel={currentTask || L.pickTask}
-                  onPress={() => setTaskPickerVisible(true)}
-                  hitSlop={S.sm}
-                  style={{ maxWidth: timerSize * 0.82, minHeight: 34, marginTop: S.md, flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingLeft: S.smd, paddingRight: S.sm, borderRadius: R.full, borderWidth: B.thin, borderColor: currentTask ? theme.primary + '66' : 'rgba(255,255,255,0.24)', backgroundColor: currentTask ? theme.primary + '26' : 'rgba(255,255,255,0.12)' }}
-                >
-                  {currentTask
-                    ? <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: theme.primary }} />
-                    : <Plus size={ICON.xs} color="rgba(255,255,255,0.92)" strokeWidth={2.6} />}
-                  <Text numberOfLines={1} textBreakStrategy="simple" style={{ flexShrink: 1, color: currentTask ? '#FFFFFF' : 'rgba(255,255,255,0.92)', fontSize: F.footnote, fontWeight: '700', letterSpacing: 0.2 }}>
-                    {currentTask || L.pickTask}
-                  </Text>
-                  <ChevronDown size={ICON.xs} color="rgba(255,255,255,0.7)" strokeWidth={2.4} />
-                </Touchable>
-                <View pointerEvents="none" style={{ height: 28 + S.sm }} />
-              </MotiView>
-            )}
 
             {/* Cosmic Orbit Clock - Zen Mode Timer Indicator */}
             <AnimatePresence>
@@ -1626,31 +1592,7 @@ export default function FocusScreen() {
                         </MotiView>
                       ) : null
                     ) : (
-                      pomodoroMode ? (
-                      /*
-                          KONU SEÇİCİ BELİRGİN (2026-11-02, kullanıcı: "halkada konu yazıyor, deaktif ve işlevsiz görünüyor").
-                          Soluk nokta + soluk "Konu" devre dışı bir etiket gibi okunuyordu. Artık açıkça bir düğme:
-                          boşken artı + "Konu seç", seçiliyken konu adı; ikisinde de aşağı ok "değiştirilebilir" der.
-                        */
-                        <Touchable
-                          accessibilityRole="button"
-                          accessibilityLabel={currentTask || L.pickTask}
-                          onPress={() => setTaskPickerVisible(true)}
-                          hitSlop={S.sm}
-                          style={{ maxWidth: timerSize * 0.82, minHeight: 34, marginTop: S.md, flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingLeft: S.smd, paddingRight: S.sm, borderRadius: R.full, borderWidth: B.thin, borderColor: currentTask ? theme.primary + '66' : 'rgba(255,255,255,0.24)', backgroundColor: currentTask ? theme.primary + '26' : 'rgba(255,255,255,0.12)' }}
-                        >
-                          {currentTask
-                            ? <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: theme.primary }} />
-                            : <Plus size={ICON.xs} color="rgba(255,255,255,0.92)" strokeWidth={2.6} />}
-                          <Text numberOfLines={1} textBreakStrategy="simple" style={{ flexShrink: 1, color: currentTask ? '#FFFFFF' : 'rgba(255,255,255,0.92)', fontSize: F.footnote, fontWeight: '700', letterSpacing: 0.2 }}>
-                            {currentTask || L.pickTask}
-                          </Text>
-                          <ChevronDown size={ICON.xs} color="rgba(255,255,255,0.7)" strokeWidth={2.4} />
-                        </Touchable>
-                      ) : (
-                        // Kadran varken düğme kadranın ÜSTÜNDE çizilir (aşağıda); burada yalnız yeri tutulur.
-                        <View style={{ height: 34, marginTop: S.md }} />
-                      )
+                      null
                     )}
 
                     {/* Duraklatıldı göstergesi (eski nefes ipucunun yeri; nefes artık ayrı seans) */}
@@ -1705,6 +1647,24 @@ export default function FocusScreen() {
 
           {/* Controls & Bottom Section Wrapper */}
           <View style={{ width: '100%', alignItems: 'center', paddingBottom: S.sm, gap: S.lg, zIndex: 10 }} pointerEvents="box-none">
+            {/*
+              KONU HALKANIN ALTINDA (2026-11-05, kullanıcı: "Konu seç çalışmıyor ve çirkin"). Halkanın içinde süre kadranı
+              dokunuşu yutuyor, küçük hap da sayıya sıkışıyordu. Burada ayrı, geniş ve sakin bir satır: kadranla yarışmaz.
+            */}
+            {!sessionStarted && (
+              <Touchable
+                accessibilityRole="button"
+                accessibilityLabel={currentTask || L.pickTask}
+                onPress={() => setTaskPickerVisible(true)}
+                style={{ maxWidth: '86%', minHeight: MIN_TOUCH, flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, borderRadius: R.full, backgroundColor: 'rgba(255,255,255,0.08)' }}
+              >
+                <ListChecks size={ICON.sm} color={currentTask ? theme.primary : 'rgba(255,255,255,0.75)'} strokeWidth={2.2} />
+                <Text numberOfLines={1} textBreakStrategy="simple" style={{ flexShrink: 1, color: currentTask ? '#FFFFFF' : 'rgba(255,255,255,0.85)', fontSize: F.footnote, fontWeight: '600' }}>
+                  {currentTask || L.pickTask}
+                </Text>
+                <ChevronDown size={ICON.xs} color="rgba(255,255,255,0.55)" strokeWidth={2.4} />
+              </Touchable>
+            )}
             {/* Controls */}
             <MotiView
               pointerEvents={zenMode && isActive ? "none" : "auto"}

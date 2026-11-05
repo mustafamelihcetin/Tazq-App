@@ -54,7 +54,7 @@ describe('geçici hatada oturum korunur', () => {
   it('çıkış yalnız açık reddin ardından', () => {
     // `logout()` çağrısı, transient dalının ALTINDA kalmalı; üstüne çıkarsa hata geri gelir.
     const transientAt = SRC.indexOf("result.status === 'transient'");
-    const logoutAt = SRC.indexOf('useAuthStore.getState().logout()');
+    const logoutAt = SRC.indexOf('useAuthStore.getState().logout({ forced: true');
     expect(transientAt).toBeGreaterThan(-1);
     expect(logoutAt).toBeGreaterThan(transientAt);
   });

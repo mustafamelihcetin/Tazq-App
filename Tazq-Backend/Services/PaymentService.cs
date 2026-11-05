@@ -71,7 +71,7 @@ namespace Tazq_App.Services
             return list;
         }
 
-        public async Task<Payment?> CreatePaymentAsync(int userId, string title, decimal amount, int dueDay, PaymentRecurrence recurrence, DateTime? nextDueDate, string? category, string? currency = null, bool isVariable = false, int? installmentCount = null, string? installmentStart = null)
+        public async Task<Payment?> CreatePaymentAsync(int userId, string title, decimal amount, int dueDay, PaymentRecurrence recurrence, DateTime? nextDueDate, string? category, string? currency = null, bool isVariable = false, int? installmentCount = null, string? installmentStart = null, string? icon = null, string? color = null, int? reminderDays = null)
         {
             var count = await _db.Payments.CountAsync(p => p.UserId == userId);
             if (count >= MaxPaymentsPerUser)
@@ -89,12 +89,13 @@ namespace Tazq_App.Services
                 Currency = NormalizeCurrency(currency),
             };
             ApplyKind(payment, isVariable, installmentCount, installmentStart);
+            ApplyAppearance(payment, icon, color, reminderDays);
             _db.Payments.Add(payment);
             await _db.SaveChangesAsync();
             return Out(userId, payment);
         }
 
-        public async Task<Payment?> UpdatePaymentAsync(int userId, int paymentId, string title, decimal amount, int dueDay, PaymentRecurrence recurrence, DateTime? nextDueDate, string? category, string? currency = null, bool isVariable = false, int? installmentCount = null, string? installmentStart = null)
+        public async Task<Payment?> UpdatePaymentAsync(int userId, int paymentId, string title, decimal amount, int dueDay, PaymentRecurrence recurrence, DateTime? nextDueDate, string? category, string? currency = null, bool isVariable = false, int? installmentCount = null, string? installmentStart = null, string? icon = null, string? color = null, int? reminderDays = null)
         {
             var payment = await _db.Payments.FirstOrDefaultAsync(p => p.Id == paymentId && p.UserId == userId);
             if (payment == null) return null;
@@ -107,8 +108,17 @@ namespace Tazq_App.Services
             payment.Category = category == null ? null : Clamp(category.Trim(), MaxCategoryLength);
             payment.Currency = NormalizeCurrency(currency);
             ApplyKind(payment, isVariable, installmentCount, installmentStart);
+            ApplyAppearance(payment, icon, color, reminderDays);
             await _db.SaveChangesAsync();
             return Out(userId, payment);
+        }
+
+        /// <summary>İkon/renk/hatırlatma: biçimi tutmayan değer saklanmaz; hatırlatma -1..30 aralığına kısılır.</summary>
+        private static void ApplyAppearance(Payment p, string? icon, string? color, int? reminderDays)
+        {
+            p.Icon = icon != null && System.Text.RegularExpressions.Regex.IsMatch(icon, @"^[a-z]{1,16}$") ? icon : null;
+            p.Color = color != null && System.Text.RegularExpressions.Regex.IsMatch(color, @"^#[0-9A-Fa-f]{6}$") ? color : null;
+            p.ReminderDays = reminderDays is int d ? Math.Clamp(d, -1, 30) : null;
         }
 
         /// <summary>

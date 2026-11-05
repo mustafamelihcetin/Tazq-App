@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { swallow } from '@/shared/utils/swallow';
+import { AppState } from 'react-native';
 import { useSessionStore } from '@/shared/store/useSessionStore';
 
 const SECURE_TOKEN_KEY = 'tazq-jwt-token';
@@ -15,44 +16,64 @@ try {
   // Native module not compiled yet — token will stay in AsyncStorage until rebuild
 }
 
+/*
+  ANAHTARLIK KİLİTLİYKEN OTURUM (2026-11-05). Varsayılan erişim "yalnız kilit açıkken": saat, bildirim ya da arka plan
+  uygulamayı kilitli telefonda uyandırınca okuma hata veriyor, oturum "anahtarsız" sanılıp kapatılıyordu; yazma hatası
+  ise anahtarları şifresiz depoya düşürüyordu. Artık ilk kilit açılışından sonra erişilebilir; okunamazsa oturum
+  KAPATILMAZ, uygulama öne gelince yeniden okunur; yazılamazsa düz metne düşmez, öne gelince yeniden denenir.
+*/
+let keychainUnavailable = false;
+let pendingSecureWrite: { token?: string; refreshToken?: string } | null = null;
+export const isKeychainUnavailable = () => keychainUnavailable;
+const secureOptions = () => (SecureStore ? { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK } : undefined);
+
+async function writeSecure(v: { token?: string; refreshToken?: string }) {
+  if (!SecureStore) return;
+  if (v.token) await SecureStore.setItemAsync(SECURE_TOKEN_KEY, v.token, secureOptions());
+  if (v.refreshToken) await SecureStore.setItemAsync(SECURE_REFRESH_KEY, v.refreshToken, secureOptions());
+}
+
 const secureStorage = {
   getItem: async (name: string) => {
     if (name === 'tazq-auth-storage' && SecureStore) {
+      let token: string | null = null;
+      let refreshToken: string | null = null;
       try {
-        const token = await SecureStore.getItemAsync(SECURE_TOKEN_KEY);
-        const refreshToken = await SecureStore.getItemAsync(SECURE_REFRESH_KEY);
-        const rest = await AsyncStorage.getItem(name);
-        if (!rest) return null;
+        token = await SecureStore.getItemAsync(SECURE_TOKEN_KEY);
+        refreshToken = await SecureStore.getItemAsync(SECURE_REFRESH_KEY);
+        keychainUnavailable = false;
+      } catch (e) {
+        keychainUnavailable = true;
+        swallow('authStore.keychainRead', e);
+      }
+      const rest = await AsyncStorage.getItem(name);
+      if (!rest) return null;
+      try {
         const parsed = JSON.parse(rest);
         if (token && parsed?.state) parsed.state.token = token;
         if (refreshToken && parsed?.state) parsed.state.refreshToken = refreshToken;
         return JSON.stringify(parsed);
       } catch {
-        return AsyncStorage.getItem(name);
+        return rest;
       }
     }
     return AsyncStorage.getItem(name);
   },
   setItem: async (name: string, value: string) => {
     if (name === 'tazq-auth-storage' && SecureStore) {
+      const parsed = JSON.parse(value);
+      const secrets = { token: parsed?.state?.token ?? undefined, refreshToken: parsed?.state?.refreshToken ?? undefined };
+      // Anahtarlar hiçbir koşulda düz AsyncStorage'a yazılmaz.
+      if (parsed?.state) { parsed.state.token = null; parsed.state.refreshToken = null; }
       try {
-        const parsed = JSON.parse(value);
-        const token = parsed?.state?.token;
-        const refreshToken = parsed?.state?.refreshToken;
-        if (token) {
-          await SecureStore.setItemAsync(SECURE_TOKEN_KEY, token);
-          parsed.state.token = null;
-        }
-        // Refresh token gizli depoda — düz AsyncStorage'a yazılmaz
-        if (refreshToken) {
-          await SecureStore.setItemAsync(SECURE_REFRESH_KEY, refreshToken);
-          parsed.state.refreshToken = null;
-        }
-        await AsyncStorage.setItem(name, JSON.stringify(parsed));
-        return;
-      } catch {
-        return AsyncStorage.setItem(name, value);
+        await writeSecure(secrets);
+        pendingSecureWrite = null;
+      } catch (e) {
+        pendingSecureWrite = secrets;
+        swallow('authStore.keychainWrite', e);
       }
+      await AsyncStorage.setItem(name, JSON.stringify(parsed));
+      return;
     }
     return AsyncStorage.setItem(name, value);
   },
@@ -145,6 +166,8 @@ function hydrateProfilePrefs(user: User | null) {
     if (typeof user.avatarBorderColor === 'string' && user.avatarBorderColor.trim()) prefs.setAvatarBorderColor(user.avatarBorderColor);
     // Mod seçimleri, planlar, üretkenlik saati vb. — DB'de doluysa yerele hidrate et.
     if (typeof user.preferences === 'string' && user.preferences.trim()) prefs.hydrateFromCloud(user.preferences);
+    // Bulutta tercih olmasa da (yeni hesap) kapı açılır: yükleme denendi, karşılaştırılacak kopya yok.
+    if (user.id != null) prefs.markCloudHydrated(user.id);
   } catch (e) { swallow('authStore.hydrateProfilePrefs', e, { capture: true }); }
 }
 
@@ -177,13 +200,16 @@ interface AuthState {
   endGuest: () => void;
   setIsFirstLogin: (val: boolean) => void;
   setUser: (user: User) => void;
-  logout: () => void;
+  /** `forced`: kullanıcı istemedi (oturum reddedildi vb.) → yerel veri SİLİNMEZ, sebep kayda geçer. */
+  logout: (opts?: { forced?: boolean; reason?: string }) => void;
+  /** Zorla çıkış sonrası yerel veri duruyor: başka hesap/misafir gelirse temizlenmeli. */
+  retainedData: boolean;
   setHasHydrated: (val: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       token: null,
       refreshToken: null,
@@ -209,6 +235,7 @@ export const useAuthStore = create<AuthState>()(
         }
         hydrateProfilePrefs(user);
         useSessionStore.getState().setGuest(false); // gerçek hesap geldi — misafirlik biter
+        set({ retainedData: false });
         set({
           user,
           token,
@@ -219,6 +246,8 @@ export const useAuthStore = create<AuthState>()(
         });
       },
       startGuest: () => {
+        // Zorla çıkıştan kalan hesap verisi misafire görünmesin.
+        if (get().retainedData) { clearLocalUserData(); set({ retainedData: false }); }
         useSessionStore.getState().setGuest(true);
         /*
           HOŞ GELDİN MİSAFİRE DE (2026-10-24). Yalnız bu GİRİŞ ANINDA beklemeye alınır:
@@ -241,7 +270,25 @@ export const useAuthStore = create<AuthState>()(
       endGuest: () => useSessionStore.getState().setGuest(false),
       setIsFirstLogin: (val) => set({ isFirstLogin: val }),
       setUser: (user) => { hydrateProfilePrefs(user); set({ user }); },
-      logout: () => {
+      logout: (opts) => {
+        /*
+          ZORLA ÇIKIŞ VERİ SİLMEZ (2026-11-05). Kullanıcının istemediği çıkış görevleri, alışkanlıkları ve BEKLEYEN
+          çevrimdışı kuyruğu da siliyordu. Aynı hesap dönünce kaldığı yerden devam eder; başka hesap gelince setAuth
+          temizler. Sebep kayda geçer ki bir sonraki "kendiliğinden çıkış" tahminle değil kanıtla çözülsün.
+        */
+        if (opts?.forced) {
+          const reason = opts.reason ?? 'unknown';
+          try {
+            require('@/features/habits/sync/habitsSync').resetHabitsSync();
+            require('@/shared/services/api').SupportService.reportCrash({
+              errorMessage: `Forced logout: ${reason}`, stackTrace: `appState=${AppState.currentState} keychain=${keychainUnavailable ? 'unavailable' : 'ok'} user=${get().user?.id ?? '-'}`,
+              deviceName: 'auth', platform: require('react-native').Platform.OS, appVersion: require('expo-constants').default.expoConfig?.version ?? '',
+            }).catch((e: unknown) => swallow('authStore.reportForcedLogout', e));
+          } catch (e) { swallow('authStore.forcedLogout', e); }
+          useSessionStore.getState().setGuest(false);
+          set({ user: null, token: null, refreshToken: null, isLoggedIn: false, isFirstLogin: false, retainedData: true });
+          return;
+        }
         // Sunucuda refresh token'ı iptal et (best-effort, beklemeden)
         try {
           const rt = useAuthStore.getState().refreshToken;
@@ -254,6 +301,7 @@ export const useAuthStore = create<AuthState>()(
         clearLocalUserData();
       },
       setHasHydrated: (val) => set({ _hasHydrated: val }),
+      retainedData: false,
     }),
     {
       name: 'tazq-auth-storage',
@@ -267,3 +315,13 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+// Öne gelince: kilitliyken okunamayan anahtarları yeniden oku, yazılamayanları yeniden yaz.
+AppState.addEventListener?.('change', (st) => {
+  if (st !== 'active') return;
+  if (pendingSecureWrite) {
+    const v = pendingSecureWrite;
+    writeSecure(v).then(() => { pendingSecureWrite = null; }).catch((e) => swallow('authStore.keychainRetry', e));
+  }
+  if (keychainUnavailable) useAuthStore.persist.rehydrate();
+});

@@ -13,7 +13,7 @@ import type { Payment } from '@/features/payments/store/usePaymentsStore';
  * usePaymentsStore başlığı).
  */
 
-function toPayload(p: Pick<Payment, 'title' | 'amount' | 'dueDay' | 'recurrence' | 'nextDueDate' | 'category' | 'currency' | 'isVariable' | 'installmentCount' | 'installmentStart'>): PaymentPayload {
+function toPayload(p: Pick<Payment, 'title' | 'amount' | 'dueDay' | 'recurrence' | 'nextDueDate' | 'category' | 'currency' | 'isVariable' | 'installmentCount' | 'installmentStart' | 'icon' | 'color' | 'reminderDays'>): PaymentPayload {
   return {
     title: p.title,
     amount: p.amount,
@@ -25,6 +25,9 @@ function toPayload(p: Pick<Payment, 'title' | 'amount' | 'dueDay' | 'recurrence'
     isVariable: !!p.isVariable,
     installmentCount: p.installmentCount ?? null,
     installmentStart: p.installmentStart ?? null,
+    icon: p.icon ?? null,
+    color: p.color ?? null,
+    reminderDays: p.reminderDays ?? null,
   };
 }
 

@@ -275,6 +275,10 @@ namespace Tazq_Backend.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 
+                    b.Property<string>("Color")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -284,6 +288,10 @@ namespace Tazq_Backend.Migrations
 
                     b.Property<int>("DueDay")
                         .HasColumnType("integer");
+
+                    b.Property<string>("Icon")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
 
                     b.Property<int?>("InstallmentCount")
                         .HasColumnType("integer");
@@ -303,6 +311,9 @@ namespace Tazq_Backend.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Recurrence")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ReminderDays")
                         .HasColumnType("integer");
 
                     b.Property<string>("Title")

@@ -32,6 +32,8 @@ export function hydrateHabits(userId: number): Promise<boolean> {
   inflightHydration = (async () => {
     try {
       const res = await api().get();
+      // Sunucuda kayıt var ama içerik okunamadı: "bulut boş" sayılmaz, gönderim kapalı kalır.
+      if (res?.updatedAt && !res?.data) throw new Error('cloud habits unreadable');
       const cloud = parseCloudHabits(res?.data) ?? [];
       const local = useHabitStore.getState().habits;
       const merged = mergeHabits(local, cloud);
