@@ -1,3 +1,4 @@
+import { RouteBanner } from './RouteBanner';
 import React from 'react';
 import { View, Text } from 'react-native';
 import { ChevronRight, CalendarClock, CheckCircle2 } from 'lucide-react-native';
@@ -188,6 +189,7 @@ export function ModeTodayCard({ onOpen, bare }: { onOpen: () => void; bare?: boo
     );
     return (
       <>
+        <RouteBanner />
         <TourTarget id="activePlan" spotRadius={R.md}>{lines}</TourTarget>
         <DisplayDivider />
       </>

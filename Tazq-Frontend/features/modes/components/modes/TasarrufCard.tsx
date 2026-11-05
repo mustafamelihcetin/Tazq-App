@@ -1,8 +1,10 @@
+import { useMoneySymbol } from '@/features/modes/hooks/useMoneySymbol';
+import { useCloseRequest } from '@/features/modes/store/useGoalCloseStore';
 import { PlanLink } from '@/features/modes/components/plan/PlanLink';
 /**
  * TasarrufCard — Tasarruf/Bütçe modu kartı (Dönemsel Modlar).
  * Kilo kartı deseninin finansal ikizi: başlangıç→hedef tutar + süre, haftalık
- * "bakiyeni gir" (7-gün kilidi), "Hedefe ilerleme ₺X/₺Y · %", deadline sonucu.
+ * "bakiyeni gir" (7-gün kilidi), "Hedefe ilerleme paraX/paraY · %", deadline sonucu.
  * Kendi içinde kapsüllü: tüm veri store'lardan, plan oluşturma burada.
  */
 import React, { useState, useRef } from 'react';
@@ -43,7 +45,6 @@ import { splitForFirstDay, interleaveStaged } from '@/features/modes/utils/stage
 import { useStagedPlanStore } from '@/features/modes/store/useStagedPlanStore';
 import { HABIT_LIMIT_COPY } from '@/features/habits/utils/habitLimitCopy';
 
-const fmtMoney = (n: number) => n.toLocaleString('tr-TR');
 
 const ENTRY_COPY = {
   tr: { in: 'Eklenecek tutar', out: 'Çıkarılacak tutar', debtIn: 'Eklenen borç', debtOut: 'Ödenen tutar', set: 'Güncel bakiye', target: 'Yeni hedef tutar', addBtn: 'Para ekle', outBtn: 'Para çıkar', debtAddBtn: 'Borç eklendi', debtOutBtn: 'Ödeme yaptım', fix: 'Bakiyeyi düzelt', goal: 'Hedefi değiştir', saved: 'Kaydedildi', undo: 'Geri al', reached: 'Hedefe ulaştın. Tebrikler!', cleared: 'Borç kapandı. Tebrikler!', timeUp: 'Süre doldu. Hedefin hâlâ geçerliyse uzatabilirsin.', extend: '3 ay uzat', locale: 'tr-TR' },
@@ -55,6 +56,8 @@ export function TasarrufCard({ onInputFocus }: { onInputFocus?: (target: number)
   const { language } = useLanguageStore();
   const tr = language === 'tr';
   const ec = ENTRY_COPY[language === 'en' ? 'en' : 'tr'];
+  const { symbol: cur } = useMoneySymbol(language === 'en' ? 'en' : 'tr');
+  const fmtMoney = (n: number) => n.toLocaleString(ec.locale);
   // Yüzey vurgusu tema-duyarlı palet + AA geçen metin tonu.
   const { accent: C, accentText: C_TX, onAccent: C_ON } = useModeAccent('tasarruf');
 
@@ -67,7 +70,7 @@ export function TasarrufCard({ onInputFocus }: { onInputFocus?: (target: number)
   const planSpecs = usePrefsStore(s => s.planSpecs);
   const setPersonalNote = usePrefsStore(s => s.setPersonalNote);
 
-  const { budgetType, startAmount, targetAmount, log, setBudgetType, setStartAmount, setTargetAmount, addEntry, adjust, undoMove, moves, reset } = useBudgetStore();
+  const { budgetType, startAmount, targetAmount, log, setBudgetType, setStartAmount, setTargetAmount, addEntry, adjust, undoMove, moves, reset, setCover } = useBudgetStore();
   const addHabit = useHabitStore(s => s.addHabit);
   const removeHabit = useHabitStore(s => s.removeHabit);
   const { runAdaptations } = usePlanAdaptations();
@@ -134,11 +137,11 @@ export function TasarrufCard({ onInputFocus }: { onInputFocus?: (target: number)
     // birikim
     return tr ? 'Hedef tutar, mevcut birikimden büyük olmalı' : 'Target must be higher than current savings';
   })();
-  // ₺ önekli, alt-çizgisiz, ÜST SINIRLI temiz para girişi. Inline fonksiyon (component
+  // para önekli, alt-çizgisiz, ÜST SINIRLI temiz para girişi. Inline fonksiyon (component
   // değil) → her tuşta remount/focus kaybı olmaz.
   // Para girişi: STORE'da ham rakam (parseFloat güvenli), EKRANDA binlik nokta ayracı.
-  // Tutarlar tam sayı ₺ (kuruş yok) → en sade ve okunur biçim, üst sınır korunur.
-  const MAX_AMOUNT = 1_000_000_000; // 1 milyar ₺ üst sınır
+  // Tutarlar tam sayı para (kuruş yok) → en sade ve okunur biçim, üst sınır korunur.
+  const MAX_AMOUNT = 1_000_000_000; // 1 milyar üst sınır
   const sanitizeMoney = (t: string) => {
     const digits = t.replace(/\D/g, '').replace(/^0+(?=\d)/, ''); // sadece rakam + baştaki sıfırları at
     if (!digits) return '';
@@ -152,7 +155,7 @@ export function TasarrufCard({ onInputFocus }: { onInputFocus?: (target: number)
   const moneyInput = (value: string, onChange: (v: string) => void, autoFocus = false) => (
     <ModeField
       accent={C}
-      prefix={<Text style={{ color: theme.onSurfaceMuted, fontSize: F.body, fontWeight: '700', marginRight: S.xs }}>₺</Text>}
+      prefix={<Text style={{ color: theme.onSurfaceMuted, fontSize: F.body, fontWeight: '700', marginRight: S.xs }}>{cur}</Text>}
       inputStyle={{ fontWeight: '700' }}
       value={formatThousands(value)}
       onChangeText={(t) => onChange(sanitizeMoney(t))}
@@ -204,20 +207,18 @@ export function TasarrufCard({ onInputFocus }: { onInputFocus?: (target: number)
       habitIds.push(id);
     });
     const taskIds: number[] = [];
-    const tasarrufLabel = tasarrufTypeLabel(budgetType, tr);
-    const withLabel = (text: string) => (tasarrufLabel && !text.toLowerCase().includes(tasarrufLabel.toLowerCase()) ? `${tasarrufLabel}: ${text}` : text);
+    // Önek metnin dilinde: İngilizce başlığa Türkçe önek gidiyordu.
+    const labelFor = (isTr: boolean) => tasarrufTypeLabel(budgetType, isTr);
+    const withLabel = (text: string, isTr: boolean) => (labelFor(isTr) && !text.toLowerCase().includes(labelFor(isTr).toLowerCase()) ? `${labelFor(isTr)}: ${text}` : text);
     useStagedPlanStore.getState().setQueue('tasarruf', interleaveStaged(
-      staged.tasksLater.map(t => ({ titleTr: withLabel(t.title), titleEn: withLabel(t.titleEn), descTr: t.desc, descEn: t.descEn, priority: t.priority, tags: t.tags ?? [] })),
+      staged.tasksLater.map(t => ({ titleTr: withLabel(t.title, true), titleEn: withLabel(t.titleEn, false), descTr: t.desc, descEn: t.descEn, priority: t.priority, tags: t.tags ?? [] })),
       [...staged.habitsNow.slice(room), ...staged.habitsLater].map(h => ({ nameTr: h.name, nameEn: h.nameEn ?? h.name, emoji: h.emoji, color: h.color, modeType: 'tasarruf' })),
     ));
     for (const t of staged.tasksNow) {
       let taskTitleTr = t.title;
       let taskTitleEn = t.titleEn;
-      if (tasarrufLabel) {
-        const lLower = tasarrufLabel.toLowerCase();
-        if (!taskTitleTr.toLowerCase().includes(lLower)) taskTitleTr = `${tasarrufLabel}: ${taskTitleTr}`;
-        if (!taskTitleEn.toLowerCase().includes(lLower)) taskTitleEn = `${tasarrufLabel}: ${taskTitleEn}`;
-      }
+      taskTitleTr = withLabel(taskTitleTr, true);
+      taskTitleEn = withLabel(taskTitleEn, false);
       const id = await createPlanTask({
         title: tr ? taskTitleTr : taskTitleEn,
         description: JSON.stringify({ tr: taskTitleTr, en: taskTitleEn, descTr: t.desc, descEn: t.descEn }),
@@ -243,11 +244,13 @@ export function TasarrufCard({ onInputFocus }: { onInputFocus?: (target: number)
     // Türe özel hesaplanan başlangıç/hedefi store'a yaz (ilerleme kartının kaynağı).
     setStartAmount(String(computedStart));
     setTargetAmount(String(computedTarget));
+    setCover(budgetType === 'acilfon' ? monthlyExp : 0, budgetType === 'acilfon' ? coverMonths : 0);
     setSeasonalPref('tasarrufMode', true);
     setSeasonalPref('tasarrufName', tasarrufTypeLabel(budgetType, tr));
     setSeasonalPref('tasarrufDate', toDateKey(d));
     if (log.length === 0) addEntry(computedStart); // başlangıç noktası
     setPlanIds('tasarruf', habitIds, taskIds);
+    usePrefsStore.getState().setPlanSpec('tasarruf', { ...usePrefsStore.getState().planSpecs.tasarruf }); // başlangıç damgası: Planım'daki yol çizgisi buna bakar
     setExpanded(false);
     setTimeout(() => runAdaptations(true), 300);
     } finally {
@@ -271,6 +274,7 @@ export function TasarrufCard({ onInputFocus }: { onInputFocus?: (target: number)
     reset();
     setExpanded(false);
   };
+  useCloseRequest('tasarruf', () => closeModeWithUndo('tasarruf', closePlan, tr ? 'Tasarruf modu kapatıldı' : 'Savings mode closed', tr ? 'Geri al' : 'Undo'));
 
   const saveEntry = () => {
     const v = parseFloat(entryInput.replace(',', '.'));
@@ -309,6 +313,7 @@ export function TasarrufCard({ onInputFocus }: { onInputFocus?: (target: number)
       {seasonal.tasarrufMode && applied && (
         <View style={{ paddingHorizontal: S.md, paddingBottom: S.md, gap: S.sm }}>
           {/* Ara verme ve kat edilen yol — yedi modun ortak satırı (bkz. PlanPauseRow). */}
+          <PlanLink slot="tasarruf" />
           <PlanLifecycleRow tr={tr} accent={C} accentText={C_TX} lifecycle={lifecycle} hasPlan={applied} />
           <View style={{ borderRadius: R.md, borderWidth: B.thin, borderColor: C + '22', padding: S.md, gap: S.sm }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -319,15 +324,15 @@ export function TasarrufCard({ onInputFocus }: { onInputFocus?: (target: number)
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Hedefe ilerleme' : 'Goal progress'}</Text>
-              <Text style={{ color: C_TX, fontSize: F.caption, fontWeight: '700' }}>₺{fmtMoney(doneAmt)}/₺{fmtMoney(goalAmt)} · {pct}%</Text>
+              <Text style={{ color: C_TX, fontSize: F.caption, fontWeight: '700' }}>{cur}{fmtMoney(doneAmt)}/{cur}{fmtMoney(goalAmt)} · {pct}%</Text>
             </View>
             <View style={{ height: 6, borderRadius: R.xs, backgroundColor: theme.onSurfaceVariant + '20', overflow: 'hidden' }}>
               <View style={{ height: 6, borderRadius: R.xs, width: `${pct}%`, backgroundColor: C }} />
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'Başlangıç' : 'Start'}: ₺{fmtMoney(start)}</Text>
-              <Text style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '700' }}>₺{fmtMoney(latest)}</Text>
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'Hedef' : 'Target'}: ₺{fmtMoney(target)}</Text>
+              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'Başlangıç' : 'Start'}: {cur}{fmtMoney(start)}</Text>
+              <Text style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '700' }}>{cur}{fmtMoney(latest)}</Text>
+              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'Hedef' : 'Target'}: {cur}{fmtMoney(target)}</Text>
             </View>
           </View>
 
@@ -378,7 +383,7 @@ export function TasarrufCard({ onInputFocus }: { onInputFocus?: (target: number)
               {(moves ?? []).slice(0, 3).map(m => (
                 <View key={m.at} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{new Date(m.at).toLocaleDateString(ec.locale, { day: 'numeric', month: 'short' })}</Text>
-                  <Text style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '600', fontVariant: ['tabular-nums'] }}>{m.delta >= 0 ? '+' : '−'}₺{fmtMoney(Math.abs(m.delta))}</Text>
+                  <Text style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '600', fontVariant: ['tabular-nums'] }}>{m.delta >= 0 ? '+' : '−'}{cur}{fmtMoney(Math.abs(m.delta))}</Text>
                 </View>
               ))}
             </View>
@@ -404,31 +409,31 @@ export function TasarrufCard({ onInputFocus }: { onInputFocus?: (target: number)
           {budgetType === 'birikim' && (
             <View style={{ flexDirection: 'row', gap: S.sm }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }}>{tr ? 'Şu anki birikim ₺' : 'Current savings ₺'}</Text>
+                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }}>{tr ? `Şu anki birikim ${cur}` : `Current savings ${cur}`}</Text>
                 {moneyInput(startAmount, setStartAmount)}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }}>{tr ? 'Hedef tutar ₺' : 'Target amount ₺'}</Text>
+                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }}>{tr ? `Hedef tutar ${cur}` : `Target amount ${cur}`}</Text>
                 {moneyInput(targetAmount, setTargetAmount)}
               </View>
             </View>
           )}
           {budgetType === 'borc' && (
             <View>
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }}>{tr ? 'Toplam borcun ₺' : 'Total debt ₺'}</Text>
+              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }}>{tr ? `Toplam borcun ${cur}` : `Total debt ${cur}`}</Text>
               {moneyInput(startAmount, setStartAmount)}
-              <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xs }}>{tr ? 'Hedef: borcu sıfırlamak (₺0)' : 'Goal: clear the debt (₺0)'}</Text>
+              <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xs }}>{tr ? `Hedef: borcu sıfırlamak (${cur}0)` : `Goal: clear the debt (${cur}0)`}</Text>
             </View>
           )}
           {budgetType === 'acilfon' && (
             <View style={{ gap: S.sm }}>
               <View style={{ flexDirection: 'row', gap: S.sm }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }}>{tr ? 'Aylık giderin ₺' : 'Monthly expenses ₺'}</Text>
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }}>{tr ? `Aylık giderin ${cur}` : `Monthly expenses ${cur}`}</Text>
                   {moneyInput(monthlyExpense, setMonthlyExpense)}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }}>{tr ? 'Şu anki birikim ₺' : 'Current savings ₺'}</Text>
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }}>{tr ? `Şu anki birikim ${cur}` : `Current savings ${cur}`}</Text>
                   {moneyInput(startAmount, setStartAmount)}
                 </View>
               </View>
@@ -444,7 +449,7 @@ export function TasarrufCard({ onInputFocus }: { onInputFocus?: (target: number)
                 })}
               </View>
               {monthlyExp > 0 && (
-                <Text style={{ color: C_TX, fontSize: F.caption, fontWeight: '700' }}>{tr ? `🎯 Hedef: ₺${fmtMoney(computedTarget)}` : `🎯 Target: ₺${fmtMoney(computedTarget)}`}</Text>
+                <Text style={{ color: C_TX, fontSize: F.caption, fontWeight: '700' }}>{tr ? `🎯 Hedef: ${cur}${fmtMoney(computedTarget)}` : `🎯 Target: ${cur}${fmtMoney(computedTarget)}`}</Text>
               )}
             </View>
           )}
@@ -497,7 +502,6 @@ export function TasarrufCard({ onInputFocus }: { onInputFocus?: (target: number)
       )}
       {/* Sağlık/finans verisi sunucuya gitmez — kullanıcı bunu veriyi girerken bilsin (bkz. DeviceOnlyNote). */}
       {seasonal.tasarrufMode && <DeviceOnlyNote kind="budget" />}
-      {seasonal.tasarrufMode && <PlanLink slot="tasarruf" />}
       {seasonal.tasarrufMode && (
         <ModeCardClose
           mode="tasarruf"

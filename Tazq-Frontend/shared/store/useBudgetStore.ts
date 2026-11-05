@@ -21,6 +21,10 @@ interface BudgetState {
   startAmount: string;   // başlangıç (birikim: 0, borç: borç tutarı)
   targetAmount: string;  // hedef (birikim/acil fon: hedef tutar, borç: 0)
   log: BudgetEntry[];
+  /** Acil fon: aylık gider ve hedef güvence ayı. Takip "kaç aylık güvence" diyebilsin diye saklanır. */
+  monthlyExpense: number;
+  coverMonths: number;
+  setCover: (monthly: number, months: number) => void;
   setBudgetType: (v: BudgetType) => void;
   setStartAmount: (v: string) => void;
   setTargetAmount: (v: string) => void;
@@ -60,6 +64,9 @@ export const useBudgetStore = create<BudgetState>()(
         s.addEntry(Math.max(0, cur - m.delta));
         set(st => ({ moves: (st.moves ?? []).filter(x => x.at !== at) }));
       },
+      monthlyExpense: 0,
+      coverMonths: 0,
+      setCover: (monthly, months) => set({ monthlyExpense: monthly, coverMonths: months }),
       budgetType: '',
       startAmount: '',
       targetAmount: '',
@@ -74,7 +81,7 @@ export const useBudgetStore = create<BudgetState>()(
       }),
       removeEntry: (date) => set((s) => ({ log: s.log.filter(e => e.date !== date) })),
       // Plan kaldırılınca tüm bütçe verisi sıfırlanır (kilo geçmişi gibi).
-      reset: () => set({ budgetType: '', startAmount: '', targetAmount: '', log: [], moves: [] }),
+      reset: () => set({ budgetType: '', startAmount: '', targetAmount: '', log: [], moves: [], monthlyExpense: 0, coverMonths: 0 }),
     }),
     { name: 'budget-store', storage: createJSONStorage(() => AsyncStorage) }
   )

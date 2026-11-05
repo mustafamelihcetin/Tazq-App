@@ -24,6 +24,20 @@ export function isWeightEntryTask(t: { title?: string; tags?: string[] | null } 
   return !!t.tags?.includes('weight_entry') || t.title === 'Güncel kilonu gir' || t.title === 'Log current weight';
 }
 
+/**
+ * KURULMAMIŞ AMA BAŞLAMIŞ GÖRÜNEN PLAN (2026-11-05, kullanıcı: "planım sayfası bomboş"). Eskiden "Kilo Yönetimi" seçeneğine dokunmak zincir onarımını
+ * tetikliyor, tartım görevi plana yazılıyor, plan başlamış sayılıyor ve form kapanıyordu. Rutin yok, kilo bilgisi yok, tek görev tartım: kullanıcı planı hiç seçmemiş.
+ */
+export function isPhantomKiloPlan(
+  plan: { taskIds: number[]; habitIds: string[] },
+  spor: { currentWeight: string; targetWeight: string; weightLog: unknown[] },
+  tasks: { id: number; title?: string; tags?: string[] | null }[],
+): boolean {
+  if (plan.habitIds.length > 0 || plan.taskIds.length === 0) return false;
+  if (spor.currentWeight.trim() || spor.targetWeight.trim() || spor.weightLog.length > 0) return false;
+  return plan.taskIds.every(id => { const t = tasks.find(x => x.id === id); return !t || isWeightEntryTask(t); });
+}
+
 /** Son tartımın üstünden geçen tam gün sayısı (kayıt yoksa null). */
 export function daysSinceLastWeight(log: { date: string }[]): number | null {
   if (!log || log.length === 0) return null;

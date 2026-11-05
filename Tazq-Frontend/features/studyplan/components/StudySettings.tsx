@@ -9,7 +9,7 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { deviceWeekStart } from '@/shared/components/MonthCalendar';
 import { toDateKey } from '@/shared/utils/dateKey';
-import { blueprintFor } from '../data/blueprints';
+import { currentTrack, trackChanges, tracksFor, blueprintFor } from '../data/blueprints';
 import { useStudyPlanStore } from '../store/useStudyPlanStore';
 import { Course, makeId, PlanRecord } from '../utils/planCore';
 import type { StartLevel } from '../utils/scheduler';
@@ -158,6 +158,25 @@ export function StudySettings({ plan, c, lang, today, onChanged }: { plan: PlanR
             )}
         </View>
       )}
+
+      {bp && tracksFor(bp.examId).length > 0 && (() => {
+        const ids = bp.subjects.map(x => x.id);
+        const on = currentTrack(tracksFor(bp.examId), ids, plan.excluded);
+        return (
+          <View style={[st.card, { backgroundColor: theme.surfaceCard }]}>
+            <Text accessibilityRole="header" style={st2(theme).title}>{c.trackTitle}</Text>
+            <Text style={st2(theme).hint}>{c.trackHint}</Text>
+            <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
+              {tracksFor(bp.examId).map(t => (
+                <Touchable key={t.id} accessibilityRole="radio" accessibilityState={{ selected: on === t.id }} onPress={() => { trackChanges(t, ids, plan.excluded).forEach(x => store.setExcluded(plan.key, x.id, x.excluded, today)); onChanged(); }}
+                  style={{ minHeight: MIN_TOUCH, paddingHorizontal: S.md, borderRadius: R.full, alignItems: 'center', justifyContent: 'center', backgroundColor: on === t.id ? theme.primary : theme.surfaceContainerHigh }}>
+                  <Text style={{ fontSize: F.footnote, fontWeight: W.semibold, color: on === t.id ? theme.onPrimary : theme.onSurface }}>{t[lang]}</Text>
+                </Touchable>
+              ))}
+            </View>
+          </View>
+        );
+      })()}
 
       {bp && (
         <View style={[st.card, { backgroundColor: theme.surfaceCard }]}>

@@ -215,7 +215,8 @@ describe('yoğunluk', () => {
      *   uzun basışın tanınması hissedilir; eskiden uzun bas doğrudan silme uyarısı açıyordu).
      * → 354 (2026-10-31): YALNIZ süper adminin açılış kartı — şimdi oynat, sürüm seçimi, aç/kapa
      *   (kullanıcı bu ekranı hiç görmez; diğer seçim satırlarıyla aynı seçim tiki).
+     * → 358 (2026-11-05): rota bitişi, su bardağında yudum ve yudumu geri alma (dokunuşa yanıt; boşta titreşim yok).
      */
-    expect(hap).toBeLessThanOrEqual(354);
+    expect(hap).toBeLessThanOrEqual(358);
   });
 });

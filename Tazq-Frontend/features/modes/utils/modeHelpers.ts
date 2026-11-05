@@ -14,6 +14,7 @@
  * her zaman aynı rengi gösterir. Eski hâlde theme.primary/secondary/... kullanıldığı
  * için spor yeşil, mülakat mor görünüp kartlarla çelişiyordu.
  */
+import { ramadanGoalDate } from '@/features/modes/utils/ramadanPreview';
 import { localizeSporGoal } from './turkishModes';
 import { swallow } from '@/shared/utils/swallow';
 import { parseDateKey, calendarDayOf } from '@/shared/utils/dateKey';
@@ -275,12 +276,8 @@ const getModeInfoForTaskRaw = (task: TaskLike | number, prefsStoreState: any) =>
 
   // ── RAMAZAN ──
   if (p.ramazanPlanTaskIds?.includes(taskId) || has('ramazan', 'ramazan_kadir')) {
-    const RAMAZAN = [
-      { start: '2026-02-17', end: '2026-03-19' }
-    ];
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const active = RAMAZAN.find(r => todayStr >= r.start && todayStr <= r.end) || RAMAZAN[0];
-    const dl = getDaysLeft(active.end);
+    const period = ramadanGoalDate();
+    const dl = getDaysLeft(period);
     return { color: MODE_COLORS.ramazan, labelTr: 'Ramazan Planı', labelEn: 'Ramadan Plan', daysLeft: dl, unit: 'day' };
   }
 

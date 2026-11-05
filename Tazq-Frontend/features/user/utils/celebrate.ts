@@ -17,7 +17,7 @@ import { usePrefsStore } from '@/features/modes';
  * "gürültü istemiyorum"du, "ilerlememi silin" değil.
  */
 
-export type CelebrationKind = 'first-win' | 'day-cleared' | 'habits-cleared';
+export type CelebrationKind = 'first-win' | 'day-cleared' | 'habits-cleared' | 'route-done';
 
 type CelebrateArgs = {
   kind: CelebrationKind;
@@ -52,6 +52,16 @@ const SPEC: Record<CelebrationKind, {
     body: {
       tr: 'Bugünün tüm görevlerini başarıyla tamamladın!',
       en: 'You completed all of today\'s tasks successfully!',
+    },
+  },
+  'route-done': {
+    points: 20,
+    variant: 'day_cleared',
+    intensity: 'medium',
+    title: { tr: 'Bugünün rotası tamam', en: 'Today’s route is done' },
+    body: {
+      tr: 'Bugün için yeterli. Bıraksan da olur.',
+      en: 'That’s enough for today. You can stop here.',
     },
   },
   'habits-cleared': {

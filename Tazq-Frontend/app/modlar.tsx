@@ -1,3 +1,8 @@
+import { useQuitStore } from '@/shared/store/useQuitStore';
+import { PLAN_COPY } from '@/features/modes/components/plan/planCopy';
+import { useAuthStore } from '@/features/user/store/useAuthStore';
+import { goalAddRows, GoalRows, GoalSummary } from '@/features/modes/components/GoalRows';
+import { useCompactGoals } from '@/features/modes/utils/goalRows';
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, TextInput, Keyboard, Switch, Dimensions, KeyboardAvoidingView, FlatList, Animated, useWindowDimensions } from 'react-native';
 import { swallow } from '@/shared/utils/swallow';
@@ -5,7 +10,7 @@ import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { MotiView, AnimatePresence } from 'moti';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BookOpen, GraduationCap, ChevronRight, CalendarDays, X, BarChart3, Flame, Zap, Sparkles, Target, CheckCircle2, Dumbbell, Activity, FileText, Briefcase, PiggyBank, Ban, Trophy } from 'lucide-react-native';
+import { Moon, BookOpen, GraduationCap, ChevronRight, CalendarDays, X, BarChart3, Flame, Zap, Sparkles, Target, CheckCircle2, Dumbbell, Activity, FileText, Briefcase, PiggyBank, Ban, Trophy } from 'lucide-react-native';
 import { AppIcon } from '@/shared/components/AppIcon';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -20,7 +25,7 @@ import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { useTaskStore } from '@/features/tasks';
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import {
   scheduleExamCountdownNotifs,
   scheduleRamadanStartNotification,
@@ -35,7 +40,8 @@ import { useSporStore, getThisWeekEntry } from '@/features/modes/store/useSporSt
 import { TourTarget } from '@/shared/components/TourContext';
 import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
 import { recordWeeklyWeight, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask, getLocalDateString } from '@/features/modes/utils/weightCheckin';
-import { getCurrentRamadanStatus, formatRamadanDate } from '@/shared/utils/ramadanDates';
+import { formatRamadanDate } from '@/shared/utils/ramadanDates';
+import { canPreviewRamadan, previewStartForDay, ramadanCloseAfter, ramadanRangesNow, ramadanStatusNow } from '@/features/modes/utils/ramadanPreview';
 import { matchExamName, detectExamFromInput, recommendTemplateId, HOURS_OPTIONS, type ExamPreset } from '@/shared/utils/examPresets';
 
 /** Keşif kartlarındaki ÖRNEK GÜN — satır içi dallanma borcu artmasın diye tabloda. */
@@ -216,6 +222,12 @@ export default function ModlarScreen() {
   */
   // Ortak tur kapısı (bkz. firstRun): ilk ziyarette, yalnız ekran öndeyken.
   const tourOn = useTourGate('modlar');
+  const myRole = useAuthStore(s => s.user?.role);
+  const quitCount = useQuitStore(s => s.items.length);
+  const [openGoal, setOpenGoal] = useState<string | null>(null);
+  const goalCardLayout = useRef<Record<string, { y: number; height: number }>>({});
+  const goalRowsY = useRef<Record<string, number>>({});
+  const closeParams = useLocalSearchParams<{ goal?: string; at?: string }>();
   const wide = useWideLayout();     // ≥1100 — sayfa ikiye bölünür
   const tablet = useTabletLayout();  // ≥700  — sütun genişler, kartlar yan yana
   const gridW = Math.min(screenWidth, contentMaxWidth(screenWidth));
@@ -225,7 +237,9 @@ export default function ModlarScreen() {
   const modeCardW = (innerW - S.md) / 2;
   const calendarScale = availableWidth < BASE_CALENDAR_WIDTH ? (availableWidth / BASE_CALENDAR_WIDTH) : 1;
   const { language } = useLanguageStore();
-  const ramadanStatus = useMemo(() => getCurrentRamadanStatus(), []);
+  const previewStart = usePrefsStore(st => st.seasonal.ramazanPreviewStart);
+  const ramazanOn = usePrefsStore(st => st.seasonal.ramazan);
+  const ramadanStatus = useMemo(() => ramadanStatusNow(), [previewStart, ramazanOn]); // eslint-disable-line react-hooks/exhaustive-deps
   const { runAdaptations } = usePlanAdaptations();
   // Mod vurgu paleti Colors.ts'te (ModeAccents) — burada elle yazmak ikinci bir kopya demekti.
   const ramazanAccent = resolveModeAccent('ramazan', isDark);
@@ -514,8 +528,17 @@ export default function ModlarScreen() {
   }, []);
   const focusCard = useCallback((key: string) => {
     clearFocusTimers();
+    setOpenGoal(key);
     let tries = 0;
     const attempt = () => {
+      // Satır düzeninde kartın yeri satırların altındadır (bkz. GoalRows).
+      const row = goalCardLayout.current[key];
+      const rowsTop = cardSection.current[key] != null ? goalRowsY.current[cardSection.current[key]] : undefined;
+      if (row && rowsTop != null && sectionY.current[cardSection.current[key]] != null) {
+        const top = sectionY.current[cardSection.current[key]] + rowsTop + row.y;
+        scrollViewRef.current?.scrollTo({ y: Math.max(0, top - 12), animated: true });
+        return;
+      }
       const y = cardY.current[key];
       const sec = cardSection.current[key];
       const secY = sec != null ? sectionY.current[sec] : undefined;
@@ -529,6 +552,8 @@ export default function ModlarScreen() {
     };
     focusTimersRef.current.push(setTimeout(attempt, 80));
   }, [clearFocusTimers]);
+  // Planım → Ayarlar → "Hedefi düzenle": kartı aç.
+  useEffect(() => { if (closeParams.goal) focusCard(closeParams.goal); }, [closeParams.goal, closeParams.at, focusCard]);
   // Ekrandan çıkarken bekleyen kaydırmayı iptal et (unmount sonrası setState/scroll yok).
   useEffect(() => clearFocusTimers, [clearFocusTimers]);
 
@@ -817,8 +842,17 @@ export default function ModlarScreen() {
     </Reanimated.View>
   ), []);
 
-  const appliedCards = [...modeCards.filter(m => m.applied), ...(seasonal.ramazan && ramazanApplied ? [ramazanCard] : [])].map((m, i) => wrapCard('applied')(m, i));
-  const pendingCards = modeCards.filter(m => !m.applied).map((m, i) => wrapCard('pending')(m, i));
+  const appliedList = [...modeCards.filter(m => m.applied), ...(seasonal.ramazan && ramazanApplied ? [ramazanCard] : [])];
+  const pendingList = modeCards.filter(m => !m.applied);
+  const pendingIds = pendingList.map(m => m.id).join();
+  const prevPending = useRef(pendingIds);
+  // Kurulum bitti: form işini yaptı, satır yeter.
+  useEffect(() => { if (openGoal && prevPending.current.split(',').includes(openGoal) && !pendingIds.split(',').includes(openGoal)) setOpenGoal(null); prevPending.current = pendingIds; }, [pendingIds]); // eslint-disable-line react-hooks/exhaustive-deps
+  // İki ve üstü hedefte kartlar satıra iner, istenince yerinde açılır (bkz. GoalRows).
+  const compactGoals = useCompactGoals(appliedList.length + pendingList.length, tourOn);
+  const asRows = (id: 'applied' | 'pending', list: { id: string; node: React.ReactNode }[]) => <View key={id} onLayout={e => { goalRowsY.current[id] = e.nativeEvent.layout.y; }}><GoalRows section={id} cards={list.map((m, i) => ({ id: m.id, node: wrapCard(id)(m, i) }))} open={openGoal} onOpen={setOpenGoal} onCardLayout={(card, y, height) => { goalCardLayout.current[card] = { y, height }; cardSection.current[card] = id; }} lang={language === 'en' ? 'en' : 'tr'} /></View>;
+  const appliedCards = appliedList.length === 0 ? [] : compactGoals ? [asRows('applied', appliedList)] : appliedList.map((m, i) => wrapCard('applied')(m, i));
+  const pendingCards = pendingList.length === 0 ? [] : compactGoals ? [asRows('pending', pendingList)] : pendingList.map((m, i) => wrapCard('pending')(m, i));
   const upcomingCards = (!seasonal.ramazan || !ramazanApplied) && isRamazanCardVisible(!!seasonal.ramazan, ramadanStatus) ? [wrapCard('upcoming')(ramazanCard, 0)] : [];
 
   const sectionsToRender: Array<{ id: string; title: string; hint?: string; color: string; Icon: any; cards: React.ReactNode }> = [];
@@ -840,7 +874,7 @@ export default function ModlarScreen() {
   if (upcomingCards.length > 0) {
     sectionsToRender.push({
       id: 'upcoming', Icon: CalendarDays, color: ramazanAccent,
-      title: language === 'tr' ? 'Yaklaşan Dönem' : 'Upcoming Season',
+      title: ramadanStatus.isActive ? (language === 'tr' ? 'Ramazan Dönemi' : 'Ramadan Season') : (language === 'tr' ? 'Yaklaşan Dönem' : 'Upcoming Season'),
       cards: upcomingCards,
     });
   }
@@ -897,16 +931,14 @@ export default function ModlarScreen() {
   useEffect(() => {
     if (!seasonal.ramazan) return;
     const now = Date.now();
-    const stillActive = RAMAZAN.some(r => {
+    const stillActive = ramadanRangesNow().some(r => {
       // YEREL GÜN — r.start/r.end 'YYYY-MM-DD'. Ham `new Date()` UTC gece yarısı
       // okur ve negatif UTC-fark saat dilimlerinde bir gün ERKEN kapatırdı: bu
       // efekt Ramazan'ın son günü hâlâ sürerken alışkanlık/görevleri SİLERDİ.
       const s = parseDateKey(r.start);
       s.setDate(s.getDate() - 7);
       s.setHours(0, 0, 0, 0);
-      const e = parseDateKey(r.end);
-      e.setHours(23, 59, 59, 999);
-      return now >= s.getTime() && now <= e.getTime();
+      return now >= s.getTime() && now <= ramadanCloseAfter(parseDateKey(r.end)).getTime();
     });
     if (!stillActive) {
       ramazanPlanHabitIds.forEach(id => removeHabit(id));
@@ -949,6 +981,7 @@ export default function ModlarScreen() {
   const refreshPlans = useCallback(() => { void runAdaptations(true); }, [runAdaptations]);
   const goalHistory = usePrefsStore(s => s.goalHistory);
   const [historyExpanded, setHistoryExpanded] = useState(false);
+  const historyShown = compactGoals ? 1 : 3;
 
   return (
     <PlanRefreshContext.Provider value={refreshPlans}>
@@ -1005,7 +1038,7 @@ export default function ModlarScreen() {
                 ve ekranın kendi işiyle (hangi plan uygulanmış, tur, önizleme) iç içe
                 geçmişti. Kart hiçbir şey HESAPLAMAZ; sayılar burada hesaplanır. */}
             <TourTarget id="presets" spotRadius={R.lg}>
-              <ModeStatusCard
+              {compactGoals && appliedList.length > 0 ? <GoalSummary lang={language === 'en' ? 'en' : 'tr'} /> : <ModeStatusCard
                 language={language === 'en' ? 'en' : 'tr'}
                 goals={demoStatus ? [
                   { days: 42, label: demoCopy.exam, color: resolveModeAccent('exam', isDark), textColor: resolveModeAccentText('exam', isDark), emoji: '🎯', id: 'demo-exam', progress: 0.4 },
@@ -1020,7 +1053,7 @@ export default function ModlarScreen() {
                 fallbackColor={urgencyColor}
                 fallbackTextColor={urgencyTextColor}
                 onOpenToday={() => goHome(router)}
-              />
+              />}
             </TourTarget>
             {/* ── KATMAN 1: AKTİF HEDEFLERİM / KURULUMU TAMAMLA ──
                 Tek bir "Aktif Hedeflerim" başlığı vardı ve koşulu yalnızca ANAHTARIN
@@ -1069,7 +1102,8 @@ export default function ModlarScreen() {
                   yarım sütun genişliğinde bir kaba sarılıp yan yana diziliyor —
                   kartların KENDİ kodu değişmiyor, yalnız içine oturdukları kap.
                 */}
-                {tablet ? (
+                {/* Satır grubu tek parçadır: yarım sütuna sarılınca iPad'de ekranın yarısında kalıyordu. */}
+                {tablet && !compactGoals ? (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.md }}>
                     {React.Children.map(section.cards, (card, i) => (
                       <View key={i} style={{ width: modeCardW }}>{card}</View>
@@ -1082,7 +1116,23 @@ export default function ModlarScreen() {
             {/* ── KATMAN 2: 2 SÜTUNLU KEŞİF IZGARASI (PASİF HEDEFLER) ── */}
             {(() => {
               // Sınav ilk sırada: ürünün çekirdek kitlesi sınav hazırlığı (denetim 2026-10-31).
+              const addRows = compactGoals ? goalAddRows(seasonal, { exam: examApplied || exam2Applied || exam3Applied, mulakat: mulakatApplied || mulakat2Applied || mulakat3Applied, spor: sporApplied || spor2Applied || spor3Applied }, language === 'en' ? 'en' : 'tr', isDark, focusCard, quitCount) : [];
               const discoveryItems = [
+                ...addRows,
+                // Yalnız yönetici görür: takvim dışında Ramazan'ı denemek için (bkz. ramadanPreview).
+                ...(canPreviewRamadan(myRole) ? [{
+                  key: 'ramazan',
+                  active: seasonal.ramazan,
+                  title: PLAN_COPY[language === 'en' ? 'en' : 'tr'].goals.previewTitle,
+                  desc: PLAN_COPY[language === 'en' ? 'en' : 'tr'].goals.previewDesc,
+                  icon: '🌙',
+                  Icon: Moon,
+                  color: ramazanAccent,
+                  textColor: ramazanAccent,
+                  load: PLAN_COPY[language === 'en' ? 'en' : 'tr'].goals.previewDesc,
+                  sample: PLAN_COPY[language === 'en' ? 'en' : 'tr'].goals.previewBadge,
+                  onActivate: () => { setSeasonalPref('ramazanPreviewStart', previewStartForDay(1)); setSeasonalPref('ramazan', true); },
+                }] : []),
                 {
                   key: 'exam',
                   active: seasonal.examMode,
@@ -1210,12 +1260,12 @@ export default function ModlarScreen() {
                             <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body }}>{item.title}</Text>
                             <Text style={{ color: theme.onSurfaceVariant, fontSize: F.footnote }}>{item.desc}</Text>
                             {/* GÜNLÜK YÜK — "bunu açarsam ne kadar iş gelecek?" Beklenti önden kurulur. */}
-                            <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs }}>{item.load}</Text>
+                            {!compactGoals && <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs }}>{item.load}</Text>}
                             {/* ÖRNEK BİR GÜN — soyut yükü somutlaştırır (bkz. DISCOVERY_SAMPLE). */}
-                            <Text style={{ color: item.textColor, fontSize: F.caption, fontWeight: '500' }}>{item.sample}</Text>
+                            {!compactGoals && <Text style={{ color: item.textColor, fontSize: F.caption, fontWeight: '500' }}>{item.sample}</Text>}
                           </View>
                           {/* Fiil dili korunur: Kur → Planı Seç → Planı Başlat (bkz. uxConsistency). Hap değil, iOS liste eylem metni. */}
-                          <Text style={{ color: theme.primary, fontSize: F.footnote, fontWeight: '600', marginLeft: S.sm }}>{language === 'tr' ? 'Kur' : 'Set up'}</Text>
+                          <Text style={{ color: theme.primary, fontSize: F.footnote, fontWeight: '600', marginLeft: S.sm }}>{item.key.startsWith('add-') ? PLAN_COPY[language === 'en' ? 'en' : 'tr'].goals.addCta : language === 'tr' ? 'Kur' : 'Set up'}</Text>
                           <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} style={{ marginLeft: S.xxs }} />
                         </View>
                       </Touchable>
@@ -1248,7 +1298,7 @@ export default function ModlarScreen() {
                   </Text>
                 </View>
                 <View style={[styles.modeCard, { backgroundColor: theme.surfaceCard, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)' }]}>
-                  {goalHistory.slice(0, historyExpanded ? goalHistory.length : 3).map((g, gi) => (
+                  {goalHistory.slice(0, historyExpanded ? goalHistory.length : historyShown).map((g, gi) => (
                     <View
                       key={g.id}
                       accessible
@@ -1267,7 +1317,7 @@ export default function ModlarScreen() {
                       <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{formatPlanDate(g.closedKey, language === 'tr')}</Text>
                     </View>
                   ))}
-                  {goalHistory.length > 3 && (
+                  {goalHistory.length > historyShown && (
                     <Touchable
                       /* Titreşim YOK: bu bir açılır liste, bir karar değil. Aynı ekrandaki
                          menü açma da bilinçli olarak sessiz (bkz. __tests__/haptics.test.ts). */
@@ -1279,7 +1329,7 @@ export default function ModlarScreen() {
                       <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700' }}>
                         {historyExpanded
                           ? HISTORY_COPY[language === 'en' ? 'en' : 'tr'].less
-                          : HISTORY_COPY[language === 'en' ? 'en' : 'tr'].more(goalHistory.length - 3)}
+                          : HISTORY_COPY[language === 'en' ? 'en' : 'tr'].more(goalHistory.length - historyShown)}
                       </Text>
                     </Touchable>
                   )}

@@ -9,6 +9,10 @@ const preset = (id: string, displayName: string, aliases: string[], category: Ex
 });
 
 export const INTL_EXAM_PRESETS: ExamPreset[] = [
+  preset('ags', 'MEB-AGS', ['ags', 'mebags', 'meb-ags', 'meb ags', 'akademigiris', 'ogretmenlik'], 'public', 90, 'Eğitim bilimleri ağırlıklı; ÖABT için kendi alanını da çalış.', 'Weighted toward education; study your subject field too.'),
+  preset('hmgs', 'HMGS', ['hmgs', 'hukukmesleklerinegiris'], 'graduate', 120, 'Geniş kapsam: özel hukuk ve usul düzenli tekrar ister.', 'Broad scope: private law and procedure need regular review.'),
+  preset('yokdil', 'YÖKDİL', ['yokdil', 'yökdil'], 'language', 60, 'Alanının metinlerini oku; kelime ve çeviri belirleyici.', 'Read texts in your field; vocabulary and translation decide a lot.'),
+  preset('ekpss', 'E-KPSS', ['ekpss', 'e-kpss', 'engellikpss'], 'public', 60, 'Kapsam engel grubuna göre değişir; kılavuzu kontrol et.', 'Scope varies by group; check the official guide.'),
   preset('sat', 'SAT', ['sat', 'digitalsat', 'dsat'], 'university', 60, 'Okuma-yazma ve matematik; bölüm denemeleriyle ilerle.', 'Reading, writing and math; progress with timed section practice.'),
   preset('act', 'ACT', ['act', 'actexam'], 'university', 60, 'İngilizce, matematik, okuma; hız ve süre yönetimi belirleyici.', 'English, math and reading; pacing decides a lot.'),
   preset('ap', 'AP Exams', ['ap', 'apexam', 'apexams', 'advancedplacement'], 'university', 60, 'Her ders ayrı: konularını kendin ekle.', 'Each subject is separate: add your own topics.'),

@@ -9,7 +9,7 @@ import { useActiveTasks, getLocalizedTaskTitle, isSomeday, type Task } from '@/f
 import { calendarDayOf, dateKeyFromNow } from '@/shared/utils/dateKey';
 import { whenLabel } from '@/features/tasks/utils/horizon';
 import { useFocusSheetTheme } from '@/features/focus/hooks/useFocusSheetTheme';
-import { isFocusWorthy } from '@/features/focus/focusWorthy';
+import { canAttachFocus, isFocusWorthy } from '@/features/focus/focusWorthy';
 import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 
 /**
@@ -122,11 +122,11 @@ export function orderForFocus(tasks: Task[], today: string): Task[] {
   const workable = tasks.filter((t) => {
     if (!t || t.isCompleted || isSomeday(t)) return false;
     if ((t.tags ?? []).some((tag) => REMINDER_TAGS.has(tag))) return false;
-    if (!isFocusWorthy(t)) return false; // anlık eylem (su iç, tartıl…) seansa bağlanmaz
+    if (!canAttachFocus(t)) return false; // gün boyu iş (su, uyku) seansa bağlanmaz; gerisini kullanıcı seçebilir
     const day = calendarDayOf(t.dueDate);
     return !day || day <= today; // ileri tarihli iş bugünün konusu değil
   });
-  return workable
+  return [...workable.filter(isFocusWorthy), ...workable.filter(t => !isFocusWorthy(t))]
     .map((t, i) => ({ t, i, day: calendarDayOf(t.dueDate) }))
     // Önce tarihli olanlar (eskiden yeniye), tarihsizler en sonda
     .sort((a, b) => (!!a.day !== !!b.day ? (a.day ? -1 : 1) : (a.day ?? '') !== (b.day ?? '') ? (a.day ?? '').localeCompare(b.day ?? '') : a.i - b.i))

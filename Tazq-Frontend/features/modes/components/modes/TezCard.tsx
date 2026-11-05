@@ -4,6 +4,7 @@
  * Sadece UI state'i (expand, date picker) lokal. Önizleme/apply akışı modlar'da
  * merkezi olduğundan `onOpenPreview` prop'u ile tetiklenir.
  */
+import { useCloseRequest } from '@/features/modes/store/useGoalCloseStore';
 import React, { useState, useEffect } from 'react';
 import { View, Text, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -25,7 +26,7 @@ import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { ModePlanSummary } from '@/features/modes/components/ModePlanSummary';
 import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 import { haptic } from '@/shared/utils/haptics';
-import { openPlan, PlanLink } from '@/features/modes/components/plan/PlanLink';
+import { PlanLink } from '@/features/modes/components/plan/PlanLink';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { useModeCompletionReview } from '@/features/modes/hooks/useModeCompletionReview';
 import { completionCopy } from '@/features/modes/utils/modeCompletion';
@@ -113,6 +114,7 @@ clearPlanIds('tez');
     setSeasonalPref('tezDate', null);
     setExpanded(false);
   };
+  useCloseRequest('tez', () => closeModeWithUndo('tez', closePlan, tr ? 'Tez modu kapatıldı' : 'Thesis mode closed', tr ? 'Geri al' : 'Undo'));
 
   return (
     <View style={[styles_modeCard, { backgroundColor: theme.surfaceCard, borderColor: seasonal.tezMode && isComplete ? (past ? theme.error + '40' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)')) : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }]}>
@@ -147,10 +149,14 @@ clearPlanIds('tez');
               <View style={{ paddingTop: S.xs }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>
                   <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{name}</Text>
-                  <Touchable accessibilityRole="button" onPress={() => { haptic.surface(); if (hasPlan) openPlan('tez'); else onOpenPreview(); }} activeOpacity={0.7} style={{ paddingVertical: S.xs, paddingHorizontal: S.xxs }}>
-                    <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'Planım ›' : 'My plan ›') : (tr ? 'Planı Seç ›' : 'Choose Plan ›')}</Text>
-                  </Touchable>
-                  <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
+                  {!hasPlan && (
+                    <>
+                      <Touchable accessibilityRole="button" onPress={() => { haptic.surface(); onOpenPreview(); }} activeOpacity={0.7} style={{ paddingVertical: S.xs, paddingHorizontal: S.xxs }}>
+                        <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text>
+                      </Touchable>
+                      <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
+                    </>
+                  )}
                   <Touchable accessibilityRole="button" onPress={() => { haptic.select(); setExpanded(true); }} activeOpacity={0.7}>
                     <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Düzenle' : 'Edit'}</Text>
                   </Touchable>
@@ -167,6 +173,7 @@ clearPlanIds('tez');
                   lifecycle={lifecycle}
                   personalNote={planSpecs.tez?.personalNote}
                 />
+                <PlanLink slot="tez" />
                 {!hasPlan && (
                   <Touchable accessibilityRole="button"
                     onPress={() => { haptic.surface(); onOpenPreview(); }}

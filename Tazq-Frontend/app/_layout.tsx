@@ -102,6 +102,7 @@ import { CustomAlertModal } from '@/shared/components/CustomAlert';
 import { NotificationPrimer } from '@/shared/components/NotificationPrimer';
 import { Asset } from 'expo-asset';
 import { useOfflineSync } from '@/shared/hooks/useOfflineSync';
+import { useConnectivityProbe } from '@/shared/hooks/useConnectivityProbe';
 import { usePrefsSync } from '@/shared/hooks/usePrefsSync';
 import { useHabitsSync } from '@/features/habits/hooks/useHabitsSync';
 import { usePlanAdaptations } from '@/features/modes';
@@ -202,6 +203,7 @@ export default function RootLayout() {
 
   // Replay queued offline operations when connection is restored
   useOfflineSync();
+  useConnectivityProbe(`${api.defaults.baseURL}/health`);
   usePrefsSync();
   // Alışkanlıklar hesaba eşitlenir — çıkışta/telefon değişince seriler kaybolmasın (bkz. habitsSync).
   useHabitsSync();

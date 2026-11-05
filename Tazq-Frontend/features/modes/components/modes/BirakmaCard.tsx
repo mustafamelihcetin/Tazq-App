@@ -1,3 +1,6 @@
+import { GOAL_LIMITS, quitRoomLeft } from '@/features/modes/utils/goalRows';
+import { PLAN_COPY } from '@/features/modes/components/plan/planCopy';
+import { useAddRequest, useCloseRequest } from '@/features/modes/store/useGoalCloseStore';
 import { PlanLink } from '@/features/modes/components/plan/PlanLink';
 /**
  * BirakmaCard — Bırakma modu kartı (ÇOKLU). Aynı anda birden çok şey bırakılabilir;
@@ -86,7 +89,9 @@ export function BirakmaCard() {
   ];
 
   const selectedKeys = TYPES.filter(t => sel[t.key]).map(t => t.key);
-  const addValid = selectedKeys.length > 0 && (!sel['ozel'] || customName.trim().length > 0);
+  const room = quitRoomLeft(items.length, selectedKeys.length);
+  const full = quitRoomLeft(items.length) === 0;
+  const addValid = selectedKeys.length > 0 && !full && items.length + selectedKeys.length <= GOAL_LIMITS.birakma && (!sel['ozel'] || customName.trim().length > 0);
 
   // Sunucu tarafı idempotency — bkz. usePlanAdaptations.ts `makeClientKey` notu:
   // aynı kullanıcı + aynı anahtar + tamamlanmamışsa sunucu yenisini oluşturmaz.
@@ -121,20 +126,17 @@ export function BirakmaCard() {
       habitIds.push(id);
     });
     const taskIds: number[] = [];
-    const birakmaLabel = tr ? 'Bırakma' : 'Quit';
-    const withLabel = (text: string) => (birakmaLabel && !text.toLowerCase().includes(birakmaLabel.toLowerCase()) ? `${birakmaLabel}: ${text}` : text);
+    // Önek metnin dilinde: İngilizce başlığa Türkçe önek gidiyordu.
+    const withLabel = (text: string, isTr: boolean) => { const l = isTr ? 'Bırakma' : 'Quit'; return text.toLowerCase().includes(l.toLowerCase()) ? text : `${l}: ${text}`; };
     useStagedPlanStore.getState().setQueue('birakma', interleaveStaged(
-      staged.tasksLater.map(t => ({ titleTr: withLabel(t.title), titleEn: withLabel(t.titleEn), descTr: t.desc, descEn: t.descEn, priority: t.priority, tags: t.tags ?? [] })),
+      staged.tasksLater.map(t => ({ titleTr: withLabel(t.title, true), titleEn: withLabel(t.titleEn, false), descTr: t.desc, descEn: t.descEn, priority: t.priority, tags: t.tags ?? [] })),
       [...staged.habitsNow.slice(room), ...staged.habitsLater].map(h => ({ nameTr: h.name, nameEn: h.nameEn ?? h.name, emoji: h.emoji, color: h.color, modeType: 'birakma' })),
     ));
     for (const t of staged.tasksNow) {
       let taskTitleTr = t.title;
       let taskTitleEn = t.titleEn;
-      if (birakmaLabel) {
-        const bLower = birakmaLabel.toLowerCase();
-        if (!taskTitleTr.toLowerCase().includes(bLower)) taskTitleTr = `${birakmaLabel}: ${taskTitleTr}`;
-        if (!taskTitleEn.toLowerCase().includes(bLower)) taskTitleEn = `${birakmaLabel}: ${taskTitleEn}`;
-      }
+      taskTitleTr = withLabel(taskTitleTr, true);
+      taskTitleEn = withLabel(taskTitleEn, false);
       const id = await createPlanTask({
         title: tr ? taskTitleTr : taskTitleEn,
         description: JSON.stringify({ tr: taskTitleTr, en: taskTitleEn, descTr: t.desc, descEn: t.descEn }),
@@ -167,19 +169,12 @@ export function BirakmaCard() {
     const { habitIds, taskIds } = await ensureBasePlan();
     // Yeni seçilen her tür için TİPE ÖZEL görevleri paylaşılan plana ekle.
     // (Tür çipleri zaten eklenmişse devre dışı → aynı türün görevleri tekrarlanmaz.)
-    for (const k of selectedKeys) {
-      for (const t of birakmaTypeTasks(k)) {
-        const id = await createPlanTask({
-          title: tr ? t.title : t.titleEn,
-          description: JSON.stringify({ tr: t.title, en: t.titleEn, descTr: t.desc, descEn: t.descEn }),
-          priority: t.priority,
-          isCompleted: false,
-          tags: t.tags
-        });
-        if (id != null) taskIds.push(id);
-      }
-    }
+    // Sıraya girer, her gün biri açılır: iki şey seçen kullanıcı ilk gün 5 işle başlıyordu (cihazda görüldü).
+    const later = selectedKeys.flatMap(k => birakmaTypeTasks(k)).map(t => ({ titleTr: t.title, titleEn: t.titleEn, descTr: t.desc, descEn: t.descEn, priority: t.priority, tags: t.tags ?? [] }));
+    const staged = useStagedPlanStore.getState();
+    staged.setQueue('birakma', [...interleaveStaged(later, []), ...(staged.queues.birakma?.items ?? [])]);
     setPlanIds('birakma', habitIds, taskIds);
+    usePrefsStore.getState().setPlanSpec('birakma', { ...usePrefsStore.getState().planSpecs.birakma });
     setSeasonalPref('birakmaMode', true);
     selectedKeys.forEach(k => {
       const label = k === 'ozel' ? customName.trim() : birakmaTypeLabel(k, tr);
@@ -209,6 +204,8 @@ export function BirakmaCard() {
     reset();
     setExpanded(false);
   };
+  useAddRequest('birakma', () => setExpanded(true));
+  useCloseRequest('birakma', () => closeModeWithUndo('birakma', closePlan, tr ? 'Bırakma modu kapatıldı' : 'Quit mode closed', tr ? 'Geri al' : 'Undo'));
 
   const removeOne = (id: string) => {
     removeItem(id);
@@ -253,6 +250,7 @@ export function BirakmaCard() {
       {seasonal.birakmaMode && applied && (
         <View style={{ paddingHorizontal: S.md, paddingBottom: S.md, gap: S.sm }}>
           {/* Ara verme ve kat edilen yol — yedi modun ortak satırı (bkz. PlanPauseRow). */}
+          <PlanLink slot="birakma" />
           <PlanLifecycleRow tr={tr} accent={C} accentText={C_TX} lifecycle={lifecycle} hasPlan={applied} />
           {items.map(it => {
             const days = getCleanDays(it.start);
@@ -301,13 +299,14 @@ export function BirakmaCard() {
       {/* CONFIG: çoklu seçim */}
       {seasonal.birakmaMode && expanded && (
         <FormReveal style={{ paddingHorizontal: S.md, paddingBottom: S.md, gap: S.sm }}>
+          {room === 0 && <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted }}>{PLAN_COPY[language === 'en' ? 'en' : 'tr'].goals.quitFull}</Text>}
           <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant }}>{tr ? 'Neyi bırakıyorsun? (çoklu seçilebilir)' : 'What are you quitting? (multi-select)'}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
             {TYPES.map(t => {
               const active = !!sel[t.key];
               const already = items.some(i => i.type === t.key) && t.key !== 'ozel';
               return (
-                <Touchable accessibilityRole="button" accessibilityState={{ selected: active }} key={t.key} disabled={already} onPress={() => { haptic.select(); setSel(s => ({ ...s, [t.key]: !s[t.key] })); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, opacity: already ? 0.4 : 1, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
+                <Touchable accessibilityRole="button" accessibilityState={{ selected: active }} key={t.key} disabled={already || (!active && room === 0)} onPress={() => { haptic.select(); setSel(s => ({ ...s, [t.key]: !s[t.key] })); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, opacity: already ? 0.4 : 1, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
                   {renderModeEmojiIcon(t.emoji, 14, active ? C : theme.onSurfaceVariant)}
                   <Text style={{ fontSize: F.caption, fontWeight: '500', color: active ? C : theme.onSurfaceVariant }}>{tr ? t.tr : t.en}{already ? ' ✓' : ''}</Text>
                 </Touchable>
@@ -348,7 +347,6 @@ export function BirakmaCard() {
       )}
       {/* Sağlık/finans verisi sunucuya gitmez — kullanıcı bunu veriyi girerken bilsin (bkz. DeviceOnlyNote). */}
       {seasonal.birakmaMode && <DeviceOnlyNote kind="health" />}
-      {seasonal.birakmaMode && <PlanLink slot="birakma" />}
       {seasonal.birakmaMode && (
         <ModeCardClose
           mode="birakma"

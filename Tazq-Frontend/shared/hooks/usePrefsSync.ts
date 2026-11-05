@@ -49,8 +49,14 @@ export function usePrefsSync() {
     const { useMomentumStore } = require('@/features/user/store/useMomentumStore');
     const unsubAch = useAchievementStore.subscribe((st: { unlocked: string[] }, prev: { unlocked: string[] }) => { if (st.unlocked !== prev.unlocked) schedule(); });
     const unsubMom = useMomentumStore.subscribe((st: { history: unknown[] }, prev: { history: unknown[] }) => { if (st.history !== prev.history) schedule(); });
+    // Aynı delik sınav planı ve öğrenmede de vardı: çevrimdışı kaydedilen deneme cihazda kalıyor, internet gelince gönderilmiyordu (2026-11-05).
+    const { useStudyPlanStore } = require('@/features/studyplan/store/useStudyPlanStore');
+    const { usePlanAffinityStore } = require('@/features/modes/store/usePlanAffinityStore');
+    const studyStamp = (st: { plans: Record<string, { at?: number; mocks?: unknown[] }> }) => Object.values(st.plans).map(p => `${p.at ?? 0}:${p.mocks?.length ?? 0}`).join();
+    const unsubStudy = useStudyPlanStore.subscribe((st: never, prev: never) => { if (studyStamp(st) !== studyStamp(prev)) schedule(); });
+    const unsubAffinity = usePlanAffinityStore.subscribe((st: { bySlot: unknown }, prev: { bySlot: unknown }) => { if (st.bySlot !== prev.bySlot) schedule(); });
     return () => {
-      unsub(); unsubAch(); unsubMom();
+      unsub(); unsubAch(); unsubMom(); unsubStudy(); unsubAffinity();
       if (timer.current) clearTimeout(timer.current);
     };
   }, []);

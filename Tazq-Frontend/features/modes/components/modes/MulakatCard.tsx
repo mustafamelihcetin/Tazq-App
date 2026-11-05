@@ -2,6 +2,7 @@
  * MulakatCard — "İş Mülakatı" dönemsel modu (3 slot). modlar.tsx'ten çıkarıldı.
  * Veri doğrudan `seasonal` store'dan (desync yok). Önizleme/apply merkezi → onOpenPreview.
  */
+import { useAddRequest, useCloseRequest } from '@/features/modes/store/useGoalCloseStore';
 import React, { useState, useEffect } from 'react';
 import { View, Text, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -23,7 +24,7 @@ import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { ModePlanSummary } from '@/features/modes/components/ModePlanSummary';
 import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 import { haptic } from '@/shared/utils/haptics';
-import { openPlan, PlanLink } from '@/features/modes/components/plan/PlanLink';
+import { PlanLink } from '@/features/modes/components/plan/PlanLink';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { useModeCompletionReview } from '@/features/modes/hooks/useModeCompletionReview';
 import { completionCopy } from '@/features/modes/utils/modeCompletion';
@@ -99,6 +100,8 @@ function SecondarySlot({ slot, nameKey, dateKey, placeholder, onOpenPreview }: {
     setSeasonalPref(nameKey, ''); setSeasonalPref(dateKey, null);
     setExpanded(false);
   };
+  useCloseRequest(slot, del);
+  useAddRequest(slot, () => setExpanded(true));
 
   return (
     <View style={{ marginTop: S.xs }}>
@@ -120,7 +123,6 @@ function SecondarySlot({ slot, nameKey, dateKey, placeholder, onOpenPreview }: {
           <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption, flex: 1 }}>{slot === 'mulakat2' ? (tr ? 'İkinci mülakat ekle' : 'Add second interview') : (tr ? 'Üçüncü mülakat ekle' : 'Add third interview')}</Text>
         </Touchable>
       ) : null}
-      {complete && !expanded && <PlanLink slot={slot} />}
       {expanded && (
         <FormReveal style={{ gap: S.sm }}>
           <ModeField accent={ACCENT} height={40} inputStyle={{ fontSize: F.caption }} value={name} onChangeText={(v) => setSeasonalPref(nameKey, v)} placeholder={placeholder} returnKeyType="done" maxLength={60} />
@@ -235,6 +237,12 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
     setSeasonalPref('mulakatMode', false); setSeasonalPref('mulakatName', ''); setSeasonalPref('mulakatDate', null);
     setExpanded(false);
   };
+  useAddRequest('mulakat', () => setExpanded(true));
+  useCloseRequest('mulakat', () => {
+    if (!seasonal.mulakat2Name && !seasonal.mulakat3Name) { closeModeWithUndo('mulakat', closePlan, tr ? 'Mülakat modu kapatıldı' : 'Interview mode closed', tr ? 'Geri al' : 'Undo'); return; }
+    mulakatPlanHabitIds.forEach(id => removeHabit(id)); mulakatPlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat')); clearPlanIds('mulakat');
+    setSeasonalPref('mulakatName', ''); setSeasonalPref('mulakatDate', null);
+  });
 
   return (
     <View style={{ borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', backgroundColor: theme.surfaceCard, borderColor: seasonal.mulakatMode && isComplete ? (past ? theme.error + '40' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)')) : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }}>
@@ -270,10 +278,14 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
                 <View style={{ paddingTop: S.xs }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>
                     <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{name}</Text>
-                    <Touchable accessibilityRole="button" onPress={() => { haptic.surface(); if (hasPlan) openPlan('mulakat'); else onOpenPreview('mulakat'); }} activeOpacity={0.7} style={{ paddingVertical: S.xs, paddingHorizontal: S.xxs }}>
-                      <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'Planım ›' : 'My plan ›') : (tr ? 'Planı Seç ›' : 'Choose Plan ›')}</Text>
-                    </Touchable>
-                    <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
+                    {!hasPlan && (
+                      <>
+                        <Touchable accessibilityRole="button" onPress={() => { haptic.surface(); onOpenPreview('mulakat'); }} activeOpacity={0.7} style={{ paddingVertical: S.xs, paddingHorizontal: S.xxs }}>
+                          <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text>
+                        </Touchable>
+                        <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
+                      </>
+                    )}
                     <Touchable accessibilityRole="button" onPress={() => { haptic.select(); setExpanded(true); }} activeOpacity={0.7}>
                       <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Düzenle' : 'Edit'}</Text>
                     </Touchable>
@@ -290,6 +302,7 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
                     lifecycle={lifecycle}
                     personalNote={planSpecs.mulakat?.personalNote}
                   />
+                  <PlanLink slot="mulakat" />
                 </View>
               </View>
 

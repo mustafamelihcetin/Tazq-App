@@ -873,7 +873,8 @@ export function buildRamazanAdaptationTasks(
   const tasks: CreateTaskPayload[] = [];
   const tr = lang === 'tr';
 
-  if (daysLeft <= 5 && daysLeft >= 0 && !hasDuplicateAdaptation(existingTasks, 'ramazan_kadir', 10, true)) {
+  // Kadir Gecesi 26 Ramazan'a bağlanır; son günlerde "yaklaşıyor" yanlış olurdu (2027: Kadir 5 Mart, son gün 8 Mart).
+  if (daysLeft <= 10 && daysLeft >= 4 && !hasDuplicateAdaptation(existingTasks, 'ramazan_kadir', 10, true)) {
     tasks.push({
       title: tr ? `Kadir Gecesi yaklaşıyor — son 10 gece ibadet programı yap` : `Laylat al-Qadr approaching — plan worship schedule for last 10 nights`,
       description: JSON.stringify({ tr: `Kadir Gecesi yaklaşıyor — son 10 gece ibadet programı yap`, en: `Laylat al-Qadr approaching — plan worship schedule for last 10 nights` }),

@@ -15,6 +15,7 @@ import type { PlanCopy } from './planCopy';
   altında önümüzdeki günler. Uzak günler tahmindir ve öyle yazar.
 */
 const AHEAD_DAYS = 5;
+const LOCALE = { tr: 'tr-TR', en: 'en-US' };
 
 export function PlanRoad({ plan, c, lang, accent, milestones }: { plan: ActivePlan; c: PlanCopy; lang: 'tr' | 'en'; accent: string; milestones?: { label: string; done: boolean }[] }) {
   const { theme } = useAppTheme();
@@ -54,7 +55,7 @@ export function PlanRoad({ plan, c, lang, accent, milestones }: { plan: ActivePl
         <Text style={{ fontSize: F.footnote, color: theme.onSurfaceMuted, paddingBottom: S.xs }}>{c.aheadHint}</Text>
         {ahead.map(day => (
           <View key={day.date.toISOString()} style={st.day}>
-            <Text style={{ fontSize: F.footnote, fontWeight: W.semibold, color: theme.onSurfaceVariant }}>{day.date.toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { weekday: 'long', day: 'numeric', month: 'short' })}</Text>
+            <Text style={{ fontSize: F.footnote, fontWeight: W.semibold, color: theme.onSurfaceVariant }}>{day.date.toLocaleDateString(LOCALE[lang], { weekday: 'long', day: 'numeric', month: 'short' })}</Text>
             {day.titles.length === 0 && <Text style={{ fontSize: F.footnote, color: theme.onSurfaceMuted }}>{c.aheadRest}</Text>}
             {day.titles.map(t => <Text key={t} style={{ fontSize: F.body, color: theme.onSurface }}>{withoutGoalName(t, plan.name)}</Text>)}
           </View>

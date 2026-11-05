@@ -120,7 +120,16 @@ describe('classifyMovementTask — hangi görev veriyle kanıtlanabilir', () => 
       'move: İftar sonrası en az 30 dk hafif aktif ol (mobilite/esneme)',
       'run: Bugünkü koşunu planına göre tamamla',
       'workout: Bugünkü antrenman bölünmeni (split) tamamla',
-    ]);
+      // Görev kütüphanesi (2026-11-05): yalnız gerçek koşu, antrenman ve yürüyüş.
+      'move: 20 dakika tempolu yürü', // kilo ve genel havuzda
+      'move: 20 dakika tempolu yürü',
+      'run: 20 dakika yarış temposunda koş',
+      'run: 6 x 1 dakika hızlı, 2 dakika yavaş koş',
+      'run: Kolay tempoda koş: konuşabilecek hızda',
+      'run: Koşu sonunda 4 x 20 saniye hızlan',
+      'workout: Alt vücut antrenmanı: çömelme ve kalça menteşesi',
+      'workout: Üst vücut antrenmanı: itme ve çekme hareketleri',
+    ].sort());
   });
 });
 

@@ -1,3 +1,4 @@
+import { ramadanGoalDate } from '@/features/modes/utils/ramadanPreview';
 import { calendarDayOf } from '@/shared/utils/dateKey';
 import type { PlanMode, SeasonalPrefs } from '@/features/modes/store/usePrefsStore';
 
@@ -46,7 +47,7 @@ export function planHasItems(p: PrefsLike, slot: string): boolean {
 export function activePlans(p: PrefsLike): ActivePlan[] {
   return PLAN_SLOTS
     .filter(r => r.on(p.seasonal) && planHasItems(p, r.slot))
-    .map((r): ActivePlan => ({ slot: r.slot, type: r.type, name: r.name(p.seasonal), date: r.date ? calendarDayOf(p.seasonal[r.date] as string | null) : null, dateKey: r.date }))
+    .map((r): ActivePlan => ({ slot: r.slot, type: r.type, name: r.name(p.seasonal), date: r.type === 'ramazan' ? ramadanGoalDate() : r.date ? calendarDayOf(p.seasonal[r.date] as string | null) : null, dateKey: r.date }))
     .sort((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999'));
 }
 

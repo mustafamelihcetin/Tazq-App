@@ -16,6 +16,7 @@ const LATE: PlanStage[] = ['late', 'eve'];
 const NOT_LATE: PlanStage[] = ['early', 'mid'];
 
 export const TEZ_LIBRARY: LibraryTask[] = [
+  T('Yarın için yaz: saat kaçta, nerede, hangi bölümü yazacaksın', 'Write down for tomorrow: what time, where and which section', 'tez_writing'),
   T('Araştırma sorunu tek cümleyle yaz, danışmanına gösterilecek kadar net olsun', 'Write your research question in one sentence, clear enough to show your advisor', 'tez_literature', EARLY),
   T('Konunla ilgili 2 yeni makale bul, özetlerini oku', 'Find 2 new papers on your topic and read the abstracts', 'tez_literature', NOT_LATE),
   T('Okuduğun bir makaleden 3 not çıkar, kendi cümlelerinle', 'Take 3 notes from a paper in your own words', 'tez_literature', NOT_LATE),
@@ -26,7 +27,7 @@ export const TEZ_LIBRARY: LibraryTask[] = [
   T('25 dakika ara vermeden yaz, düzeltmeyi sonraya bırak', 'Write for 25 minutes without stopping; fix it later', 'tez_writing', NOT_LATE),
   T('Bir paragrafı baştan yaz, ilk cümlesi ana fikri söylesin', 'Rewrite one paragraph so its first sentence states the main idea', 'tez_writing'),
   T('Yazdığın bir bölümü sesli oku, takıldığın cümleleri işaretle', 'Read a section aloud and mark where you stumble', 'tez_writing'),
-  T('Uzun bir cümleyi ikiye böl, üç yerde tekrar eden kelimeyi değiştir', 'Split one long sentence and replace a repeated word in three places', 'tez_writing'),
+  T('Uzun bir cümleyi ikiye böl, üç yerde tekrar eden kelimeyi değiştir', 'Break one long sentence in two and replace a repeated word in three places', 'tez_writing'),
   T('Giriş bölümünde tezin amacını gözden geçir', 'Review the aim of your thesis in the introduction', 'tez_writing', MID),
   T('Bölüm sonunda iki cümlelik özet yaz, sonraki bölüme bağla', 'End a chapter with a two-sentence summary that links to the next', 'tez_writing', MID),
   T('Danışmanına kısa bir ilerleme notu gönder', 'Send your advisor a short progress note', 'tez_writing'),
@@ -49,6 +50,7 @@ export const TEZ_LIBRARY: LibraryTask[] = [
 ];
 
 export const MULAKAT_LIBRARY: LibraryTask[] = [
+  T('Eğer takılırsan ne diyeceğini tek cümleyle hazırla', 'Prepare one sentence for when you get stuck', 'interview_behavioral'),
   T('İlanı satır satır oku, istenen 5 beceriyi çıkar', 'Read the posting line by line and pick out 5 required skills', 'interview_company', EARLY),
   T('CV’nde bu pozisyonla en ilgili 3 maddeyi öne al', 'Move the 3 most relevant CV items to the top', 'interview_company', EARLY),
   T('LinkedIn başlığını bu role göre güncelle', 'Update your LinkedIn headline for this role', 'interview_company', EARLY),
@@ -76,7 +78,7 @@ export const MULAKAT_LIBRARY: LibraryTask[] = [
   T('Bu rol için piyasa maaşını 2 kaynaktan araştır', 'Check market pay for this role from 2 sources', 'interview_salary', NOT_LATE),
   T('Maaş beklentini aralık olarak ve gerekçesiyle yaz', 'Write your salary range with your reasoning', 'interview_salary', MID),
   T('Teklif gelirse soracağın 3 şeyi yaz', 'Write 3 things to ask if you get an offer', 'interview_salary', LATE),
-  T('Birinden deneme mülakatı yapmasını iste', 'Ask someone to run a mock interview with you', undefined, ['mid', 'late']),
+  T('Birinden deneme mülakatı yapmasını iste', 'Ask someone to do a mock interview with you', undefined, ['mid', 'late']),
   T('15 dakikalık deneme mülakatı yap, kendini kaydet', 'Do a 15-minute mock interview and record yourself', undefined, ['late']),
   T('En güçlü 3 hikayeni tek cümleyle özetle', 'Sum up your 3 strongest stories in one sentence each', undefined, ['late', 'eve']),
   T('Saat, yol, kıyafet ve belgeleri kontrol et', 'Check the time, route, outfit and documents', undefined, ['eve']),
@@ -85,6 +87,7 @@ export const MULAKAT_LIBRARY: LibraryTask[] = [
 ];
 
 export const KILO_LIBRARY: LibraryTask[] = [
+  T('Bir eğer-ise cümlesi yaz: canım tatlı isterse meyve yerim gibi', 'Write an if-then line: if I crave sweets, I’ll have fruit', 'spor_kilo_beslenme'),
   T('Bir öğüne avuç içi kadar protein ekle', 'Add a palm-sized portion of protein to a meal', 'spor_kilo_beslenme'),
   T('Tabağının yarısını sebzeyle doldur', 'Fill half your plate with vegetables', 'spor_kilo_beslenme'),
   T('Şekerli bir içeceği suyla değiştir', 'Swap one sugary drink for water', 'spor_kilo_beslenme'),
@@ -95,9 +98,9 @@ export const KILO_LIBRARY: LibraryTask[] = [
   T('Etiket oku: bir ürünün şeker miktarına bak', 'Read a label: check how much sugar a product has', 'spor_kilo_beslenme'),
   T('20 dakika tempolu yürü', 'Walk briskly for 20 minutes', 'spor_kilo_kardiyo'),
   T('Asansör yerine merdiven kullan', 'Take the stairs instead of the lift', 'spor_kilo_kardiyo'),
-  T('Yemekten sonra 10 dakika yürü', 'Walk for 10 minutes after a meal', 'spor_kilo_kardiyo'),
-  T('Evde 10 dakikalık hareket videosu yap', 'Follow a 10-minute home workout', 'spor_kilo_kardiyo'),
-  T('Bir durak erken inip yürü', 'Get off one stop early and walk', 'spor_kilo_kardiyo'),
+  T('Yemekten sonra 10 dakika dolaş', 'Take a 10-minute stroll after a meal', 'spor_kilo_kardiyo'),
+  T('Evde 10 dakikalık egzersiz videosu aç', 'Follow a 10-minute home exercise video', 'spor_kilo_kardiyo'),
+  T('Bir durak erken in', 'Get off one stop early', 'spor_kilo_kardiyo'),
   T('10 çömelme, 10 duvar şınavı, 3 tur', '10 squats, 10 wall push-ups, 3 rounds', 'spor_kilo_kardiyo'),
   T('Bu gece uyku saatini 30 dakika öne çek', 'Move your bedtime 30 minutes earlier tonight', 'spor_kilo_uyku'),
   T('Yatmadan bir saat önce ekranı bırak', 'Put screens away an hour before bed', 'spor_kilo_uyku'),
@@ -108,16 +111,16 @@ export const KILO_LIBRARY: LibraryTask[] = [
 export const MARATON_LIBRARY: LibraryTask[] = [
   T('Kolay tempoda koş: konuşabilecek hızda', 'Run at an easy pace: you should be able to talk', 'spor_maraton_dayaniklilik'),
   T('Bu haftanın uzun koşusunu takvime koy', 'Schedule this week’s long run', 'spor_maraton_dayaniklilik', NOT_LATE),
-  T('Uzun koşu için rota ve su planı yap', 'Plan route and water for your long run', 'spor_maraton_dayaniklilik', NOT_LATE),
-  T('Koşu sırasında ne yiyip içeceğini dene', 'Test what you’ll eat and drink while running', 'spor_maraton_dayaniklilik', MID),
-  T('Haftalık mesafeni hesapla, %10’dan fazla artırma', 'Check your weekly distance; don’t add more than 10%', 'spor_maraton_dayaniklilik', NOT_LATE),
+  T('Uzun koşu için rota ve su planla', 'Schedule a route and water for your long run', 'spor_maraton_dayaniklilik', NOT_LATE),
+  T('Yarış günü ne yiyip içeceğini dene', 'Test what you’ll eat and drink on race day', 'spor_maraton_dayaniklilik', MID),
+  T('En uzun mesafeni bu ay birden artırma', 'Do not jump past your longest distance this month', 'spor_maraton_dayaniklilik', NOT_LATE),
   T('6 x 1 dakika hızlı, 2 dakika yavaş koş', 'Run 6 x 1 minute fast, 2 minutes easy', 'spor_maraton_hiz', NOT_LATE),
   T('20 dakika yarış temposunda koş', 'Run 20 minutes at race pace', 'spor_maraton_hiz', MID),
   T('Yokuşta 5 kısa tekrar yap', 'Do 5 short hill repeats', 'spor_maraton_hiz', NOT_LATE),
   T('Koşu sonunda 4 x 20 saniye hızlan', 'Finish your run with 4 x 20-second pickups', 'spor_maraton_hiz'),
   T('Hedef tempoyu kilometre başına hesapla', 'Work out your target pace per kilometre', 'spor_maraton_hiz', MID),
   T('Koşudan sonra 10 dakika esne', 'Stretch for 10 minutes after your run', 'spor_maraton_toparlanma'),
-  T('Dinlenme günü: yürü, koşma', 'Rest day: walk, don’t run', 'spor_maraton_toparlanma'),
+  T('Dinlenme günü: hafif tempoda dolaş', 'Rest day: just an easy stroll', 'spor_maraton_toparlanma'),
   T('Bacaklarına 10 dakika rulo uygula', 'Foam-roll your legs for 10 minutes', 'spor_maraton_toparlanma'),
   T('Ayakkabının kaç kilometre yaptığına bak', 'Check how many kilometres your shoes have done', 'spor_maraton_toparlanma', EARLY),
   T('Ağrıyan bir yer varsa not et, yükü azalt', 'Note any pain and ease off', 'spor_maraton_toparlanma'),
@@ -136,10 +139,10 @@ export const GUC_LIBRARY: LibraryTask[] = [
   T('Tek bacak hareketi ekle: lunge ya da step-up', 'Add a single-leg move: lunge or step-up', 'spor_guc_alt'),
   T('Kalça için 3 set köprü yap', 'Do 3 sets of glute bridges', 'spor_guc_alt'),
   T('3 tur plank, her biri 30 saniye', '3 rounds of 30-second planks', 'spor_guc_core'),
-  T('10 dakika karın ve bel antrenmanı', '10-minute core session', 'spor_guc_core'),
+  T('Karın ve bele 10 dakika ayır', 'Spend 10 minutes on your core', 'spor_guc_core'),
   T('Yan plank ile dengeyi çalış', 'Work balance with side planks', 'spor_guc_core'),
   T('Kalça ve göğüs için 10 dakika esne', 'Stretch hips and chest for 10 minutes', 'spor_guc_hareketlilik'),
-  T('Antrenmandan önce dinamik ısınma yap', 'Do a dynamic warm-up before training', 'spor_guc_hareketlilik'),
+  T('5 dakika dinamik ısınma yap', 'Do a 5-minute dynamic warm-up', 'spor_guc_hareketlilik'),
   T('Ayak bileği hareketliliğine 5 dakika ayır', 'Spend 5 minutes on ankle mobility', 'spor_guc_hareketlilik'),
   T('Protein hedefini bugün yakala', 'Hit your protein target today'),
   T('Antrenman defterine ağırlıkları yaz', 'Write your weights in your training log'),
@@ -160,7 +163,7 @@ export const GENEL_LIBRARY: LibraryTask[] = [
   T('Sabah 5 dakika esne', 'Stretch for 5 minutes this morning', 'spor_genel_esneklik'),
   T('Boyun ve omuzlarını rahatlat', 'Loosen your neck and shoulders', 'spor_genel_esneklik'),
   T('Kısa bir yoga akışı yap', 'Do a short yoga flow', 'spor_genel_esneklik'),
-  T('Masa başından kalk, 2 dakika hareket et', 'Get up from your desk and move for 2 minutes', 'spor_genel_esneklik'),
+  T('Masa başından kalk, 2 dakika dolaş', 'Get up from your desk for 2 minutes', 'spor_genel_esneklik'),
   T('Günde 2 litre suya yaklaş', 'Get close to 2 litres of water today'),
   T('Bu gece 7-8 saat uyumayı hedefle', 'Aim for 7-8 hours of sleep tonight'),
   T('Haftanın aktif günlerini seç', 'Pick your active days for the week'),
@@ -185,6 +188,7 @@ export const RAMAZAN_LIBRARY: LibraryTask[] = [
 ];
 
 export const TASARRUF_LIBRARY: LibraryTask[] = [
+  T('Bir eğer-ise cümlesi yaz: sepete eklersem bir gün beklerim gibi', 'Write an if-then line: if I add to cart, I’ll wait a day', undefined),
   T('Bugünkü harcamalarını yaz', 'Write down today’s spending'),
   T('Abonelik listene bak, birini gözden geçir', 'Review one of your subscriptions'),
   T('Bu haftanın harcamasını kategoriye ayır', 'Sort this week’s spending into categories'),
@@ -206,6 +210,7 @@ export const TASARRUF_LIBRARY: LibraryTask[] = [
 ];
 
 export const BIRAKMA_LIBRARY: LibraryTask[] = [
+  T('Bir eğer-ise cümlesi yaz: istek gelirse şunu yaparım', 'Write an if-then line: if a craving hits, I will do this', undefined),
   T('Bugün en zor saatini önceden belirle', 'Work out your hardest hour today in advance'),
   T('İstek gelince 10 dakika bekle, sonra karar ver', 'When a craving hits, wait 10 minutes before deciding'),
   T('İstek anında yapacağın tek bir şey seç', 'Pick one thing to do when a craving hits'),
@@ -213,7 +218,7 @@ export const BIRAKMA_LIBRARY: LibraryTask[] = [
   T('Bıraktığın için kazandığın bir şeyi yaz', 'Write one thing you’ve gained from quitting'),
   T('Bu kararı neden aldığını tek cümleyle yaz', 'Write in one sentence why you decided this'),
   T('Güvendiğin birine durumunu anlat', 'Tell someone you trust how it’s going'),
-  T('5 dakika yürü ya da dışarı çık', 'Walk for 5 minutes or step outside'),
+  T('5 dakika dışarı çık', 'Step outside for 5 minutes'),
   T('4 saniye nefes al, 6 saniye ver: 2 dakika', 'Breathe in for 4 and out for 6, for 2 minutes'),
   T('Bir bardak su iç, eline bir şey al', 'Drink a glass of water and hold something'),
   T('Bugünün zor anını not et: nerede, ne zaman', 'Note today’s hard moment: where and when'),

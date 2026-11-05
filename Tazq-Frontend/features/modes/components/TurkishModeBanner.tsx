@@ -15,7 +15,7 @@ import { useTaskStore, translateTag } from '@/features/tasks';
 import { useFocusStore } from '@/features/focus/store/useFocusStore';
 import { TaskService } from '@/shared/services/api';
 import { TurkishMode, StudyTemplate, ModeHabit, ModeTask, localizeSporGoal } from '../utils/turkishModes';
-import { getCurrentRamadanStatus } from '@/shared/utils/ramadanDates';
+import { ramadanStatusNow } from '@/features/modes/utils/ramadanPreview';
 import { renderModeEmojiIcon } from '../utils/modeIcons';
 import { draftsFromText, QUICK_EMOJIS, QUICK_COLORS, DraftHabit, DraftTask } from '@/features/modes/utils/customPlanDraft';
 import { langOf } from '@/shared/utils/lang';
@@ -64,7 +64,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
   const { habits, addHabit, getStreak } = useHabitStore();
   const { tasks, addTask } = useTaskStore();
   const setDailyGoal = useFocusStore(s => s.setDailyGoal);
-  const ramazanStatus = useMemo(() => getCurrentRamadanStatus(), []);
+  const ramazanStatus = useMemo(() => ramadanStatusNow(), []);
   const isRamazanActive = ramazanStatus.isActive;
 
   const [sheetVisible, setSheetVisible] = useState(false);

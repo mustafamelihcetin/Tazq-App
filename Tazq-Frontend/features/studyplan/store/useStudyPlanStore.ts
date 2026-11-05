@@ -1,3 +1,4 @@
+import type { StudyRelief } from '@/features/modes/utils/ramadanBrain';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,7 +15,7 @@ import type { ScoreModel } from '../data/blueprints';
   eylem geleceği yeniden kurar; "bugün sabit" kuralı yalnız kullanıcı istediğinde (replanToday) esner.
 */
 interface StudyPlanState extends StudyCore {
-  sync: (slots: SlotInput[], today: string, opts?: { replan?: boolean; replanToday?: boolean }) => void;
+  sync: (slots: SlotInput[], today: string, opts?: { replan?: boolean; replanToday?: boolean; relief?: StudyRelief | null }) => void;
   reconcile: (tasks: { tags?: string[] | null; isCompleted?: boolean }[], today: string) => void;
   toggleBlock: (day: string, id: string, done: boolean) => void;
   skip: (day: string, id: string, skipped?: boolean) => void;
@@ -42,7 +43,7 @@ const pushCloud = () => {
   try { void require('@/features/modes/store/usePrefsStore').usePrefsStore.getState().syncToCloud(); } catch (e) { swallow('studyPlan.pushCloud', e); }
 };
 
-const coreOf = (s: StudyPlanState): StudyCore => ({ week: s.week, weekAt: s.weekAt, closed: s.closed, plans: s.plans, committed: s.committed, dayStats: s.dayStats, lastActive: s.lastActive, missed: s.missed, notice: s.notice });
+const coreOf = (s: StudyPlanState): StudyCore => ({ relief: s.relief, week: s.week, weekAt: s.weekAt, closed: s.closed, plans: s.plans, committed: s.committed, dayStats: s.dayStats, lastActive: s.lastActive, missed: s.missed, notice: s.notice });
 
 export const useStudyPlanStore = create<StudyPlanState>()(
   persist(
@@ -111,8 +112,8 @@ export const useStudyPlanStore = create<StudyPlanState>()(
           const base = unit ? ensureTopics(unit, p.states[rec.unitId] ?? emptyUnitState(), t => p.levels[t.subject] ?? 'yok', Date.now(), day) : p.states[rec.unitId];
           return { ...p, mocks: [...p.mocks, rec], states: base ? { ...p.states, [rec.unitId]: applyMock(base, rec, score, day, Date.now()) } : p.states };
         }, today),
-        removeMock: (key, id) => { set(s => (s.plans[key] ? { plans: { ...s.plans, [key]: { ...s.plans[key], mocks: s.plans[key].mocks.filter(m => m.id !== id), at: Date.now() } } } : {})); pushCloud(); },
-        resetPlan: (key, today) => updatePlan(key, p => ({ ...p, states: {}, mocks: [], levels: {}, excluded: [], reviewed: false }), today),
+        removeMock: (key, id) => { set(s => (s.plans[key] ? { plans: { ...s.plans, [key]: { ...s.plans[key], mocks: s.plans[key].mocks.filter(m => m.id !== id), removedMocks: [...(s.plans[key].removedMocks ?? []), id], at: Date.now() } } } : {})); pushCloud(); },
+        resetPlan: (key, today) => updatePlan(key, p => ({ ...p, states: {}, mocks: [], removedMocks: [...(p.removedMocks ?? []), ...p.mocks.map(m => m.id)], levels: {}, excluded: [], reviewed: false }), today),
         confirmMissedWork: (today) => { set(confirmMissed(coreOf(get()), today, Date.now())); pushCloud(); },
         clearNotice: () => set(dismissNotice(coreOf(get()))),
         cloudSnapshot: () => toCloud(coreOf(get())),

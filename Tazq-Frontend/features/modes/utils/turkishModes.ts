@@ -1,3 +1,4 @@
+import { ramadanRangesNow } from '@/features/modes/utils/ramadanPreview';
 import { findExamCurriculum } from '@/shared/utils/curriculum';
 import { CategoryColors } from '@/shared/constants/Colors';
 import { getRamadanRanges, parseLocalDate } from '@/shared/utils/ramadanDates';
@@ -2068,7 +2069,7 @@ function nextDate(ranges: { start: string }[]): string | null {
 
 export function getModePreview(type: ModeType, opts?: { examName?: string; examDate?: string; examTipTr?: string; examTipEn?: string; tezName?: string; tezDate?: string; mulakatName?: string; mulakatDate?: string; sporGoal?: string; sporDate?: string; sporInputs?: SporInputs }): TurkishMode {
   if (type === 'ramazan') {
-    const next = nextDate(RAMAZAN);
+    const next = nextDate(ramadanRangesNow());
     if (!next) {
       // Tarih tablosu tükendi → uydurma tarih gösterme, durumu dürüstçe söyle.
       return {
@@ -2129,7 +2130,7 @@ export function isSeasonalExamActive(kind: 'yks' | 'kpss'): boolean {
 
 export function detectTurkishMode(): TurkishMode | null {
   if (!isTurkeySeasonalEnabled()) return null;
-  for (const r of RAMAZAN) {
+  for (const r of ramadanRangesNow()) {
     // Active during Ramazan itself
     const duringDays = isActive(r.start, r.end, 0);
     if (duringDays >= 0) return RAMAZAN_MODE(duringDays);

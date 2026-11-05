@@ -23,15 +23,42 @@ try {
   KAPATILMAZ, uygulama öne gelince yeniden okunur; yazılamazsa düz metne düşmez, öne gelince yeniden denenir.
 */
 let keychainUnavailable = false;
-let pendingSecureWrite: { token?: string; refreshToken?: string } | null = null;
+let pendingSecureWrite: { token?: string; refreshToken?: string; keepMissing?: boolean } | null = null;
 export const isKeychainUnavailable = () => keychainUnavailable;
 const secureOptions = () => (SecureStore ? { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK } : undefined);
 
-async function writeSecure(v: { token?: string; refreshToken?: string }) {
-  if (!SecureStore) return;
-  if (v.token) await SecureStore.setItemAsync(SECURE_TOKEN_KEY, v.token, secureOptions());
-  if (v.refreshToken) await SecureStore.setItemAsync(SECURE_REFRESH_KEY, v.refreshToken, secureOptions());
+/*
+  ANAHTARLIK YAZIMI TEK SIRADA (2026-11-05, kullanıcı: "dev sürümde sürekli logout"; kayıt: sunucuya iptal edilmiş anahtar sunuldu, 30 dk dolmadan 401 geldi).
+  İki kusur vardı. Boş değer atlanıyordu: çıkışta anahtarlar silinmiyor, bir sonraki yüklemede ölü anahtar belleğe geri dönüyordu. Yazımlar da sıraya girmiyordu: eski yazım yenisinin üstüne binebiliyordu.
+  Sunucu ölü anahtarı hırsızlık sayıp TÜM oturumları kapatır; yani tek bayat okuma kullanıcıyı dışarı atar.
+*/
+const BOOTED_AT = Date.now() / 1000;
+/** Tanı için JWT'nin yaşı; anahtarın kendisi hiçbir kayda yazılmaz. */
+export function jwtAgeMinutes(token: string | null | undefined): string {
+  try {
+    const part = (token ?? '').split('.')[1];
+    if (!part) return 'none';
+    const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
+    const claims = JSON.parse(globalThis.atob(b64.padEnd(b64.length + (4 - b64.length % 4) % 4, '=')));
+    return claims.iat ? String(Math.round((Date.now() / 1000 - claims.iat) / 60)) : claims.exp ? `exp${Math.round((claims.exp - Date.now() / 1000) / 60)}` : 'unknown';
+  } catch { return 'unreadable'; }
 }
+let secureQueue: Promise<unknown> = Promise.resolve();
+export function writeSecure(v: { token?: string; refreshToken?: string; keepMissing?: boolean }): Promise<void> {
+  // keepMissing: oturum açıkken boş değer "bilinmiyor" demektir (kilitli telefonda anahtarlık okunamadı), silme emri değil. Silmek oturumu öldürürdü.
+  const run = async () => {
+    if (!SecureStore) return;
+    if (v.token) await SecureStore.setItemAsync(SECURE_TOKEN_KEY, v.token, secureOptions());
+    else if (!v.keepMissing) await SecureStore.deleteItemAsync(SECURE_TOKEN_KEY);
+    if (v.refreshToken) await SecureStore.setItemAsync(SECURE_REFRESH_KEY, v.refreshToken, secureOptions());
+    else if (!v.keepMissing) await SecureStore.deleteItemAsync(SECURE_REFRESH_KEY);
+  };
+  const next = secureQueue.then(run, run);
+  secureQueue = next.catch(() => undefined);
+  return next;
+}
+/** Bekleyen yazımlar bitmeden anahtarlık okunmaz: okuma yenisini görmeli. */
+const secureSettled = () => secureQueue;
 
 const secureStorage = {
   getItem: async (name: string) => {
@@ -39,6 +66,7 @@ const secureStorage = {
       let token: string | null = null;
       let refreshToken: string | null = null;
       try {
+        await secureSettled();
         token = await SecureStore.getItemAsync(SECURE_TOKEN_KEY);
         refreshToken = await SecureStore.getItemAsync(SECURE_REFRESH_KEY);
         keychainUnavailable = false;
@@ -50,8 +78,9 @@ const secureStorage = {
       if (!rest) return null;
       try {
         const parsed = JSON.parse(rest);
-        if (token && parsed?.state) parsed.state.token = token;
-        if (refreshToken && parsed?.state) parsed.state.refreshToken = refreshToken;
+        // Çıkış yapılmış hesapta anahtarlıkta kalmış artık belleğe dönmez.
+        if (token && parsed?.state?.isLoggedIn) parsed.state.token = token;
+        if (refreshToken && parsed?.state?.isLoggedIn) parsed.state.refreshToken = refreshToken;
         return JSON.stringify(parsed);
       } catch {
         return rest;
@@ -62,7 +91,7 @@ const secureStorage = {
   setItem: async (name: string, value: string) => {
     if (name === 'tazq-auth-storage' && SecureStore) {
       const parsed = JSON.parse(value);
-      const secrets = { token: parsed?.state?.token ?? undefined, refreshToken: parsed?.state?.refreshToken ?? undefined };
+      const secrets = { token: parsed?.state?.token ?? undefined, refreshToken: parsed?.state?.refreshToken ?? undefined, keepMissing: !!parsed?.state?.isLoggedIn };
       // Anahtarlar hiçbir koşulda düz AsyncStorage'a yazılmaz.
       if (parsed?.state) { parsed.state.token = null; parsed.state.refreshToken = null; }
       try {
@@ -137,6 +166,9 @@ function clearLocalUserData() {
   safe(() => require('@/features/modes/store/useSporStore').useSporStore.getState().clearAll());
   safe(() => require('@/shared/store/useSubjectStore').useSubjectStore.getState().reset());
   safe(() => require('@/features/studyplan/store/useStudyPlanStore').useStudyPlanStore.getState().reset());
+  safe(() => require('@/features/modes/store/usePlanAffinityStore').usePlanAffinityStore.getState().reset());
+  safe(() => require('@/features/modes/hooks/useDayRoute').useDayRouteStore.getState().reset());
+  safe(() => require('@/features/modes/components/plan/WaterGlass').useWaterStore.getState().reset());
   safe(() => require('@/shared/store/useOfflineQueue').useOfflineQueue.getState().clear());
   // Odak geçmişi kişisel veridir: çıkışta cihazdan silinir (bkz. useFocusHistoryStore).
   safe(() => require('@/features/report/useFocusHistoryStore').useFocusHistoryStore.getState().clear());
@@ -284,8 +316,8 @@ export const useAuthStore = create<AuthState>()(
           try {
             require('@/features/habits/sync/habitsSync').resetHabitsSync();
             require('@/shared/services/api').SupportService.reportCrash({
-              errorMessage: `Forced logout: ${reason}`, stackTrace: `appState=${AppState.currentState} keychain=${keychainUnavailable ? 'unavailable' : 'ok'} user=${get().user?.id ?? '-'}`,
-              deviceName: 'auth', platform: require('react-native').Platform.OS, appVersion: require('expo-constants').default.expoConfig?.version ?? '',
+              errorMessage: `Forced logout: ${reason}`, stackTrace: `appState=${AppState.currentState} keychain=${keychainUnavailable ? 'unavailable' : 'ok'} jwtAgeMin=${jwtAgeMinutes(get().token)} uptimeSec=${Math.round(Date.now() / 1000 - BOOTED_AT)} user=${get().user?.id ?? '-'}`,
+              deviceName: `auth ${__DEV__ ? 'dev' : 'release'} ${require('expo-constants').default.deviceName ?? ''}`.slice(0, 60), platform: require('react-native').Platform.OS, appVersion: require('expo-constants').default.expoConfig?.version ?? '',
             }).catch((e: unknown) => swallow('authStore.reportForcedLogout', e));
           } catch (e) { swallow('authStore.forcedLogout', e); }
           useSessionStore.getState().setGuest(false);
@@ -326,5 +358,5 @@ AppState.addEventListener?.('change', (st) => {
     const v = pendingSecureWrite;
     writeSecure(v).then(() => { pendingSecureWrite = null; }).catch((e) => swallow('authStore.keychainRetry', e));
   }
-  if (keychainUnavailable) useAuthStore.persist.rehydrate();
+  if (keychainUnavailable) secureSettled().then(() => useAuthStore.persist.rehydrate());
 });

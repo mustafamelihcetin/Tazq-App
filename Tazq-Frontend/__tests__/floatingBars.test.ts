@@ -334,7 +334,8 @@ describe('sayfa üstü boşluğu', () => {
     // 11 -> 12 (2026-10-30): alışkanlık detay sayfası (aliskanlik.tsx) eklendi.
     // 12 -> 13 (2026-11-05): aylık Takvim ekranı (takvim.tsx) eklendi.
     // 13 -> 14 (2026-11-05): Planım ekranı (plan.tsx) eklendi.
-    expect(headerScreens.length).toBe(14);
+    // 14 -> 15 (2026-11-05): Günün rotası (rota.tsx) eklendi.
+    expect(headerScreens.length).toBe(15);
   });
 
   it.each(headerScreens)('%s üstünü topBarSpace’ten türetmeli', (file) => {
@@ -358,7 +359,7 @@ describe('başlık kutusu', () => {
     // Artık dokuzu tek bileşenden çiziyor: eşitlik yapısal, ayrışma imkânsız.
     expect(shared.sort()).toEqual([
       'aliskanlik.tsx', 'archive.tsx', 'cockpit.tsx', 'gun.tsx', 'index.tsx', 'legal.tsx', 'mod-ozet.tsx',
-      'modlar.tsx', 'odemeler.tsx', 'plan.tsx', 'report.tsx', 'settings.tsx', 'takvim.tsx', 'tasks.tsx',
+      'modlar.tsx', 'odemeler.tsx', 'plan.tsx', 'report.tsx', 'rota.tsx', 'settings.tsx', 'takvim.tsx', 'tasks.tsx',
     ]);
   });
 

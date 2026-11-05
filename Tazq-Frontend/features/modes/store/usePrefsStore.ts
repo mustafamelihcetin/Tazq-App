@@ -26,6 +26,8 @@ export interface FirstCapture {
 
 export interface SeasonalPrefs {
   ramazan: boolean;
+  /** Yönetici önizlemesi (bkz. ramadanPreview). Yetki her okumada ayrıca denetlenir. */
+  ramazanPreviewStart?: string | null;
   examMode: boolean;
   examName: string;
   examDate: string | null;
@@ -78,6 +80,9 @@ export interface PlanSpec {
    * miras alır ve kullanıcı hiç görev üretmeyen bir planla baş başa kalırdı.
    */
   pausedUntil?: string | null;
+  /** Ramazan düzeni: bu Ramazan oruç tutmuyor / yalnız bugün tutmuyor. Sebep sorulmaz. */
+  notFasting?: boolean;
+  notFastingDay?: string | null;
   /**
    * Kullanıcının kendi kendine "zayıfım" dediği alan/konu id'leri — TÜM modlarda aynı
    * alan (ilk olarak sınav için eklendi: curriculum.ts `Topic.id`; mülakat/spor/tez
@@ -94,6 +99,10 @@ export interface PlanSpec {
    * taşır; bu yüzden bilinçli olarak "kişisel hatırlatma" seviyesinde tutuluyor.
    */
   personalNote?: string;
+  /** "Bana uymuyor" denen görevler (TR metni): bir daha gelmez, Planım > Ayarlar'dan geri alınır. */
+  hiddenItems?: string[];
+  /** "Bugün olmaz" denen gün ('YYYY-MM-DD'): o gün bu plandan yeni görev açılmaz. */
+  restDay?: string | null;
 }
 
 /** Geçmiş hedef kaydı (bkz. utils/goalHistory). */
@@ -820,6 +829,9 @@ export const usePrefsStore = create<PrefsState>()(
         try {
           snapshot.__studyPlan = require('@/features/studyplan/store/useStudyPlanStore').useStudyPlanStore.getState().cloudSnapshot();
         } catch (e) { swallow('prefsStore.collectStudyPlanForSnapshot', e); }
+        try {
+          snapshot.__planAffinity = require('@/features/modes/store/usePlanAffinityStore').usePlanAffinityStore.getState().cloudSnapshot();
+        } catch (e) { swallow('prefsStore.collectPlanAffinity', e); }
         // Momentum geçmişi (son 14 gün, birkaç yüz bayt) — çıkışta grafik sıfırlanmasın (bkz. useMomentumStore).
         try {
           snapshot.__momentum = require('@/features/user/store/useMomentumStore').useMomentumStore.getState().history;
@@ -908,6 +920,9 @@ export const usePrefsStore = create<PrefsState>()(
           }
           if (parsed.__studyPlan) {
             try { require('@/features/studyplan/store/useStudyPlanStore').useStudyPlanStore.getState().applyCloud(parsed.__studyPlan); } catch (e) { swallow('prefsStore.applyCloudStudyPlan', e); }
+          }
+          if (parsed.__planAffinity) {
+            try { require('@/features/modes/store/usePlanAffinityStore').usePlanAffinityStore.getState().applyCloud(parsed.__planAffinity); } catch (e) { swallow('prefsStore.applyPlanAffinity', e); }
           }
           if (parsed.__momentum) {
             try { require('@/features/user/store/useMomentumStore').useMomentumStore.getState().applyCloud(parsed.__momentum); } catch (e) { swallow('prefsStore.applyCloudMomentum', e); }

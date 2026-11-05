@@ -7,12 +7,50 @@ import type { ExamCurriculum, Topic } from './curriculum';
 const t = (id: string, en: string, tr: string = en, weight?: number): Topic => ({ id, en, tr, ...(weight ? { weight } : null) });
 
 export const INTL_CURRICULA: ExamCurriculum[] = [
+  // IELTS: Listening, Reading, Writing, Speaking; soru tipleri resmî kılavuzun başlıkları.
+  { id: 'ielts', subjects: [
+    { id: 'ielts_listening', tr: 'Listening', en: 'Listening', weight: 1, topics: [t('ielts_listening_note', 'Form and Note Completion', 'Form ve Not Tamamlama'), t('ielts_listening_mcq', 'Multiple Choice', 'Çoktan Seçmeli'), t('ielts_listening_map', 'Map and Diagram Labelling', 'Harita ve Şema'), t('ielts_listening_match', 'Matching', 'Eşleştirme')] },
+    { id: 'ielts_reading', tr: 'Reading', en: 'Reading', weight: 1, topics: [t('ielts_reading_skim', 'Skimming and Scanning', 'Hızlı Okuma ve Tarama'), t('ielts_reading_tfng', 'True / False / Not Given', 'Doğru / Yanlış / Belirtilmemiş'), t('ielts_reading_headings', 'Matching Headings', 'Başlık Eşleştirme'), t('ielts_reading_mcq', 'Multiple Choice', 'Çoktan Seçmeli'), t('ielts_reading_summary', 'Summary Completion', 'Özet Tamamlama')] },
+    { id: 'ielts_writing', tr: 'Writing', en: 'Writing', weight: 1, topics: [t('ielts_writing_task1', 'Task 1: Report or Letter', 'Task 1: Rapor ya da Mektup'), t('ielts_writing_task2', 'Task 2: Essay', 'Task 2: Kompozisyon', 2), t('ielts_writing_cohesion', 'Coherence and Vocabulary', 'Bağlantılar ve Kelime')] },
+    { id: 'ielts_speaking', tr: 'Speaking', en: 'Speaking', weight: 1, topics: [t('ielts_speaking_part1', 'Part 1: Interview', 'Part 1: Tanışma'), t('ielts_speaking_part2', 'Part 2: Long Turn', 'Part 2: Kart'), t('ielts_speaking_part3', 'Part 3: Discussion', 'Part 3: Tartışma')] },
+  ] },
+  // TOEFL iBT: 21 Ocak 2026 biçimi. Görev adları ETS duyurusu ve hazırlık kaynakları; süre kaynaklarda farklı (yaklaşık 2 saatin altında).
+  { id: 'toefl', subjects: [
+    { id: 'toefl_reading', tr: 'Reading', en: 'Reading', weight: 1, topics: [t('toefl_reading_words', 'Complete the Words', 'Kelime Tamamlama'), t('toefl_reading_daily', 'Read in Daily Life', 'Günlük Metinler'), t('toefl_reading_academic', 'Academic Passage', 'Akademik Metin', 2)] },
+    { id: 'toefl_listening', tr: 'Listening', en: 'Listening', weight: 1, topics: [t('toefl_listening_response', 'Listen and Choose a Response', 'Cevap Seçme'), t('toefl_listening_conv', 'Conversations', 'Konuşmalar'), t('toefl_listening_lecture', 'Academic Talks', 'Akademik Konuşmalar', 2)] },
+    { id: 'toefl_writing', tr: 'Writing', en: 'Writing', weight: 1, topics: [t('toefl_writing_build', 'Build a Sentence', 'Cümle Kurma'), t('toefl_writing_email', 'Write an Email', 'E-posta Yazma'), t('toefl_writing_discussion', 'Academic Discussion', 'Akademik Tartışma', 2)] },
+    { id: 'toefl_speaking', tr: 'Speaking', en: 'Speaking', weight: 1, topics: [t('toefl_speaking_repeat', 'Listen and Repeat', 'Dinle ve Tekrar Et'), t('toefl_speaking_interview', 'Take an Interview', 'Mülakat')] },
+  ] },
+  // GRE: 2023 sonrası kısa biçim, Writing'de yalnız Issue görevi.
+  { id: 'gre', subjects: [
+    { id: 'gre_verbal', tr: 'Verbal Reasoning', en: 'Verbal Reasoning', weight: 2, topics: [t('gre_verbal_text', 'Text Completion', 'Metin Tamamlama'), t('gre_verbal_equiv', 'Sentence Equivalence', 'Cümle Eşdeğerliği'), t('gre_verbal_rc', 'Reading Comprehension', 'Okuduğunu Anlama', 2)] },
+    { id: 'gre_quant', tr: 'Quantitative Reasoning', en: 'Quantitative Reasoning', weight: 2, topics: [t('gre_quant_arith', 'Arithmetic', 'Aritmetik'), t('gre_quant_algebra', 'Algebra', 'Cebir'), t('gre_quant_geo', 'Geometry', 'Geometri'), t('gre_quant_data', 'Data Analysis', 'Veri Analizi')] },
+    { id: 'gre_writing', tr: 'Analytical Writing', en: 'Analytical Writing', weight: 1, topics: [t('gre_writing_issue', 'Analyze an Issue', 'Issue Görevi')] },
+  ] },
+  // GMAT: Focus biçimi. Sentence Correction ve geometri kalktı; Data Sufficiency, Data Insights'a geçti.
+  { id: 'gmat', subjects: [
+    { id: 'gmat_quant', tr: 'Quantitative Reasoning', en: 'Quantitative Reasoning', weight: 1, topics: [t('gmat_quant_arith', 'Arithmetic', 'Aritmetik'), t('gmat_quant_algebra', 'Algebra', 'Cebir'), t('gmat_quant_word', 'Word Problems', 'Problemler', 2)] },
+    { id: 'gmat_verbal', tr: 'Verbal Reasoning', en: 'Verbal Reasoning', weight: 1, topics: [t('gmat_verbal_cr', 'Critical Reasoning', 'Eleştirel Akıl Yürütme'), t('gmat_verbal_rc', 'Reading Comprehension', 'Okuduğunu Anlama')] },
+    { id: 'gmat_di', tr: 'Data Insights', en: 'Data Insights', weight: 1, topics: [t('gmat_di_ds', 'Data Sufficiency', 'Veri Yeterliliği', 2), t('gmat_di_msr', 'Multi-Source Reasoning', 'Çok Kaynaklı Akıl Yürütme'), t('gmat_di_table', 'Table Analysis', 'Tablo Analizi'), t('gmat_di_graph', 'Graphics Interpretation', 'Grafik Yorumlama'), t('gmat_di_tpa', 'Two-Part Analysis', 'İki Parçalı Analiz')] },
+  ] },
+  // USMLE Step 1: disiplinler ve sistemler; Step 2 için kullanıcı konularını düzenler.
+  { id: 'usmle', subjects: [
+    { id: 'usmle_general', tr: 'Genel Prensipler', en: 'General Principles', weight: 1, topics: [t('usmle_gen_biochem', 'Biochemistry and Genetics', 'Biyokimya ve Genetik'), t('usmle_gen_micro', 'Microbiology and Immunology', 'Mikrobiyoloji ve İmmünoloji'), t('usmle_gen_path', 'General Pathology', 'Genel Patoloji'), t('usmle_gen_pharm', 'General Pharmacology', 'Genel Farmakoloji')] },
+    { id: 'usmle_systems', tr: 'Organ Sistemleri', en: 'Organ Systems', weight: 2, topics: [t('usmle_sys_cardio', 'Cardiovascular', 'Kardiyovasküler'), t('usmle_sys_resp', 'Respiratory', 'Solunum'), t('usmle_sys_renal', 'Renal', 'Böbrek'), t('usmle_sys_gi', 'Gastrointestinal', 'Sindirim'), t('usmle_sys_neuro', 'Neurology and Psychiatry', 'Nöroloji ve Psikiyatri'), t('usmle_sys_endo', 'Endocrine and Reproductive', 'Endokrin ve Üreme'), t('usmle_sys_msk', 'Musculoskeletal and Skin', 'Kas-İskelet ve Deri'), t('usmle_sys_heme', 'Hematology', 'Hematoloji')] },
+    { id: 'usmle_practice', tr: 'Uygulama', en: 'Application', weight: 1, topics: [t('usmle_prac_stats', 'Biostatistics and Ethics', 'Biyoistatistik ve Etik'), t('usmle_prac_clinical', 'Clinical Reasoning', 'Klinik Akıl Yürütme')] },
+  ] },
+  // PTE Academic: görev adları sınav sahibinin listesi.
+  { id: 'pte', subjects: [
+    { id: 'pte_speaking', tr: 'Speaking & Writing', en: 'Speaking & Writing', weight: 2, topics: [t('pte_read_aloud', 'Read Aloud', 'Sesli Okuma'), t('pte_repeat', 'Repeat Sentence', 'Cümle Tekrarı'), t('pte_describe', 'Describe Image', 'Görsel Anlatma'), t('pte_retell', 'Retell Lecture', 'Dersi Anlatma'), t('pte_situation', 'Respond to a Situation', 'Duruma Cevap'), t('pte_group', 'Summarize Group Discussion', 'Tartışma Özeti'), t('pte_sum_text', 'Summarize Written Text', 'Metin Özeti'), t('pte_essay', 'Write Essay', 'Kompozisyon')] },
+    { id: 'pte_reading', tr: 'Reading', en: 'Reading', weight: 1, topics: [t('pte_read_fib', 'Fill in the Blanks', 'Boşluk Doldurma', 2), t('pte_reorder', 'Re-order Paragraphs', 'Paragraf Sıralama'), t('pte_read_mcq', 'Multiple Choice', 'Çoktan Seçmeli')] },
+    { id: 'pte_listening', tr: 'Listening', en: 'Listening', weight: 1, topics: [t('pte_sum_spoken', 'Summarize Spoken Text', 'Konuşma Özeti'), t('pte_listen_fib', 'Fill in the Blanks', 'Boşluk Doldurma'), t('pte_dictation', 'Write from Dictation', 'Dikte', 2), t('pte_highlight', 'Highlight Correct Summary', 'Doğru Özet')] },
+  ] },
   { id: 'sat', subjects: [
-    { id: 'sat_rw', tr: 'Okuma ve Yazma', en: 'Reading and Writing', weight: 1, topics: [
+    { id: 'sat_rw', tr: 'Okuma ve Yazma', en: 'Reading and Writing', weight: 54, topics: [
       t('sat_rw_craft', 'Craft and Structure', 'Metin Yapısı ve Sözcük', 28), t('sat_rw_info', 'Information and Ideas', 'Bilgi ve Fikirler', 26),
       t('sat_rw_conv', 'Standard English Conventions', 'Yazım Kuralları', 26), t('sat_rw_expr', 'Expression of Ideas', 'Fikirlerin İfadesi', 20),
     ] },
-    { id: 'sat_math', tr: 'Matematik', en: 'Math', weight: 1, topics: [
+    { id: 'sat_math', tr: 'Matematik', en: 'Math', weight: 44, topics: [
       t('sat_math_alg', 'Algebra', 'Cebir', 35), t('sat_math_adv', 'Advanced Math', 'İleri Matematik', 35),
       t('sat_math_data', 'Problem Solving and Data Analysis', 'Problem ve Veri Analizi', 15), t('sat_math_geo', 'Geometry and Trigonometry', 'Geometri ve Trigonometri', 15),
     ] },

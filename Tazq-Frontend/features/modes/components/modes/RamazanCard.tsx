@@ -3,7 +3,8 @@
  * yalnız Ramazan'a 7 günden az kala / aktifken / kullanıcı açıkken görünür.
  * Veri doğrudan store/util'lerden; önizleme merkezi → onOpenPreview.
  */
-import React from 'react';
+import { useCloseRequest } from '@/features/modes/store/useGoalCloseStore';
+import React, { useRef } from 'react';
 import { View, Text, Switch } from 'react-native';
 import { ChevronRight, Moon } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -15,7 +16,9 @@ import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '../../utils/modeIcons';
 import { retirePlanTask , retireModeTasksByTag} from '@/features/modes/utils/planTaskOps';
-import { getCurrentRamadanStatus, formatRamadanDate } from '@/shared/utils/ramadanDates';
+import { formatRamadanDate } from '@/shared/utils/ramadanDates';
+import { PLAN_COPY } from '@/features/modes/components/plan/planCopy';
+import { isRamadanPreview, previewStartForDay, ramadanStatusNow } from '@/features/modes/utils/ramadanPreview';
 import { RAMAZAN_HABIT_NAMES } from '../../utils/turkishModes';
 import { isTurkeySeasonalEnabled } from '../../utils/localeGate';
 import { scheduleRamadanStartNotification, cancelRamadanStartNotification } from '@/shared/utils/notifications';
@@ -37,7 +40,7 @@ import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
  * buna bakarak çiziyor; eskiden başlık koşulsuz eklenip kart null dönünce altı
  * boş bir başlık kalıyordu.
  */
-export function calendarSuggestsRamazan(ramadanStatus = getCurrentRamadanStatus()): boolean {
+export function calendarSuggestsRamazan(ramadanStatus = ramadanStatusNow()): boolean {
   return (
     isTurkeySeasonalEnabled() &&
     !!ramadanStatus.period &&
@@ -45,10 +48,11 @@ export function calendarSuggestsRamazan(ramadanStatus = getCurrentRamadanStatus(
   );
 }
 
-export function isRamazanCardVisible(enabled: boolean, ramadanStatus = getCurrentRamadanStatus()): boolean {
+export function isRamazanCardVisible(enabled: boolean, ramadanStatus = ramadanStatusNow()): boolean {
   return enabled || calendarSuggestsRamazan(ramadanStatus);
 }
 
+const PREVIEW_DAYS = [1, 15, 22, 30];
 // Anahtar adsızdı: ekran okuyucu yalnız "anahtar, kapalı" diyordu (denetim 2026-10-31).
 const RAMADAN_SWITCH = { tr: 'Ramazan modu', en: 'Ramadan mode' };
 
@@ -71,7 +75,9 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   const removeHabit = useHabitStore(s => s.removeHabit);
   const tasks = useTaskStore(s => s.tasks);
 
-  const ramadanStatus = React.useMemo(() => getCurrentRamadanStatus(), []);
+  const ramadanStatus = React.useMemo(() => ramadanStatusNow(), [seasonal.ramazanPreviewStart, seasonal.ramazan]); // eslint-disable-line react-hooks/exhaustive-deps
+  const preview = isRamadanPreview();
+  const g = PLAN_COPY[language === 'en' ? 'en' : 'tr'].goals;
 
   // Görünürlük: takvim-tetiklemeli.
   // `period` KONTROLÜ ŞART: tarih tablosu tükendiğinde getCurrentRamadanStatus
@@ -88,6 +94,8 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
     KULLANICI KENDİ AÇTIYSA (`seasonal.ramazan`) kart HER DİLDE görünür — açık bir
     tercihi dil yüzünden geri almak, kullanıcının kararını ezmek olurdu.
   */
+  const closeRef = useRef<() => void>(() => {});
+  useCloseRequest('ramazan', () => closeRef.current());
   const calendarSuggests = calendarSuggestsRamazan(ramadanStatus);
   if (!(seasonal.ramazan || calendarSuggests)) return null;
   /*
@@ -109,8 +117,10 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
     retireModeTasksByTag('ramazan');
 clearPlanIds('ramazan');
     setSeasonalPref('ramazan', false);
+    setSeasonalPref('ramazanPreviewStart', null);
     cancelRamadanStartNotification();
   };
+  closeRef.current = closePlan;
 
   return (
     <View style={{ borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', backgroundColor: theme.surfaceCard, borderColor: seasonal.ramazan ? (isDark ? 'rgba(99,102,241,0.30)' : 'rgba(99,102,241,0.20)') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }}>
@@ -156,7 +166,26 @@ clearPlanIds('ramazan');
       {seasonal.ramazan && (
         <View style={{ paddingHorizontal: S.md, paddingBottom: S.md }}>
           <Separator theme={theme} />
-          {!ramadanStatus.isActive && ramadanStatus.period ? (
+          {preview && (
+            <View style={{ gap: S.xs, paddingBottom: S.sm }}>
+              <View style={{ alignSelf: 'flex-start', paddingHorizontal: S.sm, paddingVertical: S.xxs, borderRadius: R.full, backgroundColor: theme.warning + '26' }}>
+                <Text style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '700' }}>{g.previewBadge}</Text>
+              </View>
+              <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{g.previewDayHint}</Text>
+              <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
+                {PREVIEW_DAYS.map(n => {
+                  const on = ramadanStatus.duration - ramadanStatus.daysRemaining === n;
+                  return (
+                    <Touchable key={n} accessibilityRole="radio" accessibilityState={{ selected: on }} onPress={() => setSeasonalPref('ramazanPreviewStart', previewStartForDay(n))}
+                      style={{ minHeight: 36, paddingHorizontal: S.smd, borderRadius: R.full, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? accent : theme.surfaceContainerHigh }}>
+                      <Text style={{ color: on ? theme.onPrimary : theme.onSurface, fontSize: F.caption, fontWeight: '600' }}>{g.previewDay(n)}</Text>
+                    </Touchable>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+          {!ramadanStatus.isActive && ramadanStatus.period && !hasPlan ? (
             <Touchable accessibilityRole="button" onPress={onOpenPreview} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }} activeOpacity={0.7}>
               <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: accent }} />
               <Text style={{ color: accentText, fontSize: F.caption, fontWeight: '600', flex: 1 }}>{tr ? 'Planı şimdiden hazırla' : 'Set up your plan in advance'}</Text>

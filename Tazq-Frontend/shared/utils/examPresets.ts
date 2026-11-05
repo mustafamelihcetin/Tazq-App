@@ -74,7 +74,7 @@ export const EXAM_PRESETS: ExamPreset[] = [
     id: 'yds',
     displayName: 'YDS / YÖKDİL',
     shortName: 'YDS',
-    aliases: ['yds', 'yokdil', 'yökdil', 'yabancidil', 'yabancıdil', 'yabancidilsinavi'],
+    aliases: ['yds', 'yabancidil', 'yabancıdil', 'yabancidilsinavi'],
     category: 'language',
     defaultDailyMinutes: 60,
     preferredTemplates: ['spaced-repetition', 'active-recall', 'deep-work'],

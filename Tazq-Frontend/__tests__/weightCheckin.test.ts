@@ -166,7 +166,7 @@ describe('tartım zinciri kendini onarır', () => {
     path.join(__dirname, '..', 'features/modes/hooks/usePlanAdaptations.ts'), 'utf8');
 
   it('açık tartım görevi YOKSA yenisi kurulur', () => {
-    expect(src).toContain('} else if (openWeightTasks.length === 0) {');
+    expect(src).toContain('} else if (openWeightTasks.length === 0 && wPlan.taskIds.length + wPlan.habitIds.length > 0) {');
     expect(src).toContain('ensureWeeklyWeightTask(due, lang)');
   });
 
@@ -199,7 +199,7 @@ describe('tartım zinciri kendini onarır', () => {
   it('kilo modu KAPALIYKEN görev üretmez', () => {
     // Onarım `isKiloActive` dalının içinde olmalı; dışarıda olsaydı modu kapatan
     // kullanıcıya sonsuza kadar tartım görevi üretilirdi.
-    const off = src.indexOf('if (!isKiloActive) {');
+    const off = src.indexOf('if (!isKiloActive || isPhantomKiloPlan(');
     const repair = src.indexOf('openWeightTasks.length === 0');
     expect(off).toBeGreaterThan(-1);
     expect(off).toBeLessThan(repair); // önce kapalı dalı, sonra else-if zinciri

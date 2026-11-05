@@ -1,3 +1,4 @@
+import { reliefFactorFor, type StudyRelief } from '@/features/modes/utils/ramadanBrain';
 import { blueprintFor } from '../data/blueprints';
 import {
   applyBlock, assessFit, Block, CapFn, coverage, dayKeyOf, dayNum, emptyUnitState, ensureTopics, ExamUnit, FitStatus, planAll, PlanTopic, project, splitShares, Projection, StartLevel, UnitState,
@@ -24,6 +25,8 @@ export interface PlanRecord {
   examDate: string;
   levels: Record<string, StartLevel>;
   excluded: string[];
+  /** Bilerek silinen denemeler: cihazlar arası birleşmede geri dönmesin. */
+  removedMocks?: string[];
   courses?: Course[];
   states: Record<string, UnitState>;
   mocks: MockRecord[];
@@ -48,6 +51,8 @@ export interface StudyCore {
   committed: Record<string, StudyBlock[]>;
   dayStats: Record<string, [number, number]>;
   lastActive: string | null;
+  /** Ramazan düzeni açıkken süresi kısılan dönem. Cihaz başına hesaplanır, buluta gitmez. */
+  relief?: StudyRelief | null;
   missed: (StudyBlock & { day: string })[];
   notice: StudyNotice;
   /** Bu gün yeniden bölünecek: yapılanlar durur, kalan süre yeniden planlanır. Yalnız bir hesaplık işaret, saklanmaz. */
@@ -109,10 +114,12 @@ function activeUnits(core: StudyCore): { units: ExamUnit[]; states: Record<strin
   return { units, states };
 }
 
-export function capOf(core: Pick<StudyCore, 'week' | 'closed'>): CapFn {
+export function capOf(core: Pick<StudyCore, 'week' | 'closed'> & Partial<Pick<StudyCore, 'relief' | 'plans'>>): CapFn {
   const closed = new Set(core.closed);
   const week = core.week ?? [90, 90, 90, 90, 90, 90, 90];
-  return (d: number) => (closed.has(dayKeyOf(d)) ? 0 : week[jsDayOf(d)]);
+  const exams = Object.values(core.plans ?? {}).filter(p => p.slot && p.examDate).map(p => p.examDate as string);
+  // Ramazan düzeni: takvim dönemin neresinde ne kadar çalışılacağını baştan bilir; sınav yakınsa kısmaz (bkz. ramadanBrain).
+  return (d: number) => (closed.has(dayKeyOf(d)) ? 0 : Math.round(week[jsDayOf(d)] * reliefFactorFor(dayKeyOf(d), core.relief, exams, dayNum)));
 }
 
 export function adherenceOf(stats: StudyCore['dayStats']): number {
@@ -208,6 +215,21 @@ function settle(core: StudyCore, today: string, now: number): StudyCore {
 }
 
 /** Eksik günleri sabitler. Var olan gün değişmez. */
+/**
+ * Aynı gün aynı konunun iki açık bloğu tek satır olur (2026-11-05, cihazda "Harita ve Şema 34 dk" ile "27 dk"). Bitmiş blok dokunulmaz: yapılan iş yapılmış kalır.
+ * Süre değişince kimlik de değişir; eski görevi orphanTodayTaskIds kaldırır, yenisi süresiyle gelir.
+ */
+export function mergeOpenBlocks(list: StudyBlock[], today: string): StudyBlock[] {
+  const out: StudyBlock[] = [];
+  for (const b of list) {
+    const same = !b.done && !b.skipped && b.topicId ? out.find(x => !x.done && !x.skipped && x.type === b.type && x.topicId === b.topicId && x.unitId === b.unitId) : null;
+    if (!same) { out.push(b); continue; }
+    same.min += b.min;
+    same.id = blockTag(today, same);
+  }
+  return out;
+}
+
 function commit(input: StudyCore, today: string): StudyCore {
   const { refill, ...core } = input;
   const { units, states } = effectiveStates(core, today);
@@ -223,9 +245,9 @@ function commit(input: StudyCore, today: string): StudyCore {
     const left = cap(n) - kept.reduce((a, b) => a + b.min, 0);
     const taken = new Set(kept.map(b => b.id));
     const extra = left >= 10 ? planAll(units, states, n, d => (d === n ? left : cap(d)), adh) : [];
-    committed[today] = [...kept, ...extra
+    committed[today] = mergeOpenBlocks([...kept, ...extra
       .map((b): StudyBlock => ({ ...b, id: blockTag(today, b), planKey: planOfUnit(core, b.unitId)?.key ?? b.unitId, done: false }))
-      .filter(b => !taken.has(b.id))];
+      .filter(b => !taken.has(b.id))], today);
   }
   for (let d = n; d < n + COMMIT_DAYS; d++) {
     const key = dayKeyOf(d);
@@ -259,9 +281,11 @@ export function invalidate(core: StudyCore, today: string, withToday = false): S
   return { ...core, committed, ...(withToday ? { refill: today } : null) };
 }
 
-export function syncCore(input: StudyCore, slots: SlotInput[], today: string, now: number, opts: { replan?: boolean; replanToday?: boolean } = {}): StudyCore {
+export function syncCore(input: StudyCore, slots: SlotInput[], today: string, now: number, opts: { replan?: boolean; replanToday?: boolean; relief?: StudyRelief | null } = {}): StudyCore {
   let core = input;
   let replan = !!opts.replan || !!opts.replanToday;
+  // Düzen açılınca, kapanınca ya da dönem değişince takvim yeniden kurulur; yapılanlar durur.
+  if (opts.relief !== undefined && JSON.stringify(opts.relief) !== JSON.stringify(input.relief ?? null)) { core = { ...core, relief: opts.relief }; replan = true; }
   // Yeni açılan sınav bugünden başlar: gün yeniden bölünür, yapılmış işler durur.
   let replanToday = !!opts.replanToday;
   let notice = core.notice;
@@ -449,13 +473,23 @@ export function viewOf(core: StudyCore, today: string): PlanView {
 /** Bulut kopyası: yalnız kalıcı özet. Takvim cihazda yeniden hesaplanır. */
 export interface StudyCloud { week: number[] | null; weekAt: number; closed: string[]; lastActive: string | null; plans: Record<string, Omit<PlanRecord, 'slot' | 'paused'>>; }
 
+/**
+ * Deneme kaydı kaybolmaz (2026-11-05, kullanıcı: "kaybolmayacağından emin ol"). Eskiden buluta son 40 gidiyor, yeni cihazda eskiler yok oluyordu.
+ * Hepsi gider; 60'tan eskilerin yalnız yanlış nedeni ayrıntısı düşer, puan ve tarih kalır. Boyut sunucu sınırının çok altında kalır (bkz. test).
+ */
+const MOCK_DETAIL_KEEP = 60;
+export function cloudMocks(mocks: MockRecord[]): MockRecord[] {
+  const cut = mocks.length - MOCK_DETAIL_KEEP;
+  return mocks.map((m, i) => (i < cut ? { ...m, misses: undefined } : m));
+}
+
 export function toCloud(core: StudyCore): StudyCloud {
   const plans: StudyCloud['plans'] = {};
   for (const p of Object.values(core.plans)) {
     const { slot: _s, paused: _p, ...rest } = p;
     const states: Record<string, UnitState> = {};
     for (const [k, s] of Object.entries(p.states)) states[k] = { ...s, hist: {} };
-    plans[p.key] = { ...rest, states, mocks: p.mocks.slice(-40) };
+    plans[p.key] = { ...rest, states, mocks: cloudMocks(p.mocks) };
   }
   return { week: core.week, weekAt: core.weekAt, closed: core.closed, lastActive: core.lastActive, plans };
 }
@@ -479,10 +513,13 @@ export function mergeCloud(core: StudyCore, cloud: StudyCloud | null | undefined
     if (!l) { plans[key] = { ...c, slot: null }; continue; }
     const states = { ...l.states };
     for (const [id, s] of Object.entries(c.states ?? {})) states[id] = mergeUnit(states[id], s);
+    // Silinen deneme başka cihazın kopyasından geri dönmez; silinmeyen hiçbir kayıt düşmez.
+    const removed = [...new Set([...(l.removedMocks ?? []), ...(c.removedMocks ?? [])])];
     const mocks = [...l.mocks];
     for (const m of c.mocks ?? []) if (!mocks.some(x => x.id === m.id)) mocks.push(m);
+    mocks.sort((a, b) => a.day.localeCompare(b.day));
     const newer = c.at > l.at;
-    plans[key] = { ...l, ...(newer ? { levels: c.levels, excluded: c.excluded, courses: c.courses, reviewed: c.reviewed } : null), states, mocks, at: Math.max(l.at, c.at) };
+    plans[key] = { ...l, ...(newer ? { levels: c.levels, excluded: c.excluded, courses: c.courses, reviewed: c.reviewed } : null), states, mocks: mocks.filter(m => !removed.includes(m.id)), removedMocks: removed, at: Math.max(l.at, c.at) };
   }
   const lastActive = [core.lastActive, cloud.lastActive].filter((x): x is string => !!x).sort().pop() ?? null;
   const newerWeek = cloud.weekAt > core.weekAt && cloud.week;

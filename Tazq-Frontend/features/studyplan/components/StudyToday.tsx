@@ -1,3 +1,6 @@
+import { PLAN_COPY } from '@/features/modes/components/plan/planCopy';
+import { studyBlockWindow, windowRank } from '@/features/modes/utils/ramadanBrain';
+import { ramadanFrameNow } from '@/features/modes/utils/ramadanPreview';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -34,7 +37,8 @@ export function StudyToday({ plan, c, lang, today, view, onOpenTab, onChanged }:
   const store = useStudyPlanStore();
   const [open, setOpen] = useState<string | null>(null);
   const [showOut, setShowOut] = useState(false);
-  const blocks = (store.committed[today] ?? []).filter(b => b.planKey === plan.key);
+  const fasting = ramadanFrameNow().fasting;
+  const blocks = (store.committed[today] ?? []).filter(b => b.planKey === plan.key).sort((a, b) => (fasting ? windowRank(studyBlockWindow(a.type)) - windowRank(studyBlockWindow(b.type)) : 0));
   const units = unitsOfPlan(plan);
   const content = planHasContent(plan);
   const daysLeft = plan.examDate ? dayNum(plan.examDate) - dayNum(today) : 0;
@@ -130,6 +134,7 @@ export function StudyToday({ plan, c, lang, today, view, onOpenTab, onChanged }:
                       {blockTitle(b, plan, lang).split(' · ').slice(1).join(' · ')}
                     </Text>
                     {b.skipped && <Text style={{ fontSize: F.caption2, color: theme.onSurfaceMuted }}>{c.skipped}</Text>}
+                    {fasting && !b.done && !b.skipped && <Text style={{ fontSize: F.caption, fontWeight: W.semibold, color: theme.primary }}>{PLAN_COPY[lang].ramadan.windows[studyBlockWindow(b.type)]}</Text>}
                   </Touchable>
                 </View>
                 {expanded && (
@@ -173,7 +178,7 @@ const st = StyleSheet.create({
   track: { height: 6, borderRadius: R.full, overflow: 'hidden' },
   fill: { height: 6, borderRadius: R.full },
   row: { flexDirection: 'row', alignItems: 'center' },
-  check: { width: MIN_TOUCH, height: MIN_TOUCH, alignItems: 'flex-start', justifyContent: 'center' },
+  check: { width: ICON.md + S.sm, height: MIN_TOUCH, alignItems: 'flex-start', justifyContent: 'center' },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: S.xs, alignItems: 'center' },
   chip: { minHeight: 36, paddingHorizontal: S.smd, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   chipPlain: { minHeight: 36, paddingHorizontal: S.xs, alignItems: 'center', justifyContent: 'center' },

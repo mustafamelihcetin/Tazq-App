@@ -31,7 +31,8 @@ describe('Planım: her hedefin tek girişi', () => {
     for (const f of ['Exam', 'Tez', 'Mulakat', 'Spor']) {
       const src = read(`features/modes/components/modes/${f}Card.tsx`);
       expect(src).not.toContain('İçgörü & Önizle');
-      expect(src).toContain('openPlan(');
+      expect(src).toContain('<PlanLink slot=');
+      expect(src).not.toContain('Planım ›');
     }
     expect(read('features/modes/components/modes/ExamCard.tsx')).not.toContain('StudyPlanLink');
     expect(fs.existsSync(path.join(__dirname, '..', 'app/sinav-plani.tsx'))).toBe(false);

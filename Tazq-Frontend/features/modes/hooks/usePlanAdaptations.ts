@@ -9,6 +9,10 @@
  * hem de AsyncStorage'da (son çalışma tarihi) kontrol edilir.
  */
 
+import { ramadanCloseAfter, ramadanFrameNow, ramadanRangesNow } from '@/features/modes/utils/ramadanPreview';
+import { overdueAction, PLAN_MODE_TAGS } from '@/features/modes/utils/goalRows';
+import { budgetFor } from '@/features/modes/utils/ramadanBrain';
+import { lightDayFor, noteIgnored, noteShown, startPlanAffinityBridge, usePlanAffinityStore } from '@/features/modes/store/usePlanAffinityStore';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { modeRoomLeft, routinesToRest } from '@/features/habits/utils/habitLimit';
 import { HABIT_LIMIT_COPY } from '@/features/habits/utils/habitLimitCopy';
@@ -45,12 +49,11 @@ import { useHabitStore } from '@/features/habits';
 import { isSamePlanOccurrence, trimToPlanBudget, buildDailyTasks, allocatePlanBudget, desiredDailyCount, planBudgetFor, DailyPlanSpec, PlanKind } from '@/features/modes/utils/dailyPlanEngine';
 import { runPlanMigrationOnce } from '@/features/modes/utils/planMigration';
 import { findExamCurriculum, pickSubject, pickTopic, subjectExamLabel } from '@/shared/utils/curriculum';
-import { INTERVIEW_AREAS, TEZ_AREAS, SPOR_AREAS, pickWeightedArea, areaLabel, type SporAreaKind } from '@/shared/utils/weakAreas';
 import { useSubjectStore } from '@/shared/store/useSubjectStore';
 import { useBudgetStore, type BudgetType } from '@/shared/store/useBudgetStore';
 import { useQuitStore, type QuitType } from '@/shared/store/useQuitStore';
 import { buildTasarrufPlan, buildBirakmaPlan } from '@/shared/utils/lifeModePlans';
-import { isWeightEntryTask, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask } from '@/features/modes/utils/weightCheckin';
+import { isWeightEntryTask, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask, isPhantomKiloPlan } from '@/features/modes/utils/weightCheckin';
 import { MODE_TASK_TAGS, PLAN_TAGS, retireModeTasksByTag } from '@/features/modes/utils/planTaskOps';
 import { getExtraPool, ensureExtraPool } from '@/features/modes/utils/planPoolSync';
 import { parseDateKey, calendarDayOf } from '@/shared/utils/dateKey';
@@ -414,7 +417,7 @@ export function usePlanAdaptations() {
 
   const applyTasks = useCallback(async (
     newTasks: ReturnType<typeof buildKiloAdaptationTasks>,
-    planMode: 'spor' | 'spor2' | 'spor3' | 'exam' | 'exam2' | 'exam3' | 'tez' | 'mulakat' | 'mulakat2' | 'mulakat3' | 'ramazan',
+    planMode: 'spor' | 'spor2' | 'spor3' | 'exam' | 'exam2' | 'exam3' | 'tez' | 'mulakat' | 'mulakat2' | 'mulakat3' | 'ramazan' | 'tasarruf' | 'birakma',
     currentTaskIds: number[],
     currentHabitIds: string[],
   ) => {
@@ -530,13 +533,11 @@ export function usePlanAdaptations() {
 
     // RAMAZAN
     if (freshSeasonal.ramazan) {
-      const stillActive = RAMAZAN.some(r => {
-        const s = new Date(r.start);
+      const stillActive = ramadanRangesNow().some(r => {
+        const s = parseDateKey(r.start);
         s.setDate(s.getDate() - 7);
         s.setHours(0, 0, 0, 0);
-        const e = new Date(r.end);
-        e.setHours(23, 59, 59, 999);
-        return now >= s.getTime() && now <= e.getTime();
+        return now >= s.getTime() && now <= ramadanCloseAfter(parseDateKey(r.end)).getTime();
       });
       if (!stillActive) {
         freshPrefs.ramazanPlanHabitIds.forEach(id => removeHabitFn(id));
@@ -834,6 +835,7 @@ export function usePlanAdaptations() {
 
     // Sınav planı: işaretleri al, biten günleri kapat, dünün kalanını kaldır (her açılışta, üretim kapısından önce).
     startStudyPlanBridge();
+    startPlanAffinityBridge();
     runStudySync();
     existing = useTaskStore.getState().tasks;
 
@@ -855,7 +857,8 @@ export function usePlanAdaptations() {
       const isPast = dueDay !== null && dueDay < todayStr;
       if (!isPast) return false;
 
-      const isPlanTask = planTaskIdSet.has(t.id) || (t.tags && t.tags.some(tag =>
+      const isLifeDaily = !!t.tags?.includes('daily') && (t.tags.includes('tasarruf') || t.tags.includes('birakma'));
+      const isPlanTask = isLifeDaily || planTaskIdSet.has(t.id) || (t.tags && t.tags.some(tag =>
         ['exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'spor', 'spor2', 'spor3', 'ramazan', 'yks', 'kpss'].includes(tag)
       ));
       
@@ -867,18 +870,9 @@ export function usePlanAdaptations() {
     });
 
     oldPlanTasks.forEach(task => {
-      const modeTag = task.tags?.find(tag =>
-        ['exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'spor', 'spor2', 'spor3', 'ramazan', 'yks', 'kpss'].includes(tag)
-      );
-      
-      // Sınav (exam), Tez (tez), Mülakat (mulakat) modları için: Görevi silmek yerine bugüne devret (rollover)
-      const rolloverTags = ['exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'yks', 'kpss'];
-      if (modeTag && rolloverTags.includes(modeTag)) {
-        rolloverPlanTask(task.id, todayStr);
-      } else {
-        // Spor ve Ramazan modları için: Görevi temizle (retire)
-        retirePlanTask(task.id, modeTag);
-      }
+      noteIgnored(task);
+      if (overdueAction(task.tags) === 'rollover') rolloverPlanTask(task.id, todayStr);
+      else retirePlanTask(task.id, task.tags?.find(tag => (PLAN_MODE_TAGS as readonly string[]).includes(tag)));
     });
 
     // Refresh existing list after cleanup to avoid duplication downstream
@@ -900,10 +894,13 @@ export function usePlanAdaptations() {
       // görevi almaz, sebebini de anlayamazdı — weightCheckin.ts'teki notun aynısı).
       const openWeightTasks = useTaskStore.getState().tasks.filter(t => !t.isCompleted && !t.isArchived && isWeightEntryTask(t));
 
-      if (!isKiloActive) {
-        // Kilo modu kapalı → yetim kalan tüm açık tartım görevlerini süpür.
+      const wPrefs = usePrefsStore.getState();
+      const wPlan = { taskIds: wPrefs.sporPlanTaskIds, habitIds: wPrefs.sporPlanHabitIds };
+      if (!isKiloActive || isPhantomKiloPlan(wPlan, useSporStore.getState(), useTaskStore.getState().tasks)) {
+        // Kilo modu kapalı ya da plan hiç seçilmemiş → açık tartım görevleri süpürülür, form geri gelir.
         openWeightTasks.forEach(t => retirePlanTask(t.id, 'spor'));
-      } else if (openWeightTasks.length === 0) {
+        if (isKiloActive) wPrefs.clearPlanIds('spor');
+      } else if (openWeightTasks.length === 0 && wPlan.taskIds.length + wPlan.habitIds.length > 0) {
         /*
           ZİNCİR KOPMASI ONARIMI.
 
@@ -1073,7 +1070,7 @@ export function usePlanAdaptations() {
     // ── RAMAZAN ─────────────────────────────────────────────────────────────
     if (activeSeasonal.ramazan && ramazanPlanTaskIds.length > 0) {
       const todayStr = getLocalDateString();
-      const activeRamazan = RAMAZAN.find(r => todayStr >= r.start && todayStr <= r.end);
+      const activeRamazan = ramadanRangesNow().find(r => todayStr >= r.start && todayStr <= r.end);
       if (activeRamazan) {
         const daysToEnd = daysUntil(activeRamazan.end);
         const newTasks = buildRamazanAdaptationTasks(daysToEnd, existing, lang);
@@ -1134,18 +1131,16 @@ export function usePlanAdaptations() {
     // AYNI "—" biçimi exam'daki subjectExamLabel ile (bkz. weakAreas.ts).
     if (activeSeasonal.tezMode && activeSeasonal.tezName && activeSeasonal.tezDate
         && hasAppliedPlan(tezPlanTaskIds, tezPlanHabitIds)) {
-      const tezArea = pickWeightedArea(TEZ_AREAS, subjectDayIndex, planSpecs.tez?.weakTopicIds);
       dailySlots.push({
-        spec: { kind: 'tez', slot: 'tez', name: areaLabel(activeSeasonal.tezName, tezArea, lang), daysLeft: daysUntil(activeSeasonal.tezDate), dailyMinutes: planSpecs.tez?.dailyMinutes, templateId: planSpecs.tez?.templateId },
+        spec: { kind: 'tez', slot: 'tez', name: activeSeasonal.tezName, weakAreaIds: planSpecs.tez?.weakTopicIds, hiddenItems: planSpecs.tez?.hiddenItems, daysLeft: daysUntil(activeSeasonal.tezDate), dailyMinutes: planSpecs.tez?.dailyMinutes, templateId: planSpecs.tez?.templateId },
         mode: 'tez', taskIds: tezPlanTaskIds, habitIds: tezPlanHabitIds,
       });
     }
     // Mülakat slotları — aynı alan-etiketleme deseni.
     for (const slot of mulakatSlots) {
       if (slot.active && slot.name && slot.date && hasAppliedPlan(slot.taskIds, slot.habitIds)) {
-        const mulakatArea = pickWeightedArea(INTERVIEW_AREAS, subjectDayIndex, planSpecs[slot.mode]?.weakTopicIds);
         dailySlots.push({
-          spec: { kind: 'mulakat', slot: slot.mode, name: areaLabel(slot.name, mulakatArea, lang), daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
+          spec: { kind: 'mulakat', slot: slot.mode, name: slot.name, weakAreaIds: planSpecs[slot.mode]?.weakTopicIds, hiddenItems: planSpecs[slot.mode]?.hiddenItems, daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
           mode: slot.mode, taskIds: slot.taskIds, habitIds: slot.habitIds,
         });
       }
@@ -1157,7 +1152,7 @@ export function usePlanAdaptations() {
       { goal: activeSeasonal.spor3Goal, date: activeSeasonal.spor3Date, taskIds: spor3PlanTaskIds, habitIds: spor3PlanHabitIds, mode: 'spor3' as const },
     ];
     for (const slot of sporSlots) {
-      if (slot.goal && slot.date && hasAppliedPlan(slot.taskIds, slot.habitIds)) {
+      if (slot.goal && (slot.date || sporKind(slot.goal) === 'kilo') && hasAppliedPlan(slot.taskIds, slot.habitIds)) { // Kilo hedefinde tarih sorulmaz; şart bu planı görevsiz bırakıyordu
         const kind = sporKind(slot.goal);
         /*
           SPOR ŞABLONLARI {name} KULLANMIYOR — bu yüzden `name` ataması sabit metni
@@ -1166,9 +1161,8 @@ export function usePlanAdaptations() {
           (planPoolSync.ts → AiService.planPool({ name })) ve plan özeti ekranı. Yani en
           düşük riskli kişiselleştirme yolu — sabit görev havuzuna dokunmadan.
         */
-        const sporArea = pickWeightedArea(SPOR_AREAS[kind as SporAreaKind] ?? [], subjectDayIndex, planSpecs[slot.mode]?.weakTopicIds);
         dailySlots.push({
-          spec: { kind, slot: slot.mode, name: areaLabel(slot.goal, sporArea, lang), daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
+          spec: { kind, slot: slot.mode, name: slot.goal, weakAreaIds: planSpecs[slot.mode]?.weakTopicIds, hiddenItems: planSpecs[slot.mode]?.hiddenItems, daysLeft: slot.date ? daysUntil(slot.date) : 3650, dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
           mode: slot.mode, taskIds: slot.taskIds, habitIds: slot.habitIds,
         });
       }
@@ -1177,12 +1171,22 @@ export function usePlanAdaptations() {
     // üretim ise koşmuyordu; ikisi aynı kapıya bağlandı.
     if (activeSeasonal.ramazan && hasAppliedPlan(ramazanPlanTaskIds, ramazanPlanHabitIds)) {
       const todayStr = getLocalDateString(today);
-      const activeRamazan = RAMAZAN.find(r => todayStr >= r.start && todayStr <= r.end);
+      const activeRamazan = ramadanRangesNow().find(r => todayStr >= r.start && todayStr <= r.end);
       if (activeRamazan) {
         dailySlots.push({
-          spec: { kind: 'ramazan', slot: 'ramazan', daysLeft: daysUntil(activeRamazan.end), dailyMinutes: planSpecs.ramazan?.dailyMinutes, templateId: planSpecs.ramazan?.templateId },
+          spec: { kind: 'ramazan', slot: 'ramazan', hiddenItems: planSpecs.ramazan?.hiddenItems, daysLeft: daysUntil(activeRamazan.end), dailyMinutes: planSpecs.ramazan?.dailyMinutes, templateId: planSpecs.ramazan?.templateId },
           mode: 'ramazan', taskIds: ramazanPlanTaskIds, habitIds: ramazanPlanHabitIds,
         });
+      }
+    }
+    // Tasarruf ve Bırakma: kurulumdan sonra sessiz kalıyordu; artık günde bir küçük adım (2026-11-05).
+    {
+      const life = usePrefsStore.getState() as unknown as Record<string, number[] & string[]>;
+      if (activeSeasonal.tasarrufMode && hasAppliedPlan(life.tasarrufPlanTaskIds ?? [], life.tasarrufPlanHabitIds ?? [])) {
+        dailySlots.push({ spec: { kind: 'tasarruf', slot: 'tasarruf', name: activeSeasonal.tasarrufName, hiddenItems: planSpecs.tasarruf?.hiddenItems, daysLeft: activeSeasonal.tasarrufDate ? daysUntil(activeSeasonal.tasarrufDate) : 3650, dailyMinutes: 15 }, mode: 'tasarruf', taskIds: life.tasarrufPlanTaskIds ?? [], habitIds: life.tasarrufPlanHabitIds ?? [] });
+      }
+      if (activeSeasonal.birakmaMode && hasAppliedPlan(life.birakmaPlanTaskIds ?? [], life.birakmaPlanHabitIds ?? [])) {
+        dailySlots.push({ spec: { kind: 'birakma', slot: 'birakma', name: activeSeasonal.birakmaName, hiddenItems: planSpecs.birakma?.hiddenItems, daysLeft: 3650, dailyMinutes: 15 }, mode: 'birakma', taskIds: life.birakmaPlanTaskIds ?? [], habitIds: life.birakmaPlanHabitIds ?? [] });
       }
     }
 
@@ -1193,11 +1197,7 @@ export function usePlanAdaptations() {
     // mod Ramazan'dan 7 gün ÖNCE açılabildiği için kilo/spor görevleri oruç
     // başlamadan "İftar sonrası…" metinlerine dönüyordu. Ramazan'ın kendi slotu
     // zaten gerçek tarih aralığını kontrol ediyordu — asimetri giderildi.
-    const inRamazanNow = (() => {
-      if (!activeSeasonal.ramazan) return false;
-      const k = getLocalDateString(today);
-      return RAMAZAN.some(r => k >= r.start && k <= r.end);
-    })();
+    const inRamazanNow = ramadanFrameNow().fasting;
     const subjectTodayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     /*
       GÜNLÜK PLAN BÜTÇESİ (bkz. allocatePlanBudget): tüm modların toplamı sınırlı; kullanıcının bugünkü kendi
@@ -1211,8 +1211,8 @@ export function usePlanAdaptations() {
     })()).length;
     const caps = allocatePlanBudget(
       dailySlots.map(ds => ds.spec),
-      dailySlots.map(ds => (ds.study ? ds.study.filter(b => !b.done && !b.skipped).length : desiredDailyCount({ ...ds.spec, adherence, recovery: recoveryNow }))),
-      planBudgetFor(ownToday),
+      dailySlots.map(ds => (ds.study ? ds.study.filter(b => !b.done && !b.skipped).length : desiredDailyCount({ ...ds.spec, adherence, recovery: recoveryNow, lightDay: lightDayFor(ds.mode, today), isRamazan: inRamazanNow }))),
+      budgetFor(ramadanFrameNow(), planBudgetFor(ownToday)),
     );
     for (const [slotIndex, ds] of dailySlots.entries()) {
       /*
@@ -1224,7 +1224,7 @@ export function usePlanAdaptations() {
         hizmet ediyor.
       */
       const recovery = usePrefsStore.getState().recoveryState;
-      const spec = { ...ds.spec, adherence, recovery, isRamazan: inRamazanNow, maxCount: caps[slotIndex] };
+      const spec = { ...ds.spec, adherence, recovery, isRamazan: inRamazanNow, maxCount: caps[slotIndex], lightDay: lightDayFor(ds.mode, today) };
       // Genişletilmiş havuz VARSA kullanılır; yoksa motor sabit havuzla çalışır.
       // Eksikse arka planda doldurulur — beklenmez, bugünü etkilemez (bkz. planPoolSync).
       if (ds.study) {
@@ -1236,9 +1236,12 @@ export function usePlanAdaptations() {
         await applyTasks(tasks as unknown as Parameters<typeof applyTasks>[0], ds.mode, ds.taskIds, ds.habitIds);
         continue;
       }
-      const daily = buildDailyTasks({ ...spec, extraPool: getExtraPool(spec) }, fresh, lang, today);
+      // "Bugün olmaz" dediyse bugün bu plandan yeni görev açılmaz (bkz. planManage.skipPlanTaskToday).
+      if (planSpecs[ds.mode]?.restDay === subjectTodayKey) continue;
+      const daily = buildDailyTasks({ ...spec, extraPool: getExtraPool(spec), affinity: usePlanAffinityStore.getState().bySlot[ds.mode] }, fresh, lang, today);
       ensureExtraPool(spec);
       await applyTasks(daily, ds.mode, ds.taskIds, ds.habitIds);
+      noteShown(ds.mode, daily, Math.floor(today.getTime() / 86400000));
       // Konu çalışıldıysa ilerlemeyi işaretle → yarın rotasyon bir sonraki konuya geçer.
       if (daily.length > 0 && ds.subjectId) {
         useSubjectStore.getState().markStudied(ds.subjectId, subjectTodayKey);

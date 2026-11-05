@@ -1,3 +1,4 @@
+import { detectExamFromInput } from '../shared/utils/examPresets';
 import {
   findExamCurriculum,
   pickSubject,
@@ -25,11 +26,8 @@ describe('findExamCurriculum', () => {
     expect(findExamCurriculum('')).toBeNull();
     expect(findExamCurriculum('   ')).toBeNull();
   });
-  it('returns a curriculum for a bilerek ders-seviyesinde bırakılan sınav (AÖF — program-bağımlı, evrensel konu yok)', () => {
-    const aof = findExamCurriculum('AÖF');
-    expect(aof?.id).toBe('aof');
-    expect(aof?.subjects.length).toBeGreaterThan(0);
-    expect(aof?.subjects.every(s => !s.topics || s.topics.length === 0)).toBe(true);
+  it('AÖF için hazır liste yok: program kişiye göre değişir, kullanıcı kendi derslerini yazar', () => {
+    expect(findExamCurriculum('AÖF')).toBeNull();
   });
 });
 
@@ -149,10 +147,10 @@ describe('subjectExamLabel', () => {
 describe('pickTopic — konu seviyesinde aralıklı tekrar', () => {
   const kpss = BASELINE_CURRICULUM.exams.find(e => e.id === 'kpss')! as ExamCurriculum;
   const turkce = kpss.subjects.find(s => s.id === 'kpss_turkce')!;
-  const aofDers = BASELINE_CURRICULUM.exams.find(e => e.id === 'aof')!.subjects[0];
+  const konusuzDers = { id: 'x', tr: 'X', en: 'X', topics: [] } as ExamCurriculum['subjects'][number];
 
-  it('returns null when the subject has no topics (bilerek — program-bağımlı/beceri testi, bkz. aof/katiplik_klavye notları)', () => {
-    expect(pickTopic(aofDers, {}, 0)).toBeNull();
+  it('returns null when the subject has no topics ', () => {
+    expect(pickTopic(konusuzDers, {}, 0)).toBeNull();
   });
 
   it('prioritizes never-studied topics', () => {
@@ -247,24 +245,77 @@ describe('Dalga 3 — kalan nişler tam konu derinliği', () => {
     }
   });
 
-  it('oabt — Alan Bilgisi bilerek ders seviyesinde, Eğitim Bilimleri konu taşıyor', () => {
-    const oabt = BASELINE_CURRICULUM.exams.find(e => e.id === 'oabt')!;
-    const alan = oabt.subjects.find(s => s.id === 'oabt_alan')!;
-    const pedagoji = oabt.subjects.find(s => s.id === 'oabt_pedagoji')!;
-    expect(alan.topics?.length ?? 0).toBe(0);
-    expect(pedagoji.topics!.length).toBeGreaterThan(0);
+  it.each(['oabt', 'katiplik'])('%s — her ders konu taşıyor', (examId) => {
+    const exam = BASELINE_CURRICULUM.exams.find(e => e.id === examId)!;
+    for (const subject of exam.subjects) expect(subject.topics!.length).toBeGreaterThan(0);
   });
 
-  it('katiplik — klavye dersi bilerek ders seviyesinde, Mevzuat konu taşıyor', () => {
-    const katiplik = BASELINE_CURRICULUM.exams.find(e => e.id === 'katiplik')!;
-    const klavye = katiplik.subjects.find(s => s.id === 'katiplik_klavye')!;
-    const mevzuat = katiplik.subjects.find(s => s.id === 'katiplik_mevzuat')!;
-    expect(klavye.topics?.length ?? 0).toBe(0);
-    expect(mevzuat.topics!.length).toBeGreaterThan(0);
-  });
+});
 
-  it('aof — hiçbir dersinde konu kırılımı yok (program-bağımlı, dürüstlük ilkesi)', () => {
-    const aof = BASELINE_CURRICULUM.exams.find(e => e.id === 'aof')!;
-    expect(aof.subjects.every(s => (s.topics?.length ?? 0) === 0)).toBe(true);
+describe('Sınav konuları denetimi (2026-11-05)', () => {
+  it('soru sayısı ağırlık olunca ders sırası peş peşe aynı dersi vermez', () => {
+    const kpss = BASELINE_CURRICULUM.exams.find(e => e.id === 'kpss')!;
+    const first = Array.from({ length: 6 }, (_, d) => pickSubject(kpss, {}, d)!.id);
+    expect(new Set(first).size).toBeGreaterThan(1);
+  });
+  const exam = (id: string) => BASELINE_CURRICULUM.exams.find(e => e.id === id)!;
+  const names = (id: string) => exam(id).subjects.flatMap(x => [x.en, ...(x.topics ?? []).map(t => t.en)]);
+
+  it('YKS üç oturumu da içerir: TYT, AYT, YDT', () => {
+    const ids = exam('yks').subjects.map(x => x.id);
+    for (const id of ['yks_turkce', 'ayt_mat', 'ayt_edb', 'ydt']) expect(ids).toContain(id);
+  });
+  it('yıllar önce kalkan konular listede yok', () => {
+    expect(names('gmat')).not.toContain('Sentence Correction');
+    expect(names('gmat')).not.toContain('Geometry');
+    expect(names('gre').join()).not.toMatch(/Argument/);
+    expect(names('ales').join()).not.toMatch(/Verbal Problems/);
+  });
+  it('KPSS eksik başlıkları kapsar', () => {
+    const all = names('kpss').join();
+    for (const k of ['Verbal Logic', 'Numerical Logic', 'Word Problems', 'Contemporary', 'Basic Legal']) expect(all).toContain(k);
+  });
+  it('yeni sınavlar adıyla bulunur', () => {
+    // Bu dosyadaki setCurriculum testi etkin listeyi değiştirir; bu yüzden gömülü listeye bakılır.
+    for (const [name, id] of [['MEB-AGS', 'ags'], ['HMGS', 'hmgs'], ['YÖKDİL', 'yokdil'], ['E-KPSS', 'ekpss']]) {
+      expect(detectExamFromInput(name)?.id).toBe(id);
+      expect(BASELINE_CURRICULUM.exams.some(e => e.id === id)).toBe(true);
+    }
+  });
+  it('kimlikler sınavlar arasında çakışmaz, her başlık iki dilli', () => {
+    const seen = new Set<string>();
+    for (const e of BASELINE_CURRICULUM.exams) for (const x of e.subjects) for (const t of [x, ...(x.topics ?? [])]) {
+      expect(seen.has(t.id)).toBe(false);
+      seen.add(t.id);
+      expect(t.tr && t.en).toBeTruthy();
+    }
+  });
+});
+
+describe('YKS alan seçimi', () => {
+  const { currentTrack, trackChanges, tracksFor } = require('../features/studyplan/data/blueprints');
+  const yks = BASELINE_CURRICULUM.exams.find(e => e.id === 'yks')!;
+  const ids = yks.subjects.map(x => x.id);
+  const track = (id: string) => tracksFor('yks').find((t: { id: string }) => t.id === id);
+
+  it('her alanın dersi müfredatta gerçekten var', () => {
+    for (const t of tracksFor('yks')) for (const id of t.keep) expect(ids).toContain(id);
+  });
+  it('Sayısal seçilince Edebiyat çıkar, Fizik kalır', () => {
+    const ch = trackChanges(track('say'), ids, []);
+    expect(ch).toContainEqual({ id: 'ayt_edb', excluded: true });
+    expect(ch.find((c: { id: string }) => c.id === 'ayt_fiz')).toBeUndefined();
+  });
+  it('seçim sonrası alan seçili görünür; ders elle eklenirse seçili sayılmaz', () => {
+    const excluded = trackChanges(track('ea'), ids, []).filter((c: { excluded: boolean }) => c.excluded).map((c: { id: string }) => c.id);
+    expect(currentTrack(tracksFor('yks'), ids, excluded)).toBe('ea');
+    expect(currentTrack(tracksFor('yks'), ids, excluded.slice(1))).toBeNull();
+  });
+  it('alan değiştirince eski alanın dersi geri gelir', () => {
+    const excluded = trackChanges(track('say'), ids, []).filter((c: { excluded: boolean }) => c.excluded).map((c: { id: string }) => c.id);
+    expect(trackChanges(track('soz'), ids, excluded)).toContainEqual({ id: 'ayt_edb', excluded: false });
+  });
+  it('alanı olmayan sınavda seçim çıkmaz', () => {
+    expect(tracksFor('kpss')).toEqual([]);
   });
 });

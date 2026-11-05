@@ -3,6 +3,7 @@
  * modlar.tsx'ten çıkarıldı. Veri doğrudan `seasonal`; preset/öneri/saat seçimi lokal UI state.
  * Tarih geçince "nasıl geçti?" review'ı bu bileşende (focus-effect). Önizleme merkezi → onOpenPreview.
  */
+import { useAddRequest, useCloseRequest } from '@/features/modes/store/useGoalCloseStore';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -35,7 +36,7 @@ import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
 import { fitMaxLength } from '@/shared/utils/fitMaxLength';
-import { openPlan, PlanLink } from '@/features/modes/components/plan/PlanLink';
+import { PlanLink } from '@/features/modes/components/plan/PlanLink';
 
 // Vurgu merkezi paletten (bkz. Colors.ModeAccents) — tema-duyarlı + kontrast güvenli.
 const BASE_CALENDAR_WIDTH = 340;
@@ -302,6 +303,8 @@ function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview
     setSeasonalPref(nameKey, ''); setSeasonalPref(dateKey, null);
     setPreset(null); setDailyMinutes(null); setExpanded(false);
   };
+  useCloseRequest(slot, del);
+  useAddRequest(slot, () => setExpanded(true));
 
   return (
     <View style={{ marginTop: S.xs }}>
@@ -323,7 +326,6 @@ function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview
           <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption, flex: 1 }}>{addLabel}</Text>
         </Touchable>
       ) : null}
-      {complete && !expanded && <PlanLink slot={slot} />}
       {expanded && (
         <FormReveal style={{ gap: S.sm }}>
           <PresetEditor name={name} onName={(v) => setSeasonalPref(nameKey, v)} preset={preset} onPreset={setPreset} suggestions={suggestions} onSuggestions={setSuggestions} dailyMinutes={dailyMinutes} onDailyMinutes={pickDailyMinutes} placeholder={placeholder} />
@@ -534,6 +536,8 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
     clearPlanIds('exam'); setSeasonalPref('examName', ''); setSeasonalPref('examDate', null); setPreset(null); setExpanded(false);
     if (!exam2Complete && !exam3Complete) setSeasonalPref('examMode', false);
   };
+  useAddRequest('exam', () => setExpanded(true));
+  useCloseRequest('exam', () => { if (exam2Complete || exam3Complete) delSlot1(); else closeModeWithUndo('exam', closeWithReview, tr ? 'Sınav modu kapatıldı' : 'Exam mode closed', tr ? 'Geri al' : 'Undo'); });
 
   return (
     <View style={{ borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', backgroundColor: theme.surfaceCard, borderColor: seasonal.examMode && isComplete ? (past ? theme.error + '40' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)')) : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }}>
@@ -584,10 +588,14 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
                 <View style={{ paddingTop: S.xs }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>
                     <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{name}</Text>
-                    <Touchable accessibilityRole="button" onPress={() => { haptic.surface(); if (hasPlan) { openPlan('exam'); return; } onOpenPreview({ templateId: !hasPlan ? levelTemplateIdFromMinutes(dailyMinutes ?? preset?.defaultDailyMinutes ?? 90) : undefined, examSlot: 'exam', examTipTr: preset?.tipTr, examTipEn: preset?.tipEn, examName: name, examDate: date }); }} activeOpacity={0.7} style={{ paddingVertical: S.xs, paddingHorizontal: S.xxs }}>
-                      <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'Planım ›' : 'My plan ›') : (tr ? 'Planı Seç ›' : 'Choose Plan ›')}</Text>
-                    </Touchable>
-                    <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
+                    {!hasPlan && (
+                      <>
+                        <Touchable accessibilityRole="button" onPress={() => { haptic.surface(); onOpenPreview({ templateId: !hasPlan ? levelTemplateIdFromMinutes(dailyMinutes ?? preset?.defaultDailyMinutes ?? 90) : undefined, examSlot: 'exam', examTipTr: preset?.tipTr, examTipEn: preset?.tipEn, examName: name, examDate: date }); }} activeOpacity={0.7} style={{ paddingVertical: S.xs, paddingHorizontal: S.xxs }}>
+                          <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text>
+                        </Touchable>
+                        <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
+                      </>
+                    )}
                     <Touchable accessibilityRole="button" onPress={() => { haptic.select(); setExpanded(true); }} activeOpacity={0.7}>
                       <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Düzenle' : 'Edit'}</Text>
                     </Touchable>
@@ -611,6 +619,7 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
                       </Touchable>
                     }
                   />
+                  <PlanLink slot="exam" />
                 </View>
               </View>
 

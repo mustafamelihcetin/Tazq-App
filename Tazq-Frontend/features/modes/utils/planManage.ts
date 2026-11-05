@@ -1,3 +1,6 @@
+import { postponedTags } from '@/features/modes/utils/dayRoute';
+import { noteIgnored, noteSkippedToday, noteSwapped, usePlanAffinityStore } from '@/features/modes/store/usePlanAffinityStore';
+import { hasSignal, pickByAffinity } from '@/features/modes/utils/planAffinity';
 import { useHabitStore } from '@/features/habits';
 import { usePrefsStore, type PlanMode, type PlanSpec } from '@/features/modes/store/usePrefsStore';
 import { detectSporTypeLocal, daysUntil } from '@/features/modes/utils/planAdaptations';
@@ -29,6 +32,7 @@ export function specForSlot(plan: ActivePlan, spec: PlanSpec | undefined): Daily
     daysLeft: plan.date ? daysUntil(plan.date) : LONG_HORIZON,
     dailyMinutes: spec?.dailyMinutes, templateId: spec?.templateId,
     weakAreaIds: spec?.weakTopicIds, hiddenItems: spec?.hiddenItems,
+    affinity: usePlanAffinityStore.getState().bySlot[plan.slot],
   };
 }
 
@@ -75,8 +79,10 @@ export async function swapPlanTask(slot: string, taskId: number): Promise<boolea
   const offset = Math.floor(Date.now() / 86400000);
   const pool = dailyPool(spec);
   const start = ((offset * 7) % Math.max(1, pool.length));
-  const next = [...pool.slice(start), ...pool.slice(0, start)].find(x => !taken.has(fill(x.tr)) && !taken.has(fill(x.en)));
+  const ordered = hasSignal(spec.affinity) ? pickByAffinity(pool, pool.length, { affinity: spec.affinity!, day: offset, name, weakAreaIds: spec.weakAreaIds }) : [...pool.slice(start), ...pool.slice(0, start)];
+  const next = ordered.find(x => !taken.has(fill(x.tr)) && !taken.has(fill(x.en)));
   if (!next) return false;
+  noteSwapped(current);
   const titleTr = fill(next.tr);
   const titleEn = fill(next.en);
   retirePlanTask(taskId, slot);
@@ -105,10 +111,42 @@ export function unhidePlanItem(slot: string, key: string): void {
 
 /** "Bugün olmaz": görev kalkar, plan bugün yerine yenisini açmaz; yarın devam eder. Ceza yok. */
 export function skipPlanTaskToday(slot: string, taskId: number): void {
+  noteSkippedToday(useTaskStore.getState().tasks.find(t => t.id === taskId));
   retirePlanTask(taskId, slot);
   const today = toDateKey(new Date());
   const prefs = usePrefsStore.getState();
   prefs.setPlanSpec(slot as PlanMode, { ...prefs.planSpecs[slot as PlanMode], restDay: today });
+}
+
+function patchTask(id: number, patch: { dueDate?: string; tags?: string[] }): void {
+  const task = useTaskStore.getState().tasks.find(t => t.id === id);
+  if (!task) return;
+  const payload = { ...task, ...patch };
+  useTaskStore.getState().updateTask(id, patch);
+  if (!useNetworkStore.getState().isOnline) { useOfflineQueue.getState().enqueue({ type: 'update-task', id, payload }); return; }
+  TaskService.updateTask(id, payload as never).catch((e: { response?: unknown }) => {
+    if (!e?.response) useOfflineQueue.getState().enqueue({ type: 'update-task', id, payload });
+    else swallow('planManage.patchTask', e);
+  });
+}
+
+/** Görevi seçilen güne taşır. Dönüş: geri alma için eski hali. İnternetsiz de çalışır. */
+export function postponePlanTask(id: number, dateKey: string): { dueDate?: string | null; tags?: string[] | null } | null {
+  const task = useTaskStore.getState().tasks.find(t => t.id === id);
+  if (!task) return null;
+  noteIgnored(task);
+  const before = { dueDate: task.dueDate, tags: task.tags };
+  patchTask(id, { dueDate: dateKey, tags: postponedTags(task.tags) });
+  return before;
+}
+
+export function undoPostpone(id: number, before: { dueDate?: string | null; tags?: string[] | null }): void {
+  patchTask(id, { dueDate: before.dueDate ?? undefined, tags: before.tags ?? [] });
+}
+
+/** Ertelenen işi bugüne geri alır; ertelendi etiketi durur, gün geçince silinmez. */
+export function bringPostponedToday(id: number): void {
+  patchTask(id, { dueDate: toDateKey(new Date()) });
 }
 
 export async function addOwnTask(slot: string, title: string): Promise<void> {

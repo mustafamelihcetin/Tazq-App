@@ -4,6 +4,7 @@
  * güç/genel (haftalık gün). Deadline "Hedef Sonucu" efekti burada. Önizleme merkezi → onOpenPreview.
  * Veri: seasonal (hedef/tarih) + useSporStore (kilo/ölçüler). Local-mirror yok.
  */
+import { useAddRequest, useCloseRequest } from '@/features/modes/store/useGoalCloseStore';
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -36,7 +37,7 @@ import { ProgressRail } from '@/shared/components/ProgressRail';
 import { ModePlanSummary } from '@/features/modes/components/ModePlanSummary';
 import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 import { haptic } from '@/shared/utils/haptics';
-import { openPlan, PlanLink } from '@/features/modes/components/plan/PlanLink';
+import { PlanLink } from '@/features/modes/components/plan/PlanLink';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { useModeCompletionReview } from '@/features/modes/hooks/useModeCompletionReview';
 import { completionCopy } from '@/features/modes/utils/modeCompletion';
@@ -146,6 +147,8 @@ function SporSlot({ slot, goalKey, dateKey, otherGoals, addLabel, onOpenPreview 
     clearPlanIds(slot);
     setSeasonalPref(goalKey, ''); setSeasonalPref(dateKey, null); setExpanded(false);
   };
+  useCloseRequest(slot, del);
+  useAddRequest(slot, () => setExpanded(true));
 
   return (
     <View style={{ marginTop: S.xs }}>
@@ -168,12 +171,11 @@ function SporSlot({ slot, goalKey, dateKey, otherGoals, addLabel, onOpenPreview 
           <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption, flex: 1 }}>{addLabel}</Text>
         </Touchable>
       ) : null}
-      {complete && !expanded && <PlanLink slot={slot} />}
       {expanded && (
         <FormReveal style={{ gap: S.sm }}>
           <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant }}>{tr ? 'Hedef türünü seç' : 'Select goal type'}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
-            {sporGoalsForSlot(tr, goal, otherGoals).map((g) => {
+            {sporGoalsForSlot(tr, goal, otherGoals).filter(g => g.key !== 'kilo' || detectSporType(goal || '') === 'kilo').map((g) => {
               const active = goal === g.label;
               return (
                 <Touchable accessibilityRole="button" accessibilityState={{ selected: active }} key={g.key} onPress={() => { haptic.select(); setSeasonalPref(goalKey, active ? '' : g.label); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, borderColor: active ? SPOR : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? SPOR + '18' : 'transparent' }} activeOpacity={0.7}>
@@ -371,6 +373,12 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
     setExpanded(false); resetSporInputs();
     setSeasonalPref('sporMode', false); setSeasonalPref('sporGoal', ''); setSeasonalPref('sporDate', null);
   };
+  useAddRequest('spor', () => setExpanded(true));
+  useCloseRequest('spor', () => {
+    if (!seasonal.spor2Goal && !seasonal.spor3Goal) { closeModeWithUndo('spor', closePlan, tr ? 'Spor modu kapatıldı' : 'Fitness mode closed', tr ? 'Geri al' : 'Undo'); return; }
+    sporPlanHabitIds.forEach(id => removeHabit(id)); sporPlanTaskIds.forEach(id => retirePlanTask(id, 'spor')); clearPlanIds('spor');
+    setSeasonalPref('sporGoal', ''); setSeasonalPref('sporDate', null);
+  });
 
   const saveWeightEntry = (kg: number) => {
     recordWeeklyWeight(kg, tr ? 'tr' : 'en').then(ok => {
@@ -449,10 +457,14 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>
                     {renderModeEmojiIcon(goalEmoji(sporType), 16, SPOR)}
                     <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{stripEmojiPrefix(goal)}</Text>
-                    <Touchable onPress={() => { haptic.surface(); if (hasPlan) openPlan('spor'); else onOpenPreview('spor'); }} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={hasPlan ? (tr ? 'Spor planım' : 'My fitness plan') : (tr ? 'Spor planını seç' : 'Choose fitness plan')} style={{ paddingVertical: S.xs, paddingHorizontal: S.xxs }}>
-                      <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'Planım ›' : 'My plan ›') : (tr ? 'Planı Seç ›' : 'Choose Plan ›')}</Text>
-                    </Touchable>
-                    <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
+                    {!hasPlan && (
+                      <>
+                        <Touchable onPress={() => { haptic.surface(); onOpenPreview('spor'); }} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={hasPlan ? (tr ? 'Spor planım' : 'My fitness plan') : (tr ? 'Spor planını seç' : 'Choose fitness plan')} style={{ paddingVertical: S.xs, paddingHorizontal: S.xxs }}>
+                          <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text>
+                        </Touchable>
+                        <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
+                      </>
+                    )}
                     <Touchable onPress={() => { haptic.select(); setExpanded(true); }} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={tr ? 'Spor hedefini düzenle' : 'Edit fitness goal'}>
                       <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Düzenle' : 'Edit'}</Text>
                     </Touchable>
@@ -485,6 +497,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                                           ) : null
                     }
                   />
+                  <PlanLink slot="spor" />
                 </View>
               </View>
 
@@ -556,7 +569,8 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
               )}
 
               <SporSlot slot="spor2" goalKey="spor2Goal" dateKey="spor2Date" otherGoals={[goal, seasonal.spor3Goal || '']} addLabel={tr ? 'İkinci fiziksel hedef ekle' : 'Add second physical goal'} onOpenPreview={onOpenPreview} />
-              {spor2Complete && (
+              {/* Sınır 2: üçüncü yuva yalnız eski kaydı olanda çizilir, silinmez (bkz. GOAL_LIMITS). */}
+              {spor2Complete && !!seasonal.spor3Goal && (
                 <SporSlot slot="spor3" goalKey="spor3Goal" dateKey="spor3Date" otherGoals={[goal, seasonal.spor2Goal || '']} addLabel={tr ? 'Üçüncü fiziksel hedef ekle' : 'Add third physical goal'} onOpenPreview={onOpenPreview} />
               )}
             </View>

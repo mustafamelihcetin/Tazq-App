@@ -10,13 +10,16 @@
  * - Tekrar koruması: o gün ilgili plandan zaten 'daily' görev varsa boş döner.
  */
 
+import { isPhysicalKind, possibleWhileFasting } from '@/features/modes/utils/ramadanBrain';
+import { hasSignal, pickByAffinity, type PlanAffinity } from '@/features/modes/utils/planAffinity';
 import { CreateTaskPayload } from '@/shared/services/api';
 import { getPhase, StudyPhase, matchExamName } from '@/shared/utils/examPresets';
 import type { RecoveryState } from '@/shared/utils/recovery';
+import { LIBRARY_BY_KIND, libraryPool } from '@/features/modes/data/planLibrary';
 
 export type Language = 'tr' | 'en';
 
-export type PlanKind = 'exam' | 'tez' | 'mulakat' | 'kilo' | 'maraton' | 'guc' | 'genel' | 'ramazan';
+export type PlanKind = 'exam' | 'tez' | 'mulakat' | 'kilo' | 'maraton' | 'guc' | 'genel' | 'ramazan' | 'tasarruf' | 'birakma';
 
 export interface DailyPlanSpec {
   kind: PlanKind;
@@ -55,6 +58,14 @@ export interface DailyPlanSpec {
    * yani bu alan tamamen istege bagli ve basarisizlik sessizdir.
    */
   extraPool?: { tr: string; en: string }[];
+  /** Kullanıcının seçtiği odak alanları: görev kütüphanesinde bu alanlar daha sık gelir. */
+  weakAreaIds?: string[];
+  /** "Bana uymuyor" dediği görevler (TR metni). */
+  hiddenItems?: string[];
+  /** Bu hedefte öğrenilen tercihler (bkz. planAffinity). Sinyal yoksa görevler eski sırayla gelir. */
+  affinity?: PlanAffinity;
+  /** Bu kullanıcının bu hafta günü zayıf (bkz. planLearner.isLightDay): bir görev azalır. */
+  lightDay?: boolean;
 }
 
 type Pool = { tr: string; en: string }[];
@@ -103,7 +114,9 @@ export function adaptiveTaskCount(
 
 /** Bu modun bugün İSTEDİĞİ görev sayısı (süre + uyum + toparlanma) — bütçe paylaştırması bunu okur. */
 export function desiredDailyCount(spec: DailyPlanSpec): number {
-  return adaptiveTaskCount(taskCountFor(spec.dailyMinutes), spec.adherence, spec.recovery);
+  const base = adaptiveTaskCount(taskCountFor(spec.dailyMinutes), spec.adherence, spec.recovery);
+  // Hafifletmeler toplanmaz: en az bir iş kalır, zor gün + oruç iki kez kesmez.
+  return spec.lightDay || (spec.isRamazan && isPhysicalKind(spec.kind)) ? Math.max(1, base - 1) : base;
 }
 
 /*
@@ -429,6 +442,7 @@ function poolFor(spec: DailyPlanSpec): Pool {
     case 'guc': return ramazan ? GUC_POOL_RAMAZAN : GUC_POOL;
     case 'genel': return ramazan ? GENEL_POOL_RAMAZAN : GENEL_POOL;
     case 'ramazan': return RAMAZAN_POOL;
+    case 'tasarruf': case 'birakma': return [];
   }
 }
 
@@ -444,7 +458,13 @@ function poolFor(spec: DailyPlanSpec): Pool {
  * sonuç bugünküyle birebir aynıdır — yani bu özellik hiçbir şeyi bozamaz.
  */
 function effectivePool(spec: DailyPlanSpec): Pool {
-  const base = poolFor(spec);
+  // Kütüphane önde: tek başına anlaşılır, alanlı görevler (bkz. planLibrary). Ramazan dönemi varyantları ayrı kalır.
+  const hidden = new Set(spec.hiddenItems ?? []);
+  const base = [
+    // Ramazan düzeni havuzu boşaltmaz: oruçta olmayacak işler çıkar, vakit ekranda söylenir (bkz. ramadanBrain).
+    ...libraryPool(spec.kind, spec.daysLeft, spec.weakAreaIds, spec.hiddenItems).filter(p => !spec.isRamazan || possibleWhileFasting(p.tr)),
+    ...poolFor(spec).filter(p => !hidden.has(p.tr) && (!spec.isRamazan || possibleWhileFasting(p.tr))),
+  ];
   const extra = spec.extraPool;
   if (!extra || extra.length === 0) return base;
   // Aynı metin iki kez görünmesin (üretilmiş varyant sabitlerden birini tekrarlayabilir).
@@ -463,6 +483,9 @@ function effectivePool(spec: DailyPlanSpec): Pool {
  * Genişletilmiş havuzun anahtarı — `kind` + faz. Faz ilerledikçe (foundation →
  * sprint) yeni bir havuz üretilir; bir plan ömrü boyunca en fazla 5 kez.
  */
+/** Bu planın bugünkü görev havuzu (başka görev seçimi için). */
+export const dailyPool = (spec: DailyPlanSpec) => effectivePool(spec);
+
 export function planPoolKeyFor(spec: DailyPlanSpec): { kind: string; phase: string } {
   switch (spec.kind) {
     case 'exam': return { kind: 'exam', phase: getPhase(spec.daysLeft) };
@@ -529,13 +552,18 @@ export function buildDailyTasks(
     guc: 'fitness',
     genel: 'fitness',
     ramazan: 'ramazan',
+    tasarruf: 'finance',
+    birakma: 'health',
   };
   const extraVisibleTag = visibleTagsMap[spec.kind];
 
   const method = spec.templateId ? METHOD_POOLS[spec.templateId] : undefined;
+  const picks = hasSignal(spec.affinity) ? pickByAffinity(pool, method ? count - 1 : count, { affinity: spec.affinity!, day: offset, name, weakAreaIds: spec.weakAreaIds }) : null;
   for (let i = 0; i < count; i++) {
     // Yöntemin tarzı günün İLK görevinde (dönüşümlü); kalanlar faz havuzundan.
-    const item = i === 0 && method ? method[offset % method.length] : pool[(offset + i - (method ? 1 : 0)) % pool.length];
+    // Her gün havuzda görev sayısı kadar ilerlenir: tüm havuz dönmeden aynı görev gelmez (eski formül 2 görevde takılıyordu).
+    const item = i === 0 && method ? method[offset % method.length] : picks ? picks[i - (method ? 1 : 0)] : pool[(offset * count + i - (method ? 1 : 0) + pool.length) % pool.length];
+    if (!item) continue;
     const titleTr = item.tr.replace('{name}', name);
     const titleEn = item.en.replace('{name}', name);
     const title = tr ? titleTr : titleEn;
@@ -570,6 +598,7 @@ export function getAllDailyPlanPairs(): Array<{ tr: string; en: string }> {
   addRecord(TEZ_POOLS);
   addRecord(MULAKAT_POOLS);
   addRecord(METHOD_POOLS); // yöntem görevleri de dil değişince çevrilsin
+  for (const list of Object.values(LIBRARY_BY_KIND)) pairs.push(...list.map(t => ({ tr: t.tr, en: t.en })));
   pairs.push(...KILO_POOL, ...MARATON_POOL, ...GUC_POOL, ...GENEL_POOL, ...RAMAZAN_POOL);
   /**
    * RAMAZAN VARYANTLARI DA — eskiden unutulmuşlardı.

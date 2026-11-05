@@ -1,4 +1,5 @@
 import { findExamCurriculum, type ExamCurriculum } from '@/shared/utils/curriculum';
+import { EXAM_TRACKS, type ExamTrack } from '@/shared/utils/curriculumTr';
 import { detectExamFromInput, matchExamName, type ExamPreset } from '@/shared/utils/examPresets';
 import type { PlanTopic, TopicKind } from '../utils/scheduler';
 
@@ -17,10 +18,6 @@ export type ScoreModel =
 export interface ExamMeta {
   mockMin: number;
   score: ScoreModel;
-  /** Ders ağırlığı (verilmezse curriculum weight). */
-  subjectQ?: Record<string, number>;
-  /** Konu ağırlığı (verilmezse konu weight, ders içinde). */
-  topicQ?: Record<string, number>;
   /** Konu saati (verilmezse totalHours ağırlığa göre bölünür). */
   hours?: Record<string, number>;
   totalHours?: number;
@@ -32,29 +29,30 @@ const NET = (penalty = 0.25): ScoreModel => ({ kind: 'net', penalty });
 export const EXAM_META: Record<string, ExamMeta> = {
   kpss: {
     mockMin: 130, score: NET(),
-    subjectQ: { kpss_turkce: 30, kpss_matematik: 30, kpss_tarih: 27, kpss_cografya: 18, kpss_vatandaslik: 9, kpss_guncel: 6 },
-    topicQ: { kpss_turkce_paragraf: 14, kpss_turkce_sozcukte: 4, kpss_turkce_cumlede: 4, kpss_turkce_yazim: 3, kpss_turkce_dilbilgisi: 3, kpss_turkce_anlatim: 2, kpss_mat_islemler: 9, kpss_mat_rasyonel: 6, kpss_mat_oran: 5, kpss_mat_sayilar: 4, kpss_mat_bolme: 3, kpss_mat_geometri: 2, kpss_mat_veri: 1 },
-    hours: { kpss_turkce_paragraf: 30, kpss_turkce_sozcukte: 8, kpss_turkce_cumlede: 8, kpss_turkce_yazim: 6, kpss_turkce_dilbilgisi: 12, kpss_turkce_anlatim: 4, kpss_mat_islemler: 36, kpss_mat_rasyonel: 16, kpss_mat_oran: 10, kpss_mat_sayilar: 14, kpss_mat_bolme: 10, kpss_mat_geometri: 18, kpss_mat_veri: 4 },
     totalHours: 340,
+    hours: { kpss_turkce_paragraf: 30, kpss_mat_problem: 36, kpss_mat_geometri: 16 },
     ezberSubjects: ['kpss_tarih', 'kpss_cografya', 'kpss_vatandaslik', 'kpss_guncel'],
   },
   dgs: {
     mockMin: 135, score: NET(),
-    subjectQ: { dgs_sozel: 50, dgs_sayisal: 50 },
-    topicQ: { dgs_sozel_anlam: 14, dgs_sozel_paragraf: 24, dgs_sozel_mantik: 12, dgs_sayisal_islemler: 12, dgs_sayisal_problem: 20, dgs_sayisal_geometri: 12, dgs_sayisal_veri: 6 },
-    hours: { dgs_sozel_anlam: 16, dgs_sozel_paragraf: 28, dgs_sozel_mantik: 18, dgs_sayisal_islemler: 34, dgs_sayisal_problem: 44, dgs_sayisal_geometri: 36, dgs_sayisal_veri: 8 },
+    hours: { dgs_sozel_anlam: 16, dgs_sozel_paragraf: 28, dgs_sozel_mantik: 18, dgs_sayisal_islemler: 30, dgs_sayisal_problem: 40, dgs_sayisal_geometri: 32, dgs_sayisal_mantik: 10, dgs_sayisal_veri: 8 },
   },
-  yks: { mockMin: 165, score: NET(), subjectQ: { yks_turkce: 40, yks_matematik: 40, yks_fen: 20, yks_sosyal: 20 }, totalHours: 600, ezberSubjects: ['yks_sosyal'] },
-  ales: { mockMin: 150, score: NET(), subjectQ: { ales_sozel: 50, ales_sayisal: 50 }, totalHours: 150 },
-  lgs: { mockMin: 155, score: NET(1 / 3), subjectQ: { lgs_turkce: 20, lgs_matematik: 20, lgs_fen: 20, lgs_inkilap: 10, lgs_din: 10, lgs_ingilizce: 10 }, totalHours: 400, ezberSubjects: ['lgs_inkilap', 'lgs_din'] },
+  yks: { mockMin: 165, score: NET(), totalHours: 1200, ezberSubjects: ['yks_sosyal', 'ayt_tar', 'ayt_cog', 'ayt_fel', 'ayt_din', 'ayt_edb'] },
+  ales: { mockMin: 150, score: NET(), totalHours: 150 },
+  lgs: { mockMin: 155, score: NET(1 / 3), totalHours: 400, ezberSubjects: ['lgs_inkilap', 'lgs_din'] },
   yds: { mockMin: 180, score: NET(0), totalHours: 200 },
+  yokdil: { mockMin: 180, score: NET(0), totalHours: 150 },
+  ags: { mockMin: 110, score: NET(), totalHours: 300, ezberSubjects: ['ags_mevzuat', 'ags_tarih', 'ags_cografya'] },
+  hmgs: { mockMin: 155, score: NET(), totalHours: 500, ezberSubjects: ['hmgs_kamu', 'hmgs_ozel', 'hmgs_ceza', 'hmgs_usul'] },
+  ekpss: { mockMin: 130, score: NET(), totalHours: 150 },
+  tus: { mockMin: 300, score: NET(), totalHours: 800, ezberSubjects: ['tus_temel'] },
   ielts: { mockMin: 165, score: { kind: 'band', min: 0, max: 9, step: 0.5 }, totalHours: 120 },
-  toefl: { mockMin: 120, score: { kind: 'scaled', min: 0, max: 120 }, totalHours: 120 },
+  toefl: { mockMin: 90, score: { kind: 'scaled', min: 0, max: 120 }, totalHours: 120 },
   pte: { mockMin: 120, score: { kind: 'scaled', min: 10, max: 90 }, totalHours: 100 },
   det: { mockMin: 60, score: { kind: 'scaled', min: 10, max: 160 }, totalHours: 60 },
   gre: { mockMin: 118, score: { kind: 'scaled', min: 260, max: 340 }, totalHours: 120 },
   gmat: { mockMin: 135, score: { kind: 'scaled', min: 205, max: 805 }, totalHours: 120 },
-  sat: { mockMin: 134, score: { kind: 'scaled', min: 400, max: 1600 }, subjectQ: { sat_rw: 54, sat_math: 44 }, totalHours: 120 },
+  sat: { mockMin: 134, score: { kind: 'scaled', min: 400, max: 1600 }, totalHours: 120 },
   act: { mockMin: 125, score: { kind: 'scaled', min: 1, max: 36 }, totalHours: 100 },
   lsat: { mockMin: 140, score: { kind: 'scaled', min: 120, max: 180 }, totalHours: 200 },
   mcat: { mockMin: 450, score: { kind: 'scaled', min: 472, max: 528 }, totalHours: 400 },
@@ -83,14 +81,14 @@ export function presetFor(name: string): ExamPreset | null {
 export function blueprintFromCurriculum(cur: ExamCurriculum, preset: ExamPreset | null): ExamBlueprint {
   const meta = EXAM_META[cur.id] ?? { mockMin: DEFAULT_MOCK, score: { kind: 'percent' } as ScoreModel };
   const kindOf = (sub: string): TopicKind => (preset?.category === 'language' ? 'dil' : meta.ezberSubjects?.includes(sub) ? 'ezber' : 'beceri');
-  const totalQ = cur.subjects.reduce((a, s) => a + (meta.subjectQ?.[s.id] ?? s.weight ?? 1), 0) || 1;
+  const totalQ = cur.subjects.reduce((a, s) => a + (s.weight ?? 1), 0) || 1;
   const totalHours = meta.totalHours ?? CATEGORY_HOURS[preset?.category ?? 'other'];
   const topics: PlanTopic[] = [];
   const labels: ExamBlueprint['labels'] = {};
   for (const s of cur.subjects) {
-    const subjectShare = (meta.subjectQ?.[s.id] ?? s.weight ?? 1) / totalQ;
+    const subjectShare = (s.weight ?? 1) / totalQ;
     const list = s.topics?.length ? s.topics : [{ id: s.id, tr: s.tr, en: s.en }];
-    const weightOf = (t: { id: string; weight?: number }) => meta.topicQ?.[t.id] ?? t.weight ?? 1;
+    const weightOf = (t: { id: string; weight?: number }) => t.weight ?? 1;
     const inner = list.reduce((a, t) => a + weightOf(t), 0) || 1;
     for (const t of list) {
       const share = subjectShare * (weightOf(t) / inner);
@@ -105,4 +103,20 @@ export function blueprintFromCurriculum(cur: ExamCurriculum, preset: ExamPreset 
 export function blueprintFor(name: string): ExamBlueprint | null {
   const cur = findExamCurriculum(name);
   return cur ? blueprintFromCurriculum(cur, presetFor(name)) : null;
+}
+
+/** Sınavın alanları (YKS: Sayısal, Eşit Ağırlık...). Alan yoksa boş. */
+export const tracksFor = (examId: string): ExamTrack[] => EXAM_TRACKS[examId] ?? [];
+
+/** Şu an seçili alan: planda kalan dersler tam olarak o alanın dersleriyse. Kullanıcı ders ekleyip çıkardıysa alan seçili sayılmaz. */
+export function currentTrack(tracks: ExamTrack[], subjectIds: string[], excluded: string[]): string | null {
+  const kept = subjectIds.filter(id => !excluded.includes(id));
+  return tracks.find(t => t.keep.length === kept.length && t.keep.every(id => kept.includes(id)))?.id ?? null;
+}
+
+/** Alan seçilince yalnız değişmesi gereken dersler. Konu düzeyinde çıkarılanlara dokunulmaz. */
+export function trackChanges(track: ExamTrack, subjectIds: string[], excluded: string[]): { id: string; excluded: boolean }[] {
+  return subjectIds
+    .map(id => ({ id, excluded: !track.keep.includes(id) }))
+    .filter(c => excluded.includes(c.id) !== c.excluded);
 }

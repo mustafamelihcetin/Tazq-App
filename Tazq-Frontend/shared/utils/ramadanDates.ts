@@ -62,34 +62,32 @@ export interface RamadanStatus {
   duration: number; // toplam Ramazan günü
 }
 
-export function getCurrentRamadanStatus(): RamadanStatus {
+/** Verilen dönemin bugünkü durumu; dönem bitmişse null. */
+export function statusOfPeriod(p: RamadanPeriod): RamadanStatus | null {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const year = today.getFullYear();
+  // YEREL parse — UTC parse Ramazan'ın ilk gününü bir gün ileri kaydırıyordu.
+  const start = parseLocalDate(p.start);
+  const end = parseLocalDate(p.end);
+  end.setHours(23, 59, 59, 999);
+  const MS = 86_400_000;
+  const duration = Math.round((parseLocalDate(p.end).getTime() - parseLocalDate(p.start).getTime()) / MS) + 1;
+  if (today >= start && today <= end) {
+    return { period: p, isActive: true, daysRemaining: Math.round((parseLocalDate(p.end).getTime() - today.getTime()) / MS), daysUntilStart: 0, duration };
+  }
+  if (today < start) {
+    return { period: p, isActive: false, daysRemaining: 0, daysUntilStart: Math.ceil((start.getTime() - today.getTime()) / MS), duration };
+  }
+  return null;
+}
 
-  const tryPeriod = (p: RamadanPeriod): RamadanStatus | null => {
-    // YEREL parse — UTC parse Ramazan'ın ilk gününü bir gün ileri kaydırıyordu.
-    const start = parseLocalDate(p.start);
-    const end = parseLocalDate(p.end);
-    end.setHours(23, 59, 59, 999);
-    const MS = 86_400_000;
-    const duration = Math.round((parseLocalDate(p.end).getTime() - parseLocalDate(p.start).getTime()) / MS) + 1;
-
-    if (today >= start && today <= end) {
-      return { period: p, isActive: true, daysRemaining: Math.ceil((end.getTime() - today.getTime()) / MS), daysUntilStart: 0, duration };
-    }
-    if (today < start) {
-      return { period: p, isActive: false, daysRemaining: 0, daysUntilStart: Math.ceil((start.getTime() - today.getTime()) / MS), duration };
-    }
-    return null;
-  };
-
+export function getCurrentRamadanStatus(): RamadanStatus {
+  const year = new Date().getFullYear();
   for (const candidate of [getRamadanForYear(year), getRamadanForYear(year + 1)]) {
     if (!candidate) continue;
-    const result = tryPeriod(candidate);
+    const result = statusOfPeriod(candidate);
     if (result) return result;
   }
-
   return { period: null, isActive: false, daysRemaining: 0, daysUntilStart: 0, duration: 0 };
 }
 

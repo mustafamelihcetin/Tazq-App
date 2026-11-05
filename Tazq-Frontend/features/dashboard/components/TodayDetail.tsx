@@ -1,3 +1,4 @@
+import { isFocusWorthy } from '@/features/focus/focusWorthy';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
@@ -89,7 +90,7 @@ export function TodayDetail({ kind, tasks, habits, focusMin, focusGoal, onFocusT
           {tasks.length === 0 ? <Text style={[styles.note, { color: dc.muted }]}>{c.noTasks}</Text> : tasks.slice(0, 3).map((t, i) => (
             <View key={t.id} style={styles.row}>
               <Text style={[styles.item, { color: dc.ink }]} numberOfLines={1}>{t.title}</Text>
-              {i === 0 && (
+              {i === 0 && isFocusWorthy(t) && (
                 <Touchable onPress={() => onFocusTask(t)} accessibilityRole="button" accessibilityLabel={`${c.focus}: ${t.title}`} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={[styles.mini, { backgroundColor: theme.primary + '1F' }]}>
                   <Play size={ICON.xs} color={theme.primary} fill={theme.primary} />
                 </Touchable>

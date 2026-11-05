@@ -1,3 +1,4 @@
+import { ramadanStudyRelief } from '@/features/modes/utils/ramadanPreview';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { isPausedOn } from '@/features/modes/utils/planPause';
 import { retirePlanTask } from '@/features/modes/utils/planTaskOps';
@@ -44,7 +45,7 @@ export function runStudySync(today: string = studyToday(), opts?: { replan?: boo
   const store = useStudyPlanStore.getState();
   store.reconcile(tasks, today);
   const beforeIds = new Set((useStudyPlanStore.getState().committed[today] ?? []).map(b => b.id));
-  store.sync(studySlots(today), today, opts);
+  store.sync(studySlots(today), today, { ...opts, relief: ramadanStudyRelief() });
   const afterIds = new Set((useStudyPlanStore.getState().committed[today] ?? []).map(b => b.id));
   const dropped = [...beforeIds].filter(id => !afterIds.has(id));
   bridgePaused = true;
