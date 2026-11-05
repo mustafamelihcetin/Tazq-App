@@ -98,3 +98,10 @@ describe('yenileme döngüsü koruması', () => {
     expect(SRC).not.toMatch(/url\.includes\('\/refresh-session'\)/);
   });
 });
+
+describe('arka planda anahtar yenilenmez (2026-11-05)', () => {
+  it('uygulama önde değilse yenileme geçici sayılır', () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '../shared/services/api.ts'), 'utf8');
+    expect(src).toMatch(/AppState\.currentState !== 'active'\) return \{ status: 'transient' \}/);
+  });
+});

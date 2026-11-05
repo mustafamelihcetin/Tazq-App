@@ -112,6 +112,8 @@ export default function OdemelerScreen() {
   const [payColor, setPayColor] = useState<string | null>(null);
   const [payReminder, setPayReminder] = useState<number>(DEFAULT_REMINDER_DAYS);
   const [view, setView] = useState<'list' | 'calendar'>('list');
+  // Gün seçilince takvim üst çubuğun hemen altına gelir, altındaki liste görünür olur (2026-11-05).
+  const calendarY = useRef(0);
   // Değişken tutarlıda "ödendi" → o ayın gerçek tutarı sorulur (bkz. PaidAmountSheet).
   const [paidPrompt, setPaidPrompt] = useState<Payment | null>(null);
   // Bildirimdeki "Tutarı gir" buraya `pay=<id>` ile gelir: o ödemenin tutar penceresi doğrudan açılır.
@@ -284,7 +286,6 @@ export default function OdemelerScreen() {
   const approxPaid = approxTotal(totalsOf(paidList), currency, fx);
   const approxAll = approxTotal(totalsOf(thisMonth), currency, fx);
   const approxLeft = approxTotal(totalsOf(unpaidList), currency, fx);
-  const monthProgress = approxAll && approxPaid != null ? approxPaid / approxAll : thisMonth.length ? paidList.length / thisMonth.length : 0;
 
   const renderGroup = (list: PaymentView[]) => (
     <View>
@@ -349,7 +350,7 @@ export default function OdemelerScreen() {
         // dokunuşu Touchable'a ULAŞMADAN yutuyordu). 'handled': dokunulabilir bir
         // öğeye basılıyorsa dokunuş HEMEN işlenir, klavye kapanması yan etkidir.
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl, gap: S.md, width: '100%', maxWidth: contentW, alignSelf: 'center' }}
+        contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl + (view === 'calendar' ? 320 : 0), gap: S.md, width: '100%', maxWidth: contentW, alignSelf: 'center' }}
         renderItem={() => null}
         ListHeaderComponent={
           <View style={{ gap: S.md }}>
@@ -544,7 +545,7 @@ export default function OdemelerScreen() {
                 remaining={formatTotals(totalsOf(unpaidList), lang)}
                 paid={formatTotals(totalsOf(paidList), lang)}
                 total={formatTotals(totalsOf(thisMonth), lang)}
-                progress={monthProgress}
+                marks={thisMonth.map(v => ({ day: new Date().getDate() + v.days, state: v.status === 'paid' ? 'paid' as const : v.status === 'overdue' ? 'overdue' as const : 'due' as const }))}
                 allPaid={unpaidList.length === 0}
                 overdue={overdueList.length ? { count: overdueList.length, amount: formatTotals(totalsOf(overdueList), lang) } : null}
                 next={unpaidList[0] ? { title: unpaidList[0].p.title, days: unpaidList[0].days } : null}
@@ -557,7 +558,7 @@ export default function OdemelerScreen() {
             {payments.length > 0 && !showAdd && (
               <View accessibilityRole="tablist" style={{ flexDirection: 'row', padding: S.xxs, borderRadius: R.full, backgroundColor: theme.surfaceField }}>
                 {(['list', 'calendar'] as const).map(k => (
-                  <Touchable key={k} onPress={() => { haptic.select(); setView(k); }} accessibilityRole="tab" accessibilityState={{ selected: view === k }}
+                  <Touchable key={k} onPress={() => setView(k)} accessibilityRole="tab" accessibilityState={{ selected: view === k }}
                     style={{ flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, backgroundColor: view === k ? theme.surfaceCard : 'transparent' }}>
                     <Text style={{ fontSize: F.footnote, fontWeight: '600', color: view === k ? theme.onSurface : theme.onSurfaceVariant }}>{VIEW_COPY[lang][k]}</Text>
                   </Touchable>
@@ -566,8 +567,11 @@ export default function OdemelerScreen() {
             )}
 
             {view === 'calendar' && !showAdd && payments.length > 0 && (
-              <PaymentsCalendar payments={payments} theme={theme} lang={lang} locale={locale} onOpen={openEdit}
-                formatAmount={p => formatMoney(p.amount, p.currency || currency, lang)} />
+              <View onLayout={e => { calendarY.current = e.nativeEvent.layout.y; }}>
+                <PaymentsCalendar payments={payments} theme={theme} lang={lang} locale={locale} onOpen={openEdit}
+                  onDaySelected={() => listRef.current?.scrollToOffset({ offset: calendarY.current + S.md - S.sm, animated: true })}
+                  formatAmount={p => formatMoney(p.amount, p.currency || currency, lang)} />
+              </View>
             )}
 
             {view === 'list' && thisMonth.length > 0 && (

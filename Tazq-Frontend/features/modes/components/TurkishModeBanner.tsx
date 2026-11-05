@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, Platform, 
 import { CustomAlert as Alert, AlertHost } from '@/shared/components/CustomAlert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MotiView } from 'moti';
+import { PLAN_PURPOSE } from '@/features/modes/components/plan/planCopy';
+import type { PlanType } from '@/features/modes/utils/planSlots';
 import { X, ChevronRight, Check, Zap, ArrowLeft, Flame, Target, RefreshCw, Trash2, TrendingUp, CheckCircle2, Circle, Star, Shield, Lightbulb, Pencil, Sparkles, Layers } from 'lucide-react-native';
 import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
@@ -30,8 +32,7 @@ import { haptic } from '@/shared/utils/haptics';
 import { swallow } from '@/shared/utils/swallow';
 import { splitForFirstDay, interleaveStaged } from '@/features/modes/utils/stagedRollout';
 import { useStagedPlanStore } from '@/features/modes/store/useStagedPlanStore';
-import { roomLeft } from '@/features/habits/utils/habitLimit';
-import { dayRatingKey } from '@/features/modes/utils/dayRating';
+import { modeRoomLeft } from '@/features/habits/utils/habitLimit';
 
 interface Props {
   mode: TurkishMode;
@@ -44,45 +45,14 @@ interface Props {
   planTaskIds?: number[];
   onClearPlan?: (preserveMeta?: boolean) => void;
   defaultTemplateId?: string;
-  onRatingChange?: (rating: number) => void;
   activeSlot?: string;
 }
 
-const ALGORITHM_DESCRIPTIONS = {
-  exam: {
-    tr: 'Sınav tarihine kalan güne göre 5 farklı eğitim fazı (Konu Tarama ➔ Derinleşme ➔ Hızlanma ➔ Sprint ➔ Sınav Günü) otomatik tetiklenir ve günlük çalışma süresi bu fazlara göre adapte edilir.',
-    en: 'Automatically schedules 5 study phases (Coverage ➔ Deepening ➔ Focus ➔ Sprint ➔ Exam Day) based on your remaining days, adjusting daily minutes and difficulty.'
-  },
-  tez: {
-    tr: 'Tezin teslim tarihine kalan güne göre haftalık raporlama sıklığı ve teslim adımları (son 2 hafta kaynakça/dipnot format kontrolü vb.) otomatik planlanır.',
-    en: 'Weekly reporting frequencies and final formatting checks (footnotes, bibliography in final 2 weeks) are automatically adapted based on your deadline.'
-  },
-  mulakat: {
-    tr: 'Mülakat tarihine kalan süreye göre hazırlık havuzunu daraltır (Son 14 gün CV uyarlama, son 7 gün şirket araştırması, son 3 gün mock mülakat ve ses kaydı, son 24 saat hazırlık).',
-    en: 'Narrows your preparation focus as the date nears (CV tailoring 14 days out, company research at 7 days, mock interviews/recording at 3 days, final details in last 24h).'
-  },
-  spor: {
-    tr: 'Spor tarihine kalan süreyi izler. Maraton için son 3 hafta tapering (mesafe azaltma) evresini başlatır; Güç planı için her 4 haftada bir hafif çalışma (Deload) haftası atar.',
-    en: 'Monitors remaining weeks. Triggers 3-week tapering (mileage drop) for marathons, and schedules deload weeks every 4 weeks for strength/hypertrophy programs.'
-  },
-  ramazan: {
-    tr: 'Bayram tarihine kalan süreyi hesaplar ve son 10 güne girildiğinde Kadir Gecesi ibadet programı görevi gibi dönemsel görevler üretir.',
-    en: 'Counts down to the end of Ramadan, automatically generating laylat al-qadr worship plans and bayram preparation steps during the final 10 days.'
-  },
-  tasarruf: {
-    tr: 'Hedeflenen bütçe/birikim tarihine kalan süreyi izler, haftalık harcama ve bütçe planlamalarını bu ritme göre organize eder.',
-    en: 'Tracks remaining weeks to your savings target date, structuring weekly spending reviews and emergency fund actions around your timeline.'
-  },
-  birakma: {
-    tr: 'Bir bitiş tarihi yerine, başladığın andan itibaren geçen temiz gün serini takip eder, kritik haftalık ve aylık dönemeçlerde özel kilometre taşları belirler.',
-    en: 'Instead of counting down to a deadline, it tracks your elapsed clean days, creating custom milestones at critical weekly and monthly intervals.'
-  }
-};
 
 export const TurkishModeBanner: React.FC<Props> = ({
   mode, onDismiss, showSheetImmediately, onApplied, onSheetClose,
   planApplied, planHabitIds = [], planTaskIds = [], onClearPlan,
-  defaultTemplateId, onRatingChange, activeSlot,
+  defaultTemplateId, activeSlot,
 }) => {
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
@@ -126,95 +96,9 @@ export const TurkishModeBanner: React.FC<Props> = ({
   const [customAiText, setCustomAiText] = useState('');
   const [customGoal,   setCustomGoal]   = useState(60);
 
-  // Timeline editing state
-  const [isEditingTimeline, setIsEditingTimeline] = useState(false);
-  const setSeasonalPref = usePrefsStore(s => s.setSeasonalPref);
-  const planSpecs = usePrefsStore(s => s.planSpecs);
-  const setPlanSpec = usePrefsStore(s => s.setPlanSpec);
   const seasonal = usePrefsStore(s => s.seasonal);
   const { runAdaptations: runPlanAdaptations } = usePlanAdaptations();
   const { show: showToast } = useToastStore();
-
-  const initialDateStr = useMemo(() => {
-    if (!activeSlot) return '';
-    const dateKeyMap: Record<string, keyof SeasonalPrefs> = {
-      exam: 'examDate', exam2: 'exam2Date', exam3: 'exam3Date',
-      tez: 'tezDate', mulakat: 'mulakatDate', mulakat2: 'mulakat2Date',
-      mulakat3: 'mulakat3Date', spor: 'sporDate', spor2: 'spor2Date',
-      spor3: 'spor3Date', tasarruf: 'tasarrufDate'
-    };
-    const key = dateKeyMap[activeSlot];
-    return key ? (seasonal[key] as string || '') : '';
-  }, [activeSlot, seasonal]);
-
-  const initialMinutes = useMemo(() => {
-    if (!activeSlot) return 60;
-    const spec = planSpecs[activeSlot as PlanMode];
-    return spec?.dailyMinutes ?? 60;
-  }, [activeSlot, planSpecs]);
-
-  const [editedDate, setEditedDate] = useState(initialDateStr);
-  const [editedMinutes, setEditedMinutes] = useState(initialMinutes);
-
-  useEffect(() => {
-    setEditedDate(initialDateStr);
-  }, [initialDateStr]);
-
-  useEffect(() => {
-    setEditedMinutes(initialMinutes);
-  }, [initialMinutes]);
-
-  const handleSaveTimeline = () => {
-    if (!activeSlot) return;
-    
-    if (activeSlot !== 'birakma' && activeSlot !== 'ramazan') {
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-      if (!dateRegex.test(editedDate)) {
-        Alert.alert(
-          tr ? 'Geçersiz Tarih' : 'Invalid Date',
-          tr ? 'Lütfen tarihi YYYY-AA-GG formatında girin.' : 'Please enter the date in YYYY-MM-DD format.'
-        );
-        return;
-      }
-      
-      const parsed = Date.parse(editedDate);
-      if (isNaN(parsed)) {
-        Alert.alert(
-          tr ? 'Geçersiz Tarih' : 'Invalid Date',
-          tr ? 'Girdiğiniz tarih geçerli değil.' : 'The date you entered is not valid.'
-        );
-        return;
-      }
-
-      const dateKeyMap: Record<string, keyof SeasonalPrefs> = {
-        exam: 'examDate', exam2: 'exam2Date', exam3: 'exam3Date',
-        tez: 'tezDate', mulakat: 'mulakatDate', mulakat2: 'mulakat2Date',
-        mulakat3: 'mulakat3Date', spor: 'sporDate', spor2: 'spor2Date',
-        spor3: 'spor3Date', tasarruf: 'tasarrufDate'
-      };
-      const key = dateKeyMap[activeSlot];
-      if (key) {
-        setSeasonalPref(key, editedDate);
-      }
-    }
-
-    if (activeSlot !== 'birakma') {
-      const currentSpec = planSpecs[activeSlot as PlanMode] || {};
-      setPlanSpec(activeSlot as PlanMode, {
-        ...currentSpec,
-        dailyMinutes: editedMinutes
-      });
-      setDailyGoal(editedMinutes);
-    }
-
-    setIsEditingTimeline(false);
-    haptic.success();
-    showToast(tr ? 'Zaman çizelgesi güncellendi ve plan adapte edildi.' : 'Timeline updated and plan adapted.', 'success');
-
-    setTimeout(() => {
-      runPlanAdaptations(true);
-    }, 300);
-  };
 
   useEffect(() => {
     if (sheetVisible) {
@@ -305,188 +189,6 @@ export const TurkishModeBanner: React.FC<Props> = ({
     ? Math.round(planHabitStats.reduce((s, h) => s + h.weekDone / 7, 0) / planHabitStats.length * 100)
     : 0;
 
-  const [rating, setRating] = useState<number | null>(null);
-  /*
-    YUVA DA ANAHTARIN İÇİNDE OLMALI. Bu bileşen exam/exam2/exam3 (ve mulakat/spor
-    ikizleri) için AYNI `mode.type` ile ayrı ayrı açılıyor — yuva farkı yalnız
-    `activeSlot`te. Anahtar bunu içermeyince iki sınavın günlük değerlendirmesi
-    aynı AsyncStorage kaydını paylaşıyor, biri diğerini sessizce eziyordu.
-  */
-  const ratingKey = dayRatingKey(activeSlot ?? mode.type, todayKey);
-
-  useEffect(() => {
-    if (sheetVisible) {
-      AsyncStorage.getItem(ratingKey).then(val => {
-        if (val) {
-          setRating(parseInt(val, 10));
-        } else {
-          setRating(null);
-        }
-      }).catch(() => {});
-    }
-  }, [sheetVisible, ratingKey]);
-
-  const saveRating = async (score: number) => {
-    try {
-      haptic.select();
-      setRating(score);
-      await AsyncStorage.setItem(ratingKey, score.toString());
-      onRatingChange?.(score);
-    } catch (e) {
-      swallow('modeBanner.saveDailyRating', e);
-    }
-  };
-
-  const insightText = useMemo(() => {
-    const now = new Date().getTime();
-    const MS_IN_DAY = 24 * 60 * 60 * 1000;
-
-    // Check if the plan is brand new (all habits in the plan created within the last 36 hours and no completions recorded yet)
-    const isNewPlan = planHabits.length > 0 && planHabits.every(h => {
-      const createdTime = h.createdAt ? new Date(h.createdAt).getTime() : now;
-      return (now - createdTime) < 1.5 * MS_IN_DAY;
-    }) && planHabits.reduce((acc, h) => acc + (h.completedDates?.length ?? 0), 0) === 0;
-
-    const completedTodayCount = planHabitStats.filter(h => h.doneToday).length;
-    const allTodayCompleted = planHabitStats.length > 0 && completedTodayCount === planHabitStats.length;
-
-    const isHigh = avgHabitWeekPct >= 70 || (totalPlanTasks > 0 && completedPlanTasks / totalPlanTasks >= 0.70);
-    const isLow = avgHabitWeekPct < 35;
-    
-    if (mode.type === 'exam') {
-      if (isNewPlan) {
-        return tr
-          ? "Sınav hazırlık planın hazır! İlk adımı atmak en zorudur ama seni hedeflerine ulaştıracak olan da budur. Bugün listenden bir alışkanlık veya görevi tamamlayarak harika bir başlangıç yapabilirsin."
-          : "Your exam prep plan is ready! Taking the first step is the hardest, but it's what leads you to your goals. You can make a great start today by completing just one habit or task from your list.";
-      } else if (allTodayCompleted) {
-        return tr
-          ? "Harika! Bugünün tüm hedeflerini tamamladın. Bu günlük odaklanma ve kararlılık sınav gününde seni zirveye taşıyacak. Dinlenmeyi hak ettin!"
-          : "Great job! You've completed all of today's goals. This daily focus and determination will carry you to the top on exam day. You've earned some rest!";
-      } else if (bestStreak >= 3) {
-        return tr
-          ? `Sınav hazırlığında ${bestStreak} günlük harika bir seri yakaladın! İstikrar en büyük kozun. Zinciri kırmamak için bugün de hedeflerini tamamla.`
-          : `You've caught a great ${bestStreak}-day streak in your exam prep! Consistency is your biggest asset. Complete today's goals to keep the chain unbroken.`;
-      } else if (isHigh) {
-        return tr 
-          ? "Sınav disiplinin mükemmel seviyede! Haftalık alışkanlıkların ve görev tamamlama oranın oldukça yüksek. Bu tempoyu korursan hedefine ulaşmaman için hiçbir neden yok."
-          : "Your exam discipline is at an excellent level! Your weekly habits and task completion rates are very high. Keep this pace up and there is no reason not to reach your goal.";
-      } else if (isLow) {
-        return tr
-          ? "Bu ara tempodan düşmüş görünüyorsun. Kendine çok yüklenmeden, bugün sadece en kolay sınav görevine veya tek bir alışkanlığa odaklanarak ivme kazanmaya ne dersin?"
-          : "Looks like you've lost momentum recently. Without pushing yourself too hard, how about starting with the easiest exam task or just a single habit today to gain momentum?";
-      } else {
-        return tr
-          ? "İyi bir tempon var ama biraz daha istikrar sınav başarını katlayacaktır. Günlük planına sadık kalmaya çalış. Adım adım hedefe ilerliyorsun."
-          : "You have a good tempo, but a bit more consistency will boost your exam success. Try to stay true to your daily plan. You are moving step by step to your goal.";
-      }
-    } else if (mode.type === 'tez') {
-      if (isNewPlan) {
-        return tr
-          ? "Akademik maratonun başlıyor! Tez yazımında en önemli şey düzenli çalışmadır. Bugün kendine sadece 15 dakikalık okuma veya yazma hedefi koyarak ilk adımı atabilirsin."
-          : "Your academic marathon begins! The most important thing in thesis writing is regular work. Today, you can take the first step by setting a simple 15-minute reading or writing goal.";
-      } else if (allTodayCompleted) {
-        return tr
-          ? "Harika! Bugünün tez hedeflerini eksiksiz bitirdin. Her gün atılan bu küçük adımlar, o tezin başarıyla tamamlanmasını sağlayacak en önemli güçtür."
-          : "Great! You completed today's thesis goals completely. These small daily steps are the key force that will ensure your thesis is successfully finished.";
-      } else if (bestStreak >= 3) {
-        return tr
-          ? `Tez çalışmanda ${bestStreak} günlük bir seri yakaladın! Akademik disiplinin harika gidiyor. Rutinini bozmadan bugün de devam et.`
-          : `You've built a ${bestStreak}-day streak in your thesis work! Your academic discipline is going great. Keep it up today without breaking the routine.`;
-      } else if (isHigh) {
-        return tr
-          ? "Akademik disiplinin takdire şayan! Tez sürecinde en önemli şey sürekliliktir ve sen bunu başarıyorsun. Yazma ve araştırma rutinlerini korumaya devam et."
-          : "Your academic discipline is highly commendable! Consistency is key in the thesis process and you're achieving it. Keep maintaining your writing and research routines.";
-      } else if (isLow) {
-        return tr
-          ? "Yazma blokajı mı yaşıyorsun? Tezi gözünde büyütmek yerine sadece bugün için tek bir küçük kaynak okumayı veya bir paragraf yazmayı dene. Büyük işler küçük adımlarla başlar."
-          : "Experiencing writer's block? Instead of letting the thesis overwhelm you, try reading just one source or writing a single paragraph today. Big tasks start with small steps.";
-      } else {
-        return tr
-          ? "Tez yazımında ilerleme kaydediyorsun fakat bloklar halinde değil, düzenli çalışmak işini kolaylaştıracaktır. Bu hafta rutinlerini biraz daha yukarı taşımaya odaklan."
-          : "You are making progress on your thesis, but working regularly rather than in big chunks will make it easier. Focus on boosting your routines a bit more this week.";
-      }
-    } else if (mode.type === 'mulakat') {
-      if (isNewPlan) {
-        return tr
-          ? "Kariyer hedeflerine giden yolda ilk adım! Mülakat hazırlığı bir süreçtir. Bugün temel bir teknik konuyu gözden geçirerek veya özgeçmişine bakarak profesyonel başlangıcını yapabilirsin."
-          : "The first step toward your career goals! Interview prep is a process. Today, you can make your professional start by reviewing a basic technical topic or looking over your resume.";
-      } else if (allTodayCompleted) {
-        return tr
-          ? "Bugünün mülakat hazırlık görevlerini başarıyla tamamladın! Bu planlı çalışma sayesinde görüşme gününde kendine güvenin tam olacak."
-          : "You've successfully completed today's interview prep tasks! Thanks to this planned effort, you will be fully confident on interview day.";
-      } else if (bestStreak >= 3) {
-        return tr
-          ? `Mülakat hazırlığında ${bestStreak} günlük bir seri yakaladın! Her gün pratik yapmak seni rakiplerinden öne geçirecektir. Seriyi bugün de koru.`
-          : `You've hit a ${bestStreak}-day streak in your interview prep! Daily practice will set you apart from other candidates. Maintain the streak today.`;
-      } else if (isHigh) {
-        return tr
-          ? "Mülakata hazırlığın son derece profesyonel. Düzenli pratik ve hazırlık sayesinde hayalindeki o iş teklifini almaya çok yakınsın. Harika iş!"
-          : "Your prep for the interview is extremely professional. Thanks to regular practice and prep, you are very close to landing that dream job offer. Great job!";
-      } else if (isLow) {
-        return tr
-          ? "Hazırlığı erteleme eğiliminde misin? Bugün sadece 5 dakikalık bir kendini tanıtma simülasyonu yapmayı veya tek bir mülakat sorusuna yanıt aramayı dene."
-          : "Are you tending to delay your prep? Today, try just a 5-minute self-introduction simulation or find an answer to a single common interview question.";
-      } else {
-        return tr
-          ? "Hazırlığın iyi gidiyor ama teknik konuları veya mülakat simülasyonlarını biraz daha sıklaştırmalısın. Rutin pratikler mülakat heyecanını azaltacaktır."
-          : "Your prep is going well, but you should practice technical topics or interview simulations more frequently. Routine practice will reduce your interview anxiety.";
-      }
-    } else if (mode.type === 'spor') {
-      if (isNewPlan) {
-        return tr
-          ? "Sağlıklı ve güçlü bir beden için harika bir karar! Sporda en önemli şey başlamaktır. Bugün sadece hafif bir egzersiz veya su içme alışkanlığıyla ilk adımı atabilirsin."
-          : "A great decision for a healthy and strong body! The most important thing in sports is starting. Today, you can take the first step with just a light exercise or drinking water habit.";
-      } else if (allTodayCompleted) {
-        return tr
-          ? "Bugünün tüm spor hedeflerini tamamladın! Vücudun bu disipline minnettar kalacak. Kendini ödüllendir ve kaslarının dinlenmesine izin ver."
-          : "You completed all of today's sports goals! Your body will thank you for this discipline. Reward yourself and allow your muscles to recover.";
-      } else if (bestStreak >= 3) {
-        return tr
-          ? `Sporda ${bestStreak} günlük harika bir seri yakaladın! Vücudun bu ritme alışmaya başladı. İstikrarı sürdürmek için bugün de rutinini tamamla.`
-          : `You've built a great ${bestStreak}-day sports streak! Your body is getting used to this rhythm. Complete your routine today to keep the consistency going.`;
-      } else if (isHigh) {
-        return tr
-          ? "Performansın zirvede! Alışkanlıkların ve spor rutinin harika ilerliyor. Bu disiplin ve güç seni hedeflerine çok hızlı ulaştıracak. Aynen devam!"
-          : "Your performance is peak! Your habits and sports routine are progressing wonderfully. This discipline and strength will bring you to your goals very fast. Keep it up!";
-      } else if (isLow) {
-        return tr
-          ? "Sporda motivasyon kaybı normaldir, en önemli şey tekrar başlamaktır. Kendini zorlamadan bugün sadece hafif bir yürüyüş veya esneme yaparak rutine geri dönebilirsin."
-          : "Loss of motivation in sports is normal; the key is starting again. Without pushing yourself, you can warm back into the routine with just a light walk or stretch today.";
-      } else {
-        return tr
-          ? "Aktifsin ama antrenman ve beslenme rutinlerinde daha fazla istikrar hedefine daha hızlı ulaştıracaktır. Günlük takiplere devam et, sonuçları göreceksin."
-          : "You are active, but more consistency in training and nutrition routines will bring you to your goal faster. Keep tracking daily, you will see results.";
-      }
-    } else {
-      // Default / Ramadan mode
-      if (isNewPlan) {
-        return tr
-          ? "Yeni manevi ve fiziksel rutinin hayırlı olsun! Alışkanlıklarına alışmak zaman alabilir, acele etme. Bugün sadece küçük bir niyet veya hafif bir okuma ile başlayabilirsin."
-          : "Welcome to your new spiritual and physical routine! It can take time to adjust to your habits, don't rush. You can start today with just a small intention or light reading.";
-      } else if (allTodayCompleted) {
-        return tr
-          ? "Mükemmel! Bugünün tüm rutinlerini tamamlayarak manevi ve zihinsel odaklanmanı en üst seviyede tuttun. Huzurlu ve verimli bir gün geçirdin."
-          : "Perfect! By completing all of today's routines, you kept your spiritual and mental focus at the highest level. You had a peaceful and productive day.";
-      } else if (bestStreak >= 3) {
-        return tr
-          ? `Rutinlerinde ${bestStreak} günlük harika bir istikrar yakaladın! Zihinsel ve bedensel huzurunu korumak için bugün de hedeflerini tamamla.`
-          : `You've achieved a great ${bestStreak}-day consistency in your routines! Complete your goals today to maintain your mental and physical peace.`;
-      } else if (isHigh) {
-        return tr
-          ? "Disiplinin ve sadakatin mükemmel seviyede. Planına olan bağlılığın manevi ve zihinsel odaklanmanı artıracaktır. Hayırlı ve verimli günler dileriz!"
-          : "Your discipline and dedication are at an excellent level. Your loyalty to the plan will enhance your spiritual and mental focus. Wishing you blessed and productive days!";
-      } else if (isLow) {
-        return tr
-          ? "Yeni tempoya alışmak zaman alabilir. Kendini çok yormadan, günlük küçük niyetler ve kolay hedeflerle planına yeniden odaklanabilirsin."
-          : "Getting used to the new pace can take time. Without pushing yourself too hard, you can refocus on your plan with small daily intentions and easy goals.";
-      } else {
-        return tr
-          ? "Rutinlerin fena gitmiyor. Günlük ibadet, okuma veya dinlenme dengeni korumak için planına sadık kalmaya çalış. İstikrar huzur getirecektir."
-          : "Your routines are not going bad. Try to stay committed to your plan to keep your daily prayer, reading, or resting balance. Consistency brings peace.";
-      }
-    }
-  }, [mode.type, avgHabitWeekPct, completedPlanTasks, totalPlanTasks, tr, planHabits, planHabitStats]);
-
   const openSheet = () => {
     prepareSheet();
     setSheetVisible(true);
@@ -527,7 +229,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
     const staged = splitForFirstDay(newHabits.filter(h => !deselectedHabits.has(h.name)), newTasks,
       { pinned: (t) => isRamazanPreStart || !!t.tags?.includes('weight_entry') });
     // Alışkanlık sınırı (madde 6): yer yoksa ilk günün alışkanlığı da sıraya girer.
-    const room = roomLeft(useHabitStore.getState().habits);
+    const room = modeRoomLeft(useHabitStore.getState().habits, mode.type);
     const habitsNow = staged.habitsNow.slice(0, room);
     const habitsWaiting = [...staged.habitsNow.slice(room), ...staged.habitsLater];
     const addedHabitIds: string[] = [];
@@ -721,32 +423,11 @@ export const TurkishModeBanner: React.FC<Props> = ({
   // Kurulum anında söylenecek MEVCUT yük — tek kaynaktan (bkz. useActiveModeSummary).
   const activeLoad = useActiveModeSummary();
 
+  /* Kutu yok: planın ne yaptığı tek cümle (2026-11-05, kullanıcı: "daha minimalist, daha kaliteli"). */
   const renderAlgorithmInfo = () => {
-    const desc = ALGORITHM_DESCRIPTIONS[mode.type as keyof typeof ALGORITHM_DESCRIPTIONS];
+    const desc = PLAN_PURPOSE[(mode.type === 'yks' || mode.type === 'kpss' ? 'exam' : mode.type) as PlanType];
     if (!desc) return null;
-
-    return (
-      <View style={{
-        backgroundColor: isDark ? modeAccent + '0C' : modeAccent + '06',
-        borderColor: isDark ? modeAccent + '25' : modeAccent + '15',
-        borderWidth: 1,
-        borderRadius: R.sm,
-        paddingHorizontal: S.smd,
-        paddingVertical: S.smd,
-        marginTop: S.sm,
-        marginBottom: S.smd,
-      }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.xs }}>
-          <Zap size={ICON.xs} color={modeAccent} fill={modeAccent} strokeWidth={0} />
-          <Text style={{ fontSize: F.caption, fontWeight: '700', color: modeAccent, letterSpacing: 0.5 }}>
-            {tr ? 'AKILLI SİSTEM MANTIĞI' : 'SMART ENGINE LOGIC'}
-          </Text>
-        </View>
-        <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, lineHeight: 15.5, fontWeight: '500' }}>
-          {tr ? desc.tr : desc.en}
-        </Text>
-      </View>
-    );
+    return <Text style={[styles.planLine, { color: theme.onSurfaceVariant }]}>{tr ? desc.tr : desc.en}</Text>;
   };
 
   const selectTemplate = (tpl: StudyTemplate) => {
@@ -984,355 +665,15 @@ export const TurkishModeBanner: React.FC<Props> = ({
   };
 
   // ── Plan View (when plan already applied) ──
+  /* Plan başlamışsa yönetimi Planım'da (bkz. app/plan.tsx): tek giriş, burada ikinci bir görünüm yok. */
   const renderPlanView = () => (
-    <>
-      <View style={styles.sheetHeader}>
-        {renderModeEmojiIcon(mode.emoji, 36, modeAccent)}
-        <View style={{ flex: 1 }}>
-          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface }]}>
-            {tr ? mode.labelTr : mode.labelEn}
-          </Text>
-          <Text style={[styles.sheetSub, { color: modeAccent }]}>
-            {mode.daysLeft > 0
-              ? (mode.type === 'ramazan' && !isRamazanActive
-                ? (tr ? `${mode.daysLeft} gün sonra başlıyor` : `Starts in ${mode.daysLeft} days`)
-                : (tr ? `${mode.daysLeft} gün kaldı` : `${mode.daysLeft} days left`))
-              : (tr ? 'Süre doldu' : 'Time\'s up')}
-          </Text>
-        </View>
-      </View>
-
-      {/* Progress summary row */}
-      <View style={[styles.progressRow, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}>
-        <View style={styles.progressStat}>
-          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.progressNum, { color: modeAccent }]}>{avgHabitWeekPct}%</Text>
-          <Text style={[styles.progressLabel, { color: theme.onSurfaceVariant }]}>
-            {tr ? 'haftalık alışkanlık' : 'weekly habits'}
-          </Text>
-        </View>
-        <View style={[styles.progressDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }]} />
-        <View style={styles.progressStat}>
-          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.progressNum, { color: modeAccent }]}>{completedPlanTasks}/{totalPlanTasks}</Text>
-          <Text style={[styles.progressLabel, { color: theme.onSurfaceVariant }]}>
-            {tr ? 'görev tamamlandı' : 'tasks done'}
-          </Text>
-        </View>
-        <View style={[styles.progressDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }]} />
-        <View style={styles.progressStat}>
-          {/* Alev metne gömülü ham emoji idi ("5🔥"); artık temaya uyan ikon. */}
-          <View style={styles.streakRow}>
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.progressNum, { color: modeAccent }]}>{bestStreak}</Text>
-            {bestStreak > 0 && <Flame size={ICON.sm} color={modeAccent} />}
-          </View>
-          <Text style={[styles.progressLabel, { color: theme.onSurfaceVariant }]}>
-            {tr ? 'en uzun seri' : 'best streak'}
-          </Text>
-        </View>
-      </View>
-
-      <ScrollView style={{ maxHeight: screenHeight * 0.45 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: S.sm }}>
-        {renderAlgorithmInfo()}
-
-        {/* Adjust Timeline / Date / Intensity Editor */}
-        {activeSlot && activeSlot !== 'birakma' && (
-          isEditingTimeline ? (
-            <MotiView
-              from={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              style={{
-                backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                borderColor: modeAccent + '30',
-                borderWidth: 1.5,
-                borderRadius: R.md,
-                padding: S.md,
-                marginBottom: S.md,
-                gap: S.sm
-              }}
-            >
-              <Text style={{ fontSize: F.footnote, fontWeight: '700', color: theme.onSurface }}>
-                {tr ? 'Zaman Çizelgesini Düzenle' : 'Edit Timeline'}
-              </Text>
-
-              {/* Target Date Input (if not ramadan or quit mode) */}
-              {activeSlot !== 'birakma' && activeSlot !== 'ramazan' && (
-                <View style={{ gap: S.sm }}>
-                  <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant }}>
-                    {tr ? 'Hedef Tarih (YYYY-AA-GG)' : 'Target Date (YYYY-MM-DD)'}
-                  </Text>
-                  <TextInput
-                    value={editedDate}
-                    onChangeText={setEditedDate}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={theme.onSurfaceVariant + '80'}
-                    style={{
-                      backgroundColor: isDark ? '#2C2C2E' : '#F0F0F2',
-                      color: theme.onSurface,
-                      borderRadius: R.sm,
-                      paddingHorizontal: S.smd,
-                      paddingVertical: S.sm,
-                      fontSize: F.body,
-                      fontWeight: '600'
-                    }}
-                  />
-                </View>
-              )}
-
-              {/* Daily Minutes Input (if has minutes) */}
-              <View style={{ gap: S.sm }}>
-                <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant }}>
-                  {tr ? 'Günlük Çalışma Süresi' : 'Daily Study Duration'}
-                </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.smd }}>
-                  <Touchable accessibilityRole="button"
-                    hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                    onPress={() => setEditedMinutes((prev: number) => Math.max(15, prev - 15))}
-                    style={{ width: 36, height: 36, borderRadius: R.full, backgroundColor: isDark ? '#2C2C2E' : '#E0E0E4', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Text style={{ color: theme.onSurface, fontSize: 18, fontWeight: 'bold' }}>-</Text>
-                  </Touchable>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: theme.onSurface, minWidth: 60, textAlign: 'center' }}>
-                    {editedMinutes} {tr ? 'dk' : 'min'}
-                  </Text>
-                  <Touchable accessibilityRole="button"
-                    hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                    onPress={() => setEditedMinutes((prev: number) => Math.min(480, prev + 15))}
-                    style={{ width: 36, height: 36, borderRadius: R.full, backgroundColor: isDark ? '#2C2C2E' : '#E0E0E4', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Text style={{ color: theme.onSurface, fontSize: 18, fontWeight: 'bold' }}>+</Text>
-                  </Touchable>
-                </View>
-              </View>
-
-              {/* Action Buttons */}
-              <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.xs }}>
-                <Touchable accessibilityRole="button"
-                  onPress={handleSaveTimeline}
-                  style={{ flex: 1, backgroundColor: modeAccent, paddingVertical: S.smd, borderRadius: R.sm, alignItems: 'center' }}
-                >
-                  <Text style={{ color: '#fff', fontSize: F.caption2, fontWeight: '700' }}>
-                    {tr ? 'Kaydet' : 'Save'}
-                  </Text>
-                </Touchable>
-                <Touchable accessibilityRole="button"
-                  onPress={() => setIsEditingTimeline(false)}
-                  style={{ flex: 1, backgroundColor: isDark ? '#2C2C2E' : '#E0E0E4', paddingVertical: S.smd, borderRadius: R.sm, alignItems: 'center' }}
-                >
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption2, fontWeight: '700' }}>
-                    {tr ? 'İptal' : 'Cancel'}
-                  </Text>
-                </Touchable>
-              </View>
-            </MotiView>
-          ) : (
-            <Touchable accessibilityRole="button"
-              onPress={() => setIsEditingTimeline(true)}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: modeAccent + '12',
-                borderColor: modeAccent + '28',
-                borderWidth: 1,
-                borderRadius: R.md,
-                paddingVertical: S.smd,
-                marginBottom: S.md,
-                gap: S.sm
-              }}
-            >
-              <RefreshCw size={ICON.sm} color={modeAccent} />
-              <Text style={{ fontSize: F.caption2, fontWeight: '700', color: modeAccent }}>
-                {tr ? 'Zaman Çizelgesini Ayarla' : 'Adjust Timeline'}
-              </Text>
-            </Touchable>
-          )
-        )}
-
-        {/* İçgörü & Değerlendirme (AI Insight & Evaluation) Card */}
-        <View style={{
-          backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
-          borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-          borderWidth: B.thin,
-          borderRadius: R.md,
-          padding: S.md,
-          marginBottom: S.md,
-          gap: S.xs
-        }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.xxs }}>
-            <TrendingUp size={ICON.sm} color={modeAccent} />
-            <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.caption, letterSpacing: 0.5 }}>
-              {tr ? 'İÇGÖRÜ & DEĞERLENDİRME' : 'INSIGHT & EVALUATION'}
-            </Text>
-          </View>
-          <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption2, lineHeight: 17 }}>
-            {insightText}
-          </Text>
-        </View>
-
-        {/* Kendini Değerlendir Rating Widget */}
-        <View style={{
-          backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
-          borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-          borderWidth: B.thin,
-          borderRadius: R.md,
-          padding: S.md,
-          marginBottom: S.md,
-          gap: S.sm,
-          alignItems: 'center'
-        }}>
-          <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.caption2, textAlign: 'center' }}>
-            {tr ? 'Bugün performansını nasıl değerlendiriyorsun?' : 'How do you rate your performance today?'}
-          </Text>
-          <View style={{ flexDirection: 'row', gap: S.md, marginTop: S.xs }}>
-            {[
-              { score: 1, emoji: '😫', labelTr: 'Çok Kötü', labelEn: 'Terrible' },
-              { score: 2, emoji: '😕', labelTr: 'Kötü', labelEn: 'Bad' },
-              { score: 3, emoji: '😐', labelTr: 'Orta', labelEn: 'Okay' },
-              { score: 4, emoji: '🙂', labelTr: 'İyi', labelEn: 'Good' },
-              { score: 5, emoji: '😎', labelTr: 'Harika', labelEn: 'Excellent' }
-            ].map(item => {
-              const selected = rating === item.score;
-              return (
-                <Touchable accessibilityRole="button" accessibilityState={{ selected: selected }}
-                  key={item.score}
-                  hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
-                  onPress={() => saveRating(item.score)}
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: R.full,
-                    backgroundColor: selected ? modeAccent + '22' : 'transparent',
-                    borderWidth: selected ? B.medium : B.thin,
-                    borderColor: selected ? modeAccent : 'transparent',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={{ fontSize: F.title3, opacity: selected ? 1 : 0.65 }}>{item.emoji}</Text>
-                </Touchable>
-              );
-            })}
-          </View>
-          {rating ? (
-            <Text style={{ color: modeAccent, fontSize: F.caption, fontWeight: '600', marginTop: S.xxs }}>
-              {(() => {
-                const item = [
-                  { score: 1, emoji: '😫', labelTr: 'Çok Kötü', labelEn: 'Terrible' },
-                  { score: 2, emoji: '😕', labelTr: 'Kötü', labelEn: 'Bad' },
-                  { score: 3, emoji: '😐', labelTr: 'Orta', labelEn: 'Okay' },
-                  { score: 4, emoji: '🙂', labelTr: 'İyi', labelEn: 'Good' },
-                  { score: 5, emoji: '😎', labelTr: 'Harika', labelEn: 'Excellent' }
-                ].find(i => i.score === rating);
-                return tr ? `Değerlendirmen: ${item?.labelTr}` : `Your rating: ${item?.labelEn}`;
-              })()}
-            </Text>
-          ) : null}
-        </View>
-
-        {/* Habits */}
-        {planHabitStats.length > 0 && (
-          <>
-            <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
-              {tr ? 'ALIŞKANLIKLARINIZ' : 'YOUR HABITS'}
-            </Text>
-            {planHabitStats.map(h => (
-              <View key={h.id} style={[styles.planViewRow, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }]}>
-                <View style={[styles.habitIconSm, { backgroundColor: modeAccent + '22' }]}>
-                  {renderModeEmojiIcon(h.emoji ?? '📌', 16, modeAccent)}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.planViewName, { color: theme.onSurface }]} numberOfLines={1}>{h.name}</Text>
-                  <View style={styles.habitMeta}>
-                    {/* 7-day dots */}
-                    <View style={styles.weekDots}>
-                      {last7Keys.slice().reverse().map((k, i) => {
-                        const dates = Array.isArray(h.completedDates) ? h.completedDates : [];
-                        const done = dates.includes(k);
-                        return (
-                          <View key={i} style={[styles.dot, { backgroundColor: done ? modeAccent : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)') }]} />
-                        );
-                      })}
-                    </View>
-                    <View style={styles.streakRow}>
-                      {h.streak > 0 && <Flame size={ICON.xs} color={STREAK_HOT} />}
-                      <Text style={[styles.streakText, { color: h.streak > 0 ? STREAK_HOT : theme.onSurfaceVariant }]}>{h.streak > 0 ? String(h.streak) : (tr ? 'seri yok' : 'no streak')}</Text>
-                    </View>
-                  </View>
-                </View>
-                <View style={[styles.doneBadge, { backgroundColor: h.doneToday ? modeAccent + '22' : 'transparent', borderColor: h.doneToday ? modeAccent + '60' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)') }]}>
-                  {h.doneToday
-                    ? <Check size={ICON.xs} color={modeAccent} strokeWidth={3} />
-                    : <Circle size={ICON.xs} color={theme.onSurfaceVariant} strokeWidth={1.5} />}
-                </View>
-              </View>
-            ))}
-          </>
-        )}
-
-        {/* Tasks */}
-        {planTaskStats.length > 0 && (
-          <>
-            <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant, marginTop: planHabitStats.length > 0 ? S.md : 0 }]}>
-              {tr ? 'GÖREVLERİNİZ' : 'YOUR TASKS'}
-            </Text>
-            {planTaskStats.map(t => (
-              <View key={t.id} style={[styles.planViewRow, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', opacity: t.done ? 0.55 : 1 }]}>
-                {t.done
-                  ? <CheckCircle2 size={ICON.md} color={theme.tertiary} strokeWidth={2} />
-                  : <Circle size={ICON.md} color={theme.onSurfaceVariant} strokeWidth={1.5} />}
-                <Text style={[styles.planViewName, { color: theme.onSurface, flex: 1, textDecorationLine: t.done ? 'line-through' : 'none' }]} numberOfLines={2}>
-                  {t.title}
-                </Text>
-                <View style={[styles.priorityChip, { backgroundColor:
-                  t.priority === 'High' ? '#EF444420' : t.priority === 'Medium' ? '#F59E0B20' : '#10B98120'
-                }]}>
-                  <Text style={[styles.priorityChipText, { color:
-                    t.priority === 'High' ? '#EF4444' : t.priority === 'Medium' ? '#F59E0B' : '#10B981'
-                  }]}>{t.priority}</Text>
-                </View>
-              </View>
-            ))}
-          </>
-        )}
-
-        {planHabits.length === 0 && planTasks.length === 0 && (
-          <View style={styles.emptyPlan}>
-            <Text style={[styles.emptyPlanText, { color: theme.onSurfaceMuted }]}>
-              {tr
-                ? 'Plan öğeleri bulunamadı. Silinmiş olabilirler.'
-                : 'Plan items not found. They may have been deleted.'}
-            </Text>
-          </View>
-        )}
-      </ScrollView>
-
-      {/* Actions */}
-      <View style={styles.planViewActions}>
-        <View style={{ flexDirection: 'row', gap: S.sm }}>
-          {onClearPlan && (
-            <Touchable accessibilityRole="button"
-              onPress={() => { haptic.commit(); onClearPlan(); setSheetVisible(false); }}
-              activeOpacity={0.8}
-              style={[styles.clearBtn, { flex: 1, borderColor: theme.error + '40' }]}
-            >
-              <Trash2 size={ICON.xs} color={theme.error} strokeWidth={2} />
-              <Text style={[styles.clearBtnText, { color: theme.error }]}>
-                {tr ? 'Planı Kaldır' : 'Remove Plan'}
-              </Text>
-            </Touchable>
-          )}
-          <Touchable accessibilityRole="button"
-            onPress={() => setSheetVisible(false)}
-            activeOpacity={0.8}
-            style={[styles.clearBtn, { flex: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }]}
-          >
-            <Text style={[styles.clearBtnText, { color: theme.onSurfaceVariant }]}>
-              {tr ? 'Kapat' : 'Close'}
-            </Text>
-          </Touchable>
-        </View>
-      </View>
-    </>
+    <View style={{ gap: S.md }}>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface }]}>{tr ? mode.labelTr : mode.labelEn}</Text>
+      {renderAlgorithmInfo()}
+      <Touchable accessibilityRole="link" onPress={() => { setSheetVisible(false); require('expo-router').router.push({ pathname: '/plan', params: { slot: activeSlot ?? mode.type } }); }} style={[styles.applyBtn, { backgroundColor: modeAccent }]}>
+        <Text style={[styles.applyBtnText, { color: onAccent }]}>{tr ? 'Planıma git' : 'Go to my plan'}</Text>
+      </Touchable>
+    </View>
   );
 
   return (
@@ -1431,111 +772,33 @@ export const TurkishModeBanner: React.FC<Props> = ({
                       {tr ? 'Çalışma Planı Seç' : 'Choose a Study Plan'}
                     </Text>
                     <Text style={[styles.sheetSub, { color: theme.onSurfaceVariant }]}>
-                      {tr ? 'Sana uygun seviyeyi seç, gerisini biz ayarlarız.' : 'Pick the level that fits you — we set the rest up.'}
+                      {(tr ? mode.tipTr : mode.tipEn) || (tr ? 'Sana uygun seviyeyi seç, gerisini biz ayarlarız.' : 'Pick the level that fits you. We set up the rest.')}
                     </Text>
                   </View>
                 </View>
-                {/* Exam-specific tip pill */}
-                {(tr ? mode.tipTr : mode.tipEn) ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: S.sm, backgroundColor: modeAccent + '12', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm + 1, marginBottom: S.sm, borderWidth: B.thin, borderColor: modeAccent + '28' }}>
-                    {<Lightbulb size={ICON.sm} color={modeAccent} />}
-                    <Text style={{ flex: 1, fontSize: F.caption, fontWeight: '500', color: modeAccent, lineHeight: 17, opacity: 0.95 }}>
-                      {tr ? mode.tipTr : mode.tipEn}
-                    </Text>
-                  </View>
-                ) : null}
-                {renderAlgorithmInfo()}
-                <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: S.sm }}>
-                  <Text style={[styles.expertNote, { color: theme.onSurfaceMuted }]}>
-                    {tr ? '✦ Eğitim psikolojisi araştırmalarına dayalı metodlar' : '✦ Methods based on educational psychology research'}
-                  </Text>
-                  {mode.templates!.map((tpl) => {
+                <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: S.sm, gap: S.sm }}>
+                  {mode.templates!.map((tpl, i) => {
                     const isRecommended = defaultTemplateId === tpl.id;
                     return (
-                    <Touchable accessibilityRole="button"
-                      key={tpl.id}
-                      onPress={() => selectTemplate(tpl)}
-                      style={[styles.templateCard, {
-                        backgroundColor: isRecommended
-                          ? (isDark ? modeAccent + '18' : modeAccent + '10')
-                          : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
-                        borderColor: isRecommended ? modeAccent + '70' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'),
-                        borderWidth: isRecommended ? 1.5 : 1,
-                      }]}
-                      activeOpacity={0.75}
-                    >
-                      {/* Recommended ribbon */}
-                      {isRecommended && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm, backgroundColor: modeAccent + '20', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xs, alignSelf: 'flex-start' }}>
-                          <Star size={ICON.xs} color={modeAccent} fill={modeAccent} strokeWidth={0} />
-                          <Text style={{ fontSize: 10, fontWeight: '600', color: modeAccent, letterSpacing: 0.5 }}>
-                            {tr ? `${mode.labelTr.split(' ')[0]} İÇİN ÖNERİLEN` : `RECOMMENDED FOR ${mode.labelEn.split(' ')[0].toUpperCase()}`}
-                          </Text>
-                        </View>
-                      )}
-                      <View style={styles.templateTop}>
-                        <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.xxs }}>
-                            {renderModeEmojiIcon(tpl.emoji, 18, modeAccent)}
-                            <Text style={[styles.templateTitle, { color: theme.onSurface, flex: 1 }]}>{tr ? tpl.titleTr : tpl.titleEn}</Text>
+                      <MotiView key={tpl.id} from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 260, delay: i * 50 }}>
+                        <Touchable accessibilityRole="button" onPress={() => selectTemplate(tpl)} activeOpacity={0.75}
+                          style={[styles.templateCard, { backgroundColor: isRecommended ? modeAccent + '10' : theme.surfaceContainerLow, borderColor: isRecommended ? modeAccent : 'transparent' }]}>
+                          {renderModeEmojiIcon(tpl.emoji, 20, modeAccent)}
+                          <View style={{ flex: 1, gap: S.xxs }}>
+                            <Text numberOfLines={1} style={[styles.templateTitle, { color: theme.onSurface }]}>{tr ? tpl.titleTr : tpl.titleEn}</Text>
+                            <Text numberOfLines={2} style={[styles.templateDesc, { color: theme.onSurfaceMuted }]}>{tr ? tpl.descTr : tpl.descEn}</Text>
+                            {isRecommended && <Text style={{ fontSize: F.caption, fontWeight: '600', color: modeAccent }}>{tr ? 'Sana önerilen' : 'Recommended for you'}</Text>}
                           </View>
-                          <Text style={[styles.templateDesc, { color: theme.onSurfaceMuted }]}>{tr ? tpl.descTr : tpl.descEn}</Text>
-                        </View>
-                        <ChevronRight size={ICON.sm} color={isRecommended ? modeAccent : theme.onSurfaceVariant} opacity={isRecommended ? 0.8 : 0.4} />
-                      </View>
-                      <View style={{ flexDirection: 'row', gap: S.xs, flexWrap: 'wrap', marginTop: S.xs }}>
-                        {tpl.habits.slice(0, 4).map((h) => (
-                          <View key={h.name} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: modeAccent + '18', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xs }}>
-                            {renderModeEmojiIcon(h.emoji, 10, modeAccent)}
-                            <Text style={{ fontSize: 10, fontWeight: '600', color: modeAccent, letterSpacing: 0.2 }}>{tr ? h.nameTr : h.name}</Text>
-                          </View>
-                        ))}
-                        {tpl.tasks.length > 0 && (
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: modeAccent + '12', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xs }}>
-                            <Text style={{ fontSize: 10 }}>✓</Text>
-                            <Text style={{ fontSize: 10, fontWeight: '600', color: modeAccent, letterSpacing: 0.2 }}>{tpl.tasks.length} {tr ? 'görev' : 'tasks'}</Text>
-                          </View>
-                        )}
-                      </View>
-                      <View style={styles.templateMeta}>
-                        <View style={[styles.metaChip, { backgroundColor: modeAccent + '18' }]}>
-                          <Text style={[styles.metaChipText, { color: modeAccent }]}>{tpl.dailyGoalMinutes} {tr ? 'dk/gün' : 'min/day'}</Text>
-                        </View>
-                        {/* YÜK ÖNİZLEMESİ — "bunu açarsam günüm nasıl görünecek?"
-                            Kart yalnız görev SAYISINI gösteriyordu; alışkanlıklar ve
-                            günlük üretilecek görevler görünmüyordu. Kullanıcı toplam
-                            yükü ancak plan uygulandıktan SONRA öğreniyordu. */}
-                        <View style={[styles.metaChip, { backgroundColor: theme.surfaceContainerHigh }]}>
-                          <Text style={[styles.metaChipText, { color: theme.onSurfaceVariant }]}>
-                            {tr
-                              ? `${tpl.habits.length} alışkanlık · ${tpl.tasks.length} görev`
-                              : `${tpl.habits.length} habits · ${tpl.tasks.length} tasks`}
-                          </Text>
-                        </View>
-                        <Text style={[styles.templateTarget, { color: theme.onSurfaceMuted }]}>{tr ? tpl.targetTr : tpl.targetEn}</Text>
-                      </View>
-                    </Touchable>
+                          <Text style={[styles.templateMin, { color: theme.onSurfaceVariant }]}>{tpl.dailyGoalMinutes} {tr ? 'dk' : 'min'}</Text>
+                          <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} />
+                        </Touchable>
+                      </MotiView>
                     );
                   })}
-                  {/* Custom plan card */}
-                  <Touchable accessibilityRole="button"
-                    onPress={() => { haptic.select(); setStep('custom'); }}
-                    style={[styles.templateCard, {
-                      backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                      borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
-                      borderStyle: 'dashed',
-                      alignItems: 'center',
-                      paddingVertical: S.lg,
-                    }]}
-                    activeOpacity={0.75}
-                  >
-                    <View style={{ marginBottom: S.xs }}>{<Pencil size={ICON.lg} color={modeAccent} />}</View>
-                    <Text style={{ fontSize: F.body, fontWeight: '500', color: theme.onSurface }}>
-                      {tr ? 'Kendi Planını Oluştur' : 'Build Your Own Plan'}
-                    </Text>
-                    <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant, marginTop: S.xxs, textAlign: 'center' }}>
-                      {tr ? 'Alışkanlık ve görevleri kendin belirle' : 'Set your own habits and tasks'}
-                    </Text>
+                  <Touchable accessibilityRole="button" onPress={() => { haptic.select(); setStep('custom'); }} activeOpacity={0.75} style={styles.customLink}>
+                    <Pencil size={ICON.sm} color={theme.onSurfaceVariant} />
+                    <Text style={{ flex: 1, fontSize: F.footnote, fontWeight: '600', color: theme.onSurfaceVariant }}>{tr ? 'Kendi planını oluştur' : 'Build your own plan'}</Text>
+                    <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} />
                   </Touchable>
                 </ScrollView>
               </>
@@ -1557,7 +820,6 @@ export const TurkishModeBanner: React.FC<Props> = ({
                       <ArrowLeft size={ICON.md} color={theme.onSurfaceVariant} />
                     </Touchable>
                   )}
-                  {renderModeEmojiIcon(selectedTemplate?.emoji ?? mode.emoji, 36, modeAccent)}
                   <View style={{ flex: 1 }}>
                     <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface }]}>
                       {selectedTemplate ? (tr ? selectedTemplate.titleTr : selectedTemplate.titleEn) : (tr ? mode.labelTr : mode.labelEn)}
@@ -1568,59 +830,49 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   </View>
                 </View>
                 {renderAlgorithmInfo()}
-                <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: S.sm }}>
-                  <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>{tr ? 'EKLENECEK ALIŞKANLIKLAR' : 'HABITS TO ADD'}</Text>
-                  {activeHabits.map((h) => {
+                <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: S.sm }}>
+                  {activeHabits.length > 0 && <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>{tr ? 'Her gün' : 'Every day'}</Text>}
+                  {activeHabits.map((h, i) => {
                     const exists = existingHabitNames.has(h.name.toLowerCase());
                     const skipped = !exists && deselectedHabits.has(h.name);
+                    const on = exists || !skipped;
                     return (
-                      <Touchable accessibilityRole="button"
-                        key={h.name}
-                        onPress={() => {
-                          if (exists) return;
-                          haptic.select();
-                          setDeselectedHabits(prev => {
-                            const next = new Set(prev);
-                            if (next.has(h.name)) next.delete(h.name);
-                            else next.add(h.name);
-                            return next;
-                          });
-                        }}
-                        style={[styles.itemRow, { opacity: exists || skipped ? 0.4 : 1 }]}
-                        activeOpacity={exists ? 1 : 0.7}
-                      >
-                        <View style={[styles.itemDot, { backgroundColor: (skipped ? '#94A3B8' : modeAccent) + '30', borderColor: (skipped ? '#94A3B8' : modeAccent) + '60' }]}>
-                          {renderModeEmojiIcon(h.emoji, 15, skipped ? '#94A3B8' : modeAccent)}
-                        </View>
-                        <Text style={[styles.itemText, { color: theme.onSurface, flex: 1, textDecorationLine: skipped ? 'line-through' : 'none' }]}>{tr ? h.nameTr : h.name}</Text>
-                        {exists
-                          ? <Check size={ICON.sm} color={theme.tertiary} strokeWidth={2.5} />
-                          : skipped
-                          ? <X size={ICON.sm} color={theme.onSurfaceVariant} strokeWidth={2} />
-                          : <Check size={ICON.sm} color={modeAccent} strokeWidth={2.5} />}
-                      </Touchable>
+                      <MotiView key={h.name} from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 240, delay: i * 45 }}>
+                        <Touchable accessibilityRole="checkbox" accessibilityState={{ checked: on, disabled: exists }}
+                          onPress={() => {
+                            if (exists) return;
+                            haptic.select();
+                            setDeselectedHabits(prev => {
+                              const next = new Set(prev);
+                              if (next.has(h.name)) next.delete(h.name);
+                              else next.add(h.name);
+                              return next;
+                            });
+                          }}
+                          style={styles.itemRow}
+                          activeOpacity={exists ? 1 : 0.7}
+                        >
+                          {renderModeEmojiIcon(h.emoji, 20, on ? modeAccent : theme.onSurfaceMuted)}
+                          <Text style={[styles.itemText, { color: on ? theme.onSurface : theme.onSurfaceMuted, flex: 1 }]}>{tr ? h.nameTr : h.name}</Text>
+                          <MotiView animate={{ scale: on ? 1 : 0.85, backgroundColor: on ? (exists ? theme.onSurfaceMuted : modeAccent) : 'transparent', borderColor: on ? 'transparent' : theme.outlineVariant }} transition={{ type: 'timing', duration: 160 }} style={styles.checkDot}>
+                            {on && <Check size={ICON.xs} color={onAccent} strokeWidth={3} />}
+                          </MotiView>
+                        </Touchable>
+                      </MotiView>
                     );
                   })}
-                  <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant, marginTop: S.md }]}>{tr ? 'EKLENECEK GÖREVLER' : 'TASKS TO ADD'}</Text>
-                  {activeTasks.map((task) => {
+                  {activeTasks.length > 0 && <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted, marginTop: S.md }]}>{tr ? 'Başlarken' : 'To begin'}</Text>}
+                  {activeTasks.map((task, i) => {
                     const title = tr ? task.titleTr : task.titleEn;
                     const exists = existingTaskTitles.has(task.titleTr.toLowerCase()) || existingTaskTitles.has(task.titleEn.toLowerCase());
-                    const pColor = task.priority === 'High' ? '#EF4444' : task.priority === 'Medium' ? '#F59E0B' : theme.onSurfaceVariant;
                     return (
-                      <View key={title} style={[styles.itemRow, { opacity: exists ? 0.45 : 1 }]}>
-                        <View style={[styles.priorityDot, { backgroundColor: pColor }]} />
-                        <Text style={[styles.itemText, { color: theme.onSurface, flex: 1 }]}>{title}</Text>
+                      <MotiView key={title} from={{ opacity: 0, translateY: 8 }} animate={{ opacity: exists ? 0.45 : 1, translateY: 0 }} transition={{ type: 'timing', duration: 240, delay: (activeHabits.length + i) * 45 }} style={styles.itemRow}>
+                        <View style={[styles.priorityDot, { backgroundColor: modeAccent }]} />
+                        <Text style={[styles.itemText, { color: theme.onSurface, flex: 1, fontSize: F.footnote }]}>{title}</Text>
                         {exists && <Check size={ICON.sm} color={theme.tertiary} strokeWidth={2.5} />}
-                      </View>
+                      </MotiView>
                     );
                   })}
-                  {selectedTemplate && (
-                    <View style={[styles.goalNote, { backgroundColor: modeAccent + '12', borderColor: modeAccent + '30' }]}>
-                      <Text style={[styles.goalNoteText, { color: modeAccent }]}>
-                        {tr ? `Günlük odak hedefin ${selectedTemplate.dailyGoalMinutes} dakikaya ayarlanacak` : `Daily focus goal will be set to ${selectedTemplate.dailyGoalMinutes} minutes`}
-                      </Text>
-                    </View>
-                  )}
                 </ScrollView>
                 {/*
                   MEVCUT YÜK, BAŞLATMADAN ÖNCE SÖYLENİR.
@@ -1644,7 +896,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                 {!applied && !allDone && (() => {
                   const sp = splitForFirstDay(newHabits.filter(h => !deselectedHabits.has(h.name)), newTasks, { pinned: (t) => !!t.tags?.includes('weight_entry') });
                   const later = sp.habitsLater.length + sp.tasksLater.length;
-                  const full = roomLeft(habits) === 0 && sp.habitsNow.length > 0;
+                  const full = modeRoomLeft(habits, mode.type) === 0 && sp.habitsNow.length > 0;
                   return later > 0 || full ? (
                     <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, paddingHorizontal: S.xs, marginBottom: S.sm }}>
                       {(tr ? STAGED_HINT.tr : STAGED_HINT.en)(sp.habitsNow.length + sp.tasksNow.length, later)}
@@ -1652,22 +904,24 @@ export const TurkishModeBanner: React.FC<Props> = ({
                     </Text>
                   ) : null;
                 })()}
-                <Touchable accessibilityRole="button"
-                  onPress={applied ? () => setSheetVisible(false) : applyAll}
-                  activeOpacity={0.85}
-                  disabled={applying || allDone}
-                  style={[styles.applyBtn, { backgroundColor: applied ? theme.tertiary : allDone ? theme.surfaceContainerHigh : modeAccent, opacity: applying ? 0.7 : 1 }]}
-                >
-                  {applying ? (
-                    <ActivityIndicator color={onAccent} size="small" />
-                  ) : applied ? (
-                    <><Check size={ICON.sm} color={onAccent} strokeWidth={2.5} /><Text style={[styles.applyBtnText, { color: onAccent }]}>{tr ? 'Başladı! — Kapat' : 'Started! — Close'}</Text></>
-                  ) : allDone ? (
-                    <Text style={[styles.applyBtnText, { color: theme.onSurfaceVariant }]}>{tr ? 'Tümü zaten mevcut' : 'All already added'}</Text>
-                  ) : (
-                    <><Zap size={ICON.sm} color={onAccent} strokeWidth={2.5} /><Text style={[styles.applyBtnText, { color: onAccent }]}>{tr ? `Planı Başlat  (${newHabits.length + newTasks.length} öğe)` : `Start Plan  (${newHabits.length + newTasks.length} items)`}</Text></>
-                  )}
-                </Touchable>
+                <MotiView animate={{ scale: applied ? 1.02 : 1 }} transition={{ type: 'spring', damping: 14, stiffness: 220 }}>
+                  <Touchable accessibilityRole="button"
+                    onPress={applied ? () => setSheetVisible(false) : applyAll}
+                    activeOpacity={0.85}
+                    disabled={applying || allDone}
+                    style={[styles.applyBtn, { backgroundColor: applied ? theme.tertiary : allDone ? theme.surfaceContainerHigh : modeAccent, opacity: applying ? 0.7 : 1 }]}
+                  >
+                    {applying ? (
+                      <ActivityIndicator color={onAccent} size="small" />
+                    ) : applied ? (
+                      <><Check size={ICON.sm} color={onAccent} strokeWidth={2.5} /><Text style={[styles.applyBtnText, { color: onAccent }]}>{tr ? 'Başladı' : 'Started'}</Text></>
+                    ) : allDone ? (
+                      <Text style={[styles.applyBtnText, { color: theme.onSurfaceVariant }]}>{tr ? 'Tümü zaten mevcut' : 'All already added'}</Text>
+                    ) : (
+                      <Text style={[styles.applyBtnText, { color: onAccent }]}>{tr ? 'Planı Başlat' : 'Start Plan'}</Text>
+                    )}
+                  </Touchable>
+                </MotiView>
               </>
             )}
           </Animated.View>
@@ -1747,18 +1001,22 @@ const styles = StyleSheet.create({
   clearBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: B.thin },
   clearBtnText: { fontSize: F.caption, fontWeight: '600' },
   // Templates
-  templateCard: { borderRadius: R.md, borderWidth: B.thin, padding: S.md, marginBottom: S.sm, gap: S.sm },
+  templateCard: { flexDirection: 'row', alignItems: 'center', gap: S.smd, borderRadius: R.md, borderWidth: B.thin, padding: S.md },
   templateTop: { flexDirection: 'row', alignItems: 'flex-start', gap: S.md },
   templateEmoji: { fontSize: 26, lineHeight: 32 },
-  templateTitle: { fontSize: F.body, fontWeight: '500', marginBottom: S.xxs },
+  templateTitle: { fontSize: F.body, fontWeight: '600' },
+  templateMin: { fontSize: F.footnote, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  customLink: { flexDirection: 'row', alignItems: 'center', gap: S.sm, minHeight: 48, paddingHorizontal: S.xs },
+  planLine: { fontSize: F.footnote, lineHeight: 19, marginBottom: S.md },
+  checkDot: { width: 22, height: 22, borderRadius: R.full, borderWidth: B.thin, alignItems: 'center', justifyContent: 'center' },
   templateDesc: { fontSize: F.caption, fontWeight: '500', lineHeight: 17 },
   templateMeta: { flexDirection: 'row', alignItems: 'center', gap: S.sm, flexWrap: 'wrap' },
   metaChip: { borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xs },
   metaChipText: { fontSize: 10, fontWeight: '600', letterSpacing: 0.3 },
   templateTarget: { fontSize: 10, fontWeight: '500', flex: 1 },
   // Review
-  sectionLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 1.2, marginBottom: S.sm },
-  itemRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: S.xs + 1 },
+  sectionLabel: { fontSize: F.caption2, fontWeight: '600', marginBottom: S.xs },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: S.smd, minHeight: 44 },
   itemDot: { width: 34, height: 34, borderRadius: R.sm, borderWidth: B.thin, alignItems: 'center', justifyContent: 'center' },
   priorityDot: { width: 6, height: 6, borderRadius: R.full, marginHorizontal: S.xs },
   itemText: { fontSize: F.body, fontWeight: '500' },

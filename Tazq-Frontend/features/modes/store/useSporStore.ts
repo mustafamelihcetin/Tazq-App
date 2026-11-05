@@ -29,6 +29,8 @@ interface SporState {
   setTargetEvent: (v: TargetEvent) => void;
   setTrainingDays: (v: 3 | 4 | 5 | null) => void;
   addWeightEntry: (weight: number) => void;
+  /** Son kaydı düzeltir (tarih değişmez): yanlış girilen tartım haftanın sonunu beklemez. */
+  correctLatestWeight: (weight: number) => void;
   removeWeightEntry: (date: string) => void;
   /** Plan formu alanlarını sıfırlar. Kilo GEÇMİŞİNE dokunmaz — bkz. resetInputs. */
   resetInputs: () => void;
@@ -70,6 +72,9 @@ export const useSporStore = create<SporState>()(
         const filtered = s.weightLog.filter(e => e.date !== today);
         return { weightLog: [...filtered, { date: today, weight }].sort((a, b) => b.date.localeCompare(a.date)) };
       }),
+      correctLatestWeight: (weight) => set((s) => ({
+        weightLog: s.weightLog.map((e, i) => (i === 0 ? { ...e, weight } : e)),
+      })),
       removeWeightEntry: (date) => set((s) => ({ weightLog: s.weightLog.filter(e => e.date !== date) })),
       /*
         PLAN KALDIRMAK TARTI GEÇMİŞİNİ SİLMEZ.

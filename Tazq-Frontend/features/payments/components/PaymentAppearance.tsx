@@ -6,15 +6,14 @@ import { Touchable } from '@/shared/components/Touchable';
 import { S, R, F, W, B, ICON, MIN_TOUCH } from '@/shared/constants/tokens';
 import { PaymentPalette, type AppTheme } from '@/shared/constants/Colors';
 import { PAYMENT_ICONS, PAYMENT_KINDS, REMINDER_OPTIONS } from '@/features/payments/utils/paymentLook';
-import { haptic } from '@/shared/utils/haptics';
 
 /*
   TÜR · GÖRÜNÜM · HATIRLATMA (2026-11-05). Form kalabalıklaşmasın: hazır türler hep görünür (tek dokunuş yeter),
   ikon ve renk bir kapağın altında. Hatırlatma tek satır: kapalı, aynı gün, 1, 3, 7 gün önce.
 */
 const COPY = {
-  tr: { kinds: 'TÜR', custom: 'İkon ve renk', icon: 'İkon', color: 'Renk', remind: 'Hatırlat', off: 'Kapalı', same: 'Aynı gün', before: (n: number) => `${n} gün önce`, colorA11y: (i: number) => `Renk ${i}` },
-  en: { kinds: 'TYPE', custom: 'Icon and color', icon: 'Icon', color: 'Color', remind: 'Remind', off: 'Off', same: 'Same day', before: (n: number) => `${n} day${n > 1 ? 's' : ''} before`, colorA11y: (i: number) => `Color ${i}` },
+  tr: { kinds: 'TÜR', custom: 'İkon ve renk', icon: 'İkon', color: 'Renk', remind: 'Vadeden önce hatırlat', off: 'Kapalı', same: 'Aynı gün', before: (n: number) => `${n} gün`, colorA11y: (i: number) => `Renk ${i}` },
+  en: { kinds: 'TYPE', custom: 'Icon and color', icon: 'Icon', color: 'Color', remind: 'Remind before due', off: 'Off', same: 'Same day', before: (n: number) => `${n}d`, colorA11y: (i: number) => `Color ${i}` },
 };
 
 export function PaymentAppearance({ theme, lang, icon, color, reminder, onIcon, onColor, onReminder, onKind }: {
@@ -34,7 +33,7 @@ export function PaymentAppearance({ theme, lang, icon, color, reminder, onIcon, 
           const Ic = PAYMENT_ICONS[k.icon];
           const on = icon === k.icon && color === k.color;
           return (
-            <Touchable key={k.id} onPress={() => { haptic.select(); onKind(k[lang], k.icon, k.color); }} accessibilityRole="button" accessibilityState={{ selected: on }}
+            <Touchable key={k.id} onPress={() => onKind(k[lang], k.icon, k.color)} accessibilityRole="button" accessibilityState={{ selected: on }}
               style={[styles.kind, { backgroundColor: on ? k.color + '1F' : theme.surfaceField, borderColor: on ? k.color : 'transparent' }]}>
               <Ic size={ICON.sm} color={k.color} />
               <Text style={{ fontSize: F.footnote, fontWeight: W.medium, color: theme.onSurface }}>{k[lang]}</Text>
@@ -55,7 +54,7 @@ export function PaymentAppearance({ theme, lang, icon, color, reminder, onIcon, 
             {Object.entries(PAYMENT_ICONS).map(([k, Ic]) => {
               const on = icon === k;
               return (
-                <Touchable key={k} onPress={() => { haptic.select(); onIcon(k); }} accessibilityRole="button" accessibilityLabel={`${c.icon} ${k}`} accessibilityState={{ selected: on }}
+                <Touchable key={k} onPress={() => onIcon(k)} accessibilityRole="button" accessibilityLabel={`${c.icon} ${k}`} accessibilityState={{ selected: on }}
                   style={[styles.iconCell, { backgroundColor: on ? tint + '24' : theme.surfaceField, borderColor: on ? tint : 'transparent' }]}>
                   <Ic size={ICON.sm} color={on ? tint : theme.onSurfaceVariant} />
                 </Touchable>
@@ -64,7 +63,7 @@ export function PaymentAppearance({ theme, lang, icon, color, reminder, onIcon, 
           </View>
           <View style={styles.wrap}>
             {PaymentPalette.map((pc, i) => (
-              <Touchable key={pc} onPress={() => { haptic.select(); onColor(pc); }} accessibilityRole="button" accessibilityLabel={c.colorA11y(i + 1)} accessibilityState={{ selected: color === pc }} style={styles.swatchHit}>
+              <Touchable key={pc} onPress={() => onColor(pc)} accessibilityRole="button" accessibilityLabel={c.colorA11y(i + 1)} accessibilityState={{ selected: color === pc }} style={styles.swatchHit}>
                 <View style={[styles.swatch, { backgroundColor: pc, borderColor: color === pc ? theme.onSurface : 'transparent' }]} />
               </Touchable>
             ))}
@@ -79,7 +78,7 @@ export function PaymentAppearance({ theme, lang, icon, color, reminder, onIcon, 
             const on = reminder === d;
             const label = d < 0 ? c.off : d === 0 ? c.same : c.before(d);
             return (
-              <Touchable key={d} onPress={() => { haptic.select(); onReminder(d); }} accessibilityRole="button" accessibilityLabel={`${c.remind}: ${label}`} accessibilityState={{ selected: on }}
+              <Touchable key={d} onPress={() => onReminder(d)} accessibilityRole="button" accessibilityLabel={`${c.remind}: ${label}`} accessibilityState={{ selected: on }}
                 style={[styles.remind, { backgroundColor: on ? theme.primary + '1F' : 'transparent' }]}>
                 <Text style={{ fontSize: F.footnote, fontWeight: on ? W.semibold : W.regular, color: on ? theme.primary : theme.onSurfaceVariant }}>{label}</Text>
               </Touchable>

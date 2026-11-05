@@ -1,3 +1,4 @@
+import { findExamCurriculum } from '@/shared/utils/curriculum';
 import { CategoryColors } from '@/shared/constants/Colors';
 import { getRamadanRanges, parseLocalDate } from '@/shared/utils/ramadanDates';
 import { dateKeyFromNow } from '@/shared/utils/dateKey';
@@ -2013,6 +2014,8 @@ export function getCustomExamMode(examName: string, examDate: string, examTipTr?
   let templates: StudyTemplate[];
   if (contentKey && EXAM_CONTENT[contentKey]) {
     templates = buildLevelTemplates(EXAM_CONTENT[contentKey], name, days);
+    // Haftalık konu görevleri artık çalışma planından gelir (bkz. features/studyplan); burada yalnız kurulum işleri kalır.
+    if (findExamCurriculum(name)) templates = templates.map(t => ({ ...t, tasks: t.tasks.filter(x => !/^(Hafta \d|.* son hazırlık haftası)/.test(x.titleTr)) }));
   } else {
     const isLastMonth = days <= 30;
     const isMemHeavy = ['KPSS', 'TUS', 'DUS', 'YDS', 'YOKDIL', 'YÖKDİL', 'IELTS', 'TOEFL', 'GRE', 'GMAT', 'USMLE'].some(e => n.includes(e));

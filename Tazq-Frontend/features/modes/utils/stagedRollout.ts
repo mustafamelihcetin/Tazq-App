@@ -15,7 +15,7 @@
  */
 import { dayKeyOf } from '@/features/dashboard/utils/streakDay';
 import type { StagedPlanEntry } from '@/features/modes/store/useStagedPlanStore';
-import { roomLeft } from '@/features/habits/utils/habitLimit';
+import { modeRoomLeft } from '@/features/habits/utils/habitLimit';
 
 const PRIORITY_ORDER: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
 
@@ -117,10 +117,9 @@ export async function releaseStagedPlanItems(): Promise<void> {
       sıradaki görev açılır (görev sınıra sayılmaz). Yalnız alışkanlık kaldıysa bugün
       açılım yok — yer açılınca devam eder.
     */
-    const full = roomLeft(useHabitStore.getState().habits) === 0;
+    const full = modeRoomLeft(useHabitStore.getState().habits, slot) === 0;
     // SESSİZ BEKLEME YERİNE SORU (2026-11-01): sıradaki alışkanlık sınır yüzünden açılamıyorsa kullanıcıya
     // yer açmayı önerir — kendi alışkanlıklarından son 14 günde EN AZ yapılanı dinlendirerek. Günde bir kez.
-    if (full && queue.items[0]?.kind === 'habit') askToMakeRoom(slot, queue.items[0].item as StagedHabit, habitIds, taskIds, today, lang);
     const index = full ? queue.items.findIndex(e => e.kind === 'task') : 0;
     if (index < 0) continue;
     const head = queue.items[index];
@@ -154,34 +153,3 @@ type StagedHabit = { nameTr: string; nameEn: string; emoji: string; color: strin
 const askedOn = new Map<string, string>();
 
 /** Sınır doluyken modun bekleyen alışkanlığı için: "şunu dinlendirip bunu açalım mı?" (günde bir kez, mod başına). */
-function askToMakeRoom(slot: string, h: StagedHabit, habitIds: string[], taskIds: number[], today: string, lang: 'tr' | 'en'): void {
-  if (askedOn.get(slot) === today) return;
-  const { useHabitStore } = require('@/features/habits/store/useHabitStore');
-  const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
-  const { useStagedPlanStore } = require('@/features/modes/store/useStagedPlanStore');
-  const { restSuggestions } = require('@/features/habits/utils/habitLimit');
-  const { CustomAlert } = require('@/shared/components/CustomAlert');
-  const all = useHabitStore.getState().habits as { id: string; name: string; modeType?: string | null; pausedAt?: string | null; completedDates?: string[]; createdAt?: string }[];
-  // Yalnız KENDİ alışkanlıkların aday (modların alışkanlığı başka bir modun yerine dinlendirilmez).
-  const candidate = restSuggestions(all.filter(x => !x.modeType), 1)[0] as { id: string; name: string } | undefined;
-  if (!candidate) return;
-  askedOn.set(slot, today);
-  const name = lang === 'tr' ? h.nameTr : h.nameEn;
-  const c = lang === 'tr'
-    ? { title: 'Modun yeni bir alışkanlık açmak istiyor', body: `“${name}” sırada, ama 7 alışkanlık sınırı dolu. En az yaptığın “${candidate.name}” dinlensin mi? Serisi korunur, istediğin an geri açarsın.`, yes: `“${candidate.name}” dinlensin`, no: 'Şimdi değil' }
-    : { title: 'Your mode wants to add a habit', body: `“${name}” is next, but the 7-habit limit is full. Rest “${candidate.name}”, the one you do least? Its streak is kept; bring it back anytime.`, yes: `Rest “${candidate.name}”`, no: 'Not now' };
-  CustomAlert.alert(c.title, c.body, [
-    { text: c.no, style: 'cancel' },
-    {
-      text: c.yes,
-      onPress: () => {
-        const store = useHabitStore.getState();
-        store.pauseHabit(candidate.id);
-        const id = `habit_${h.modeType}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-        store.addHabit(name, h.emoji, h.color, id, h.modeType, h.nameTr, h.nameEn);
-        usePrefsStore.getState().setPlanIds(slot, [...habitIds, id], taskIds);
-        useStagedPlanStore.getState().commitAt(slot, 0, today);
-      },
-    },
-  ]);
-}

@@ -14,6 +14,8 @@ export interface BudgetEntry {
   amount: number; // o tarihteki güncel birikim / kalan borç
 }
 
+export interface BudgetMove { at: number; delta: number }
+
 interface BudgetState {
   budgetType: BudgetType;
   startAmount: string;   // başlangıç (birikim: 0, borç: borç tutarı)
@@ -23,6 +25,11 @@ interface BudgetState {
   setStartAmount: (v: string) => void;
   setTargetAmount: (v: string) => void;
   addEntry: (amount: number) => void;
+  /** Son hareketler (en yeni başta): ekleme/çıkarma geçmişi ve geri alma. */
+  moves: BudgetMove[];
+  /** Bakiyeye ekler ya da çıkarır (2026-11-05: haftalık kilit kalktı, para her an hareket eder). 0'ın altına inmez. */
+  adjust: (delta: number) => number;
+  undoMove: (at: number) => void;
   removeEntry: (date: string) => void;
   reset: () => void;
 }
@@ -33,7 +40,26 @@ export function budgetLocalDate(d: Date = new Date()): string {
 
 export const useBudgetStore = create<BudgetState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
+      moves: [],
+      adjust: (delta) => {
+        const s = get();
+        const cur = s.log.length ? s.log.reduce((a, b) => (a.date > b.date ? a : b)).amount : (parseFloat(s.startAmount) || 0);
+        const next = Math.max(0, cur + delta);
+        const applied = next - cur;
+        s.addEntry(next);
+        const at = Date.now();
+        set(st => ({ moves: [{ at, delta: applied }, ...(st.moves ?? [])].slice(0, 50) }));
+        return at;
+      },
+      undoMove: (at) => {
+        const m = (get().moves ?? []).find(x => x.at === at);
+        if (!m) return;
+        const s = get();
+        const cur = s.log.length ? s.log.reduce((a, b) => (a.date > b.date ? a : b)).amount : (parseFloat(s.startAmount) || 0);
+        s.addEntry(Math.max(0, cur - m.delta));
+        set(st => ({ moves: (st.moves ?? []).filter(x => x.at !== at) }));
+      },
       budgetType: '',
       startAmount: '',
       targetAmount: '',
@@ -48,7 +74,7 @@ export const useBudgetStore = create<BudgetState>()(
       }),
       removeEntry: (date) => set((s) => ({ log: s.log.filter(e => e.date !== date) })),
       // Plan kaldırılınca tüm bütçe verisi sıfırlanır (kilo geçmişi gibi).
-      reset: () => set({ budgetType: '', startAmount: '', targetAmount: '', log: [] }),
+      reset: () => set({ budgetType: '', startAmount: '', targetAmount: '', log: [], moves: [] }),
     }),
     { name: 'budget-store', storage: createJSONStorage(() => AsyncStorage) }
   )

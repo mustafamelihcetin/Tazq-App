@@ -1,3 +1,4 @@
+import { PlanLink } from '@/features/modes/components/plan/PlanLink';
 /**
  * BirakmaCard — Bırakma modu kartı (ÇOKLU). Aynı anda birden çok şey bırakılabilir;
  * her biri kendi "X gün temiz" serisi + nüks (şefkatli sıfırlama) ile takip edilir.
@@ -32,7 +33,9 @@ import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { PlanLifecycleRow } from '@/features/modes/components/PlanPauseRow';
 import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 import { haptic } from '@/shared/utils/haptics';
-import { roomLeft } from '@/features/habits/utils/habitLimit';
+import { modeRoomLeft } from '@/features/habits/utils/habitLimit';
+import { splitForFirstDay, interleaveStaged } from '@/features/modes/utils/stagedRollout';
+import { useStagedPlanStore } from '@/features/modes/store/useStagedPlanStore';
 import { HABIT_LIMIT_COPY } from '@/features/habits/utils/habitLimitCopy';
 
 export function BirakmaCard() {
@@ -109,20 +112,22 @@ export function BirakmaCard() {
     }
     const content = buildBirakmaPlan('' as QuitType, trigger);
     const habitIds: string[] = [];
-    // Alışkanlık sınırı (madde 6): yalnız yer kadarı eklenir, fazlası için neden anlatılır.
-    const room = roomLeft(useHabitStore.getState().habits);
-    if (content.habits.length > room) {
-      const lc = HABIT_LIMIT_COPY[useLanguageStore.getState().language === 'en' ? 'en' : 'tr'];
-      Alert.alert(lc.fullTitle, lc.fullBody);
-    }
-    content.habits.slice(0, room).forEach((h, i) => {
+    // Kademeli açılım (2026-11-05, "ilk gün aşırı yığılma"): ilk gün 1 rutin + 1 görev, kalanı her gün birer sıradan gelir.
+    const staged = splitForFirstDay(content.habits, content.tasks);
+    const room = modeRoomLeft(useHabitStore.getState().habits, 'birakma');
+    staged.habitsNow.slice(0, room).forEach((h, i) => {
       const id = `habit_birakma_${i}_${Date.now()}`;
       addHabit(h.name, h.emoji, h.color, id, 'birakma');
       habitIds.push(id);
     });
     const taskIds: number[] = [];
     const birakmaLabel = tr ? 'Bırakma' : 'Quit';
-    for (const t of content.tasks) {
+    const withLabel = (text: string) => (birakmaLabel && !text.toLowerCase().includes(birakmaLabel.toLowerCase()) ? `${birakmaLabel}: ${text}` : text);
+    useStagedPlanStore.getState().setQueue('birakma', interleaveStaged(
+      staged.tasksLater.map(t => ({ titleTr: withLabel(t.title), titleEn: withLabel(t.titleEn), descTr: t.desc, descEn: t.descEn, priority: t.priority, tags: t.tags ?? [] })),
+      [...staged.habitsNow.slice(room), ...staged.habitsLater].map(h => ({ nameTr: h.name, nameEn: h.nameEn ?? h.name, emoji: h.emoji, color: h.color, modeType: 'birakma' })),
+    ));
+    for (const t of staged.tasksNow) {
       let taskTitleTr = t.title;
       let taskTitleEn = t.titleEn;
       if (birakmaLabel) {
@@ -343,6 +348,7 @@ export function BirakmaCard() {
       )}
       {/* Sağlık/finans verisi sunucuya gitmez — kullanıcı bunu veriyi girerken bilsin (bkz. DeviceOnlyNote). */}
       {seasonal.birakmaMode && <DeviceOnlyNote kind="health" />}
+      {seasonal.birakmaMode && <PlanLink slot="birakma" />}
       {seasonal.birakmaMode && (
         <ModeCardClose
           mode="birakma"

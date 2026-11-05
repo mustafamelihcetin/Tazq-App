@@ -36,3 +36,35 @@ describe('çalışma yöntemi', () => {
     expect(t[0].title).not.toMatch(/Kitabı kapat/);
   });
 });
+
+describe('son kapı: bugünkü plan bütçesi (2026-11-05)', () => {
+  const { trimToPlanBudget } = require('@/features/modes/utils/dailyPlanEngine');
+  const today = new Date(2026, 10, 5, 10);
+  const iso = today.toISOString();
+  const open = (id: number) => ({ id, dueDate: iso, isCompleted: false });
+  it('bütçe doluysa bugüne yeni görev eklenmez', () => {
+    const tasks = [1, 2, 3, 4].map(open);
+    expect(trimToPlanBudget([{ dueDate: iso }], tasks, new Set([1, 2, 3, 4]), today)).toEqual([]);
+  });
+  it('kalan kadar geçer; başka gün ve tartım etkilenmez', () => {
+    const later = { dueDate: new Date(2026, 10, 6).toISOString() };
+    const weigh = { dueDate: iso, tags: ['weight_entry'] };
+    const out = trimToPlanBudget([{ dueDate: iso }, { dueDate: iso }, later, weigh], [1, 2, 3].map(open), new Set([1, 2, 3]), today);
+    expect(out).toHaveLength(3);
+    expect(out).toContain(later);
+    expect(out).toContain(weigh);
+  });
+  it('kendi işleri çoksa bütçe daralır', () => {
+    const tasks = [1, 2, 3, 4, 5, 6].map(open);
+    expect(trimToPlanBudget([{ dueDate: iso }, { dueDate: iso }], tasks, new Set([6]), today)).toHaveLength(1);
+  });
+});
+
+describe('aynı plan işi çoğalmaz (2026-11-05)', () => {
+  const { isSamePlanOccurrence } = require('@/features/modes/utils/dailyPlanEngine');
+  const d = (day: number) => new Date(2026, 10, day, 9).toISOString();
+  it('bitmemiş eski kopya varsa yenisi açılmaz', () => expect(isSamePlanOccurrence({ dueDate: d(1) }, { dueDate: d(5) })).toBe(true));
+  it('bitmiş eski kopya engellemez', () => expect(isSamePlanOccurrence({ dueDate: d(1), isCompleted: true }, { dueDate: d(5) })).toBe(false));
+  it('aynı gün kopyası bitmiş olsa da engeller', () => expect(isSamePlanOccurrence({ dueDate: d(5), isCompleted: true }, { dueDate: d(5) })).toBe(true));
+  it('ileri tarihli kopya bugünü engellemez', () => expect(isSamePlanOccurrence({ dueDate: d(9) }, { dueDate: d(5) })).toBe(false));
+});

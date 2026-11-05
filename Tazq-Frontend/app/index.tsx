@@ -15,6 +15,7 @@ import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { TriageModal } from '@/features/dashboard/components/TriageModal';
 import { TazqZenCard } from '@/features/dashboard/components/TazqZenCard';
 import { TodayBelow } from '@/features/dashboard/components/TodayBelow';
+import { parseChecklist } from '@/features/tasks/nlp/checklist';
 import { InboxButton, InboxSheet } from '@/features/dashboard/components/InboxSheet';
 import { buildInbox, AUTO_CLEAR_ON_SEEN, clearsOnOpen, type InboxItem } from '@/features/dashboard/utils/inboxItems';
 import { useInboxStore } from '@/shared/store/useInboxStore';
@@ -769,9 +770,12 @@ export default function HomeScreen() {
     const hint = parseTaskHint(title, language as 'tr' | 'en');
     const isReminder = hint.tags?.includes('hatırlatıcı') || hint.tags?.includes('reminder');
     
+    // "süt, yumurta, ekmek al" → tek görev + maddeler (bkz. nlp/checklist).
+    const checklist = parseChecklist(title, langOf(language));
     const payload = {
         // Alana aktarılan kısımlar (tarih/saat/acil) başlıktan çıkar — bkz. nlp/understand.titleOf.
-        title: titleOf(title, understand(title, langOf(language))),
+        title: checklist?.title ?? titleOf(title, understand(title, langOf(language))),
+        ...(checklist ? { subtasks: checklist.items.map(text => ({ text, done: false })) } : null),
         description: '',
         priority: hint.priority || 'Medium',
         isCompleted: false,

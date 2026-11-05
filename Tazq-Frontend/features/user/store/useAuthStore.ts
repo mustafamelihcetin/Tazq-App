@@ -136,6 +136,7 @@ function clearLocalUserData() {
   // kaldırma yolunda kullanılıyor ve geçmişe kasten dokunmuyor.
   safe(() => require('@/features/modes/store/useSporStore').useSporStore.getState().clearAll());
   safe(() => require('@/shared/store/useSubjectStore').useSubjectStore.getState().reset());
+  safe(() => require('@/features/studyplan/store/useStudyPlanStore').useStudyPlanStore.getState().reset());
   safe(() => require('@/shared/store/useOfflineQueue').useOfflineQueue.getState().clear());
   // Odak geçmişi kişisel veridir: çıkışta cihazdan silinir (bkz. useFocusHistoryStore).
   safe(() => require('@/features/report/useFocusHistoryStore').useFocusHistoryStore.getState().clear());
@@ -277,6 +278,8 @@ export const useAuthStore = create<AuthState>()(
           temizler. Sebep kayda geçer ki bir sonraki "kendiliğinden çıkış" tahminle değil kanıtla çözülsün.
         */
         if (opts?.forced) {
+          // Eşzamanlı 401'lerin hepsi buraya düşer: yalnız ilki sayılır (bir olay, bir kayıt).
+          if (!get().isLoggedIn) return;
           const reason = opts.reason ?? 'unknown';
           try {
             require('@/features/habits/sync/habitsSync').resetHabitsSync();

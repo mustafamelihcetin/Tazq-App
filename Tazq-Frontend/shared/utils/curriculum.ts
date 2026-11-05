@@ -31,6 +31,7 @@
  */
 
 import { detectExamFromInput, matchExamName } from './examPresets';
+import { INTL_CURRICULA } from './curriculumIntl';
 
 export interface Topic {
   id: string;
@@ -71,7 +72,7 @@ export interface SubjectProgress {
 // Yalnızca üst-düzey, evrensel-doğru başlıklar (düşük halüsinasyon/eskime riski).
 // Detaylı/değişken konular sunucudaki manifest ile genişletilir.
 export const BASELINE_CURRICULUM: CurriculumManifest = {
-  version: 2,
+  version: 3,
   exams: [
     {
       id: 'kpss',
@@ -780,6 +781,7 @@ export const BASELINE_CURRICULUM: CurriculumManifest = {
         },
       ],
     },
+    ...INTL_CURRICULA,
   ],
 };
 
@@ -802,7 +804,8 @@ export function getActiveCurriculumVersion(): number {
 export function findExamCurriculum(examName: string): ExamCurriculum | null {
   if (!examName || !examName.trim()) return null;
   // Önce tam alias eşleşmesi, sonra fuzzy en iyi eşleşme.
-  const preset = detectExamFromInput(examName) ?? matchExamName(examName)[0];
+  // Kısa girdide yakın eşleşme yok: "at", SAT sayılmasın (2026-11-05, kısa adlı EN sınavları eklendi).
+  const preset = detectExamFromInput(examName) ?? (examName.trim().length >= 3 ? matchExamName(examName)[0] : undefined);
   if (!preset) return null;
   return activeManifest.exams.find(e => e.id === preset.id) ?? null;
 }

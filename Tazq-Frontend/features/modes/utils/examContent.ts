@@ -38,7 +38,7 @@ export const EXAM_CONTENT: Record<string, ExamContent> = {
       { titleTr: 'Haftalık deneme sınavı takvimi oluştur', titleEn: 'Create weekly mock exam schedule', priority: 'Medium' },
     ],
     sprintTasks: [
-      { titleTr: 'Her gün tam TYT denemesi çöz ve analiz et', titleEn: 'Solve and analyze a full TYT mock daily', priority: 'High' },
+      { titleTr: 'Haftada 2-3 tam TYT denemesi çöz ve analiz et', titleEn: 'Take and review 2-3 full TYT mocks a week', priority: 'High' },
       { titleTr: 'AYT hedef bölüm için odak çalışma bloğu ayır', titleEn: 'Allocate a focus block for your AYT target section', priority: 'High' },
       { titleTr: 'Hata defterini baştan sona tekrar et', titleEn: 'Review your error log from start to finish', priority: 'Medium' },
     ],
@@ -95,7 +95,7 @@ export const EXAM_CONTENT: Record<string, ExamContent> = {
       { titleTr: 'Resmi ALES örnek sınavlarını ÖSYM\'den indir', titleEn: 'Download official ALES sample exams from ÖSYM', priority: 'High' },
     ],
     sprintTasks: [
-      { titleTr: 'Her gün tam ALES denemesi çöz', titleEn: 'Solve a full ALES mock exam every day', priority: 'High' },
+      { titleTr: 'Haftada 2-3 tam ALES denemesi çöz ve analiz et', titleEn: 'Take and review 2-3 full ALES mocks a week', priority: 'High' },
       { titleTr: 'Sayısal/sözel hız pratiği yap', titleEn: 'Practice quantitative/verbal speed drills', priority: 'High' },
     ],
   },
@@ -123,7 +123,7 @@ export const EXAM_CONTENT: Record<string, ExamContent> = {
       { titleTr: 'Her ders için kaynak kitap ve soru bankası belirle', titleEn: 'Identify study books and question banks for each subject', priority: 'High' },
     ],
     sprintTasks: [
-      { titleTr: 'Her gün tam LGS denemesi çöz ve analiz et', titleEn: 'Solve and analyze a full LGS mock daily', priority: 'High' },
+      { titleTr: 'Haftada 2-3 tam LGS denemesi çöz ve analiz et', titleEn: 'Take and review 2-3 full LGS mocks a week', priority: 'High' },
       { titleTr: 'Zayıf derste odak çalışması yap', titleEn: 'Do focused study on your weakest subject', priority: 'High' },
     ],
   },
@@ -147,7 +147,7 @@ export const EXAM_CONTENT: Record<string, ExamContent> = {
       { titleTr: 'ÖSYM DGS örnek sorularını indir', titleEn: 'Download official DGS sample questions from ÖSYM', priority: 'High' },
     ],
     sprintTasks: [
-      { titleTr: 'Her gün tam DGS denemesi çöz', titleEn: 'Solve a full DGS mock exam every day', priority: 'High' },
+      { titleTr: 'Haftada 2-3 süreli DGS denemesi çöz, yanlışlarını analiz et', titleEn: 'Take 2-3 timed DGS mocks a week and review your mistakes', priority: 'High' },
       { titleTr: 'Sayısal/sözel zayıf alan odak çalışması', titleEn: 'Focus on your weaker quantitative or verbal area', priority: 'Medium' },
     ],
   },

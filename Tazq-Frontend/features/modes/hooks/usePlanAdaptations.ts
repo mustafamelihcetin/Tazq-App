@@ -9,6 +9,10 @@
  * hem de AsyncStorage'da (son çalışma tarihi) kontrol edilir.
  */
 
+import { useToastStore } from '@/shared/store/useToastStore';
+import { modeRoomLeft, routinesToRest } from '@/features/habits/utils/habitLimit';
+import { HABIT_LIMIT_COPY } from '@/features/habits/utils/habitLimitCopy';
+import { useStagedPlanStore } from '@/features/modes/store/useStagedPlanStore';
 import { useCallback, useEffect } from 'react';
 import { swallow } from '@/shared/utils/swallow';
 import { AppState } from 'react-native';
@@ -38,7 +42,7 @@ import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useHabitStore } from '@/features/habits';
-import { buildDailyTasks, allocatePlanBudget, desiredDailyCount, planBudgetFor, DailyPlanSpec, PlanKind } from '@/features/modes/utils/dailyPlanEngine';
+import { isSamePlanOccurrence, trimToPlanBudget, buildDailyTasks, allocatePlanBudget, desiredDailyCount, planBudgetFor, DailyPlanSpec, PlanKind } from '@/features/modes/utils/dailyPlanEngine';
 import { runPlanMigrationOnce } from '@/features/modes/utils/planMigration';
 import { findExamCurriculum, pickSubject, pickTopic, subjectExamLabel } from '@/shared/utils/curriculum';
 import { INTERVIEW_AREAS, TEZ_AREAS, SPOR_AREAS, pickWeightedArea, areaLabel, type SporAreaKind } from '@/shared/utils/weakAreas';
@@ -52,6 +56,10 @@ import { getExtraPool, ensureExtraPool } from '@/features/modes/utils/planPoolSy
 import { parseDateKey, calendarDayOf } from '@/shared/utils/dateKey';
 import { isSlotPausedNow, markPausedHabitsSkipped } from '@/features/modes/utils/pauseOps';
 import { releaseStagedPlanItems } from '@/features/modes/utils/stagedRollout';
+import { isStudyManaged, runStudySync, startStudyPlanBridge, studyBlocksForSlot, studyToday } from '@/features/studyplan/sync';
+import { blocksToTasks, isStudyTask } from '@/features/studyplan/utils/planBridge';
+import { useStudyPlanStore } from '@/features/studyplan/store/useStudyPlanStore';
+import type { StudyBlock } from '@/features/studyplan/utils/planCore';
 
 const LAST_RUN_KEY = 'plan_adaptations_last_run';
 
@@ -171,6 +179,18 @@ function inferBudgetType(name?: string | null): BudgetType {
  * (B) yalnız tam-kayıp durumunda çalışır → kullanıcının bilerek sildiği habitleri geri getirmez.
  * storedTaskIds korunur (görevleri ezmemek için).
  */
+/** Yeni sınır (bkz. habitLimit) bir kez uygulanır: fazlalar SİLİNMEZ, dinlenir; kullanıcı geri açarsa tekrar kapatılmaz. */
+async function applyModeRoutineCaps(lang: 'tr' | 'en'): Promise<void> {
+  try {
+    if (await AsyncStorage.getItem('tazq-mode-routine-caps-v1')) return;
+    await AsyncStorage.setItem('tazq-mode-routine-caps-v1', '1');
+    const rest = routinesToRest(useHabitStore.getState().habits);
+    if (rest.length === 0) return;
+    rest.forEach(h => useHabitStore.getState().pauseHabit(h.id));
+    useToastStore.getState().show(HABIT_LIMIT_COPY[lang].modeCapToast(rest.length), 'info');
+  } catch (e) { swallow('planAdaptations.modeCaps', e); }
+}
+
 function healModeHabits(
   planMode: string,
   templateHabits: any[],
@@ -193,8 +213,11 @@ function healModeHabits(
 
   // (B) Boş ID: yalnız o moda ait yerel habit HİÇ yoksa yeniden üret.
   if (localHabits.some(h => h.planMode === planMode)) return;
+  // YIĞILMA KÖKÜ (2026-11-05): alışkanlık sırada beklerken kimlik listesi boştur; bu, "plan bozuldu" sanılıp şablonun
+  // tamamı ekleniyordu ve kademeli açılım hiçe iniyordu. Sıra varsa onarım yok; yoksa da sınır kadar.
+  if ((useStagedPlanStore.getState().queues[planMode]?.items.length ?? 0) > 0) return;
   const ids: string[] = [];
-  templateHabits.forEach((h, i) => {
+  templateHabits.slice(0, modeRoomLeft(localHabits, planMode)).forEach((h, i) => {
     const id = `habit_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`;
     ids.push(id);
     addOne(h, id);
@@ -433,15 +456,20 @@ export function usePlanAdaptations() {
     }
 
     const created: number[] = [];
-    for (const rawPayload of newTasks) {
+    const allPrefs = usePrefsStore.getState() as unknown as Record<string, unknown>;
+    const allPlanIds = new Set(Object.keys(allPrefs).filter(k => k.endsWith('PlanTaskIds')).flatMap(k => (allPrefs[k] as number[]) ?? []));
+    const incoming = newTasks as (typeof newTasks[number] & { tags?: string[] })[];
+    const trimmed = trimToPlanBudget(incoming, useTaskStore.getState().tasks, allPlanIds, new Date());
+    // Başka mod bütçeyi doldurmuş olsa da sınav planının ilk bloğu listeye iner: plan görünmez olmasın.
+    const firstStudy = isStudyTask(incoming[0] ?? {}) && !trimmed.length && !useTaskStore.getState().tasks.some(t => isStudyTask(t) && (t.tags ?? []).includes(planMode) && !t.isCompleted);
+    for (const rawPayload of firstStudy ? incoming.slice(0, 1) : trimmed) {
       // Idempotency anahtarı ekle (backend çift kaydı reddetsin; offline retry güvenli).
       const payload = { ...rawPayload, clientKey: rawPayload.clientKey ?? makeClientKey(rawPayload) };
       const currentTasks = useTaskStore.getState().tasks;
       const duplicate = currentTasks.some(task => {
         if (!isPlanGeneratedTask(task)) return false;
         if (planDedupeKey(task) !== planDedupeKey(payload)) return false;
-        if (!task.dueDate || !payload.dueDate) return false;
-        return new Date(task.dueDate).toDateString() === new Date(payload.dueDate).toDateString();
+        return isSamePlanOccurrence(task, payload);
       });
       if (duplicate) continue;
 
@@ -492,6 +520,7 @@ export function usePlanAdaptations() {
 
     // ── SELF-HEALING ACTIVE MODES ──────────────────────────────────────────
     selfHealActiveModes(lang === 'tr');
+    void applyModeRoutineCaps(lang);
 
     // ── PLAN AUTO-CLEANUP ON EXPIRATION ────────────────────────────────────
     const freshPrefs = usePrefsStore.getState();
@@ -551,6 +580,8 @@ export function usePlanAdaptations() {
     }
     // Turn off examMode globally ONLY after a real expiration cleared the last slot.
     const updatedPrefsAfterExams = usePrefsStore.getState();
+    // Sınav tarihi geçince plan kapanır; kullanıcıya SÖYLENİR (2026-11-05, diğer modlar sorarken sınav sessizdi).
+    if (anyExamExpired) useToastStore.getState().show(HABIT_LIMIT_COPY[lang].examClosedToast, 'info');
     if (anyExamExpired && updatedPrefsAfterExams.seasonal.examMode && !updatedPrefsAfterExams.seasonal.examDate && !updatedPrefsAfterExams.seasonal.exam2Date && !updatedPrefsAfterExams.seasonal.exam3Date) {
       freshPrefs.setSeasonalPref('examMode', false);
     }
@@ -801,6 +832,11 @@ export function usePlanAdaptations() {
     // YEREL GÜN ANAHTARI — todayStr aşağıda tekrar hesaplanıyordu, buraya taşındı.
     const todayStr = `${logicalToday.getFullYear()}-${String(logicalToday.getMonth() + 1).padStart(2, '0')}-${String(logicalToday.getDate()).padStart(2, '0')}`;
 
+    // Sınav planı: işaretleri al, biten günleri kapat, dünün kalanını kaldır (her açılışta, üretim kapısından önce).
+    startStudyPlanBridge();
+    runStudySync();
+    existing = useTaskStore.getState().tasks;
+
     const oldPlanTasks = existing.filter(t => {
       if (t.isCompleted) return false;
       if (!t.dueDate || t.dueDate.startsWith('0001')) return false;
@@ -814,6 +850,7 @@ export function usePlanAdaptations() {
         geçmemiş bir görevi aynı gün içinde kaybedebiliyordu. calendarDayOf hem salt
         günü hem tam zaman damgasını doğru yerel güne indirger.
       */
+      if (isStudyTask(t)) return false; // Sınav planı görevi devretmez: runStudySync kaldırır, plan yeniden kurar.
       const dueDay = calendarDayOf(t.dueDate);
       const isPast = dueDay !== null && dueDay < todayStr;
       if (!isPast) return false;
@@ -1004,6 +1041,7 @@ export function usePlanAdaptations() {
     ];
     for (const slot of examSlots) {
       if (slot.active && slot.name && slot.date && hasAppliedPlan(slot.taskIds, slot.habitIds)) {
+        if (isStudyManaged(slot.name)) continue; // Sınav planı kendi işlerini üretir; üstüne ayrı görev binmez.
         const daysLeft = daysUntil(slot.date);
         const newTasks = buildSinavAdaptationTasks(slot.name, daysLeft, existing, lang);
         await applyTasks(newTasks, slot.mode, slot.taskIds, slot.habitIds);
@@ -1059,7 +1097,7 @@ export function usePlanAdaptations() {
       return t === 'yaris' ? 'genel' : t;
     };
 
-    const dailySlots: { spec: DailyPlanSpec; mode: Parameters<typeof applyTasks>[1]; taskIds: number[]; habitIds: string[]; subjectId?: string; topicId?: string }[] = [];
+    const dailySlots: { spec: DailyPlanSpec; mode: Parameters<typeof applyTasks>[1]; taskIds: number[]; habitIds: string[]; subjectId?: string; topicId?: string; study?: StudyBlock[] | null }[] = [];
 
     // Konu/müfredat takibi için bugünün gün indeksi (deterministik rotasyon)
     const subjectDayIndex = Math.floor(today.getTime() / 86400000);
@@ -1088,7 +1126,7 @@ export function usePlanAdaptations() {
         }
         dailySlots.push({
           spec: { kind: 'exam', slot: slot.mode, name: planName, daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
-          mode: slot.mode, taskIds: slot.taskIds, habitIds: slot.habitIds, subjectId, topicId,
+          mode: slot.mode, taskIds: slot.taskIds, habitIds: slot.habitIds, subjectId, topicId, study: studyBlocksForSlot(slot.mode, slot.name),
         });
       }
     }
@@ -1173,7 +1211,7 @@ export function usePlanAdaptations() {
     })()).length;
     const caps = allocatePlanBudget(
       dailySlots.map(ds => ds.spec),
-      dailySlots.map(ds => desiredDailyCount({ ...ds.spec, adherence, recovery: recoveryNow })),
+      dailySlots.map(ds => (ds.study ? ds.study.filter(b => !b.done && !b.skipped).length : desiredDailyCount({ ...ds.spec, adherence, recovery: recoveryNow }))),
       planBudgetFor(ownToday),
     );
     for (const [slotIndex, ds] of dailySlots.entries()) {
@@ -1189,6 +1227,15 @@ export function usePlanAdaptations() {
       const spec = { ...ds.spec, adherence, recovery, isRamazan: inRamazanNow, maxCount: caps[slotIndex] };
       // Genişletilmiş havuz VARSA kullanılır; yoksa motor sabit havuzla çalışır.
       // Eksikse arka planda doldurulur — beklenmez, bugünü etkilemez (bkz. planPoolSync).
+      if (ds.study) {
+        // Sınav planı: görev yalnız henüz açılmamış bloklar için; konu ancak görev BİTİNCE ilerler (bkz. planCore).
+        const openTags = new Set(fresh.flatMap(t => t.tags ?? []));
+        const fresher = ds.study.filter(b => !openTags.has(b.id));
+        const existingCount = ds.study.length - fresher.length;
+        const tasks = blocksToTasks(fresher, useStudyPlanStore.getState(), studyToday(), ds.mode, Math.max(0, caps[slotIndex] - existingCount), lang);
+        await applyTasks(tasks as unknown as Parameters<typeof applyTasks>[0], ds.mode, ds.taskIds, ds.habitIds);
+        continue;
+      }
       const daily = buildDailyTasks({ ...spec, extraPool: getExtraPool(spec) }, fresh, lang, today);
       ensureExtraPool(spec);
       await applyTasks(daily, ds.mode, ds.taskIds, ds.habitIds);

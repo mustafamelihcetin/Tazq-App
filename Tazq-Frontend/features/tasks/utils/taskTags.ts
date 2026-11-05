@@ -15,7 +15,7 @@ export const ICON_TAGS = ['hatırlatıcı', 'reminder', 'etkinlik', 'event', 'no
 // Plan/mod/sistem etiketleri — kullanıcıya hiçbir biçimde gösterilmez
 const SYSTEM_TAGS = new Set<string>([
   // mod tipleri
-  'yks', 'kpss', 'exam', 'tez', 'mulakat', 'spor',
+  'yks', 'kpss', 'exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'spor', 'spor2', 'spor3',
   // günlük plan motoru türleri
   'kilo', 'maraton', 'guc', 'genel', 'daily',
   // taslak/yer tutucu

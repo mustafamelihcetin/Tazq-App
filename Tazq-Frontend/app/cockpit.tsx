@@ -61,7 +61,7 @@ import { suggestHabitIcon } from '@/features/habits/utils/habitIcon';
 import { localeOf } from '@/shared/utils/lang';
 import { upperFor } from '@/shared/utils/localeCase';
 import { useActiveHabitList } from '@/features/habits';
-import { HABIT_LIMIT, roomLeft, restSuggestions } from '@/features/habits/utils/habitLimit';
+import { HABIT_LIMIT, roomLeft, modeRoomLeft, modeOf, activeHabits, restSuggestions } from '@/features/habits/utils/habitLimit';
 import { habitColor, HABIT_PALETTE, type PaletteColor } from '@/features/habits/utils/habitColor';
 import { HABIT_LIMIT_COPY } from '@/features/habits/utils/habitLimitCopy';
 
@@ -648,21 +648,25 @@ export default function CockpitScreen() {
     setAddVisible(true);
   };
   const bringBack = (id: string, name: string) => {
-    if (roomLeft(allHabits) === 0) { openAddHabit(); return; }
+    const mode = modeOf(allHabits.find(h => h.id === id) ?? {});
+    if (mode) {
+      if (modeRoomLeft(allHabits, mode) === 0) { useToastStore.getState().show(lc.fullTitle, 'info'); return; }
+    } else if (roomLeft(allHabits) === 0) { openAddHabit(); return; }
     resumeHabit(id);
     haptic.success();
     useToastStore.getState().show(lc.resumedToast(name), 'success');
   };
   // Sınırın ÜSTÜNDE olan (eski) kullanıcıya BİR KEZ nazik öneri; seçim kullanıcının.
   useEffect(() => {
-    const extra = rawHabits.length - HABIT_LIMIT;
+    const personal = allHabits.filter(h => !modeOf(h));
+    const extra = activeHabits(personal).length - HABIT_LIMIT;
     if (extra <= 0) return;
     AsyncStorage.getItem('tazq-habit-limit-noticed').then(v => {
       if (v) return;
       AsyncStorage.setItem('tazq-habit-limit-noticed', '1').catch((e) => swallow('cockpit.habitLimitNoticed', e));
       Alert.alert(lc.overTitle, lc.overBody(rawHabits.length, extra), [
         { text: lc.overLater, style: 'cancel' },
-        { text: lc.overApply, onPress: () => restSuggestions(allHabits, extra).forEach(h => pauseHabit(h.id)) },
+        { text: lc.overApply, onPress: () => restSuggestions(personal, extra).forEach(h => pauseHabit(h.id)) },
       ]);
     }).catch((e) => swallow('cockpit.habitLimitRead', e));
   }, [rawHabits.length]);

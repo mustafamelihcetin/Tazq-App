@@ -1,3 +1,4 @@
+import { PlanLink } from '@/features/modes/components/plan/PlanLink';
 /**
  * TasarrufCard — Tasarruf/Bütçe modu kartı (Dönemsel Modlar).
  * Kilo kartı deseninin finansal ikizi: başlangıç→hedef tutar + süre, haftalık
@@ -11,7 +12,8 @@ import { View, Text } from 'react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
-import { useBudgetStore, getRecentBudgetEntry, type BudgetType } from '@/shared/store/useBudgetStore';
+import { useBudgetStore, type BudgetType } from '@/shared/store/useBudgetStore';
+import { useToastStore } from '@/shared/store/useToastStore';
 import { useHabitStore } from '@/features/habits/store/useHabitStore';
 import { useTaskStore } from '@/features/tasks/store/useTaskStore';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
@@ -28,6 +30,7 @@ import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { buildTasarrufPlan, tasarrufTypeLabel, TASARRUF_COLOR, spendingAreaLabel, type SpendingArea } from '@/shared/utils/lifeModePlans';
 import { retirePlanTask , retireModeTasksByTag} from '@/features/modes/utils/planTaskOps';
 import { Coins } from 'lucide-react-native';
+import { Plus, Minus } from 'lucide-react-native';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { PlanLifecycleRow } from '@/features/modes/components/PlanPauseRow';
@@ -35,15 +38,23 @@ import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 import { haptic } from '@/shared/utils/haptics';
 import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
 import { daysLeftOf as planDaysLeftOf } from '@/features/modes/utils/planTaskOps';
-import { roomLeft } from '@/features/habits/utils/habitLimit';
+import { modeRoomLeft } from '@/features/habits/utils/habitLimit';
+import { splitForFirstDay, interleaveStaged } from '@/features/modes/utils/stagedRollout';
+import { useStagedPlanStore } from '@/features/modes/store/useStagedPlanStore';
 import { HABIT_LIMIT_COPY } from '@/features/habits/utils/habitLimitCopy';
 
 const fmtMoney = (n: number) => n.toLocaleString('tr-TR');
 
-export function TasarrufCard() {
+const ENTRY_COPY = {
+  tr: { in: 'Eklenecek tutar', out: 'Çıkarılacak tutar', debtIn: 'Eklenen borç', debtOut: 'Ödenen tutar', set: 'Güncel bakiye', target: 'Yeni hedef tutar', addBtn: 'Para ekle', outBtn: 'Para çıkar', debtAddBtn: 'Borç eklendi', debtOutBtn: 'Ödeme yaptım', fix: 'Bakiyeyi düzelt', goal: 'Hedefi değiştir', saved: 'Kaydedildi', undo: 'Geri al', reached: 'Hedefe ulaştın. Tebrikler!', cleared: 'Borç kapandı. Tebrikler!', timeUp: 'Süre doldu. Hedefin hâlâ geçerliyse uzatabilirsin.', extend: '3 ay uzat', locale: 'tr-TR' },
+  en: { in: 'Amount to add', out: 'Amount to withdraw', debtIn: 'Debt added', debtOut: 'Amount paid', set: 'Current balance', target: 'New goal amount', addBtn: 'Add money', outBtn: 'Withdraw', debtAddBtn: 'Debt added', debtOutBtn: 'Made a payment', fix: 'Correct the balance', goal: 'Change the goal', saved: 'Saved', undo: 'Undo', reached: 'Goal reached. Well done!', cleared: 'Debt cleared. Well done!', timeUp: 'Time is up. Extend it if the goal still stands.', extend: 'Add 3 months', locale: 'en-US' },
+};
+
+export function TasarrufCard({ onInputFocus }: { onInputFocus?: (target: number) => void }) {
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
+  const ec = ENTRY_COPY[language === 'en' ? 'en' : 'tr'];
   // Yüzey vurgusu tema-duyarlı palet + AA geçen metin tonu.
   const { accent: C, accentText: C_TX, onAccent: C_ON } = useModeAccent('tasarruf');
 
@@ -56,7 +67,7 @@ export function TasarrufCard() {
   const planSpecs = usePrefsStore(s => s.planSpecs);
   const setPersonalNote = usePrefsStore(s => s.setPersonalNote);
 
-  const { budgetType, startAmount, targetAmount, log, setBudgetType, setStartAmount, setTargetAmount, addEntry, reset } = useBudgetStore();
+  const { budgetType, startAmount, targetAmount, log, setBudgetType, setStartAmount, setTargetAmount, addEntry, adjust, undoMove, moves, reset } = useBudgetStore();
   const addHabit = useHabitStore(s => s.addHabit);
   const removeHabit = useHabitStore(s => s.removeHabit);
   const { runAdaptations } = usePlanAdaptations();
@@ -87,10 +98,10 @@ export function TasarrufCard() {
   const daysLeft = dateObj ? planDaysLeftOf(seasonal.tasarrufDate!) : 0;
   const datePast = dateObj ? parseDateKey(seasonal.tasarrufDate!).setHours(23, 59, 59, 999) < Date.now() : false;
 
-  const canLog = (() => {
-    const r = getRecentBudgetEntry(log, 7);
-    return !r;
-  })();
+  // Giriş türü: ekle / çıkar / bakiyeyi düzelt. Haftalık kilit kalktı (bkz. useBudgetStore.adjust).
+  const [entryMode, setEntryMode] = useState<'in' | 'out' | 'set' | 'target'>('in');
+  const isDebt = budgetType === 'borc';
+  const entryLabel = { in: isDebt ? ec.debtIn : ec.in, out: isDebt ? ec.debtOut : ec.out, set: ec.set, target: ec.target }[entryMode];
 
   const TYPES: { key: Exclude<BudgetType, ''>; emoji: string; tr: string; en: string }[] = [
     { key: 'birikim', emoji: '💰', tr: 'Birikim Hedefi', en: 'Savings Goal' },
@@ -149,6 +160,7 @@ export function TasarrufCard() {
       placeholder="0"
       maxLength={13}
       autoFocus={autoFocus}
+      onFocus={e => onInputFocus?.(e.nativeEvent.target as unknown as number)}
     />
   );
 
@@ -183,20 +195,22 @@ export function TasarrufCard() {
     haptic.success();
     const content = buildTasarrufPlan(budgetType, spendingArea);
     const habitIds: string[] = [];
-    // Alışkanlık sınırı (madde 6): yalnız yer kadarı eklenir, fazlası için neden anlatılır.
-    const room = roomLeft(useHabitStore.getState().habits);
-    if (content.habits.length > room) {
-      const lc = HABIT_LIMIT_COPY[useLanguageStore.getState().language === 'en' ? 'en' : 'tr'];
-      Alert.alert(lc.fullTitle, lc.fullBody);
-    }
-    content.habits.slice(0, room).forEach((h, i) => {
+    // Kademeli açılım (2026-11-05, "ilk gün aşırı yığılma"): ilk gün 1 rutin + 1 görev, kalanı her gün birer sıradan gelir.
+    const staged = splitForFirstDay(content.habits, content.tasks);
+    const room = modeRoomLeft(useHabitStore.getState().habits, 'tasarruf');
+    staged.habitsNow.slice(0, room).forEach((h, i) => {
       const id = `habit_tasarruf_${i}_${Date.now()}`;
       addHabit(h.name, h.emoji, h.color, id, 'tasarruf');
       habitIds.push(id);
     });
     const taskIds: number[] = [];
     const tasarrufLabel = tasarrufTypeLabel(budgetType, tr);
-    for (const t of content.tasks) {
+    const withLabel = (text: string) => (tasarrufLabel && !text.toLowerCase().includes(tasarrufLabel.toLowerCase()) ? `${tasarrufLabel}: ${text}` : text);
+    useStagedPlanStore.getState().setQueue('tasarruf', interleaveStaged(
+      staged.tasksLater.map(t => ({ titleTr: withLabel(t.title), titleEn: withLabel(t.titleEn), descTr: t.desc, descEn: t.descEn, priority: t.priority, tags: t.tags ?? [] })),
+      [...staged.habitsNow.slice(room), ...staged.habitsLater].map(h => ({ nameTr: h.name, nameEn: h.nameEn ?? h.name, emoji: h.emoji, color: h.color, modeType: 'tasarruf' })),
+    ));
+    for (const t of staged.tasksNow) {
       let taskTitleTr = t.title;
       let taskTitleEn = t.titleEn;
       if (tasarrufLabel) {
@@ -260,14 +274,14 @@ export function TasarrufCard() {
 
   const saveEntry = () => {
     const v = parseFloat(entryInput.replace(',', '.'));
-    if (isNaN(v) || v < 0) return;
-    if (!canLog) {
-      Alert.alert(tr ? 'Zaten girdin' : 'Already logged', tr ? 'Bakiye 7 günde bir girilir.' : 'Balance is logged every 7 days.');
-      return;
-    }
-    addEntry(v);
-    setEntryInput(''); setShowEntry(false);
+    if (isNaN(v) || v < 0 || (v === 0 && entryMode !== 'set')) return;
     haptic.success();
+    setEntryInput(''); setShowEntry(false);
+    if (entryMode === 'set') { addEntry(v); return; }
+    if (entryMode === 'target') { setTargetAmount(String(v)); return; }
+    // Borçta "ödeme" bakiyeyi düşürür, "çıkar" diğer hedeflerde düşürür.
+    const at = adjust(entryMode === 'in' ? v : -v);
+    useToastStore.getState().show(ec.saved, 'success', { label: ec.undo, onAction: () => undoMove(at) });
   };
 
   const cardBorder = seasonal.tasarrufMode ? C + (isDark ? '40' : '30') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)');
@@ -317,17 +331,57 @@ export function TasarrufCard() {
             </View>
           </View>
 
+          {/* Hedefe varınca ya da süre dolunca kart sessiz kalmaz (2026-11-05, mod senaryoları). */}
+          {pct >= 100 && (
+            <Text style={{ color: C_TX, fontSize: F.footnote, fontWeight: '700', textAlign: 'center' }}>{budgetType === 'borc' ? ec.cleared : ec.reached}</Text>
+          )}
+          {datePast && pct < 100 && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+              <Text style={{ flex: 1, color: theme.onSurfaceVariant, fontSize: F.footnote }}>{ec.timeUp}</Text>
+              <Touchable accessibilityRole="button" onPress={() => { const d = new Date(); d.setMonth(d.getMonth() + 3); setSeasonalPref('tasarrufDate', d.toISOString()); }} style={{ minHeight: 40, justifyContent: 'center', paddingHorizontal: S.smd, borderRadius: R.full, backgroundColor: C + '1F' }}>
+                <Text style={{ color: C_TX, fontSize: F.caption, fontWeight: '700' }}>{ec.extend}</Text>
+              </Touchable>
+            </View>
+          )}
           {showEntry ? (
+            <View style={{ gap: S.xs }}>
+            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{entryLabel}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
               <View style={{ flex: 1 }}>{moneyInput(entryInput, setEntryInput, true)}</View>
               <Touchable accessibilityRole="button" hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }} onPress={saveEntry} style={{ backgroundColor: C, borderRadius: R.full, paddingHorizontal: S.md, height: 36, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C_ON, fontWeight: '700', fontSize: F.caption }}>{tr ? 'Kaydet' : 'Save'}</Text></Touchable>
               <Touchable accessibilityRole="button" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={() => { setShowEntry(false); setEntryInput(''); }} style={{ padding: S.xs }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'İptal' : 'Cancel'}</Text></Touchable>
             </View>
+            </View>
           ) : (
-            <Touchable accessibilityRole="button" disabled={!canLog} onPress={() => { if (canLog) { haptic.select(); setShowEntry(true); } }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm + 2, borderRadius: R.md, backgroundColor: canLog ? C + '12' : 'transparent', borderWidth: canLog ? 0 : B.thin, borderColor: theme.onSurfaceVariant + '20' }}>
-              {<Coins size={ICON.sm} color={canLog ? C : theme.onSurfaceVariant} />}
-              <Text style={{ color: canLog ? C : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{canLog ? (tr ? 'Bu hafta bakiyeni gir' : 'Log this week\'s balance') : (tr ? 'Kaydedildi · sonraki hafta' : 'Logged · next week')}</Text>
-            </Touchable>
+            <View style={{ gap: S.xs }}>
+              <View style={{ flexDirection: 'row', gap: S.sm }}>
+                {([
+                  { k: 'in' as const, label: isDebt ? ec.debtAddBtn : ec.addBtn, Ic: Plus },
+                  { k: 'out' as const, label: isDebt ? ec.debtOutBtn : ec.outBtn, Ic: Minus },
+                ]).map(({ k, label, Ic }) => (
+                  <Touchable key={k} accessibilityRole="button" onPress={() => { setEntryMode(k); setShowEntry(true); }} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, minHeight: 44, borderRadius: R.md, backgroundColor: C + '12' }}>
+                    <Ic size={ICON.sm} color={C} />
+                    <Text style={{ color: C_TX, fontSize: F.caption, fontWeight: '600' }}>{label}</Text>
+                  </Touchable>
+                ))}
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'center', gap: S.lg }}>
+                <Touchable accessibilityRole="button" onPress={() => { setEntryMode('set'); setShowEntry(true); }} style={{ minHeight: 40, justifyContent: 'center' }}>
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{ec.fix}</Text>
+                </Touchable>
+                {!isDebt && (
+                  <Touchable accessibilityRole="button" onPress={() => { setEntryMode('target'); setShowEntry(true); }} style={{ minHeight: 40, justifyContent: 'center' }}>
+                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{ec.goal}</Text>
+                  </Touchable>
+                )}
+              </View>
+              {(moves ?? []).slice(0, 3).map(m => (
+                <View key={m.at} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{new Date(m.at).toLocaleDateString(ec.locale, { day: 'numeric', month: 'short' })}</Text>
+                  <Text style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '600', fontVariant: ['tabular-nums'] }}>{m.delta >= 0 ? '+' : '−'}₺{fmtMoney(Math.abs(m.delta))}</Text>
+                </View>
+              ))}
+            </View>
           )}
         </View>
       )}
@@ -443,6 +497,7 @@ export function TasarrufCard() {
       )}
       {/* Sağlık/finans verisi sunucuya gitmez — kullanıcı bunu veriyi girerken bilsin (bkz. DeviceOnlyNote). */}
       {seasonal.tasarrufMode && <DeviceOnlyNote kind="budget" />}
+      {seasonal.tasarrufMode && <PlanLink slot="tasarruf" />}
       {seasonal.tasarrufMode && (
         <ModeCardClose
           mode="tasarruf"

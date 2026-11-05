@@ -816,6 +816,10 @@ export const usePrefsStore = create<PrefsState>()(
           const ach = require('@/features/user/store/useAchievementStore').useAchievementStore.getState();
           snapshot.__achievements = { unlocked: ach.unlocked, baselined: ach.baselined };
         } catch (e) { swallow('prefsStore.collectAchievementsForSnapshot', e, { capture: true }); }
+        // Sınav planı özeti: konu durumu ve denemeler (bkz. features/studyplan/utils/planCore.toCloud).
+        try {
+          snapshot.__studyPlan = require('@/features/studyplan/store/useStudyPlanStore').useStudyPlanStore.getState().cloudSnapshot();
+        } catch (e) { swallow('prefsStore.collectStudyPlanForSnapshot', e); }
         // Momentum geçmişi (son 14 gün, birkaç yüz bayt) — çıkışta grafik sıfırlanmasın (bkz. useMomentumStore).
         try {
           snapshot.__momentum = require('@/features/user/store/useMomentumStore').useMomentumStore.getState().history;
@@ -901,6 +905,9 @@ export const usePrefsStore = create<PrefsState>()(
             try {
               require('@/features/user/store/useAchievementStore').useAchievementStore.getState().applyCloud(parsed.__achievements);
             } catch (e) { swallow('prefsStore.applyCloudAchievements', e, { capture: true }); }
+          }
+          if (parsed.__studyPlan) {
+            try { require('@/features/studyplan/store/useStudyPlanStore').useStudyPlanStore.getState().applyCloud(parsed.__studyPlan); } catch (e) { swallow('prefsStore.applyCloudStudyPlan', e); }
           }
           if (parsed.__momentum) {
             try { require('@/features/user/store/useMomentumStore').useMomentumStore.getState().applyCloud(parsed.__momentum); } catch (e) { swallow('prefsStore.applyCloudMomentum', e); }

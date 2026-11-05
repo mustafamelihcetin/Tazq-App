@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Animated, StyleSheet } from 'react-native';
+import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Clock, ChevronRight, Wallet, CheckCircle2, Circle } from 'lucide-react-native';
@@ -29,6 +30,7 @@ export default function TakvimScreen() {
   const insets = useSafeAreaInsets();
   const contentW = useContentMaxWidth();
   const router = useRouter();
+  const { scrollY, onScroll } = useCollapsibleHeader();
   const { theme } = useAppTheme();
   const language = useLanguageStore(s => s.language);
   const c = COPY[language === 'en' ? 'en' : 'tr'];
@@ -62,8 +64,8 @@ export default function TakvimScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <ScreenHeader onBack={() => router.back()} title={c.title} />
-      <ScrollView contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl, gap: S.md, width: '100%', maxWidth: contentW, alignSelf: 'center' }}>
+      <ScreenHeader onBack={() => router.back()} title={c.title} scrollY={scrollY} />
+      <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl, gap: S.md, width: '100%', maxWidth: contentW, alignSelf: 'center' }}>
         <View style={[styles.card, { backgroundColor: theme.surfaceCard }]}>
           <MonthCalendar year={ym.y} month0={ym.m} onShift={shift} selected={selected} onSelect={setSelected} marks={marks} locale={c.locale} prevLabel={c.prev} nextLabel={c.next} />
         </View>
@@ -92,7 +94,7 @@ export default function TakvimScreen() {
             <ChevronRight size={ICON.xs} color={theme.primary} />
           </Touchable>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
     </View>
   );
 }

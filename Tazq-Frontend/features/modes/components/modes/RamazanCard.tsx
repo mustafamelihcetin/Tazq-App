@@ -25,6 +25,7 @@ import { AppIcon } from '@/shared/components/AppIcon';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { ModeField } from '../ModeField';
 import { langOf } from '@/shared/utils/lang';
+import { PlanLink } from '@/features/modes/components/plan/PlanLink';
 import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { PlanLifecycleRow } from '@/features/modes/components/PlanPauseRow';
@@ -165,6 +166,7 @@ clearPlanIds('ramazan');
             <View style={{ gap: S.sm }}>
               {/* Ara verme — yedi modun ortak satırı (bkz. PlanPauseRow). Ramazan'ın
                   hedef tarihi yok: ölçü dönemin kendisi, geri sayım kartın üstünde. */}
+              <PlanLink slot="ramazan" />
               <PlanLifecycleRow tr={tr} accent={accent} accentText={accentText} lifecycle={lifecycle} hasPlan />
               <ModeField
                 accent={accent}

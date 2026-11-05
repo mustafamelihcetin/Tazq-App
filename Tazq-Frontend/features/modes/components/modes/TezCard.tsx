@@ -25,6 +25,7 @@ import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { ModePlanSummary } from '@/features/modes/components/ModePlanSummary';
 import { usePlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 import { haptic } from '@/shared/utils/haptics';
+import { openPlan, PlanLink } from '@/features/modes/components/plan/PlanLink';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { useModeCompletionReview } from '@/features/modes/hooks/useModeCompletionReview';
 import { completionCopy } from '@/features/modes/utils/modeCompletion';
@@ -146,8 +147,8 @@ clearPlanIds('tez');
               <View style={{ paddingTop: S.xs }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>
                   <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{name}</Text>
-                  <Touchable accessibilityRole="button" onPress={() => { haptic.surface(); onOpenPreview(); }} activeOpacity={0.7} style={{ paddingVertical: S.xs, paddingHorizontal: S.xxs }}>
-                    <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (tr ? 'Planı Seç ›' : 'Choose Plan ›')}</Text>
+                  <Touchable accessibilityRole="button" onPress={() => { haptic.surface(); if (hasPlan) openPlan('tez'); else onOpenPreview(); }} activeOpacity={0.7} style={{ paddingVertical: S.xs, paddingHorizontal: S.xxs }}>
+                    <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'Planım ›' : 'My plan ›') : (tr ? 'Planı Seç ›' : 'Choose Plan ›')}</Text>
                   </Touchable>
                   <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
                   <Touchable accessibilityRole="button" onPress={() => { haptic.select(); setExpanded(true); }} activeOpacity={0.7}>

@@ -85,6 +85,7 @@ function readSources(): ExportSources {
     */
     quit: safe(() => require('@/shared/store/useQuitStore').useQuitStore.getState().items, 'quit'),
     subjects: safe(() => require('@/shared/store/useSubjectStore').useSubjectStore.getState().progress, 'subjects'),
+    studyPlan: safe(() => require('@/features/studyplan/store/useStudyPlanStore').useStudyPlanStore.getState().cloudSnapshot(), 'studyPlan'),
     payments: safe(() => require('@/features/payments/store/usePaymentsStore').usePaymentsStore.getState().payments, 'payments'),
     currency: safe(() => require('@/features/payments/store/usePaymentsStore').usePaymentsStore.getState().currency, 'currency'),
     preferences: safe(() => require('@/features/modes/store/usePrefsStore').usePrefsStore.getState(), 'prefs'),

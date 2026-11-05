@@ -1,3 +1,5 @@
+import { INTL_EXAM_PRESETS } from './examPresetsIntl';
+
 export type ExamCategory = 'university' | 'public' | 'graduate' | 'highschool' | 'language' | 'medical' | 'other';
 
 export interface ExamPreset {
@@ -266,6 +268,7 @@ export const EXAM_PRESETS: ExamPreset[] = [
     tipTr: 'Genel Kültür + Mevzuat + Türkçe — soru bankası çözümü ile hız kazan.',
     tipEn: 'General Knowledge + Legislation + Turkish — build speed with question banks.',
   },
+  ...INTL_EXAM_PRESETS,
 ];
 
 // Normalize string: lowercase + remove Turkish special chars + punctuation

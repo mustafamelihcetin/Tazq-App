@@ -116,6 +116,45 @@ export function desiredDailyCount(spec: DailyPlanSpec): number {
 */
 export const PLAN_DAILY_BUDGET = 4;
 
+/**
+ * AYNI PLAN İŞİ Mİ (2026-11-05, cihazda görüldü: "Bu hafta ne tamamladın?" hem gecikmiş hem bugün). Aynı gün kopyası ya da
+ * henüz bitmemiş ESKİ kopyası varsa yenisi açılmaz: yapılmamış iş tekrar çoğalmaz, kendi gecikmiş satırında kalır.
+ */
+export function isSamePlanOccurrence(existing: { dueDate?: string | null; isCompleted?: boolean }, incoming: { dueDate?: string | null }): boolean {
+  if (!existing.dueDate || !incoming.dueDate) return false;
+  const a = new Date(existing.dueDate);
+  const b = new Date(incoming.dueDate);
+  if (a.toDateString() === b.toDateString()) return true;
+  return !existing.isCompleted && a < b;
+}
+
+/**
+ * SON KAPI (2026-11-05, cihazda görüldü: bugün 6 plan görevi, bütçe 4). Motorun tavanı yalnız kendi ürettiğini sayıyordu;
+ * adaptasyon yolları ve önceki çalışmalardan kalanlar bütçeyi aşıyordu. Bugüne düşen her yeni görev burada elenir;
+ * tartım gibi tarihi kendi akışına bağlı görevler ve başka güne yazılanlar etkilenmez.
+ */
+export function trimToPlanBudget<T extends { dueDate?: string | null; tags?: string[] }>(
+  incoming: T[],
+  tasks: { id: number; dueDate?: string | null; isCompleted?: boolean; isArchived?: boolean }[],
+  planTaskIds: Set<number>,
+  today: Date,
+): T[] {
+  const isToday = (iso?: string | null) => {
+    if (!iso) return false;
+    const d = new Date(iso);
+    return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
+  };
+  const open = tasks.filter(t => !t.isCompleted && !t.isArchived && isToday(t.dueDate));
+  const planToday = open.filter(t => planTaskIds.has(t.id)).length;
+  let left = Math.max(0, planBudgetFor(open.length - planToday) - planToday);
+  return incoming.filter(t => {
+    if (!isToday(t.dueDate) || t.tags?.includes('weight_entry')) return true;
+    if (left <= 0) return false;
+    left--;
+    return true;
+  });
+}
+
 export function planBudgetFor(ownTasksToday: number): number {
   if (ownTasksToday >= 5) return 2;
   if (ownTasksToday >= 3) return 3;

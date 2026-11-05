@@ -128,6 +128,7 @@ const BASELINE: Record<string, number> = {
   'features/habits/hooks/useSleepHealthSync.ts': 4,
   'features/modes/components/DailyStepsRow.tsx': 4,
   'features/modes/components/TurkishModeBanner.tsx': 103,
+  'features/modes/utils/planInsight.ts': 30, // İçgörü penceresinden taşındı (2026-11-05)
   'features/modes/components/WeightEntryModal.tsx': 11,
   'features/modes/components/modes/BirakmaCard.tsx': 34, // +2 (2026-10-19): "en büyük tetikleyicin ne?" sorusu + kişisel not placeholder'ı
   'features/modes/components/modes/ExamCard.tsx': 66, // +2 (2026-10-19): ikincil sınav slotunda "Planı Seç" butonu artık sessizce kaybolmuyor, eksik alanı nedenli söylüyor

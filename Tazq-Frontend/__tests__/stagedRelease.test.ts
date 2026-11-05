@@ -72,7 +72,7 @@ describe('günlük açılım', () => {
 
   it('alışkanlık sınırı doluyken sıradaki alışkanlık BEKLER, araya görev açılır (madde 6)', async () => {
     markYesterday();
-    const full = Array.from({ length: 7 }, (_, i) => ({ id: i === 0 ? 'h1' : `x${i}`, name: `x${i}`, emoji: '', color: '#000', completedDates: i === 0 ? [yesterday] : [], createdAt: '' }));
+    const full = Array.from({ length: 7 }, (_, i) => ({ planMode: 'tez', id: i === 0 ? 'h1' : `x${i}`, name: `x${i}`, emoji: '', color: '#000', completedDates: i === 0 ? [yesterday] : [], createdAt: '' }));
     useHabitStore.setState({ habits: full as never });
     useStagedPlanStore.getState().setQueue('tez', [habit, task]);
     await releaseStagedPlanItems();
@@ -83,7 +83,7 @@ describe('günlük açılım', () => {
 
   it('sınır doluyken sırada yalnız alışkanlık varsa bugün açılım yok', async () => {
     markYesterday();
-    const full = Array.from({ length: 7 }, (_, i) => ({ id: i === 0 ? 'h1' : `x${i}`, name: `x${i}`, emoji: '', color: '#000', completedDates: i === 0 ? [yesterday] : [], createdAt: '' }));
+    const full = Array.from({ length: 7 }, (_, i) => ({ planMode: 'tez', id: i === 0 ? 'h1' : `x${i}`, name: `x${i}`, emoji: '', color: '#000', completedDates: i === 0 ? [yesterday] : [], createdAt: '' }));
     useHabitStore.setState({ habits: full as never });
     useStagedPlanStore.getState().setQueue('tez', [habit]);
     await releaseStagedPlanItems();

@@ -1,3 +1,4 @@
+import { AppState } from 'react-native';
 import axios from 'axios';
 import { useAuthStore, isKeychainUnavailable } from '@/features/user/store/useAuthStore';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
@@ -157,6 +158,12 @@ async function tryRefreshToken(): Promise<RefreshResult> {
   refreshPromise = (async (): Promise<RefreshResult> => {
     try {
       const refreshToken = useAuthStore.getState().refreshToken;
+      /*
+        ARKA PLANDA ANAHTAR YENİLENMEZ (2026-11-05, kayıtla kanıtlandı: 19:09'da iptal edilmiş anahtar sabah sunuldu, sunucu
+        hırsızlık sanıp oturumu kapattı). Kilitli telefonda yenileme sunucuda başarılı olup yeni anahtar anahtarlığa
+        YAZILAMIYOR, sonraki açılışta eski anahtar okunuyordu. Öne gelince yenilenir.
+      */
+      if (AppState.currentState !== 'active') return { status: 'transient' };
       // Anahtarlık kilitliyken token okunamadı: oturum bitmedi, öne gelince yeniden okunur.
       if (!refreshToken && isKeychainUnavailable()) return { status: 'transient' };
       if (!refreshToken) return { status: 'invalid' };

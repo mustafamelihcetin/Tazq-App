@@ -1,6 +1,7 @@
 import { occurrenceInMonth } from '@/features/payments/utils/paymentDates';
 import { monthGrid } from '@/shared/components/MonthCalendar';
 import { paymentLook, reminderDaysOf } from '@/features/payments/utils/paymentLook';
+import { compactAmount } from '@/features/payments/components/PaymentsCalendar';
 import type { Payment } from '@/features/payments/store/usePaymentsStore';
 
 const base: Payment = { id: 1, title: 'Kira', amount: 100, dueDay: 31, recurrence: 'Monthly' };
@@ -46,4 +47,11 @@ describe('ödeme takvimi', () => {
     expect(reminderDaysOf({})).toBe(3);
     expect(reminderDaysOf({ reminderDays: -1 })).toBe(-1);
   });
+});
+
+it('hücre için kısa tutar', () => {
+  expect(compactAmount(1500, 'tr')).toBe('1,5B');
+  expect(compactAmount(1500, 'en')).toBe('1.5K');
+  expect(compactAmount(850, 'tr')).toBe('850');
+  expect(compactAmount(2000000, 'tr')).toBe('2M');
 });

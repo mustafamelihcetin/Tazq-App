@@ -155,7 +155,11 @@ export async function recordWeeklyWeight(kg: number, language: 'tr' | 'en' = 'tr
 
 async function recordWeeklyWeightImpl(kg: number, language: 'tr' | 'en', taskId?: number | null): Promise<boolean> {
   const log = useSporStore.getState().weightLog;
-  if (!canLogWeight(log)) return false;
+  // Hafta içinde yeni kayıt açılmaz ama son kayıt DÜZELTİLİR (2026-11-05): yanlış girilen kilo 7 gün beklemesin.
+  if (!canLogWeight(log)) {
+    useSporStore.getState().correctLatestWeight(kg);
+    return true;
+  }
 
   useSporStore.getState().addWeightEntry(kg);
 

@@ -30,6 +30,8 @@ export interface ExportSources {
   budget?: { budgetType?: string; startAmount?: string; targetAmount?: string; log?: Array<{ date: string; amount: number }> } | null;
   quit?: Array<{ type: string; name: string; start: string; relapses?: string[]; bestStreak?: number }> | null;
   subjects?: Record<string, { lastStudied?: string }> | null;
+  /** Sınav planı özeti: konu durumu, denemeler, haftalık süre. */
+  studyPlan?: unknown;
   payments?: Array<{ title: string; amount: number; dueDay?: number; recurrence?: string; nextDueDate?: string | null; category?: string | null }> | null;
   currency?: string | null;
   preferences?: Record<string, unknown> | null;
@@ -110,6 +112,7 @@ export function buildExportPackage(src: ExportSources, deps: ExportDeps, now: Da
       entries: arr(src.budget.log).map(e => ({ date: e.date, amount: e.amount })),
     }) : null,
     quit: arr(src.quit).map(q => compact({ name: q.name, kind: q.type, cleanSince: q.start, relapses: arr(q.relapses), bestStreakDays: q.bestStreak })),
+    ...(src.studyPlan ? { studyPlan: src.studyPlan } : {}),
     study: Object.entries(src.subjects ?? {}).map(([subject, p]) => compact({ subject, lastStudied: p?.lastStudied })),
     payments: arr(src.payments).map(p => compact({
       title: p.title, amount: p.amount, currency: src.currency ?? null,

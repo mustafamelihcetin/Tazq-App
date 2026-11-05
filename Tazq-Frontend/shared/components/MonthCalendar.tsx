@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
+import { getCalendars } from 'expo-localization';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { F, W, S, R, ICON, MIN_TOUCH } from '@/shared/constants/tokens';
@@ -9,12 +10,22 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
 /*
   ORTAK AYLIK TAKVİM (2026-11-05). Görevler ve ödemeler aynı ızgarayı kullanır. Dış kütüphane yok: tek ihtiyaç noktalı
   bir ay ızgarası, tema ve erişilebilirlik bizde; yeni bir yerel bağımlılık derleme gerektirmez.
-  Pazartesi başlar. Nokta rengi anlamı çağıran belirler; en çok 3 nokta, fazlası "+" sayılmaz, liste altta gösterir.
+  Hafta başlangıcı cihazdan gelir. Nokta rengi anlamı çağıran belirler; en çok 3 nokta, fazlası "+" sayılmaz, liste altta gösterir.
 */
 export const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-export function monthGrid(year: number, month0: number): (string | null)[][] {
-  const first = (new Date(year, month0, 1).getDay() + 6) % 7;
+/** Haftanın ilk günü cihaz ayarından (JS sırası: 0 Pazar, 1 Pazartesi). ABD'de Pazar, Türkiye'de Pazartesi. */
+export function deviceWeekStart(): number {
+  try {
+    const first = getCalendars()[0]?.firstWeekday; // expo-localization: 1 Pazar … 7 Cumartesi
+    return first ? first - 1 : 1;
+  } catch {
+    return 1;
+  }
+}
+
+export function monthGrid(year: number, month0: number, weekStart = 1): (string | null)[][] {
+  const first = (new Date(year, month0, 1).getDay() - weekStart + 7) % 7;
   const count = new Date(year, month0 + 1, 0).getDate();
   const cells: (string | null)[] = Array.from({ length: first }, () => null);
   for (let d = 1; d <= count; d++) cells.push(dayKey(new Date(year, month0, d)));
@@ -22,7 +33,7 @@ export function monthGrid(year: number, month0: number): (string | null)[][] {
   return Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7));
 }
 
-export function MonthCalendar({ year, month0, onShift, selected, onSelect, marks, locale, prevLabel, nextLabel }: {
+export function MonthCalendar({ year, month0, onShift, selected, onSelect, marks, locale, prevLabel, nextLabel, dayTint, renderBelow, dayA11y }: {
   year: number;
   month0: number;
   onShift: (delta: number) => void;
@@ -32,12 +43,18 @@ export function MonthCalendar({ year, month0, onShift, selected, onSelect, marks
   locale: string;
   prevLabel: string;
   nextLabel: string;
+  /** Günün zemin rengi (ör. o günkü ödemenin rengi). */
+  dayTint?: (key: string) => string | null;
+  /** Verilirse noktaların yerine günün altına çizilir (ikon + tutar gibi). */
+  renderBelow?: (key: string) => React.ReactNode;
+  dayA11y?: (key: string) => string | null;
 }) {
   const { theme } = useAppTheme();
-  const grid = useMemo(() => monthGrid(year, month0), [year, month0]);
+  const weekStart = useMemo(deviceWeekStart, []);
+  const grid = useMemo(() => monthGrid(year, month0, weekStart), [year, month0, weekStart]);
   const today = dayKey(new Date());
   const title = new Date(year, month0, 1).toLocaleDateString(locale, { month: 'long', year: 'numeric' });
-  const weekdays = useMemo(() => Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 1 + i).toLocaleDateString(locale, { weekday: 'short' })), [locale]);
+  const weekdays = useMemo(() => Array.from({ length: 7 }, (_, i) => new Date(2023, 11, 31 + weekStart + i).toLocaleDateString(locale, { weekday: 'short' })), [locale, weekStart]);
   return (
     <View style={{ gap: S.xs }}>
       <View style={styles.head}>
@@ -62,15 +79,17 @@ export function MonthCalendar({ year, month0, onShift, selected, onSelect, marks
             const n = Number(key.slice(8));
             return (
               <Touchable key={key} onPress={() => onSelect(key)} accessibilityRole="button" accessibilityState={{ selected: sel }}
-                accessibilityLabel={`${new Date(`${key}T12:00:00`).toLocaleDateString(locale, { day: 'numeric', month: 'long', weekday: 'long' })}${dots.length ? `, ${marks[key].length}` : ''}`}
+                accessibilityLabel={`${new Date(`${key}T12:00:00`).toLocaleDateString(locale, { day: 'numeric', month: 'long', weekday: 'long' })}${dayA11y?.(key) ? `, ${dayA11y(key)}` : dots.length ? `, ${marks[key].length}` : ''}`}
                 style={styles.slot}>
                 <MotiView animate={{ scale: sel ? 1 : 0.92 }} transition={{ type: 'spring', damping: 16, stiffness: 240 }}
-                  style={[styles.day, sel ? { backgroundColor: theme.primary } : isToday ? { borderWidth: 1.5, borderColor: theme.primary } : null]}>
+                  style={[styles.day, sel ? { backgroundColor: theme.primary } : isToday ? { borderWidth: 1.5, borderColor: theme.primary, backgroundColor: dayTint?.(key) ?? 'transparent' } : dayTint?.(key) ? { backgroundColor: dayTint(key) as string } : null]}>
                   <Text style={{ fontSize: F.body, fontWeight: sel || isToday ? W.bold : W.medium, fontVariant: ['tabular-nums'], color: sel ? theme.onPrimary : theme.onSurface }}>{n}</Text>
                 </MotiView>
-                <View style={styles.dots}>
-                  {dots.map((c, i) => <View key={i} style={[styles.dot, { backgroundColor: c }]} />)}
-                </View>
+                {renderBelow ? renderBelow(key) : (
+                  <View style={styles.dots}>
+                    {dots.map((c, i) => <View key={i} style={[styles.dot, { backgroundColor: c }]} />)}
+                  </View>
+                )}
               </Touchable>
             );
           })}
@@ -87,6 +106,6 @@ const styles = StyleSheet.create({
   wd: { flex: 1, textAlign: 'center', fontSize: F.caption, fontWeight: W.semibold, textTransform: 'capitalize' },
   slot: { flex: 1, alignItems: 'center', minHeight: MIN_TOUCH + S.sm, gap: S.xxs },
   day: { width: 38, height: 38, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
-  dots: { flexDirection: 'row', gap: 3, height: 5 },
+  dots: { flexDirection: 'row', gap: S.xxs, height: 5 },
   dot: { width: 5, height: 5, borderRadius: R.full },
 });

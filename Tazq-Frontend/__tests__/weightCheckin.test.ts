@@ -115,7 +115,8 @@ describe('recordWeeklyWeight', () => {
     useTaskStore.setState({ tasks: [mkTask(21, 'Güncel kilonu gir', ['weight_entry', 'spor'])] as any });
 
     const ok = await recordWeeklyWeight(85, 'tr', 21);
-    expect(ok).toBe(false);
+    // Yeni kayıt açılmaz, son kayıt düzeltilir; görev kapanmaz.
+    expect(ok).toBe(true);
     expect(useTaskStore.getState().tasks.find(t => t.id === 21)!.isCompleted).toBe(false);
     expect(useSporStore.getState().weightLog).toHaveLength(1);
   });

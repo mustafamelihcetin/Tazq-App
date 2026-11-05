@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, Modal, TextInput, ScrollView } from 'react-native';
-import { X, Check } from 'lucide-react-native';
+import { X, Check, Target, BookOpen, Wind, Flower2, Moon } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { SheetGrabber } from '@/shared/components/DragToClose';
@@ -35,11 +35,11 @@ const COPY = {
     title: 'Konu',
     sub: 'İsteğe bağlı — görev, kendi konun ya da boş.',
     intents: [
-      { emoji: '🎯', label: 'Çalışma' },
-      { emoji: '📖', label: 'Okuma' },
-      { emoji: '🌬️', label: 'Nefes' },
-      { emoji: '🧘', label: 'Meditasyon' },
-      { emoji: '🌙', label: 'Dinlenme' },
+      { Icon: Target, label: 'Çalışma' },
+      { Icon: BookOpen, label: 'Okuma' },
+      { Icon: Wind, label: 'Nefes' },
+      { Icon: Flower2, label: 'Meditasyon' },
+      { Icon: Moon, label: 'Dinlenme' },
     ],
     tasksLabel: 'Bugünkü işlerin',
     placeholder: 'Kendi konunu yaz…',
@@ -55,11 +55,11 @@ const COPY = {
     title: 'Topic',
     sub: 'Optional — a task, your own topic, or nothing.',
     intents: [
-      { emoji: '🎯', label: 'Deep work' },
-      { emoji: '📖', label: 'Reading' },
-      { emoji: '🌬️', label: 'Breathing' },
-      { emoji: '🧘', label: 'Meditation' },
-      { emoji: '🌙', label: 'Unwind' },
+      { Icon: Target, label: 'Deep work' },
+      { Icon: BookOpen, label: 'Reading' },
+      { Icon: Wind, label: 'Breathing' },
+      { Icon: Flower2, label: 'Meditation' },
+      { Icon: Moon, label: 'Unwind' },
     ],
     tasksLabel: 'Today’s work',
     placeholder: 'Write your own topic…',
@@ -200,10 +200,10 @@ export const FocusTaskPicker: React.FC<FocusTaskPickerProps> = ({ visible, langu
                   accessibilityRole="button"
                   accessibilityLabel={intent.label}
                   onPress={() => onPick(intent.label, null)}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: S.xxs, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin, borderColor: theme.onSurface + '1F' }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingHorizontal: S.smd, minHeight: 40, borderRadius: R.full, backgroundColor: theme.onSurface + '0D' }}
                 >
-                  <Text style={{ fontSize: F.caption }}>{intent.emoji}</Text>
-                  <Text style={{ fontSize: F.footnote, fontWeight: '700', color: theme.onSurfaceVariant }}>{intent.label}</Text>
+                  <intent.Icon size={ICON.xs} color={theme.onSurfaceVariant} strokeWidth={2.2} />
+                  <Text style={{ fontSize: F.footnote, fontWeight: '600', color: theme.onSurfaceVariant }}>{intent.label}</Text>
                 </Touchable>
               ))}
             </View>
