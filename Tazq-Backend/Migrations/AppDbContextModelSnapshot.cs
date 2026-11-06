@@ -310,6 +310,10 @@ namespace Tazq_Backend.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
+                    b.Property<string>("LastSkippedCycleKey")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
                     b.Property<DateTime?>("NextDueDate")
                         .HasColumnType("timestamp with time zone");
 

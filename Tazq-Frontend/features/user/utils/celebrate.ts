@@ -80,7 +80,8 @@ const SPEC: Record<CelebrationKind, {
  * Kutlamayı uygular: Sade modda yalnız puanı işler, aksi hâlde konfetiyi de açar.
  * `first-win` ayrıca "ilk başarı" damgasını yazar — bu damga kutlamadan bağımsızdır.
  */
-export function celebrate({ kind, isLite, tr }: CelebrateArgs): void {
+/** Verilen puanı döner: gün kutlaması geri alınırsa düşülür. */
+export function celebrate({ kind, isLite, tr }: CelebrateArgs): number {
   const spec = SPEC[kind];
 
   if (!isLite) {
@@ -94,4 +95,5 @@ export function celebrate({ kind, isLite, tr }: CelebrateArgs): void {
 
   if (kind === 'first-win') usePrefsStore.getState().markFirstWin();
   useFocusStore.getState().addFocusPoints(spec.points);
+  return spec.points;
 }

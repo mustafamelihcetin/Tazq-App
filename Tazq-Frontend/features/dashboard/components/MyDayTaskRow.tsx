@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { Check, ChevronRight, Play } from 'lucide-react-native';
+import { ChevronRight, Play } from 'lucide-react-native';
+import { TickCircle } from '@/shared/components/TickCircle';
 import { Touchable } from '@/shared/components/Touchable';
 import { ICON, R, S, F, HAIRLINE, B, touchSlop } from '@/shared/constants/tokens';
 import { getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
@@ -55,25 +56,9 @@ export interface MyDayTaskRowProps {
 const CheckRing: React.FC<{ color: string; done: boolean; theme: AppTheme; onCheck?: () => void; label: string }>
   = ({ color, done, theme, onCheck, label }) => {
   const size = 22;
-  const ring = (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: R.full,
-        borderWidth: done ? 0 : B.medium,
-        borderColor: color,
-        backgroundColor: done ? theme.success : 'transparent',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      {done && <Check size={ICON.xs} color={theme.onPrimary} strokeWidth={3} />}
-    </View>
-  );
+  const ring = <TickCircle checked={done} size={size} color={theme.success} ringColor={color} tickColor={theme.onPrimary} />;
 
-  // Tamamlanmış satırda geri alma yok → düğme DEĞİL, durum göstergesi.
-  if (!onCheck || done) {
+  if (!onCheck) {
     return (
       <View style={{ marginRight: S.md }} accessible accessibilityRole="image" accessibilityLabel={label}>
         {ring}
@@ -81,12 +66,14 @@ const CheckRing: React.FC<{ color: string; done: boolean; theme: AppTheme; onChe
     );
   }
 
+  // Tamamlanmış satırda geri alma yok → düğme DEĞİL, durum göstergesi. Öğe aynı kalır ki tik yerinde çizilsin.
   return (
     <Touchable
       onPress={onCheck}
+      disabled={done}
       hitSlop={touchSlop(size)}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: false }}
+      accessibilityRole={done ? 'image' : 'checkbox'}
+      accessibilityState={done ? undefined : { checked: false }}
       accessibilityLabel={label}
       style={{ marginRight: S.md, minWidth: size, minHeight: size, alignItems: 'center', justifyContent: 'center' }}
     >

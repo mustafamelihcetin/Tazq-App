@@ -162,6 +162,7 @@ namespace Tazq_App.Services
 
             var cycle = Clamp(cycleKey, 16);
             payment.LastPaidCycleKey = cycle;
+            payment.LastSkippedCycleKey = null;
             // DEĞİŞKEN TUTAR: o ayın gerçek tutarı geçmişe yazılır ve bir sonraki tahmin olur.
             var paidAmount = payment.Amount;
             if (actualAmount is decimal a && a >= 0 && a <= 1_000_000_000m)
@@ -177,6 +178,19 @@ namespace Tazq_App.Services
                     UserId = userId, PaymentId = paymentId, Title = payment.Title,
                     Amount = paidAmount, Currency = payment.Currency, CycleKey = cycle, PaidAt = DateTime.UtcNow,
                 });
+            await _db.SaveChangesAsync();
+            return Out(userId, payment);
+        }
+
+        /// <summary>Dönemi ödemeden kapatır: vade ilerler, geçmişe kayıt yazılmaz, tutar tahmini değişmez.</summary>
+        public async Task<Payment?> SkipCycleAsync(int userId, int paymentId, string cycleKey)
+        {
+            var payment = await _db.Payments.FirstOrDefaultAsync(p => p.Id == paymentId && p.UserId == userId);
+            if (payment == null) return null;
+
+            var cycle = Clamp(cycleKey, 16);
+            payment.LastPaidCycleKey = cycle;
+            payment.LastSkippedCycleKey = cycle;
             await _db.SaveChangesAsync();
             return Out(userId, payment);
         }
@@ -201,7 +215,7 @@ namespace Tazq_App.Services
         /// </summary>
         private async Task BackfillLegacyPaidAsync(int userId)
         {
-            var paid = await _db.Payments.Where(p => p.UserId == userId && p.LastPaidCycleKey != null).ToListAsync();
+            var paid = await _db.Payments.Where(p => p.UserId == userId && p.LastPaidCycleKey != null && p.LastSkippedCycleKey != p.LastPaidCycleKey).ToListAsync();
             if (paid.Count == 0) return;
             var ids = paid.Select(p => p.Id).ToList();
             var have = await _db.PaymentRecords.Where(r => r.UserId == userId && r.PaymentId != null && ids.Contains(r.PaymentId.Value))
@@ -241,6 +255,7 @@ namespace Tazq_App.Services
             if (cycle != null)
                 _db.PaymentRecords.RemoveRange(_db.PaymentRecords.Where(r => r.UserId == userId && r.PaymentId == paymentId && r.CycleKey == cycle));
             payment.LastPaidCycleKey = null;
+            payment.LastSkippedCycleKey = null;
             await _db.SaveChangesAsync();
             return Out(userId, payment);
         }

@@ -152,7 +152,7 @@ export function DisplayDivider({ spacing = S.md }: { spacing?: number }) {
 export function DisplayValue({ value, color, style, from, duration = 450, seenKey }: { value: string; color?: string; style?: StyleProp<TextStyle>; from?: number; duration?: number; seenKey?: string }) {
   const c = useDisplayColors();
   // Binlik/ondalık ayraçlı tutarda ("1.250 ₺") sayma YOK: yalnız baştaki "1" sayılırdı.
-  const lead = /^(\d+)(?![.,]\d)(.*)$/.exec(value);
+  const lead = /^(\d+)(?![.,]?\d)(.*)$/.exec(value);
   const seen = useSeenChange(lead ? seenKey : undefined, lead ? Number(lead[1]) : 0);
   const start = from ?? seen.from;
   const st = [styles.readValue, { color: color ?? c.ink }, style];

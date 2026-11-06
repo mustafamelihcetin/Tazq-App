@@ -4,6 +4,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SubtaskItem, RecurrenceType, Priority } from '@/shared/services/api';
 import { swallow } from '@/shared/utils/swallow';
+import { isCommitPending } from '@/shared/utils/deferredCommit';
 import { stripEmoji } from '@/shared/utils/emoji';
 import { hasArchivedTag } from '@/features/tasks/utils/taskTags';
 
@@ -67,6 +68,11 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
       // Arşiv durumu ETİKETTEN okunur — sunucunun bilmediği bir bayrak tazelemede kaybolurdu.
       let updatedTask = { ...t, isArchived: hasArchivedTag(t.tags) };
       if (t.isCompleted && local?.completedAt && !t.completedAt) {
+        updatedTask.completedAt = local.completedAt;
+      }
+      // Geri alma süresindeki görev sunucuya henüz gitmedi: tazeleme onu açık gösterip geri döndürmesin.
+      if (local && isCommitPending(`task:${t.id}`)) {
+        updatedTask.isCompleted = local.isCompleted;
         updatedTask.completedAt = local.completedAt;
       }
 

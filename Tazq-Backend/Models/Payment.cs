@@ -59,6 +59,13 @@ namespace Tazq_App.Models
 		[MaxLength(16)]
 		public string? LastPaidCycleKey { get; set; }
 
+		/// <summary>
+		/// Bu dönem ödenmedi, atlandı (abonelik dondu, kira başka yoldan ödendi). `LastPaidCycleKey` de aynı dönemi taşır ki
+		/// hatırlatma ve vade sonraki döneme geçsin; bu alan eşitse o dönem "ödendi" sayılmaz, geçmişe kayıt yazılmaz.
+		/// </summary>
+		[MaxLength(16)]
+		public string? LastSkippedCycleKey { get; set; }
+
 		[MaxLength(40)]
 		public string? Category { get; set; }
 

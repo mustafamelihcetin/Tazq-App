@@ -821,39 +821,40 @@ export async function cancelExamCountdownNotifs(slot?: ExamSlot): Promise<void> 
 // değil — bir faturanın "7/3/1 gün kaldı" diye üç kez hatırlatılması gerekmiyor,
 // tek bir "yaklaşıyor" yeterli).
 
-export async function schedulePaymentDueNotif(
-  paymentId: number,
-  title: string,
-  dueDate: Date,
-  locale: string = 'tr',
-  daysBefore: number = 3,
-  variable: boolean = false,
-): Promise<void> {
+const PAYMENT_NOTIF_PREFIX = 'payment-due-';
+
+export interface PaymentNotif {
+  paymentId: number;
+  fireAt: Date;
+  title: string;
+  body: string;
+  variable: boolean;
+}
+
+/**
+ * Bekleyen ödeme bildirimlerini plana eşitler: hepsi silinir, plandakiler yeniden kurulur (Cashew'daki iptal et ve kur modeli).
+ * Yalnız `payment-due-` kimliklerine dokunur; diğer bildirimler yerinde kalır.
+ */
+export async function syncPaymentDueNotifs(plan: PaymentNotif[]): Promise<void> {
   if (!Notifications || isExpoGo) return;
   try {
-    const isTR = locale === 'tr';
-    const id = `payment-due-${paymentId}`;
-    await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
-
-    const trigger = new Date(dueDate);
-    trigger.setHours(10, 0, 0, 0);
-    trigger.setDate(trigger.getDate() - daysBefore);
-    if (trigger <= new Date()) return;
-
-    await Notifications.scheduleNotificationAsync({
-      identifier: id,
-      content: {
-        title: isTR ? `${title} ödemesi yaklaşıyor` : `${title} payment is coming up`,
-        body: isTR
-          ? `${daysBefore} gün içinde vadesi geliyor.`
-          : `Due in ${daysBefore} day${daysBefore > 1 ? 's' : ''}.`,
-        sound: true,
-        data: { type: 'payment-due', paymentId },
-        categoryIdentifier: variable ? 'payment-due-variable' : 'payment-due',
-      },
-      trigger: { type: 'date', date: trigger } as any,
-    });
-  } catch (e) { swallow('notifications.schedulePaymentDueNotif', e); }
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    const ids = (scheduled as { identifier: string }[]).map((n) => n.identifier).filter((id) => id.startsWith(PAYMENT_NOTIF_PREFIX));
+    await Promise.all(ids.map((id) => Notifications.cancelScheduledNotificationAsync(id).catch(() => {})));
+    for (const n of plan) {
+      await Notifications.scheduleNotificationAsync({
+        identifier: `${PAYMENT_NOTIF_PREFIX}${n.paymentId}`,
+        content: {
+          title: n.title,
+          body: n.body,
+          sound: true,
+          data: { type: 'payment-due', paymentId: n.paymentId },
+          categoryIdentifier: n.variable ? 'payment-due-variable' : 'payment-due',
+        },
+        trigger: { type: 'date', date: n.fireAt } as any,
+      });
+    }
+  } catch (e) { swallow('notifications.syncPaymentDueNotifs', e); }
 }
 
 /** Admin önizlemesinin örnek bildirimleri — iki dil ayrı (bkz. sendDemoNotifications). */
@@ -897,11 +898,6 @@ export async function sendDemoNotifications(locale: string = 'tr'): Promise<numb
     } catch (e) { swallow('notifications.sendDemo', e); }
   }
   return n;
-}
-
-export async function cancelPaymentDueNotif(paymentId: number): Promise<void> {
-  if (!Notifications) return;
-  try { await Notifications.cancelScheduledNotificationAsync(`payment-due-${paymentId}`); } catch (e) { swallow('notifications.cancelPaymentDueNotif', e); }
 }
 
 // ─── Ramadan Notifications ────────────────────────────────────────────────────

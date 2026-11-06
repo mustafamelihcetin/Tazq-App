@@ -211,7 +211,7 @@ Her adım ayrı, gözden geçirilebilir bir fark bırakır. Önce kırmızı tes
 
 ## Kararlar (öneriyle)
 
-1. **Söz satırı:** Boş ekranda kalkar, seans başında bir kez görünüp söner. Öneri: bu.
+1. **Söz satırı:** ~~Boş ekranda kalkar, seans başında bir kez görünüp söner.~~ Geri alındı (2026-11-06, kullanıcı: "neden kaldırdın"): satır her zaman görünür, 40 sn'de bir değişir; yalnız Zen'de seans sürerken gizli.
 2. **Katı mod:** Seans kendiliğinden bitmez, saat durur. Öneri: bu. Hayır denirse madde 3 yerel kod ister.
 3. **Puanlama:** Geri gelmez. Öneri: bu.
 4. **Sil:** Madde 17'deki dosyalar. Öneri: sil.

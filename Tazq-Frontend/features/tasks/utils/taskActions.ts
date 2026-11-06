@@ -6,6 +6,9 @@ import { isNetworkError } from '@/shared/utils/errors';
 import { withSomedayResolved, withArchived } from '@/features/tasks/utils/taskTags';
 import { cancelTaskNotification } from '@/shared/utils/notifications';
 import { swallow } from '@/shared/utils/swallow';
+import { cancelCommit, scheduleCommit } from '@/shared/utils/deferredCommit';
+import { useToastStore } from '@/shared/store/useToastStore';
+import { useFocusStore } from '@/features/focus/store/useFocusStore';
 import type { Task } from '@/features/tasks/store/useTaskStore';
 
 /**
@@ -41,9 +44,13 @@ export async function completeTask(taskId: number): Promise<CompleteResult> {
   const store = useTaskStore.getState();
   const task = store.tasks.find(t => t.id === taskId);
   if (!task || task.isCompleted) return 'skipped';
+  markCompleteLocally(task);
+  return sendCompletion(taskId, new Date().toISOString());
+}
 
-  store.toggleTaskCompletion(taskId);
-
+/** İyimser tamamlama ve plan ilerleyiş kaydı; sunucuya gitmez. */
+function markCompleteLocally(task: Task): void {
+  useTaskStore.getState().toggleTaskCompletion(task.id);
   // Mod planına ait görevlerin tamamlanması ayrıca kaydediliyor (plan ilerleyişi).
   try {
     const { getModeInfoForTask } = require('@/features/modes/utils/modeHelpers');
@@ -58,14 +65,15 @@ export async function completeTask(taskId: number): Promise<CompleteResult> {
     }
   } catch (e) {
     // Kayıt tutulamazsa tamamlama YİNE geçerli — bu ikincil bir iz.
+    swallow('taskActions.recordCompletion', e);
   }
+}
 
-  const completedAt = new Date().toISOString();
+async function sendCompletion(taskId: number, completedAt: string): Promise<CompleteResult> {
   if (!useNetworkStore.getState().isOnline) {
     useOfflineQueue.getState().enqueue({ type: 'toggle-task', id: taskId, isCompleted: true, completedAt });
     return 'queued';
   }
-
   try {
     await TaskService.updateTask(taskId, { isCompleted: true });
     return 'ok';
@@ -80,6 +88,76 @@ export async function completeTask(taskId: number): Promise<CompleteResult> {
     return 'failed';
   }
 }
+
+/** İyimser tamamlamayı ve plan kaydını geri sarar (sunucu henüz bir şey duymadı). */
+export function revertLocalCompletion(taskId: number): void {
+  const store = useTaskStore.getState();
+  if (store.tasks.find(t => t.id === taskId)?.isCompleted) store.toggleTaskCompletion(taskId);
+  try {
+    require('@/shared/store/useCompletionStore').useCompletionStore.getState().removeEvent(taskId);
+  } catch (e) { swallow('taskActions.revertCompletion', e); }
+}
+
+/**
+ * GERİ ALINABİLİR TAMAMLAMA (2026-11-06). Görev hemen biter, sunucuya geri alma süresi dolunca gider.
+ * Neden ertelemeli: sunucu tekrarlı görevin sonrakini tamamlanınca yaratıyor; geri alma ona hiç uğramazsa yinelenen görev oluşmaz
+ * (Tasks.org aynı sorunu `undoRepeat` ile sonradan onarıyor). Dönen işlev süre geçtiyse false döner, etkisizdir.
+ */
+export function completeTaskUndoable(taskId: number): (() => boolean) | null {
+  const task = useTaskStore.getState().tasks.find(t => t.id === taskId);
+  if (!task || task.isCompleted) return null;
+  markCompleteLocally(task);
+  const completedAt = new Date().toISOString();
+  const key = `task:${taskId}`;
+  scheduleCommit(key, () => sendCompletion(taskId, completedAt));
+  return () => {
+    if (!cancelCommit(key)) return false;
+    revertLocalCompletion(taskId);
+    return true;
+  };
+}
+
+const DONE_COPY = {
+  tr: { done: 'Bitti', next: 'sonraki', undo: 'Geri al', locale: 'tr-TR' },
+  en: { done: 'Done', next: 'next', undo: 'Undo', locale: 'en-US' },
+};
+/** Tasks.org'daki gibi: uzun başlık bildirimi taşırmasın. */
+const DONE_TITLE_MAX = 30;
+
+const nextOccurrence = (task: Pick<Task, 'recurrence' | 'dueDate'>): Date | null => {
+  if (!task.dueDate || task.dueDate.startsWith('0001')) return null;
+  const d = new Date(task.dueDate.length === 10 ? `${task.dueDate}T12:00:00` : task.dueDate);
+  if (Number.isNaN(d.getTime())) return null;
+  if (task.recurrence === 'Daily') d.setDate(d.getDate() + 1);
+  else if (task.recurrence === 'Weekly') d.setDate(d.getDate() + 7);
+  else if (task.recurrence === 'Monthly') d.setMonth(d.getMonth() + 1);
+  else return null;
+  return d;
+};
+
+/** "Bitti · Rapor"; tekrarlı görevde "Kira · sonraki 6 Ara": işin bitmediği, ileriye taşındığı görünsün. */
+export function doneToastText(task: Pick<Task, 'title' | 'recurrence' | 'dueDate'>, lang: 'tr' | 'en'): string {
+  const c = DONE_COPY[lang];
+  const title = task.title.length > DONE_TITLE_MAX ? `${task.title.slice(0, DONE_TITLE_MAX - 1).trimEnd()}…` : task.title;
+  const next = nextOccurrence(task);
+  if (next) return `${title} · ${c.next} ${next.toLocaleDateString(c.locale, { day: 'numeric', month: 'short' })}`;
+  return `${c.done} · ${title}`;
+}
+
+/** Tamamla ve "Geri al" sun. `points`: bu tamamlamanın verdiği gün kutlaması puanı, geri alınınca düşer. */
+export function completeWithUndoToast(taskId: number, lang: 'tr' | 'en', points = 0): void {
+  const task = useTaskStore.getState().tasks.find(t => t.id === taskId);
+  const undo = completeTaskUndoable(taskId);
+  if (!task || !undo) return;
+  useToastStore.getState().show(doneToastText(task, lang), 'success', {
+    label: DONE_COPY[lang].undo,
+    onAction: () => {
+      if (undo() && points) useFocusStore.getState().addFocusPoints(-points);
+    },
+  }, 'bottom');
+}
+
+export const undoLabel = (lang: 'tr' | 'en') => DONE_COPY[lang].undo;
 
 /**
  * Görevin alanlarını değiştirir — iyimser, çevrimdışı güvenli, sunucu reddederse GERİ ALIR.

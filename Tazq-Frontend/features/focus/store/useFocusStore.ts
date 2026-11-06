@@ -674,7 +674,7 @@ export const useFocusStore = create<FocusState>()(
 
       addFocusPoints: (pts) => {
         const { focusPoints, streakShields } = get();
-        const nextPoints = focusPoints + pts;
+        const nextPoints = Math.max(0, focusPoints + pts);
         if (nextPoints >= 100) {
           const addedShields = Math.floor(nextPoints / 100);
           const remainingPoints = nextPoints % 100;

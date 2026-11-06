@@ -4,6 +4,7 @@
  * aynı offline-first silme + tarih formatlama mantığını tek kaynaktan kullansın.
  */
 import { useTaskStore } from '@/features/tasks/store/useTaskStore';
+import { PLAN_TAGS, hasPlanDescription } from '@/shared/utils/planKey';
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
@@ -77,10 +78,7 @@ export const MODE_TASK_TAGS: Record<string, string[]> = {
  * 'weight_entry' listede DEĞİL ve olmamalı — kilo geçmişi bilinçli olarak modun
  * kapanmasından sağ çıkar (bkz. MODE_TASK_TAGS notu).
  */
-export const PLAN_TAGS = [
-  'exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3',
-  'spor', 'spor2', 'spor3', 'ramazan', 'yks', 'kpss', 'daily', 'tasarruf', 'birakma',
-];
+export { PLAN_TAGS };
 
 /**
  * Ad eşleşmesi için EN KISA ad. 2 karakter fazla cömertti: "ev", "iş", "AB" gibi
@@ -102,6 +100,41 @@ const PLAN_OWNED_TAGS: ReadonlySet<string> = new Set<string>([
  */
 export function isPlanOwnedTask(task: { tags?: string[] | null }): boolean {
   return (task.tags ?? []).some(tag => PLAN_OWNED_TAGS.has(tag));
+}
+
+/**
+ * Plan görevi mi? Ham etiket ya da (çevrilmiş mod etiketi + iki dilli açıklama). Etiket çevrilince "exam" "sınav" oluyor ve temizlik
+ * kopyaları görmüyordu (2026-11-06, cihazda 9 kopya). Açıklama şartı kullanıcının "sınav" etiketli kendi görevini korur.
+ */
+function isGeneratedPlanTask(task: { tags?: string[] | null; description?: string | null }): boolean {
+  const tags = task.tags ?? [];
+  return tags.some(tag => PLAN_TAGS.includes(tag)) || (hasPlanDescription(task.description) && isPlanOwnedTask(task));
+}
+
+/** Aynı başlık ve mod kimliği (çevrilmemiş etiketler). */
+export function planDedupeKey(task: { title: string; tags?: string[] | null }): string {
+  const tags = (task.tags ?? []).filter(tag => PLAN_TAGS.includes(tag)).sort().join(',');
+  return `${task.title.trim().toLocaleLowerCase('tr')}|${tags}`;
+}
+
+/** Aynı gün aynı plan görevinin fazlalıkları. Tamamlanan, sonra sunucu kimlikli olan kalır. */
+export function duplicatePlanTasks<T extends { id: number; title: string; isCompleted?: boolean; dueDate?: string | null; tags?: string[] | null; description?: string | null }>(tasks: T[]): T[] {
+  const sorted = [...tasks].sort((a, b) => {
+    if (!!a.isCompleted !== !!b.isCompleted) return a.isCompleted ? -1 : 1;
+    return b.id - a.id;
+  });
+  const seen = new Set<string>();
+  const extra: T[] = [];
+  for (const task of sorted) {
+    if (!isGeneratedPlanTask(task)) continue;
+    // Ham etiketlisi ile çevrilmişi aynı görevdir: başlık ve gün yeter (mod kimliği yalnız ikisi de taşıyorsa ayırır).
+    const tagged = planDedupeKey(task).split('|')[1];
+    const day = task.dueDate ? new Date(task.dueDate).toDateString() : '';
+    const key = `${task.title.trim().toLocaleLowerCase('tr')}|${tagged}|${day}`;
+    if (seen.has(key)) extra.push(task);
+    else seen.add(key);
+  }
+  return extra;
 }
 
 /**

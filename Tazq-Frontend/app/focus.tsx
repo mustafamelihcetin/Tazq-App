@@ -104,7 +104,6 @@ function nearestGoal(lang: 'tr' | 'en'): { name: string; days: number } | null {
 
 // Named focus presets — each encodes work + break durations
 const RETURN_BREATH_WINDOW_MS = 5000;
-const LINE_VISIBLE_MS = 8000;
 const HINT_SHADOW = { textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 };
 const NOTE_SAVED_MS = 1500;
 const IDLE_FPS = 12;
@@ -232,12 +231,6 @@ export default function FocusScreen() {
   const [lineSeed, setLineSeed] = useState(() => Math.random());
   const linePhase: FocusPhase = !sessionStarted ? 'idle' : inBreak ? 'break' : inFinal ? 'final' : 'focus';
   useEffect(() => { setLineSeed(Math.random()); }, [linePhase]);
-  useEffect(() => {
-    if (linePhase === 'idle') { setLineFresh(false); return; }
-    setLineFresh(true);
-    const id = setTimeout(() => setLineFresh(false), LINE_VISIBLE_MS);
-    return () => clearTimeout(id);
-  }, [linePhase]);
   const sessionsToday = useMemo(() => {
     const today = toDateKey(new Date());
     return focusSessions.filter(x => sessionDayKey(x.startedAt) === today).length;
@@ -349,8 +342,6 @@ export default function FocusScreen() {
   const dialLearned = useFocusStore(s => s.dialLearned);
   const setDialLearned = useFocusStore(s => s.setDialLearned);
   const [soundsOpen, setSoundsOpen] = useState(false);
-  // Söz satırı: boş ekranda yok; seans evresi değişince bir kez görünür ve söner.
-  const [lineFresh, setLineFresh] = useState(false);
   const setOpenDuration = useFocusStore(s => s.setOpenDuration);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
@@ -1919,7 +1910,7 @@ export default function FocusScreen() {
                 <MotiView
                   key={`line-${linePhase}`}
                   from={{ opacity: 0 }}
-                  animate={{ opacity: (zenMode && isActive) || (!notifBlocked && !lineFresh) ? 0 : 1 }}
+                  animate={{ opacity: zenMode && isActive ? 0 : 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ type: 'timing', duration: 350 }}
                 >

@@ -1,4 +1,5 @@
-import { RouteBanner } from './RouteBanner';
+import { RouteBanner, RouteProgress, hasRouteLine } from './RouteBanner';
+import { useDayRoute } from '@/features/modes/hooks/useDayRoute';
 import React from 'react';
 import { View, Text } from 'react-native';
 import { ChevronRight, CalendarClock, CheckCircle2 } from 'lucide-react-native';
@@ -163,6 +164,31 @@ function ModePage({ mode, t, onOpen }: { mode: ModeSummaryEntry; t: Copy; onOpen
   );
 }
 
+/*
+  PANEL SATIRLARI: durum şeridinin altında tek katman. Birden çok hedefte deste "Sıradaki" ile açılır, modlar kaydırınca gelir;
+  ayraç o gün ilerlemeyi de söyler. Deste hep yerinde: mod satırı gizlendiğinde Android'de ana sayfanın tüm içeriği boşalıyordu
+  (2026-11-05, cihazda; kök neden bilinmiyor), bu yüzden yalnız sayfalar değişir.
+*/
+function PanelLines({ entries, t, onOpen, a11yLabel }: { entries: ModeSummaryEntry[]; t: Copy; onOpen: () => void; a11yLabel: string }) {
+  const { theme } = useAppTheme();
+  const language = useLanguageStore(s => s.language);
+  const route = useDayRoute(language === 'en' ? 'en' : 'tr');
+  const showRoute = hasRouteLine(route);
+  const modePages = entries.map(e => <ModeLine key={e.key} mode={e} t={t} onOpen={onOpen} />);
+  return (
+    <>
+      <TourTarget id="activePlan" spotRadius={R.md}>
+        <ModeDeck
+          pages={showRoute ? [<RouteBanner key="route" route={route} />, ...modePages] : modePages}
+          dotColors={showRoute ? [theme.primary, ...entries.map(e => e.color)] : entries.map(e => e.color)}
+          a11yLabel={a11yLabel}
+        />
+      </TourTarget>
+      {showRoute ? <RouteProgress route={route} /> : <DisplayDivider />}
+    </>
+  );
+}
+
 /**
  * `bare`: dijital panelin (TodayRings `topSlot`) İÇİNDE satır olarak — kendi kartı yok,
  * altına kendi ayracını çizer (mod yoksa ne satır ne ayraç kalır).
@@ -179,23 +205,7 @@ export function ModeTodayCard({ onOpen, bare }: { onOpen: () => void; bare?: boo
       a11yLabel={`${activeCount} ${t.eyebrow}`}
     />
   );
-  if (bare) {
-    const lines = (
-      <ModeDeck
-        pages={entries.map(e => <ModeLine key={e.key} mode={e} t={t} onOpen={onOpen} />)}
-        dotColors={entries.map(e => e.color)}
-        a11yLabel={`${activeCount} ${t.eyebrow}`}
-      />
-    );
-    // Mod satırı rota varken de yerinde kalır: çalışırken gizlendiğinde Android'de ana sayfanın tüm içeriği boşalıyordu (2026-11-05, cihazda ölçüldü; kök neden bulunmadı).
-    return (
-      <>
-        <RouteBanner />
-        <TourTarget id="activePlan" spotRadius={R.md}>{lines}</TourTarget>
-        <DisplayDivider />
-      </>
-    );
-  }
+  if (bare) return <PanelLines entries={entries} t={t} onOpen={onOpen} a11yLabel={`${activeCount} ${t.eyebrow}`} />;
 
   return (
     // Kenar boşluğu tur hedefinin DIŞINDA: delik kartın kenarına birebir oturur.

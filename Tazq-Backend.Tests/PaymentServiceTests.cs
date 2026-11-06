@@ -50,6 +50,34 @@ namespace Tazq_Backend.Tests
         }
 
         [Fact]
+        public async Task Skip_ClosesCycle_WithoutHistory_EvenAfterBackfill()
+        {
+            var p = await _service.CreatePaymentAsync(1, "Elektrik", 850m, 5, PaymentRecurrence.Monthly, null, null);
+            var skipped = await _service.SkipCycleAsync(1, p!.Id, "2026-10");
+            Assert.Equal("2026-10", skipped!.LastPaidCycleKey);
+            Assert.Equal("2026-10", skipped.LastSkippedCycleKey);
+            Assert.Equal(850m, skipped.Amount);
+            Assert.Empty(await _service.GetHistoryAsync(1, 24));
+        }
+
+        [Fact]
+        public async Task MarkPaid_AfterSkip_CountsAsPaid()
+        {
+            var p = await _service.CreatePaymentAsync(1, "Elektrik", 850m, 5, PaymentRecurrence.Monthly, null, null);
+            await _service.SkipCycleAsync(1, p!.Id, "2026-10");
+            var paid = await _service.MarkPaidAsync(1, p.Id, "2026-10");
+            Assert.Null(paid!.LastSkippedCycleKey);
+            Assert.Single(await _service.GetHistoryAsync(1, 24));
+        }
+
+        [Fact]
+        public async Task Skip_OtherUsersPayment_ReturnsNull()
+        {
+            var p = await _service.CreatePaymentAsync(1, "Kira", 100m, 5, PaymentRecurrence.Monthly, null, null);
+            Assert.Null(await _service.SkipCycleAsync(2, p!.Id, "2026-10"));
+        }
+
+        [Fact]
         public async Task History_BackfillsPaidMarksMadeBeforeHistoryExisted()
         {
             // Geçmiş tablosundan önce "ödendi" denmiş ödeme: yalnız LastPaidCycleKey var.

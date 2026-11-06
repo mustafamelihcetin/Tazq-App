@@ -154,7 +154,7 @@ describe('tur gördüğü ekranı anlatır', () => {
 });
 
 describe('ayar metni yaptığı işi anlatır', () => {
-  const SETTINGS = read('app/settings.tsx');
+  const SETTINGS = read('app/settings.tsx') + read('shared/constants/settingsCopy.ts');
 
   it('artık "sadece görevler" demiyor — TodayCard ve görev akışı duruyor', () => {
     expect(SETTINGS).not.toContain('sadece görevler');

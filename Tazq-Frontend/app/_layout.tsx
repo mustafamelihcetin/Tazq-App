@@ -79,6 +79,9 @@ import { completeTask } from '@/features/tasks/utils/taskActions';
 import { toDateKey } from '@/shared/utils/dateKey';
 import { useFocusStore, FocusIsland } from '@/features/focus';
 import { startLiveActivitySync } from '@/features/focus/liveActivity';
+import { startPaymentReminderSync } from '@/features/payments/paymentReminders';
+import { flushCommits } from '@/shared/utils/deferredCommit';
+import { useToastStore } from '@/shared/store/useToastStore';
 import { usePaymentsStore } from '@/features/payments/store/usePaymentsStore';
 import { markPaymentPaidAction } from '@/features/payments/utils/paymentActions';
 import { activeCycleKeyOf } from '@/features/payments/utils/paymentDates';
@@ -189,6 +192,7 @@ export default function RootLayout() {
   const currentUser = useAuthStore((s) => s.user);
   useGuestResume(); // hoş geldini bitirmeden kapatan misafir girişten başlar
   // iPhone: süren seans Dinamik Ada / kilit ekranında (bkz. features/focus/liveActivity). Modül yoksa no-op.
+  useEffect(() => startPaymentReminderSync(() => (useLanguageStore.getState().language === 'en' ? 'en' : 'tr')), []);
   useEffect(() => startLiveActivitySync(() => (useLanguageStore.getState().language === 'en' ? 'en' : 'tr')), []);
 
   // Sentry kullanıcı bağlamı: giriş/çıkış ve açılışta oturum geri yüklemesinin hepsi `user`'a
@@ -760,7 +764,11 @@ export default function RootLayout() {
         checkTimerRehydration();
         pushComeback();
       } else {
-        if (nextAppState === 'background') onAppBackground();
+        if (nextAppState === 'background') {
+          onAppBackground();
+          // Geri alma süresi dolmamış işlemler kaybolmasın; dönünce süresi geçmiş "Geri al" görünmesin.
+          if (flushCommits() > 0) useToastStore.getState().hide();
+        }
         // Arka plana geçerken bekleyen alt görev yazmalarını HEMEN gönder: 800 ms'lik
         // toplama penceresi dolmadan uygulamadan çıkan kullanıcının son dokunuşu
         // kaybolmasın (yazma yalnız gecikmeli, yerel güncelleme zaten anında).

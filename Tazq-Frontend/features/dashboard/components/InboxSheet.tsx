@@ -1,7 +1,13 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Modal, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Inbox, Wallet, MessageSquare, Award, CalendarDays, CheckCircle2, X } from 'lucide-react-native';
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import { Inbox, Wallet, MessageSquare, Award, CalendarDays, X } from 'lucide-react-native';
+import { TickCircle } from '@/shared/components/TickCircle';
+import { QuietStar } from '@/features/dashboard/components/QuietStar';
+import { UNDO_WINDOW_MS } from '@/shared/utils/deferredCommit';
+import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
+import { haptic } from '@/shared/utils/haptics';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { SheetGrabber } from '@/shared/components/DragToClose';
@@ -16,8 +22,8 @@ import type { InboxItem } from '@/features/dashboard/utils/inboxItems';
   kutuyu kapatır, sonra hedefi açar (çağıran taraf yapar).
 */
 const COPY = {
-  tr: { title: 'Gelen', sub: 'Uygulamanın sana söylemek istedikleri, tek yerde.', empty: 'Her şey yolunda', emptySub: 'Yeni bir şey olunca burada görünür.', button: 'Gelen kutusu', unread: (n: number) => `${n} yeni`, clear: 'Temizle', remove: 'Kaldır' },
-  en: { title: 'Inbox', sub: 'Everything the app wants to tell you, in one place.', empty: 'All clear', emptySub: 'New things will show up here.', button: 'Inbox', unread: (n: number) => `${n} new`, clear: 'Clear', remove: 'Remove' },
+  tr: { pay: 'Ödendi işaretle', paid: (t: string) => `${t} ödendi`, undo: 'Geri al', title: 'Gelen', sub: 'Uygulamanın sana söylemek istedikleri, tek yerde.', empty: 'Her şey yolunda', emptySub: 'Yeni bir şey olunca burada görünür.', button: 'Gelen kutusu', unread: (n: number) => `${n} yeni`, clear: 'Temizle', remove: 'Kaldır' },
+  en: { pay: 'Mark as paid', paid: (t: string) => `${t} paid`, undo: 'Undo', title: 'Inbox', sub: 'Everything the app wants to tell you, in one place.', empty: 'All clear', emptySub: 'New things will show up here.', button: 'Inbox', unread: (n: number) => `${n} new`, clear: 'Clear', remove: 'Remove' },
 };
 
 const ICONS = { payment: Wallet, support: MessageSquare, badge: Award, tomorrow: CalendarDays } as const;
@@ -44,13 +50,43 @@ export function InboxButton({ count, onPress, theme, language }: { count: number
   );
 }
 
-export function InboxSheet({ visible, onClose, items, zenCard, somedayCard, onItem, onDismiss, theme, language }: {
+const TICK_MS = 300;
+
+/**
+ * Ödeme satırının başındaki daire. Sabit tutarlıda tik çizilir, sonra ödenir; değişken tutarlıda tutar sorulacağı için
+ * tik çizilmez, doğrudan çağıran devralır.
+ */
+function PayCheck({ item, onPay, theme, label }: { item: InboxItem; onPay: () => void; theme: AppTheme; label: string }) {
+  const [checked, setChecked] = useState(false);
+  const reduce = useReduceMotion();
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  const press = () => {
+    if (checked) return;
+    if (item.variable) { onPay(); return; }
+    setChecked(true);
+    haptic.commit();
+    timer.current = setTimeout(onPay, reduce ? 0 : TICK_MS);
+  };
+  return (
+    <Touchable onPress={press} accessibilityRole="button" accessibilityLabel={`${label}: ${item.title ?? ''}`} style={styles.payCheck}>
+      <TickCircle checked={checked} size={ICON.lg} color={theme.success} ringColor={theme.outline} tickColor={theme.onPrimary} />
+    </Touchable>
+  );
+}
+
+/** Ödenen satır yerinde kalır ve geri alma süresince "Geri al" sunar; pencere üstünde bildirim görünmediği için (iOS) burada. */
+interface Settled { item: InboxItem; index: number; undo: () => boolean }
+
+export function InboxSheet({ visible, onClose, items, zenCard, somedayCard, onItem, onPay, onDismiss, theme, language }: {
   visible: boolean;
   onClose: () => void;
   items: InboxItem[];
   zenCard: React.ReactNode;
   somedayCard: React.ReactNode;
   onItem: (item: InboxItem) => void;
+  /** Satırdan ödeme. Geri alma işlevi döner; tutar sorulacaksa ya da ödeme yoksa null. */
+  onPay?: (item: InboxItem) => (() => boolean) | null;
   /** Kaldırma: tek kalem (çarpı) ya da hepsi (Temizle). */
   onDismiss: (ids: string[]) => void;
   theme: AppTheme;
@@ -59,6 +95,35 @@ export function InboxSheet({ visible, onClose, items, zenCard, somedayCard, onIt
   const c = COPY[language];
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
+  const [settled, setSettled] = useState<Settled[]>([]);
+  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const settle = (id: string) => {
+    const t = timers.current.get(id);
+    if (t) clearTimeout(t);
+    timers.current.delete(id);
+    setSettled(list => list.filter(x => x.item.id !== id));
+  };
+  // Kapanınca süreler işlemi sessizce tamamlar (bkz. deferredCommit); satırlar yeniden açılışta kalmaz.
+  useEffect(() => {
+    if (visible) return;
+    timers.current.forEach(clearTimeout);
+    timers.current.clear();
+    setSettled([]);
+  }, [visible]);
+  useEffect(() => {
+    const map = timers.current;
+    return () => map.forEach(clearTimeout);
+  }, []);
+  const pay = (item: InboxItem, index: number) => {
+    const undo = onPay?.(item);
+    if (!undo) return;
+    setSettled(list => [...list, { item, index, undo }]);
+    timers.current.set(item.id, setTimeout(() => settle(item.id), UNDO_WINDOW_MS));
+  };
+  // Ödenen satır listede eski yerinde durur; süre bitince kapanır, aradaki satırlar yukarı kayar.
+  const live = items.filter(it => !settled.some(x => x.item.id === it.id));
+  const rows: { item: InboxItem; settled?: Settled }[] = live.map(item => ({ item }));
+  for (const x of [...settled].sort((a, b) => a.index - b.index)) rows.splice(Math.min(x.index, rows.length), 0, { item: x.item, settled: x });
   return (
     <Modal supportedOrientations={['portrait', 'landscape']} visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       {/* Düz karartma — bulanık zemin, arkadaki Skia aurasını kenarda yinelenmiş gibi gösteriyordu (iOS). */}
@@ -70,8 +135,8 @@ export function InboxSheet({ visible, onClose, items, zenCard, somedayCard, onIt
           <View style={styles.head}>
             <View style={styles.headRow}>
               <Text accessibilityRole="header" style={[styles.title, { color: theme.onSurface }]}>{c.title}</Text>
-              {items.length > 0 && (
-                <Touchable onPress={() => onDismiss(items.map(it => it.id))} accessibilityRole="button" accessibilityLabel={c.clear} style={styles.clearBtn}>
+              {live.length > 0 && (
+                <Touchable onPress={() => onDismiss(live.map(it => it.id))} accessibilityRole="button" accessibilityLabel={c.clear} style={styles.clearBtn}>
                   <Text style={[styles.clearText, { color: theme.primary }]}>{c.clear}</Text>
                 </Touchable>
               )}
@@ -79,28 +144,42 @@ export function InboxSheet({ visible, onClose, items, zenCard, somedayCard, onIt
             <Text style={[styles.sub, { color: theme.onSurfaceMuted }]}>{c.sub}</Text>
           </View>
           <ScrollView contentContainerStyle={{ paddingBottom: S.md }} showsVerticalScrollIndicator={false}>
-            {items.length === 0 ? (
+            {rows.length === 0 ? (
               <View style={styles.empty}>
-                <CheckCircle2 size={ICON.xl} color={theme.success} />
+                <QuietStar color={theme.warning} />
                 <Text style={[styles.emptyTitle, { color: theme.onSurface }]}>{c.empty}</Text>
                 <Text style={[styles.sub, { color: theme.onSurfaceMuted, textAlign: 'center' }]}>{c.emptySub}</Text>
               </View>
-            ) : items.map(item => {
+            ) : rows.map(({ item, settled: done }, index) => {
+              if (done) {
+                return (
+                  <Animated.View key={item.id} entering={FadeIn.duration(160)} exiting={FadeOut.duration(160)} layout={LinearTransition.duration(220)} style={[styles.row, { backgroundColor: theme.surfaceCard, borderColor: theme.outlineVariant }]}>
+                    <Text numberOfLines={1} accessibilityLiveRegion="polite" style={[styles.rowTitle, { flex: 1, color: theme.onSurfaceVariant }]}>{c.paid(item.title ?? '')}</Text>
+                    <Touchable onPress={() => { done.undo(); settle(item.id); }} accessibilityRole="button" accessibilityLabel={`${c.undo}: ${item.title ?? ''}`} style={styles.clearBtn}>
+                      <Text style={[styles.clearText, { color: theme.primary }]}>{c.undo}</Text>
+                    </Touchable>
+                  </Animated.View>
+                );
+              }
               if (item.kind === 'zen') return <View key={item.id}>{zenCard}</View>;
               if (item.kind === 'someday') return <View key={item.id}>{somedayCard}</View>;
               const Icon = ICONS[item.kind];
               const tone = item.tone === 'error' ? theme.error : item.tone === 'warning' ? theme.warning : theme.onSurfaceMuted;
               return (
+                <Animated.View key={item.id} layout={LinearTransition.duration(220)} exiting={FadeOut.duration(160)}>
                 <Touchable
-                  key={item.id}
                   onPress={() => onItem(item)}
                   accessibilityRole="button"
                   accessibilityLabel={`${item.title ?? ''}, ${item.sub ?? ''}`}
                   style={[styles.row, { backgroundColor: theme.surfaceCard, borderColor: theme.outlineVariant }]}
                 >
-                  <View style={[styles.rowIcon, { backgroundColor: theme.primary + '14' }]}>
-                    <Icon size={ICON.sm} color={theme.primary} />
-                  </View>
+                  {item.kind === 'payment' && onPay && typeof item.ref === 'number' ? (
+                    <PayCheck item={item} theme={theme} label={c.pay} onPay={() => pay(item, index)} />
+                  ) : (
+                    <View style={[styles.rowIcon, { backgroundColor: theme.primary + '14' }]}>
+                      <Icon size={ICON.sm} color={theme.primary} />
+                    </View>
+                  )}
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text numberOfLines={1} style={[styles.rowTitle, { color: theme.onSurface }]}>{item.title}</Text>
                     {!!item.sub && <Text numberOfLines={2} style={[styles.rowSub, { color: tone }]}>{item.sub}</Text>}
@@ -109,6 +188,7 @@ export function InboxSheet({ visible, onClose, items, zenCard, somedayCard, onIt
                     <X size={ICON.sm} color={theme.onSurfaceMuted} />
                   </Touchable>
                 </Touchable>
+                </Animated.View>
               );
             })}
           </ScrollView>
@@ -129,6 +209,7 @@ const styles = StyleSheet.create({
   headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   clearBtn: { minHeight: MIN_TOUCH, justifyContent: 'center', paddingHorizontal: S.sm },
   clearText: { fontSize: F.body, fontWeight: W.semibold },
+  payCheck: { width: MIN_TOUCH, height: MIN_TOUCH, alignItems: 'center', justifyContent: 'center', marginVertical: -S.xs },
   x: { width: MIN_TOUCH, height: MIN_TOUCH, alignItems: 'center', justifyContent: 'center', marginRight: -S.sm },
   head: { paddingHorizontal: S.lg, marginBottom: S.md, gap: S.xxs },
   title: { fontSize: F.title, fontWeight: W.bold, letterSpacing: -0.5 },

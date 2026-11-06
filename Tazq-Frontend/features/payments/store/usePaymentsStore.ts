@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { CurrencyCode } from '@/shared/utils/currency';
+import { isCommitPending } from '@/shared/utils/deferredCommit';
 
 export type PaymentRecurrence = 'Once' | 'Monthly' | 'Yearly';
 
@@ -28,6 +29,8 @@ export interface Payment {
   nextDueDate?: string | null;
   /** "Bu dönem ödendi mi" — aylık "YYYY-MM", yıllık "YYYY", tek seferlik "once". */
   lastPaidCycleKey?: string | null;
+  /** Bu dönem ödenmedi, atlandı: vade ilerler ama "ödendi" sayılmaz. */
+  lastSkippedCycleKey?: string | null;
   category?: string | null;
   /** ISO 4217; boş = ana birim (bkz. features/payments/utils/money). */
   currency?: string | null;
@@ -49,6 +52,8 @@ interface PaymentsState {
   isLoading: boolean;
   /** Seçilmemişse null — ekranlar dil bazlı varsayımı (`defaultCurrencyFor`) kullanır. */
   currency: CurrencyCode | null;
+  /** Ödeme kimliği → hatırlatması kurulan son vade. Geç hatırlatma bir kez çalsın diye (bkz. paymentReminders). */
+  reminderLedger: Record<string, string>;
   setPayments: (payments: Payment[]) => void;
   addPayment: (payment: Payment) => void;
   updatePayment: (id: number, patch: Partial<Payment>) => void;
@@ -66,9 +71,18 @@ export const usePaymentsStore = create<PaymentsState>()(
       payments: [],
       isLoading: false,
       currency: null,
+      reminderLedger: {},
       chartOpen: false,
       setChartOpen: (chartOpen) => set({ chartOpen }),
-      setPayments: (payments) => set({ payments }),
+      // Geri alma süresindeki işlem sunucuya henüz gitmedi: tazeleme onu ezmesin.
+      setPayments: (payments) => {
+        const local = new Map(get().payments.map(p => [p.id, p]));
+        set({
+          payments: payments
+            .filter(p => !isCommitPending(`payment:${p.id}`))
+            .map(p => (isCommitPending(`paid:${p.id}`) ? local.get(p.id) ?? p : p)),
+        });
+      },
       addPayment: (payment) => set({ payments: [...get().payments, payment] }),
       updatePayment: (id, patch) =>
         set({ payments: get().payments.map(p => (p.id === id ? { ...p, ...patch } : p)) }),

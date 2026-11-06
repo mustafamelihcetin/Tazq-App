@@ -8,8 +8,9 @@ import { visibleTextTags, translateTag, getLocalizedTaskTitle, getLocalizedTaskD
 import { getTaskRemainingTime } from '@/features/modes';
 import { SwipeableItem } from '@/shared/components/SwipeableItem';
 import { TourTarget } from '@/shared/components/TourContext';
-import { ICON, S, R, F, B, HAIRLINE, RSPRING, touchSlop } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, HAIRLINE, touchSlop } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
+import { TickCircle } from '@/shared/components/TickCircle';
 import { Separator } from '@/shared/components/Separator';
 import { describeTask, rowHint, bulkSelectHint } from '@/shared/utils/a11y';
 import type { Task } from '@/features/tasks/store/useTaskStore';
@@ -213,14 +214,9 @@ export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
                                 accessibilityState={{ checked: done }}
                                 accessibilityLabel={done ? c.undo : c.complete}
                                 hitSlop={touchSlop(SIZE)}
-                                style={[styles.ring, { borderWidth: done ? 0 : B.medium, borderColor: accent, backgroundColor: done ? theme.success : 'transparent' }]}
+                                style={styles.ring}
                             >
-                                {/* Tik bir kez esneyerek belirir (RSPRING.pop) — kutlama değil, onay. */}
-                                {done && (
-                                    <MotiView from={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', ...RSPRING.pop }}>
-                                        <Check size={ICON.xs} color={theme.onPrimary} strokeWidth={3} />
-                                    </MotiView>
-                                )}
+                                <TickCircle checked={done} size={SIZE} color={theme.success} ringColor={accent} tickColor={theme.onPrimary} />
                             </Touchable>
                         )}
 

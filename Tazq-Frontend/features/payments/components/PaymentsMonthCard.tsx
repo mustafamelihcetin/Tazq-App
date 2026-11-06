@@ -6,6 +6,8 @@ import { ICON, S, R, F, W } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 import type { TranslationKeys } from '@/shared/constants/i18n';
 import { DisplayPanel, DisplayValue, useDisplayColors } from '@/shared/components/DisplayPanel';
+import { useCountingValue } from '@/shared/hooks/useCountingValue';
+import { formatMoney } from '@/features/payments/utils/money';
 
 /*
   ── AY ÖZETİ — Tremor "KPI card with progress bar" ───────────────────────────────
@@ -27,6 +29,8 @@ interface Props {
   t: TranslationKeys['payments'];
   language: 'tr' | 'en';
   remaining: string;
+  /** Tek birimdeyse kalan tutar: ödeyince sayarak azalır. Birden çok birim toplanıp sayılamaz. */
+  remainingAmount?: { value: number; code: string } | null;
   paid: string;
   total: string;
   allPaid: boolean;
@@ -48,10 +52,12 @@ export const PaymentsMonthCard = React.memo((props: Props) => (
   <DisplayPanel padding={S.md}><Body {...props} /></DisplayPanel>
 ));
 
-function Body({ theme, t, language, remaining, paid, total, allPaid, overdue, approx, next, marks }: Props) {
+function Body({ theme, t, language, remaining, remainingAmount, paid, total, allPaid, overdue, approx, next, marks }: Props) {
   const dc = useDisplayColors();
   const c = COPY[language];
   const shown = approx ?? remaining;
+  const counted = useCountingValue(remainingAmount?.value ?? 0);
+  const display = !approx && remainingAmount ? formatMoney(counted, remainingAmount.code, language === 'en' ? 'en' : 'tr') : shown;
   const now = new Date();
   const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const at = (day: number) => `${((Math.min(last, Math.max(1, day)) - 1) / Math.max(1, last - 1)) * 100}%` as const;
@@ -69,7 +75,7 @@ function Body({ theme, t, language, remaining, paid, total, allPaid, overdue, ap
           <Text style={{ flex: 1, color: theme.onSurface, fontSize: F.title3, fontWeight: W.semibold }}>{t.allPaid}</Text>
         </View>
       ) : (
-        <DisplayValue value={shown} color={theme.onSurface} style={styles.amount} />
+        <DisplayValue value={display} duration={0} color={theme.onSurface} style={styles.amount} />
       )}
       {/* AY ŞERİDİ: soldan sağa ay. Koyu kısım geçen günler, nokta o gündeki ödeme. Ödeme sayısı artsa da kutu büyümez. */}
       <View style={styles.strip}>

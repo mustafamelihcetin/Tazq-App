@@ -6,6 +6,7 @@ import {
   Animated,
   Easing,
 } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 import { track } from '../utils/analytics';
 
 // TouchableOpacity'yi animasyonlu sarıyoruz → Android ripple taşma bug'larına
@@ -20,6 +21,7 @@ const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 export const Touchable = forwardRef<View, TouchableOpacityProps>((props, ref) => {
   const { style, activeOpacity, onPressIn, onPressOut, onPress, onLayout, children, ...rest } = props;
   const scale = useRef(new Animated.Value(1)).current;
+  const reduceMotion = useReducedMotion();
   const width = useRef(0);
 
   const lastPressTime = useRef<number>(0);
@@ -33,7 +35,7 @@ export const Touchable = forwardRef<View, TouchableOpacityProps>((props, ref) =>
     dönmez (sekme yok), basış yarıda bırakılınca yeni hedefe döner.
   */
   const press = (down: boolean) => {
-    const to = !down ? 1 : width.current > 0 && width.current <= 240 ? 0.96 : 0.98;
+    const to = !down || reduceMotion ? 1 : width.current > 0 && width.current <= 240 ? 0.96 : 0.98;
     return Animated.timing(scale, { toValue: to, duration: 150, easing: Easing.out(Easing.cubic), useNativeDriver: true });
   };
 

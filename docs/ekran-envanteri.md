@@ -25,7 +25,7 @@ Kaynak: her ekranın render ettiği bileşenler + bileşenlerin başlık yorumla
 | | `TurkishModeBanner` (önizleme/kurulum) | Hedefler | mod seçimi |
 | | Başlık: Mod özeti | → Geçmiş | — |
 | Mod özeti `mod-ozet.tsx` | `WeekBars`, `TrendLine` (son 4 hafta) | Geçmiş (modlar) | **yalnız Modlar'dan** |
-| Odak `focus.tsx` | `FocusWeekStrip` (son 7 gün odak) | Odak bağlamı + son 7 gün | sekme |
+| Odak `focus.tsx` | `WeekSkySheet` (haftanın gökyüzü) | Odak bağlamı + son 7 gün | sekme |
 | Profil `profile.tsx` | `ProgressCard` (madalyalar) | Geçmiş (ödüller) | ana sayfa avatar |
 
 ## 2. Kopyalar ve öneri
@@ -39,7 +39,7 @@ Karar senin; öneri sütunu yalnız öneridir. Her satır ayrı adımda uygulan�
 | K-3 | **Haftanın özeti ana sayfada** | `StatusHubModal` (odak KPI + öneriler) vs Haftalık + Rapor | Pencere **silinir**; başlık düğmesi doğrudan Haftalık'a gider (A5). Öneriler (koç kartları) Rapor'a taşınır | "İçgörü penceresi Geçmiş'e bağlanır" (v1 A2). Bugün ekranında haftanın sorusu. |
 | K-4 | **Alışkanlık × hafta ızgarası** | Haftalık `WeekHabits` + Rapor `HabitWeekList` | **Kalır**, ama Rapor içinde bulunulan haftayı gösterirken "Bu hafta → Haftalık" bağlantısı | Rapor geçmiş haftalarda tek kaynak; yalnız içinde bulunulan hafta çakışıyor. |
 | K-5 | **Son 7 gün ana sayfada** | Panel sürükleme + Momentum 7 çubuk | **Kalır** | İkisi de yakın zamanda senin isteğinle eklendi; bugünü kıyasla okutuyor, ayrı ekran değil. |
-| K-6 | **Odak son 7 gün** | `FocusWeekStrip` vs Rapor odak grafiği | **Kalır** | Odak ekranının kendi sürekliliği; Rapor'un sorusunu (kıyas) sormuyor. |
+| K-6 | **Odak son 7 gün** | `WeekSkySheet` vs Rapor odak grafiği | **Kalır** | Odak ekranının kendi sürekliliği; Rapor'un sorusunu (kıyas) sormuyor. |
 
 ## 3. Eksik bağlantılar (kopya değil ama sahiplik kuralını bozuyor)
 

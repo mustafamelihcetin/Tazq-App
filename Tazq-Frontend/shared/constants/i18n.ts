@@ -429,8 +429,9 @@ export const translations = {
       markPaid: 'Mark as paid',
       undoPaid: 'Paid — undo',
       delete: 'Delete',
-      deleteTitle: 'Delete Payment',
-      deleteConfirm: (title: string) => `"${title}" will be deleted. Are you sure?`,
+      deletedToast: (title: string) => `${title} deleted`,
+      skipCycle: 'Skip this period',
+      skippedToast: (title: string) => `${title} skipped this period`,
       markedPaidToast: (title: string) => `${title} marked as paid`,
       // Değişken tutar + taksit (2026-11-01)
       variableLabel: 'Amount changes each month',
@@ -458,7 +459,7 @@ export const translations = {
       failedToast: "Couldn't add it, try again",
       monthTotal: (count: number, amount: string) => `${count} payment${count === 1 ? '' : 's'} · ${amount} total`,
       urgentOverdue: (count: number, amount: string) => count === 1 ? `A payment is overdue — ${amount}` : `${count} payments are overdue — ${amount}`,
-      urgentDueSoon: (count: number, amount: string) => count === 1 ? `A payment is due soon — ${amount}` : `${count} payments due soon — ${amount}`,
+      urgentToday: (count: number, amount: string) => count === 1 ? `A payment is due today — ${amount}` : `${count} payments are due today — ${amount}`,
       /** Ay özeti (Tremor KPI + ProgressBar deseni). */
       leftThisMonth: 'Left this month',
       paidOfTotal: (paid: string, total: string) => `${paid} paid · ${total} total`,
@@ -901,8 +902,9 @@ export const translations = {
       markPaid: 'Ödendi işaretle',
       undoPaid: 'Ödendi — geri al',
       delete: 'Sil',
-      deleteTitle: 'Ödemeyi Sil',
-      deleteConfirm: (title: string) => `"${title}" silinecek. Emin misin?`,
+      deletedToast: (title: string) => `${title} silindi`,
+      skipCycle: 'Bu dönemi atla',
+      skippedToast: (title: string) => `${title} bu dönem atlandı`,
       markedPaidToast: (title: string) => `${title} ödendi olarak işaretlendi`,
       // Değişken tutar + taksit (2026-11-01)
       variableLabel: 'Tutar her ay değişir',
@@ -930,7 +932,7 @@ export const translations = {
       failedToast: 'Eklenemedi, tekrar dene',
       monthTotal: (count: number, amount: string) => `${count} ödeme · toplam ${amount}`,
       urgentOverdue: (count: number, amount: string) => count === 1 ? `Bir ödemenin vadesi geçti — ${amount}` : `${count} ödemenin vadesi geçti — ${amount}`,
-      urgentDueSoon: (count: number, amount: string) => count === 1 ? `Bir ödemenin vadesi yaklaşıyor — ${amount}` : `${count} ödemenin vadesi yaklaşıyor — ${amount}`,
+      urgentToday: (count: number, amount: string) => count === 1 ? `Bir ödemenin son günü bugün — ${amount}` : `${count} ödemenin son günü bugün — ${amount}`,
       /** Ay özeti (Tremor KPI + ProgressBar deseni). */
       leftThisMonth: 'Bu ay kalan',
       paidOfTotal: (paid: string, total: string) => `${paid} ödendi · toplam ${total}`,

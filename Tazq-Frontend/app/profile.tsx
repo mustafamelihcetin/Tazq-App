@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { settingsText } from '@/shared/constants/settingsCopy';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Modal, ActivityIndicator, Platform, TextInput, Keyboard, Linking, Animated, TouchableWithoutFeedback } from 'react-native';
 import { CustomAlert as Alert, AlertHost } from '@/shared/components/CustomAlert';
@@ -89,8 +90,8 @@ export default function ProfileScreen() {
       const ok = await SleepHealth.requestAuthorization();
       setSleepHealthOptIn(ok ? 'yes' : 'no');
       showToast(
-        ok ? (language === 'tr' ? 'Uyku takibi açık — sabahları otomatik işaretlenir' : 'Sleep tracking on — auto-marked each morning')
-           : (language === 'tr' ? 'Sağlık izni verilmedi' : 'Health permission not granted'),
+        ok ? (settingsText(language).sleepTrackingOnAutoMarkedEach)
+           : (settingsText(language).healthPermissionNotGranted),
         ok ? 'success' : 'info'
       );
     } else {
@@ -190,7 +191,7 @@ export default function ProfileScreen() {
     if (!user) return;
     if (!newName.trim()) {
       haptic.error();
-      setProfileError(language === 'tr' ? 'Görünen ad boş olamaz.' : 'Name cannot be empty.');
+      setProfileError(settingsText(language).nameCannotBeEmpty);
       return;
     }
     setProfileError(null);
@@ -216,8 +217,8 @@ export default function ProfileScreen() {
       showToast(t.toastProfileUpdated, 'success');
     } catch (e: unknown) {
       const msg = isNetworkError(e)
-        ? (language === 'tr' ? 'Bağlantı hatası. Tekrar dene.' : 'Connection error. Try again.')
-        : (language === 'tr' ? 'Güncelleme başarısız.' : 'Update failed.');
+        ? (settingsText(language).connectionErrorTryAgain)
+        : (settingsText(language).updateFailed);
       setProfileError(msg);
     } finally {
       setSavingProfile(false);
@@ -251,7 +252,7 @@ export default function ProfileScreen() {
       if (granted) {
         await AsyncStorage.setItem('tazq_calendar_sync_enabled', 'true');
         setCalendarSync(true);
-        showToast(language === 'tr' ? 'Takvim senkronizasyonu aktif! Görevler aktarılıyor...' : 'Calendar sync active! Exporting tasks...', 'info');
+        showToast(settingsText(language).calendarSyncActiveExportingTasks, 'info');
         
         const result = await bulkExportTasksToCalendar(tasks);
         if (result.success) {
@@ -272,7 +273,7 @@ export default function ProfileScreen() {
           }
         } else {
           showToast(
-            language === 'tr' ? 'Takvim senkronizasyonu başlatılamadı.' : 'Could not initialize calendar sync.',
+            settingsText(language).couldNotInitializeCalendarSync,
             'error'
           );
           await AsyncStorage.setItem('tazq_calendar_sync_enabled', 'false');
@@ -280,7 +281,7 @@ export default function ProfileScreen() {
         }
       } else {
         Alert.alert(
-          language === 'tr' ? 'Takvim İzni Gerekli' : 'Calendar Permission Required',
+          settingsText(language).calendarPermissionRequired,
           language === 'tr'
             ? 'Lütfen uygulama ayarlarından takvim iznini etkinleştirin.'
             : 'Please enable calendar permission in your device settings.',
@@ -293,7 +294,7 @@ export default function ProfileScreen() {
     } else {
       await AsyncStorage.setItem('tazq_calendar_sync_enabled', 'false');
       setCalendarSync(false);
-      showToast(language === 'tr' ? 'Takvim senkronizasyonu kapatıldı.' : 'Calendar sync disabled.', 'info');
+      showToast(settingsText(language).calendarSyncDisabled, 'info');
     }
   };
 
@@ -332,19 +333,19 @@ export default function ProfileScreen() {
   const handleStreakFreeze = () => {
     if (streakShields <= 0) {
       showToast(
-        language === 'tr' ? 'Kalkanın kalmadı. Odak puanı topladıkça yenisi gelir.' : 'No shields left! Earn shields by collecting focus points.',
+        settingsText(language).noShieldsLeftEarnShieldsBy,
         'error'
       );
       return;
     }
     Alert.alert(
-      language === 'tr' ? 'Streak Kalkanını Etkinleştir' : 'Activate Streak Shield',
+      settingsText(language).activateStreakShield,
       language === 'tr'
         ? 'Bir kalkan tüketerek bugünü tüm alışkanlıklar için mola günü yapmak istiyor musunuz? Serin bozulmaz.'
         : 'Use one shield to make today a break day for all habits? Your streak stays intact.',
       [
         { text: t.cancel, style: 'cancel' },
-        { text: language === 'tr' ? 'Kullan' : 'Use', onPress: () => {
+        { text: settingsText(language).use, onPress: () => {
           useStreakFreeze();
           /*
             KALKAN = MOLA, "YAPILDI" DEĞİL (2026-10-30). Eskiden yapılmamış alışkanlıkları "yapıldı"
@@ -363,7 +364,7 @@ export default function ProfileScreen() {
               releaseAfterMs: 3000,
             });
           }
-          showToast(language === 'tr' ? 'Kalkan başarıyla kullanıldı!' : 'Shield successfully used!', 'success');
+          showToast(settingsText(language).shieldSuccessfullyUsed, 'success');
         } }
       ]
     );
@@ -461,13 +462,13 @@ export default function ProfileScreen() {
           {/* AYARLAR — gruplu kategori satırları (Apple tarzı ikonlar). Her biri
               ayrıntı için ayarlar sayfasına götürür; profil yalnızca KİMLİK taşır. */}
           <View style={[styles.settingsSection, { marginTop: S.lg }]}>
-            <SectionHeader title={language === 'tr' ? 'AYARLAR' : 'SETTINGS'} theme={theme} tr={language === 'tr'} />
+            <SectionHeader title={settingsText(language).settings2} theme={theme} tr={language === 'tr'} />
             <SettingsCard theme={theme} isDark={isDark}>
               <SettingItem
                 icon={<Bell size={ICON.md} color="#FFFFFF" />}
                 bg={A.notify}
-                label={language === 'tr' ? 'Bildirimler' : 'Notifications'}
-                sub={language === 'tr' ? 'Özetler, takvim, gizlilik' : 'Briefs, calendar, privacy'}
+                label={settingsText(language).notifications}
+                sub={settingsText(language).briefsCalendarPrivacy}
                 onPress={() => router.push({ pathname: '/settings', params: { section: 'notify' } })}
                 theme={theme}
               />
@@ -475,8 +476,8 @@ export default function ProfileScreen() {
               <SettingItem
                 icon={<Palette size={ICON.md} color="#FFFFFF" />}
                 bg={A.system}
-                label={language === 'tr' ? 'Görünüm & Dil' : 'Appearance & Language'}
-                sub={language === 'tr' ? 'Tema, renk, dil, ses' : 'Theme, color, language, sound'}
+                label={settingsText(language).appearanceLanguage}
+                sub={settingsText(language).themeColorLanguageSound}
                 onPress={() => router.push({ pathname: '/settings', params: { section: 'system' } })}
                 theme={theme}
               />
@@ -484,8 +485,8 @@ export default function ProfileScreen() {
               <SettingItem
                 icon={<HeartPulse size={ICON.md} color="#FFFFFF" />}
                 bg={A.health}
-                label={language === 'tr' ? 'Uyku & Sağlık' : 'Sleep & Health'}
-                sub={`${healthSourceName(language)}, ${language === 'tr' ? 'uyku hedefi' : 'sleep goal'}`}
+                label={settingsText(language).sleepHealth}
+                sub={`${healthSourceName(language)}, ${settingsText(language).sleepGoal2}`}
                 onPress={() => router.push({ pathname: '/settings', params: { section: 'health' } })}
                 theme={theme}
               />
@@ -493,8 +494,8 @@ export default function ProfileScreen() {
               <SettingItem
                 icon={<ShieldCheck size={ICON.md} color="#FFFFFF" />}
                 bg={A.legal}
-                label={language === 'tr' ? 'Hesap, Yasal & Destek' : 'Account, Legal & Support'}
-                sub={language === 'tr' ? 'Gizlilik, koşullar, çıkış, destek' : 'Privacy, terms, logout, support'}
+                label={settingsText(language).accountSupport}
+                sub={settingsText(language).privacyTermsLogoutSupport}
                 onPress={() => router.push({ pathname: '/settings', params: { section: 'legal' } })}
                 theme={theme}
               />
@@ -509,8 +510,8 @@ export default function ProfileScreen() {
               <SettingItem
                 icon={<Wallet size={ICON.md} color="#FFFFFF" />}
                 bg={A.payments}
-                label={language === 'tr' ? 'Ödemeler' : 'Payments'}
-                sub={language === 'tr' ? 'Faturalar ve ödeme hatırlatıcıları' : 'Bills and payment reminders'}
+                label={settingsText(language).payments}
+                sub={settingsText(language).billsAndPaymentReminders}
                 onPress={() => router.push('/odemeler')}
                 theme={theme}
               />
@@ -531,7 +532,7 @@ export default function ProfileScreen() {
           (hızlı ekleme ile aynı yol), kapanınca kesin olarak iner; tavan da klavye kadar düşer.
         */}
         <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: kbHeight }}>
-            <Touchable style={StyleSheet.absoluteFill} onPress={() => setEditModalVisible(false)} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'} />
+            <Touchable style={StyleSheet.absoluteFill} onPress={() => setEditModalVisible(false)} accessibilityRole="button" accessibilityLabel={settingsText(language).close} />
               <Animated.View style={[editSlide, styles.modalContent, { maxHeight: sheetMaxHeight(height, insets.top) - kbHeight }]}>
                 <GlassSurface radius={R.sheet} />
                 <View {...editPan.panHandlers} style={{ paddingTop: S.md, paddingBottom: S.lmd, alignItems: 'center' }}>

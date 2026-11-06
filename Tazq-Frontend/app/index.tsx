@@ -58,6 +58,7 @@ import { celebrateMilestone } from '@/features/habits/utils/autoMark';
 import { todayKey, daysBetween, wasActiveOn, decideStreak, wasCompletedOn, legacyDayString, weekdayIndex } from '@/features/dashboard/utils/streakDay';
 import { buildWeekStrip } from '@/features/dashboard/utils/weekStrip';
 import { useActivityHealthSync } from '@/features/modes/hooks/useActivityHealthSync';
+import { completeWithUndoToast } from '@/features/tasks/utils/taskActions';
 import { isWeightEntryTask, weightTaskAction, completeTaskOfflineFirst } from '@/features/modes/utils/weightCheckin';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { MomentumPulse } from '@/features/user/components/MomentumPulse';
@@ -71,6 +72,8 @@ import { QuickAddSheet, type DayChoice } from '@/features/tasks/components/Quick
 import { dateKeyFromNow } from '@/shared/utils/dateKey';
 import { ModeTodayCard } from '@/features/modes/components/ModeTodayCard';
 import { PaymentsSummaryCard } from '@/features/payments/components/PaymentsSummaryCard';
+import { markPaidUndoable, refreshPayments } from '@/features/payments/utils/paymentActions';
+import { activeCycleKeyOf } from '@/features/payments/utils/paymentDates';
 import { useAppShortcuts } from '@/shared/hooks/useAppShortcuts';
 import { ProfileSetupModal } from '@/features/user/components/ProfileSetupModal';
 import { CaptureSheet } from '@/features/onboarding/components/CaptureSheet';
@@ -1297,32 +1300,9 @@ export default function HomeScreen() {
     // Kutlama kararı tek yerde (bkz. features/user/utils/celebrate.ts):
     // Sade modda konfeti yok, puan ve 'ilk başarı' damgası YİNE işlenir.
     if (isFirstWin) celebrate({ kind: 'first-win', isLite, tr });
-    else if (allTasksDone) celebrate({ kind: 'day-cleared', isLite, tr });
-    toggleTaskCompletion(taskId);
-    
-    const modeInfo = getModeInfoForTask(task, prefsState, theme);
-    if (modeInfo) {
-      const planMode = task.tags?.find(tag => ['exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'spor', 'spor2', 'spor3', 'ramazan', 'tasarruf', 'birakma'].includes(tag));
-      useCompletionStore.getState().record(task.id, task.title, new Date().toISOString(), planMode);
-    }
-    // Offline-first: çevrimdışıysa tamamlamayı kuyruğa al (optimistik UI korunur);
-    // yoksa kullanıcının tamamlaması kaybolur.
-    const isOnline = useNetworkStore.getState().isOnline;
-    if (!isOnline) {
-      useOfflineQueue.getState().enqueue({ type: 'toggle-task', id: taskId, isCompleted: true, completedAt: new Date().toISOString() });
-      return;
-    }
-    try {
-      await TaskService.updateTask(taskId, { isCompleted: true });
-    } catch (e: unknown) {
-      if (isNetworkError(e)) {
-        // Ağ hatası → kuyruğa al, optimistik tamamlamayı KORU
-        useOfflineQueue.getState().enqueue({ type: 'toggle-task', id: taskId, isCompleted: true, completedAt: new Date().toISOString() });
-      } else {
-        // Gerçek sunucu hatası → geri al
-        toggleTaskCompletion(taskId);
-      }
-    }
+    // İlk başarı damgası geri alınmaz; gün kutlamasının puanı geri alınınca düşer.
+    const clearedPoints = !isFirstWin && allTasksDone ? celebrate({ kind: 'day-cleared', isLite, tr }) : 0;
+    completeWithUndoToast(taskId, language === 'en' ? 'en' : 'tr', clearedPoints);
   };
 
   const startQuickFocus = () => {
@@ -1563,6 +1543,8 @@ export default function HomeScreen() {
   useFocusEffect(useCallback(() => {
     if (isGuest) return;
     SupportService.getMyMessages().then(r => setSupportThreads(r.messages ?? [])).catch(e => swallow('inbox.support', e));
+    // Ödemeler ekranı açılmadan da taze: başka cihazda eklenen ödeme uyarıya ve hatırlatmaya girer.
+    void refreshPayments();
   }, [isGuest]));
   const inboxItems = React.useMemo(() => {
     const now = new Date();
@@ -1614,6 +1596,17 @@ export default function HomeScreen() {
     else if (item.kind === 'support') router.push({ pathname: '/settings', params: { section: 'legal', support: '1' } });
     else if (item.kind === 'badge') router.push('/achievements');
     else if (item.kind === 'tomorrow') openDay(dateKeyFromNow(1));
+  };
+  // Satırdan ödeme. Değişken tutar Ödemeler'deki tutar penceresine gider: pencere içinden pencere açılmaz (iOS).
+  const onInboxPay = (item: InboxItem) => {
+    const payment = payments.find(p => p.id === item.ref);
+    if (!payment) return null;
+    if (payment.isVariable) {
+      closeInbox();
+      router.push({ pathname: '/odemeler', params: { pay: String(payment.id) } });
+      return null;
+    }
+    return markPaidUndoable(payment.id, activeCycleKeyOf(payment));
   };
   const todayTopSlot = React.useMemo(() => <ModeTodayCard bare onOpen={() => router.push('/modlar')} />, [router]);
 
@@ -2165,6 +2158,7 @@ export default function HomeScreen() {
           language={language === 'en' ? 'en' : 'tr'}
           theme={theme}
           onItem={onInboxItem}
+          onPay={onInboxPay}
           zenCard={
             <TazqZenCard
               visible={zen.cardVisible}

@@ -135,6 +135,17 @@ namespace Tazq_App.Controllers
             return Ok(payment);
         }
 
+        [HttpPost("{id}/skip")]
+        public async Task<IActionResult> Skip(int id, [FromBody] MarkPaidRequest req)
+        {
+            var userId = GetUserId();
+            if (userId == null) return Unauthorized();
+
+            var payment = await _paymentService.SkipCycleAsync(userId.Value, id, req.CycleKey);
+            if (payment == null) return NotFound();
+            return Ok(payment);
+        }
+
         [HttpPost("{id}/unmark-paid")]
         public async Task<IActionResult> UnmarkPaid(int id)
         {

@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
-import { Check } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { SwipeableItem } from '@/shared/components/SwipeableItem';
+import { TickCircle } from '@/shared/components/TickCircle';
 import { AppIcon } from '@/shared/components/AppIcon';
-import { ICON, S, R, F, W, B, HAIRLINE, RSPRING, touchSlop } from '@/shared/constants/tokens';
+import { ICON, S, R, F, W, HAIRLINE, touchSlop } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 import type { TranslationKeys } from '@/shared/constants/i18n';
 import { paymentLook } from '@/features/payments/utils/paymentLook';
@@ -84,13 +84,9 @@ export const PaymentRow = React.memo(({ view, position, theme, t, amountLabel, d
         {/* Halka: gecikmişte kırmızı çerçeve — rengi yalnız durum söyler (bkz. TaskListItem). */}
         <View
           hitSlop={touchSlop(RING)}
-          style={[styles.ring, { borderWidth: paid ? 0 : B.medium, borderColor: status === 'overdue' ? theme.error : theme.onSurfaceMuted, backgroundColor: paid ? theme.success : 'transparent' }]}
+          style={styles.ring}
         >
-          {paid && (
-            <MotiView from={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', ...RSPRING.pop }}>
-              <Check size={ICON.xs} color={theme.onPrimary} strokeWidth={3} />
-            </MotiView>
-          )}
+          <TickCircle checked={paid} size={RING} color={theme.success} ringColor={status === 'overdue' ? theme.error : theme.onSurfaceMuted} tickColor={theme.onPrimary} />
         </View>
 
         {/* Ayırıcı halkanın sağından başlar — Apple listelerinin imzası. */}

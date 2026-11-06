@@ -1,3 +1,4 @@
+import { UNDO_WINDOW_MS } from '@/shared/utils/deferredCommit';
 import { create } from 'zustand';
 
 type ToastType = 'error' | 'success' | 'info';
@@ -16,6 +17,7 @@ interface ToastState {
   hide: () => void;
 }
 
+const PLAIN_MS = 4000;
 let hideTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const useToastStore = create<ToastState>((set) => ({
@@ -29,7 +31,8 @@ export const useToastStore = create<ToastState>((set) => ({
   show: (message, type = 'info', action, placement = 'top', progress) => {
     if (hideTimer) clearTimeout(hideTimer);
     set({ message, type, placement, progress: progress ?? null, visible: true, actionLabel: action?.label, onAction: action?.onAction });
-    hideTimer = setTimeout(() => set({ visible: false, actionLabel: undefined, onAction: undefined }), 4000);
+    // Eylemli bildirim geri alma süresince durur; okumaya ve dokunmaya yetmeli.
+    hideTimer = setTimeout(() => set({ visible: false, actionLabel: undefined, onAction: undefined }), action ? UNDO_WINDOW_MS : PLAIN_MS);
   },
   hide: () => {
     if (hideTimer) clearTimeout(hideTimer);

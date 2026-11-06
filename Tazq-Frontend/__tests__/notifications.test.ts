@@ -79,7 +79,8 @@ describe('bildirim mahremiyeti', () => {
   const prefs = fs.readFileSync(
     path.join(__dirname, '..', 'features/modes/store/usePrefsStore.ts'), 'utf8');
   const settings = fs.readFileSync(
-    path.join(__dirname, '..', 'app/settings.tsx'), 'utf8');
+    path.join(__dirname, '..', 'app/settings.tsx'), 'utf8') + fs.readFileSync(
+    path.join(__dirname, '..', 'shared/constants/settingsCopy.ts'), 'utf8');
 
   it('içerik gizlenebiliyor', () => {
     expect(src).toContain('hideContent: boolean = false');

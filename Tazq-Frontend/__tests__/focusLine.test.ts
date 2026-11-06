@@ -47,3 +47,11 @@ describe('telkin / motivasyon', () => {
     expect(texts({ phase: 'final', todayMin: 50, sessionMin: 25 })[0].t).toBe('Az kaldı. Bu seansla bugün 75 dk olacak.');
   });
 });
+
+describe('ekranda', () => {
+  it('söz satırı süreyle gizlenmez, 40 sn'+"'"+'de bir değişir; yalnız Zen seansında kapalı', () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '../app/focus.tsx'), 'utf8');
+    expect(src).toContain('animate={{ opacity: zenMode && isActive ? 0 : 1 }}');
+    expect(src).toContain('(v + 0.618) % 1), 40000');
+  });
+});

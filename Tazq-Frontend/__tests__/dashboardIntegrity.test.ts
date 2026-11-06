@@ -102,7 +102,7 @@ describe('günlük listeden görev tamamlanabiliyor', () => {
   it('satır bir tamamlama kontrolü ÇİZİYOR', () => {
     expect(ROW).toContain('onCheck?: () => void;');
     expect(ROW).toMatch(/const CheckRing/);
-    expect(ROW).toContain('accessibilityRole="checkbox"');
+    expect(ROW).toContain("accessibilityRole={done ? 'image' : 'checkbox'}");
   });
 
   it('örnek (sahte) satırlarda dokunulamaz', () => {

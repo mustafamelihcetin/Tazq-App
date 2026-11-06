@@ -82,7 +82,8 @@ describe('dışa aktarma arayüzü', () => {
 
   it('ayarlarda görünür ve erişilebilir', () => {
     expect(settings).toContain('startDataExport(');
-    expect(settings).toMatch(/'Verilerimi indir' : 'Download my data'/);
+    expect(read('shared/constants/settingsCopy.ts')).toContain("'Verilerimi indir'");
+    expect(settings).toContain('settingsText(language).downloadMyData');
     // 2026-10-25: ortak SettingItem satırı — ekran okuyucu adı görünen etiketin kendisi
     // (SettingItem accessibilityLabel={label}); ayrı, farklı bir ad gerekmiyor.
     expect(settings).toMatch(/<SettingItem[\s\S]{0,120}icon=\{<Download/);

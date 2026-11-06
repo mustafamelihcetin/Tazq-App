@@ -125,7 +125,9 @@ export function paymentView(p: Payment, today: Date = new Date()): PaymentView |
     return no == null ? undefined : { no, total: p.installmentCount as number };
   };
 
-  if (paid && sameMonth(cycle)) {
+  // Atlanan dönem "ödendi" görünmez: satır doğrudan sonraki vadeye geçer, toplamlara girmez.
+  const skipped = p.lastSkippedCycleKey != null && p.lastSkippedCycleKey === p.lastPaidCycleKey;
+  if (paid && sameMonth(cycle) && !skipped) {
     return { p, date: cycle, status: 'paid', days: daysTo(cycle), thisMonth: true, installment: inst(cycle) };
   }
   const next = nextDueDateOf(p, today);

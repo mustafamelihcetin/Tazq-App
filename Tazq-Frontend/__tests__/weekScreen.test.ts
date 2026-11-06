@@ -98,7 +98,8 @@ describe('Hafta ekranı kararları (kullanıcı: "karmaşa, minimalist değil")'
     expect(read('features/habits/components/HabitBubble.tsx')).toContain('<HabitLiquid');
     expect(read('features/week/WeekHabits.tsx')).toContain('<HabitLiquid');
     // Mod satırı gizlenmez: çalışırken gizlendiğinde Android'de ana sayfa boşalıyordu.
-    expect(read('features/modes/components/ModeTodayCard.tsx')).not.toContain('hasRoute');
+    // Rota varken de mod sayfaları destede kalır (bkz. homeTopLine testi); yalnız ilk sayfa "Sıradaki" olur.
+    expect(read('features/modes/components/ModeTodayCard.tsx')).toContain('...modePages] : modePages');
   });
   it('gün listesi plan işlerini de sayar', () => {
     expect(COCKPIT).toContain('tasksOnDay(');

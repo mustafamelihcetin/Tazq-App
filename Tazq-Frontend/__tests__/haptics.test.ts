@@ -101,8 +101,10 @@ describe('kullanıcı tercihi', () => {
 
   it('ayarlar ekranında görünür bir anahtar var', () => {
     const st = read(path.join(ROOT, 'app/settings.tsx'));
+    const copy = read(path.join(ROOT, 'shared/constants/settingsCopy.ts'));
     expect(st).toContain('setHapticFeedback');
-    expect(st).toMatch(/'Titreşim' : 'Haptics'/);
+    expect(copy).toContain("'Titreşim'");
+    expect(copy).toContain("'Haptics'");
   });
 });
 

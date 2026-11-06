@@ -123,27 +123,12 @@ export function useSleepHealthSync() {
 
     /*
       Kullanıcının asıl sorusu: hedefe ulaştım mı? Cevap ilk kelimede olmalı.
-      · ulaşıldı  → otomatik işaretlendi, tek dokunuşla geri alınabilir
+      · ulaşıldı  → otomatik işaretlendi
       · ulaşılmadı → yalnız bilgi; işaretlemek isterse tek dokunuş
     */
     if (outcome === 'marked') {
-      useToastStore.getState().show(
-        lang === 'tr' ? `Uyku hedefe ulaştı · ${dur}` : `Sleep goal reached · ${dur}`,
-        'success',
-        {
-          label: lang === 'tr' ? 'Geri al' : 'Undo',
-          // Geri alma da HEPSİNİ kapsar: tek bildirim gösterdiysek, tek dokunuş da
-          // gösterdiğimiz şeyin tamamını geri almalı.
-          onAction: () => {
-            for (const id of habitIds) {
-              const cur = useHabitStore.getState().habits.find(h => h.id === id);
-              if (cur && (cur.completedDates ?? []).includes(todayKey)) useHabitStore.getState().toggleDate(id, todayKey);
-            }
-          },
-        },
-        'top',
-        1
-      );
+      // Geri al yok: ölçülen uyku, yanlış dokunuş değil. Yine de istenirse alışkanlığa dokunmak işareti kaldırır.
+      useToastStore.getState().show(lang === 'tr' ? `Uyku hedefe ulaştı · ${dur}` : `Sleep goal reached · ${dur}`, 'success', undefined, 'top', 1);
       return;
     }
 

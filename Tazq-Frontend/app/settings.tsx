@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { settingsText } from '@/shared/constants/settingsCopy';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated, TouchableWithoutFeedback } from 'react-native';
@@ -11,7 +12,7 @@ import { DeviceOnlyNote } from '@/shared/components/DeviceOnlyNote';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, Download, ChevronRight, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ArrowLeft, Vibrate, Footprints, UserPlus, MailCheck, Sparkles, CalendarRange, SunMoon, Leaf, ShieldCheck } from 'lucide-react-native';
+import { Bell, Moon, Languages, LogOut, Download, Upload, ChevronRight, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ArrowLeft, Vibrate, Footprints, UserPlus, MailCheck, Sparkles, CalendarRange, SunMoon, Leaf, ShieldCheck } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { AuthService, FocusService } from '@/shared/services/api';
 import { SleepHealth } from '@/shared/services/sleepHealth';
@@ -52,6 +53,7 @@ import { SplashAdminCard } from '@/features/admin/components/SplashAdminCard';
 import { AccentPicker } from '@/features/user/components/AccentPicker';
 import { goHome } from '@/shared/utils/authNavigation';
 import { startDataExport } from '@/shared/utils/startDataExport';
+import { startBackupRestore } from '@/features/user/utils/applyRestore';
 
 /**
  * Ayarlar sayfası — profil'den AYRILDI. İçerik profile.tsx'ten BYTE-BYTE çıkarıldı;
@@ -88,12 +90,12 @@ export default function SettingsScreen() {
   // Bilinmeyen anahtar (eski bağlantı, yazım hatası) BOŞ sayfa açıyordu → hepsini göster.
   const show = (cat: string) => !section || !KNOWN.includes(section as string) || section === cat;
   const catTitle =
-    section === 'notify' ? (language === 'tr' ? 'Bildirimler' : 'Notifications')
-    : section === 'system' ? (language === 'tr' ? 'Görünüm & Dil' : 'Appearance & Language')
-    : section === 'health' ? (language === 'tr' ? 'Uyku & Sağlık' : 'Sleep & Health')
-    // Başlık çubuğuna sığan kısa ad (360 dp'de "Hesap, Yasal & …" diye kesiliyordu); profildeki satır tam adı taşır.
-    : section === 'legal' ? (language === 'tr' ? 'Hesap & Destek' : 'Account & Support')
-    : (language === 'tr' ? 'Ayarlar' : 'Settings');
+    section === 'notify' ? (settingsText(language).notifications)
+    : section === 'system' ? (settingsText(language).appearanceLanguage)
+    : section === 'health' ? (settingsText(language).sleepHealth)
+    // Profildeki satırla aynı ad: başlık çubuğuna sığar (360 dp'de uzun ad kesiliyordu), ayrıntıyı satırın alt yazısı söyler.
+    : section === 'legal' ? (settingsText(language).accountSupport)
+    : (settingsText(language).settings);
   const { show: showToast } = useToastStore();
   const insets = useSafeAreaInsets();
   /* Tablette içerik 600pt'lik şeride sıkışmasın — üç kademeli genişlik. */
@@ -118,6 +120,7 @@ export default function SettingsScreen() {
   const kbHeight = useKeyboardHeight();
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   const [pwModalVisible, setPwModalVisible] = useState(false);
   const [curPw, setCurPw] = useState('');
   const [newPw, setNewPw] = useState('');
@@ -254,7 +257,7 @@ export default function SettingsScreen() {
       if (granted) {
         await AsyncStorage.setItem('tazq_calendar_sync_enabled', 'true');
         setCalendarSync(true);
-        showToast(language === 'tr' ? 'Takvim senkronizasyonu aktif! Görevler aktarılıyor...' : 'Calendar sync active! Exporting tasks...', 'info');
+        showToast(settingsText(language).calendarSyncActiveExportingTasks, 'info');
         
         const result = await bulkExportTasksToCalendar(tasks);
         if (result.success) {
@@ -275,7 +278,7 @@ export default function SettingsScreen() {
           }
         } else {
           showToast(
-            language === 'tr' ? 'Takvim senkronizasyonu başlatılamadı.' : 'Could not initialize calendar sync.',
+            settingsText(language).couldNotInitializeCalendarSync,
             'error'
           );
           await AsyncStorage.setItem('tazq_calendar_sync_enabled', 'false');
@@ -283,7 +286,7 @@ export default function SettingsScreen() {
         }
       } else {
         Alert.alert(
-          language === 'tr' ? 'Takvim İzni Gerekli' : 'Calendar Permission Required',
+          settingsText(language).calendarPermissionRequired,
           language === 'tr'
             ? 'Lütfen uygulama ayarlarından takvim iznini etkinleştirin.'
             : 'Please enable calendar permission in your device settings.',
@@ -296,7 +299,7 @@ export default function SettingsScreen() {
     } else {
       await AsyncStorage.setItem('tazq_calendar_sync_enabled', 'false');
       setCalendarSync(false);
-      showToast(language === 'tr' ? 'Takvim senkronizasyonu kapatıldı.' : 'Calendar sync disabled.', 'info');
+      showToast(settingsText(language).calendarSyncDisabled, 'info');
     }
   };
 
@@ -325,20 +328,20 @@ export default function SettingsScreen() {
   const performChangePassword = async () => {
     if (changingPw) return;
     setPwError(null);
-    if (!curPw) { setPwError(language === 'tr' ? 'Mevcut şifreni gir.' : 'Enter your current password.'); return; }
-    if (!(newPw.length >= 8 && /[A-Za-zÇĞİÖŞÜçğıöşü]/.test(newPw) && /[0-9]/.test(newPw))) { setPwError(language === 'tr' ? 'Şifre en az 8 karakter olmalı ve en az bir harf ile bir rakam içermelidir.' : 'Password must be at least 8 characters and include a letter and a number.'); return; }
-    if (newPw !== confPw) { setPwError(language === 'tr' ? 'Yeni şifreler eşleşmiyor.' : 'New passwords do not match.'); return; }
+    if (!curPw) { setPwError(settingsText(language).enterYourCurrentPassword); return; }
+    if (!(newPw.length >= 8 && /[A-Za-zÇĞİÖŞÜçğıöşü]/.test(newPw) && /[0-9]/.test(newPw))) { setPwError(settingsText(language).passwordMustBeAtLeast8); return; }
+    if (newPw !== confPw) { setPwError(settingsText(language).newPasswordsDoNotMatch); return; }
     setChangingPw(true);
     try {
       await AuthService.changePassword(curPw, newPw);
       haptic.success();
       Keyboard.dismiss();
       setPwModalVisible(false);
-      showToast(language === 'tr' ? 'Şifren güncellendi.' : 'Password updated.', 'success');
+      showToast(settingsText(language).passwordUpdated, 'success');
     } catch (err: unknown) {
       haptic.error();
       const msg = httpDataOf<{ message?: string }>(err).message;
-      setPwError(msg || (language === 'tr' ? 'Şifre değiştirilemedi.' : 'Could not change password.'));
+      setPwError(msg || (settingsText(language).couldNotChangePassword));
     } finally {
       setChangingPw(false);
     }
@@ -363,12 +366,12 @@ export default function SettingsScreen() {
             */}
             {show('notify') && (<>
             {/* ── BİLDİRİMLER ── */}
-            <SectionHeader onLayout={e => markSection('notify', e.nativeEvent.layout.y)} title={language === 'tr' ? 'BİLDİRİMLER' : 'NOTIFICATIONS'} theme={theme} tr={language === 'tr'} />
+            <SectionHeader onLayout={e => markSection('notify', e.nativeEvent.layout.y)} title={settingsText(language).notifications2} theme={theme} tr={language === 'tr'} />
             <SettingsCard theme={theme} isDark={isDark}>
                 <SettingItem
                     icon={<Bell size={ICON.md} color="#FFFFFF" />}
                     label={t.notifications}
-                    sub={language === 'tr' ? 'Sistem izinleri' : 'System permission'}
+                    sub={settingsText(language).systemPermission}
                     bg={A.notify}
                     value={notifEnabled ? t.notificationsEnabled : t.notificationsDisabled}
                     onPress={toggleNotifications}
@@ -378,7 +381,7 @@ export default function SettingsScreen() {
                 <ToggleRow
                     icon={<Sunrise size={ICON.md} color="#FFFFFF" />}
                     bg={A.notify}
-                    title={language === 'tr' ? 'Sabah Özeti' : 'Morning Brief'}
+                    title={settingsText(language).morningBrief}
                     /*
                       SAAT SABİT DEĞİL — kullanıcının verimlilik saatinden geliyor
                       (bkz. notifications.ts → PRODUCTIVITY_HOUR). Etiket 'Her sabah 08:00'
@@ -395,8 +398,8 @@ export default function SettingsScreen() {
                 <ToggleRow
                     icon={<Sunset size={ICON.md} color="#FFFFFF" />}
                     bg={A.notify}
-                    title={language === 'tr' ? 'Akşam Özeti' : 'Evening Brief'}
-                    subtitle={language === 'tr' ? 'Her akşam 21:00 — günlük tamamlanma' : 'Each evening at 21:00 — day completion'}
+                    title={settingsText(language).eveningBrief}
+                    subtitle={settingsText(language).eachEveningAt2100Day}
                     disabled={!notifEnabled}
                     value={eveningBrief}
                     onValueChange={(v: boolean) => { haptic.select(); setEveningBrief(v); if (!v) cancelEveningBrief(); }}
@@ -406,8 +409,8 @@ export default function SettingsScreen() {
                 <ToggleRow
                     icon={<CalendarRange size={ICON.md} color="#FFFFFF" />}
                     bg={A.notify}
-                    title={language === 'tr' ? 'Haftalık Özet' : 'Weekly Summary'}
-                    subtitle={language === 'tr' ? 'Pazar akşamı momentum özeti' : 'Momentum recap on Sunday evening'}
+                    title={settingsText(language).weeklySummary}
+                    subtitle={settingsText(language).momentumRecapOnSundayEvening}
                     disabled={!notifEnabled}
                     value={weeklyNotification}
                     onValueChange={(v: boolean) => { haptic.select(); setWeeklyNotification(v); if (!v) cancelWeeklySummary(); }}
@@ -417,8 +420,8 @@ export default function SettingsScreen() {
                 <ToggleRow
                     icon={<CalendarDays size={ICON.md} color="#FFFFFF" />}
                     bg={A.notify}
-                    title={language === 'tr' ? 'Takvim Senkronizasyonu' : 'Calendar Sync'}
-                    subtitle={language === 'tr' ? 'Görevleri sistem takvimine kaydeder' : 'Syncs tasks to system calendar'}
+                    title={settingsText(language).calendarSync}
+                    subtitle={settingsText(language).syncsTasksToSystemCalendar}
                     value={calendarSync}
                     onValueChange={toggleCalendarSync}
                     theme={theme} isDark={isDark}
@@ -436,7 +439,7 @@ export default function SettingsScreen() {
                 <ToggleRow
                     icon={<EyeOff size={ICON.md} color="#FFFFFF" />}
                     bg={A.notify}
-                    title={language === 'tr' ? 'Bildirimde içeriği gizle' : 'Hide content in notifications'}
+                    title={settingsText(language).hideContentInNotifications}
                     subtitle={language === 'tr'
                       ? 'Kilit ekranında görev adı yerine genel bir metin görünür'
                       : 'Shows a generic message instead of the task name'}
@@ -451,7 +454,7 @@ export default function SettingsScreen() {
             {/* ── GÖRÜNÜM & DİL (2026-10-31 düzeni): GÖRÜNÜM = ekran nasıl görünür (tema, renk, dil);
                  DENEYİM = uygulama nasıl davranır (ses, titreşim, sade mod). Bildirim gizliliği
                  Bildirimler'e, odak puanı/seri kalkanı (ayar değil, ödül) Profil'e taşındı. ── */}
-            <SectionHeader onLayout={e => markSection('system', e.nativeEvent.layout.y)} title={language === 'tr' ? 'GÖRÜNÜM' : 'APPEARANCE'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
+            <SectionHeader onLayout={e => markSection('system', e.nativeEvent.layout.y)} title={settingsText(language).appearance} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
             <SettingsCard theme={theme} isDark={isDark}>
                 <ChoiceRow
                     icon={<SunMoon size={ICON.md} color="#FFFFFF" />}
@@ -481,13 +484,13 @@ export default function SettingsScreen() {
             </SettingsCard>
 
             {/* ── DENEYİM ── */}
-            <SectionHeader title={language === 'tr' ? 'DENEYİM' : 'EXPERIENCE'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
+            <SectionHeader title={settingsText(language).experience} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
             <SettingsCard theme={theme} isDark={isDark}>
                 <ToggleRow
                     icon={<Volume2 size={ICON.md} color="#FFFFFF" />}
                     bg={A.core}
-                    title={language === 'tr' ? 'Ses Efektleri' : 'Sound Effects'}
-                    subtitle={language === 'tr' ? 'Görev & timer tamamlama sesleri' : 'Task & timer completion sounds'}
+                    title={settingsText(language).soundEffects}
+                    subtitle={settingsText(language).taskTimerCompletionSounds}
                     value={soundEffects}
                     onValueChange={(v: boolean) => { haptic.select(); setSoundEffects(v); }}
                     theme={theme} isDark={isDark}
@@ -499,8 +502,8 @@ export default function SettingsScreen() {
                 <ToggleRow
                     icon={<Vibrate size={ICON.md} color="#FFFFFF" />}
                     bg={A.core}
-                    title={language === 'tr' ? 'Titreşim' : 'Haptics'}
-                    subtitle={language === 'tr' ? 'Dokunma ve işlem geri bildirimleri' : 'Tap and action feedback'}
+                    title={settingsText(language).haptics}
+                    subtitle={settingsText(language).tapAndActionFeedback}
                     value={hapticFeedback}
                     onValueChange={(v: boolean) => { setHapticFeedback(v); if (v) haptic.select(); }}
                     theme={theme} isDark={isDark}
@@ -509,11 +512,11 @@ export default function SettingsScreen() {
                 <ToggleRow
                     icon={<Leaf size={ICON.md} color="#FFFFFF" />}
                     bg={A.core}
-                    title={language === 'tr' ? 'Sade Mod' : 'Lite Mode'}
+                    title={settingsText(language).liteMode}
                     /* Sekme seti de daralıyor: Modlar VE Haftalık gizleniyor (bkz. BottomNavBar
                        → LITE_TAB_IDS). Etiket yalnız 'modlar' diyordu; Haftalık Merkez'in
                        kaybolması sürpriz oluyordu. */
-                    subtitle={language === 'tr' ? 'İvme skorunu, kutlamaları, Hedefler ve Hafta sekmelerini gizler' : 'Hides momentum, celebrations, Goals & Week tabs'}
+                    subtitle={settingsText(language).hidesMomentumCelebrationsGoalsWeekTabs}
                     value={uiMode === 'lite'}
                     onValueChange={(v: boolean) => { haptic.select(); setUiMode(v ? 'lite' : 'pro'); track('ui_mode_changed', { mode: v ? 'lite' : 'pro' }); }}
                     theme={theme} isDark={isDark}
@@ -525,13 +528,13 @@ export default function SettingsScreen() {
             {/* ── UYKU (Apple Sağlık) — yalnız desteklenen cihazda ── */}
             {sleepSupported && (
               <>
-                <SectionHeader onLayout={e => markSection('health', e.nativeEvent.layout.y)} title={language === 'tr' ? 'SAĞLIK' : 'HEALTH'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
+                <SectionHeader onLayout={e => markSection('health', e.nativeEvent.layout.y)} title={settingsText(language).health} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
                 <SettingsCard theme={theme} isDark={isDark}>
                     <ToggleRow
                         icon={<Moon size={ICON.md} color="#FFFFFF" />}
                         bg={A.health}
                         title={language === 'tr' ? `${healthSourceName('tr')} ile Uyku` : `Sleep via ${healthSourceName('en')}`}
-                        subtitle={language === 'tr' ? 'Uyku alışkanlığın her sabah otomatik işaretlenir' : 'Your sleep habit is auto-marked each morning'}
+                        subtitle={settingsText(language).yourSleepHabitIsAutoMarked}
                         value={sleepHealthOptIn === 'yes'}
                         onValueChange={handleSleepToggle}
                         theme={theme} isDark={isDark}
@@ -543,10 +546,10 @@ export default function SettingsScreen() {
                         <RowDivider theme={theme} />
                         <SettingItem
                             icon={<Target size={ICON.md} color="#FFFFFF" />}
-                            label={language === 'tr' ? 'Uyku Hedefi' : 'Sleep Goal'}
-                            sub={language === 'tr' ? 'Hedefi tuttuğunda kutlanır' : 'Celebrated when you hit it'}
+                            label={settingsText(language).sleepGoal}
+                            sub={settingsText(language).celebratedWhenYouHitIt}
                             bg={A.health}
-                            value={`${sleepGoalHours}${language === 'tr' ? ' saat' : 'h'}`}
+                            value={`${sleepGoalHours}${settingsText(language).h}`}
                             onPress={cycleSleepGoal}
                             theme={theme}
                         />
@@ -566,8 +569,8 @@ export default function SettingsScreen() {
                     <ToggleRow
                         icon={<Footprints size={ICON.md} color="#FFFFFF" />}
                         bg={A.health}
-                        title={language === 'tr' ? 'Hareket ve Antrenman' : 'Activity & Workouts'}
-                        subtitle={language === 'tr' ? 'Yürüyüş, koşu ve antrenman görevlerin otomatik işaretlenir' : 'Walking, running and training tasks auto-complete'}
+                        title={settingsText(language).activityWorkouts}
+                        subtitle={settingsText(language).walkingRunningAndTrainingTasksAuto}
                         value={activityHealthOptIn === 'yes'}
                         onValueChange={handleActivityToggle}
                         theme={theme} isDark={isDark}
@@ -590,12 +593,12 @@ export default function SettingsScreen() {
             */}
             {uiMode === 'lite' && (
               <>
-              <SectionHeader title={language === 'tr' ? 'MERKEZ' : 'HUB'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
+              <SectionHeader title={settingsText(language).hub} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
               <SettingsCard theme={theme} isDark={isDark}>
                   <SettingItem
                       icon={<CalendarDays size={ICON.md} color="#FFFFFF" />}
-                      label={language === 'tr' ? 'Bu Hafta' : 'This Week'}
-                      sub={language === 'tr' ? 'Momentum, seri ve haftalık bakış' : 'Momentum, streak & weekly view'}
+                      label={settingsText(language).thisWeek}
+                      sub={settingsText(language).momentumStreakWeeklyView}
                       bg={A.core}
                       onPress={() => router.push('/cockpit')}
                       theme={theme}
@@ -607,11 +610,11 @@ export default function SettingsScreen() {
             </>)}
             {show('legal') && (<>
             {/* ── YASAL & GİZLİLİK ── */}
-            <SectionHeader onLayout={e => markSection('legal', e.nativeEvent.layout.y)} title={t.legalAndPrivacy || (language === 'tr' ? 'YASAL & GİZLİLİK' : 'LEGAL & PRIVACY')} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
+            <SectionHeader onLayout={e => markSection('legal', e.nativeEvent.layout.y)} title={t.legalAndPrivacy || (settingsText(language).legalPrivacy)} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
             <SettingsCard theme={theme} isDark={isDark}>
                 <SettingItem
                     icon={<FileText size={ICON.md} color="#FFFFFF" />}
-                    label={t.termsOfService || (language === 'tr' ? 'Kullanım Koşulları' : 'Terms of Service')}
+                    label={t.termsOfService || (settingsText(language).termsOfService)}
                     bg={A.legal}
                     onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })}
                     theme={theme}
@@ -619,7 +622,7 @@ export default function SettingsScreen() {
                 <RowDivider theme={theme} />
                 <SettingItem
                     icon={<ShieldCheck size={ICON.md} color="#FFFFFF" />}
-                    label={t.privacyPolicy || (language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy')}
+                    label={t.privacyPolicy || (settingsText(language).privacyPolicy)}
                     bg={A.legal}
                     onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacy' } })}
                     theme={theme}
@@ -627,8 +630,8 @@ export default function SettingsScreen() {
                 <RowDivider theme={theme} />
                 <SettingItem
                     icon={<MessageSquare size={ICON.md} color="#FFFFFF" />}
-                    label={(t as any).support?.title || (language === 'tr' ? 'Destek & İletişim' : 'Support & Contact')}
-                    sub={(t as any).support?.sub || (language === 'tr' ? 'Soru ve önerilerini ilet' : 'Send questions & feedback')}
+                    label={(t as any).support?.title || (settingsText(language).supportContact)}
+                    sub={(t as any).support?.sub || (settingsText(language).sendQuestionsFeedback)}
                     bg={A.legal}
                     onPress={() => setSupportModalVisible(true)}
                     theme={theme}
@@ -655,7 +658,7 @@ export default function SettingsScreen() {
               >
                 <Shield size={ICON.md} color={A.system} />
                 <Text style={{ color: A.system, fontWeight: '700', fontSize: F.body, flex: 1 }}>
-                  {isAnalystOnly(user?.role) ? (language === 'tr' ? 'Analiz Merkezi' : 'Analytics') : (language === 'tr' ? 'Admin Paneli' : 'Admin Panel')}
+                  {isAnalystOnly(user?.role) ? (settingsText(language).analytics) : (settingsText(language).adminPanel)}
                 </Text>
                 <ChevronRight size={ICON.sm} color={A.system} />
               </Touchable>
@@ -688,7 +691,7 @@ export default function SettingsScreen() {
               VERİ TAŞINABİLİRLİĞİ silmenin üstünde, bilinçli: hesabını silmeye giden
               kullanıcı verisini yanına alabileceğini tam o anda görmeli (KVKK/GDPR).
             */}
-            <SectionHeader title={language === 'tr' ? 'HESAP' : 'ACCOUNT'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
+            <SectionHeader title={settingsText(language).account} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
             <SettingsCard theme={theme} isDark={isDark}>
               {user && (user as any).isEmailVerified === false && (<>
                 <SettingItem
@@ -704,7 +707,7 @@ export default function SettingsScreen() {
               {(user as any)?.hasPassword && (<>
                 <SettingItem
                   icon={<Lock size={ICON.md} color="#FFFFFF" />}
-                  label={language === 'tr' ? 'Şifre Değiştir' : 'Change Password'}
+                  label={settingsText(language).changePassword}
                   bg={A.legal}
                   onPress={openChangePassword}
                   theme={theme}
@@ -713,13 +716,29 @@ export default function SettingsScreen() {
               </>)}
               <SettingItem
                 icon={<Download size={ICON.md} color="#FFFFFF" />}
-                label={language === 'tr' ? 'Verilerimi indir' : 'Download my data'}
-                sub={exporting ? (language === 'tr' ? 'Hazırlanıyor…' : 'Preparing…') : (language === 'tr' ? 'Tüm kayıtlarının bir kopyası' : 'A copy of all your records')}
+                label={settingsText(language).downloadMyData}
+                sub={exporting ? (settingsText(language).preparing) : (settingsText(language).aCopyOfAllYourRecords)}
                 bg={A.legal}
                 right={exporting ? <ActivityIndicator size="small" color={theme.onSurfaceVariant} /> : undefined}
                 onPress={exporting ? undefined : () => {
                   // Biçim seçimi (madde 8): okunabilir özet ya da tam ayrıntılı JSON. Akış ortak (bkz. startDataExport).
                   startDataExport({ copy: t.exportFormat, onBusy: setExporting });
+                }}
+                theme={theme}
+              />
+              <RowDivider theme={theme} />
+              <SettingItem
+                icon={<Upload size={ICON.md} color="#FFFFFF" />}
+                label={settingsText(language).restoreRow}
+                sub={restoring ? settingsText(language).restoreBusy : settingsText(language).restoreRowSub}
+                bg={A.legal}
+                right={restoring ? <ActivityIndicator size="small" color={theme.onSurfaceVariant} /> : undefined}
+                onPress={restoring ? undefined : () => {
+                  void startBackupRestore({
+                    copy: settingsText(language),
+                    onBusy: setRestoring,
+                    toast: (text, failed) => showToast(text, failed ? 'error' : 'success'),
+                  });
                 }}
                 theme={theme}
               />
@@ -755,7 +774,7 @@ export default function SettingsScreen() {
             <SettingsCard theme={theme} isDark={isDark} style={{ marginTop: S.md }}>
               <SettingsActionRow
                 destructive
-                label={isGuest ? t.guest.eraseLocal : (t.deleteAccount || (language === 'tr' ? 'Hesabımı Sil' : 'Delete Account'))}
+                label={isGuest ? t.guest.eraseLocal : (t.deleteAccount || (settingsText(language).deleteAccount))}
                 onPress={isGuest
                   ? () => Alert.alert(t.guest.eraseLocalTitle, t.guest.eraseLocalBody, [
                       { text: t.cancel, style: 'cancel' },
@@ -784,7 +803,7 @@ export default function SettingsScreen() {
       />
       <Modal supportedOrientations={['portrait', 'landscape']} visible={pwModalVisible} transparent animationType="fade" onRequestClose={() => { if (!changingPw) setPwModalVisible(false); }}>
         <View style={{ flex: 1, backgroundColor: SCRIM, justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: S.lg, paddingTop: insets.top + S.lg, paddingBottom: (kbHeight > 0 ? kbHeight : insets.bottom) + S.lg }}>
-          <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => { if (!changingPw) { Keyboard.dismiss(); setPwModalVisible(false); } }} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'} />
+          <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => { if (!changingPw) { Keyboard.dismiss(); setPwModalVisible(false); } }} accessibilityRole="button" accessibilityLabel={settingsText(language).close} />
           <MotiView
             from={{ opacity: 0, scale: 0.96, translateY: 16 }}
             animate={{ opacity: 1, scale: 1, translateY: 0 }}
@@ -794,13 +813,13 @@ export default function SettingsScreen() {
             <GlassSurface radius={R.sheet} />
             <AppIcon Icon={Lock} color={theme.primary} size={52} radius={R.full} iconSize={ICON.lg} />
             <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, textAlign: 'center', letterSpacing: -0.3 }}>
-              {language === 'tr' ? 'Şifre Değiştir' : 'Change Password'}
+              {settingsText(language).changePassword}
             </Text>
 
             {[
-              { val: curPw, set: setCurPw, ph: language === 'tr' ? 'Mevcut şifren' : 'Current password', eye: false },
-              { val: newPw, set: setNewPw, ph: language === 'tr' ? 'Yeni şifre (8+ karakter, harf ve rakam)' : 'New password (8+ chars, letter & number)', eye: true },
-              { val: confPw, set: setConfPw, ph: language === 'tr' ? 'Yeni şifre (tekrar)' : 'Confirm new password', eye: false },
+              { val: curPw, set: setCurPw, ph: settingsText(language).currentPassword, eye: false },
+              { val: newPw, set: setNewPw, ph: settingsText(language).newPassword8CharsLetterNumber, eye: true },
+              { val: confPw, set: setConfPw, ph: settingsText(language).confirmNewPassword, eye: false },
             ].map((f, i) => (
               <View key={i} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: B.medium, borderColor: theme.outline, borderRadius: R.md, paddingHorizontal: S.md, backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
                 <TextInput
@@ -814,7 +833,7 @@ export default function SettingsScreen() {
                   style={{ flex: 1, paddingVertical: S.sm, color: theme.onSurface, fontSize: F.body }}
                 />
                 {f.eye && (
-                  <TouchableOpacity accessibilityRole="button" accessibilityLabel={showPw ? (language === 'tr' ? 'Şifreyi gizle' : 'Hide password') : (language === 'tr' ? 'Şifreyi göster' : 'Show password')} onPress={() => setShowPw((s) => !s)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel={showPw ? (settingsText(language).hidePassword) : (settingsText(language).showPassword)} onPress={() => setShowPw((s) => !s)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     {showPw ? <EyeOff size={ICON.md} color={theme.onSurfaceVariant} /> : <Eye size={ICON.md} color={theme.onSurfaceVariant} />}
                   </TouchableOpacity>
                 )}
@@ -825,10 +844,10 @@ export default function SettingsScreen() {
 
             <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.xxs }}>
               <Touchable onPress={() => { if (!changingPw) { Keyboard.dismiss(); setPwModalVisible(false); } }} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', alignItems: 'center' }}>
-                <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? 'Vazgeç' : 'Cancel'}</Text>
+                <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{settingsText(language).cancel}</Text>
               </Touchable>
               <Touchable onPress={performChangePassword} disabled={changingPw} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', opacity: changingPw ? 0.6 : 1 }}>
-                {changingPw ? <ActivityIndicator size="small" color={theme.onPrimary} /> : <Text style={{ color: theme.onPrimary, fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? 'Kaydet' : 'Save'}</Text>}
+                {changingPw ? <ActivityIndicator size="small" color={theme.onPrimary} /> : <Text style={{ color: theme.onPrimary, fontWeight: '700', fontSize: F.body }}>{settingsText(language).save}</Text>}
               </Touchable>
             </View>
           </MotiView>

@@ -26,6 +26,8 @@ export interface InboxItem {
   title?: string;
   sub?: string;
   tone?: 'error' | 'warning' | 'muted';
+  /** payment: tutar her ay değişiyor; ödemeden önce sorulur. */
+  variable?: boolean;
   /** payment: ödeme kimliği · support: mesaj kimliği · badge: başarım kimliği. */
   ref?: string | number;
 }
@@ -78,7 +80,7 @@ export function buildInbox(i: InboxInput): InboxItem[] {
     if (!v || v.status === 'paid') continue;
     if (v.status !== 'overdue' && v.days > 3) continue;
     const sub = v.status === 'overdue' ? i.copy.paymentOverdue(-v.days) : v.days === 0 ? i.copy.paymentToday : i.copy.paymentIn(v.days);
-    out.push({ id: `pay:${p.id}:${v.date.toISOString().slice(0, 10)}`, kind: 'payment', rank: v.status === 'overdue' ? 1 : 2, title: p.title, sub, tone: v.status === 'overdue' ? 'error' : v.days <= 1 ? 'warning' : 'muted', ref: p.id });
+    out.push({ id: `pay:${p.id}:${v.date.toISOString().slice(0, 10)}`, kind: 'payment', variable: !!p.isVariable, rank: v.status === 'overdue' ? 1 : 2, title: p.title, sub, tone: v.status === 'overdue' ? 'error' : v.days <= 1 ? 'warning' : 'muted', ref: p.id });
   }
 
   for (const m of i.support) {

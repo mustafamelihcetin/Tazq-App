@@ -18,7 +18,7 @@ import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { haptic } from '@/shared/utils/haptics';
 import { usePaymentsStore, type Payment, type PaymentRecurrence } from '@/features/payments/store/usePaymentsStore';
-import { createPaymentAction, updatePaymentAction, deletePaymentAction, markPaymentPaidAction, unmarkPaymentPaidAction, refreshPayments, type CreatePaymentResult } from '@/features/payments/utils/paymentActions';
+import { createPaymentAction, updatePaymentAction, deletePaymentUndoable, markPaidUndoable, skipCycleUndoable, canSkipCycle, unmarkPaymentPaidAction, refreshPayments, type CreatePaymentResult } from '@/features/payments/utils/paymentActions';
 import { nextDueDateOf, activeCycleKeyOf, paymentView, type PaymentView } from '@/features/payments/utils/paymentDates';
 import { PaymentRow } from '@/features/payments/components/PaymentRow';
 import { PaidAmountSheet } from '@/features/payments/components/PaidAmountSheet';
@@ -30,7 +30,6 @@ import { PaymentsMonthCard } from '@/features/payments/components/PaymentsMonthC
 import { PaymentsHistoryCard } from '@/features/payments/components/PaymentsHistoryCard';
 import { totalsByCurrency, formatTotals, formatMoney, approxTotal, withLocalPaid, type FxRates } from '@/features/payments/utils/money';
 import { PaymentService, type PaymentRecordRow } from '@/shared/services/api';
-import { schedulePaymentDueNotif, cancelPaymentDueNotif } from '@/shared/utils/notifications';
 import { formatPlanDate } from '@/features/modes/utils/planTaskOps';
 import { CURRENCIES, currencySymbol, defaultCurrencyFor, type CurrencyCode } from '@/shared/utils/currency';
 import { matchProvider, searchProviders, providerDisplayName, type PaymentProvider } from '@/shared/utils/paymentProviders';
@@ -81,7 +80,7 @@ export default function OdemelerScreen() {
   }, [payments]);
 
   // Ekranın satır modeli (bkz. paymentView): ödenen dönem kendi ayında kalır, gecikmiş
-  // ödeme "Bu ay"ın başına çıkar. Bildirim zamanlayıcı yukarıdaki `rows`u kullanmaya devam eder.
+  // ödeme "Bu ay"ın başına çıkar..
   const views = useMemo(() => {
     const order = { overdue: 0, due: 1, paid: 2 } as const;
     return payments
@@ -165,7 +164,9 @@ export default function OdemelerScreen() {
     haptic.select();
     Alert.alert(p.title, formatMoney(p.amount, p.currency || currency, lang), [
       { text: t.edit, onPress: () => openEdit(p) },
-      { text: t.delete, style: 'destructive', onPress: () => handleDelete(p) },
+      // Ödenmemiş tekrarlı ödemede: Cashew ve Actual'daki "Atla".
+      ...(canSkipCycle(p) && paymentView(p, today)?.status !== 'paid' ? [{ text: t.skipCycle, onPress: () => handleSkip(p) }] : []),
+      { text: t.delete, style: 'destructive' as const, onPress: () => handleDelete(p) },
       { text: t.cancel, style: 'cancel' },
     ]);
   };
@@ -219,57 +220,26 @@ export default function OdemelerScreen() {
 
   const handleMarkPaid = async (payment: Payment, actualAmount?: number) => {
     // Değişken tutar: önce o ayın gerçek tutarı sorulur (alan son tutarla dolu gelir).
-    if (payment.isVariable && actualAmount == null) { haptic.select(); setPaidPrompt(payment); return; }
     haptic.select();
-    const cycleKey = activeCycleKeyOf(payment, today);
-    await markPaymentPaidAction(payment.id, cycleKey, actualAmount);
-    loadHistory();
-    if (payment.id > 0) void cancelPaymentDueNotif(payment.id);
-    showToast(
-      t.markedPaidToast(payment.title),
-      'success',
-      { label: t.undo, onAction: () => { void unmarkPaymentPaidAction(payment.id).then(loadHistory); } },
-    );
+    if (payment.isVariable && actualAmount == null) { setPaidPrompt(payment); return; }
+    const undo = markPaidUndoable(payment.id, activeCycleKeyOf(payment, today), actualAmount, loadHistory);
+    if (!undo) return;
+    showToast(t.markedPaidToast(payment.title), 'success', { label: t.undo, onAction: () => { undo(); } });
   };
 
+  const handleSkip = (payment: Payment) => {
+    const undo = skipCycleUndoable(payment.id, activeCycleKeyOf(payment, today));
+    if (!undo) return;
+    showToast(t.skippedToast(payment.title), 'success', { label: t.undo, onAction: () => { undo(); } });
+  };
+
+  // Onay yerine geri alma: yanlışlıkla silmenin bedeli yok, doğru silme bir adım kısa (Actual'daki `undoable` fikri).
   const handleDelete = (payment: Payment) => {
-    Alert.alert(
-      t.deleteTitle,
-      t.deleteConfirm(payment.title),
-      [
-        { text: t.cancel, style: 'cancel' },
-        { text: t.delete, style: 'destructive', onPress: () => {
-          haptic.commit();
-          if (payment.id > 0) void cancelPaymentDueNotif(payment.id);
-          void deletePaymentAction(payment.id);
-        } },
-      ],
-    );
+    haptic.commit();
+    const undo = deletePaymentUndoable(payment.id);
+    if (!undo) return;
+    showToast(t.deletedToast(payment.title), 'success', { label: t.undo, onAction: () => { undo(); } }, 'bottom');
   };
-
-  // Yeni/düzenlenen ödeme için vade bildirimini kur — sunucuya yazılmış (id>0) kayıtlarda.
-  //
-  // ÖNEMLİ: anahtar SADECE id DEĞİL, id+vade. Eskiden anahtar yalnız id'ydi: bir ödeme
-  // bir KEZ zamanlandıktan sonra Set'e düşüyor ve "ödendi" işaretlenip `due` bir sonraki
-  // aya/yıla ilerlediğinde BİR DAHA ASLA zamanlanmıyordu — ekrandaki "sıradaki vade"
-  // (nextDueDateOf) doğru ilerliyordu ama kullanıcı o yeni dönem için hiç hatırlatma
-  // ALMIYORDU. Anahtara vadeyi de katmak her yeni dönemde yeniden zamanlamayı sağlıyor.
-  const scheduledRef = useRef(new Map<number, number>());
-  useEffect(() => {
-    for (const { p, due } of rows) {
-      if (p.id > 0) {
-        const dueTime = due.getTime();
-        const schedKey = dueTime + reminderDaysOf(p);
-        if (scheduledRef.current.get(p.id) !== schedKey) {
-          scheduledRef.current.set(p.id, schedKey);
-          // Hatırlatma ödeme başına (2026-11-05): -1 kapalı, 0 aynı gün, N gün önce.
-          const days = reminderDaysOf(p);
-          if (days < 0) void cancelPaymentDueNotif(p.id);
-          else void schedulePaymentDueNotif(p.id, p.title, due, language, days, !!p.isVariable);
-        }
-      }
-    }
-  }, [rows, language]);
 
   const lang: 'tr' | 'en' = language === 'en' ? 'en' : 'tr';
   const locale = INTL_LOCALE[language];
@@ -543,6 +513,7 @@ export default function OdemelerScreen() {
                 t={t}
                 language={language}
                 remaining={formatTotals(totalsOf(unpaidList), lang)}
+                remainingAmount={totalsOf(unpaidList).length === 1 ? { value: totalsOf(unpaidList)[0].amount, code: totalsOf(unpaidList)[0].code } : null}
                 paid={formatTotals(totalsOf(paidList), lang)}
                 total={formatTotals(totalsOf(thisMonth), lang)}
                 marks={thisMonth.map(v => ({ day: new Date().getDate() + v.days, state: v.status === 'paid' ? 'paid' as const : v.status === 'overdue' ? 'overdue' as const : 'due' as const }))}

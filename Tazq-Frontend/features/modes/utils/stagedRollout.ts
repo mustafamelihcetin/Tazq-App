@@ -83,7 +83,19 @@ export function canUnlockToday(queue: { items: unknown[]; lastUnlockDay: string 
  * olursa (çevrimdışı) öğe sırada KALIR ve bir sonraki çalışmada yeniden denenir —
  * "açıldı" işareti yalnız başarıda konur.
  */
-export async function releaseStagedPlanItems(): Promise<void> {
+let releasing: Promise<void> | null = null;
+
+/** Tek uçuş: açılış, öne geliş ve yeniden kurulan efekt aynı anda çağırır; ikinci çağrı ilkini bekler, yeniden üretmez. */
+export function releaseStagedPlanItems(): Promise<void> {
+  // GECICI-KANIT
+  const run = releaseOnce();
+  const done = () => { releasing = null; };
+  releasing = run;
+  run.then(done, done);
+  return run;
+}
+
+async function releaseOnce(): Promise<void> {
   const { useStagedPlanStore } = require('@/features/modes/store/useStagedPlanStore');
   const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
   const { useHabitStore, fmtDateKey } = require('@/features/habits/store/useHabitStore');
@@ -92,6 +104,7 @@ export async function releaseStagedPlanItems(): Promise<void> {
   const { TaskService } = require('@/shared/services/api');
   const { translateTag } = require('@/features/tasks/utils/taskTags');
   const { swallow } = require('@/shared/utils/swallow');
+  const { stagedTaskKey } = require('@/shared/utils/planKey');
 
   const today: string = fmtDateKey();
   const yesterday: string = fmtDateKey(new Date(Date.now() - 86400000));
@@ -132,10 +145,21 @@ export async function releaseStagedPlanItems(): Promise<void> {
       } else {
         const t = head.item;
         const title = lang === 'tr' ? t.titleTr : t.titleEn;
+        // Önceki denemede oluşmuş ama yanıtı alınamamışsa yenisi açılmaz, plana bağlanır.
+        const same = (a: string, b: string) => a.trim().toLocaleLowerCase('tr') === b.trim().toLocaleLowerCase('tr');
+        const already = (useTaskStore.getState().tasks as { id: number; title: string; isCompleted?: boolean }[])
+          .find(x => !x.isCompleted && (same(x.title, t.titleTr) || same(x.title, t.titleEn)));
+        if (already) {
+          usePrefsStore.getState().setPlanIds(slot, habitIds, taskIds.includes(already.id) ? taskIds : [...taskIds, already.id]);
+          useStagedPlanStore.getState().commitAt(slot, index, today);
+          continue;
+        }
         const description = JSON.stringify({ tr: t.titleTr, en: t.titleEn, ...(t.descTr && { descTr: t.descTr }), ...(t.descEn && { descEn: t.descEn }) });
         const created = await TaskService.createTask({
           title, description, priority: t.priority, isCompleted: false, subtasks: [],
-          tags: t.tags.map((tag: string) => translateTag(tag, lang)),
+          clientKey: stagedTaskKey(slot, t.titleTr),
+          // Ham yuva etiketi kalır: çevrilince görev plana ait olduğunu kaybediyordu.
+          tags: Array.from(new Set([...t.tags.map((tag: string) => translateTag(tag, lang)), slot, ...t.tags.filter((tag: string) => tag === slot.replace(/\d+$/, ''))])),
           // Vade GERÇEK yerel gün: `today` seri günü (gece 03'e kadar dünü sayar), vade için yanlış.
           dueDate: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(),
         });

@@ -1,3 +1,5 @@
+import { cancelCommit, scheduleCommit } from '@/shared/utils/deferredCommit';
+import { doneToastText, revertLocalCompletion, undoLabel } from '@/features/tasks/utils/taskActions';
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TextInput, Platform, useWindowDimensions, Animated as RNAnimated, AppState, BackHandler } from 'react-native';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
@@ -471,6 +473,26 @@ export default function ActionCenter() {
       );
     };
 
+    /*
+      GERİ AL (2026-11-06): görev hemen biter, sunucu ve tekrarın sonraki örneği süre dolunca.
+      Geri alınırsa ikisi de hiç olmaz; hatırlatıcı da geri kurulur.
+    */
+    let clearedPoints = 0;
+    const offerUndo = (commit: () => void | Promise<unknown>) => {
+      const key = `task:${id}`;
+      const lang = language === 'en' ? 'en' : 'tr';
+      scheduleCommit(key, async () => { spawnNextInstance(task); await commit(); });
+      showToast(doneToastText(task, lang), 'success', {
+        label: undoLabel(lang),
+        onAction: () => {
+          if (!cancelCommit(key)) return;
+          revertLocalCompletion(id);
+          if (clearedPoints) useFocusStore.getState().addFocusPoints(-clearedPoints);
+          rescheduleNotificationOnRejection();
+        },
+      }, 'bottom');
+    };
+
     const proceed = async () => {
       if (isCompleting) {
         const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
@@ -517,10 +539,8 @@ export default function ActionCenter() {
           görünüm tercihidir, veriyi budamaz.
         */
         if (isFirstWin) celebrate({ kind: 'first-win', isLite, tr: language === 'tr' });
-        else if (allTasksDone) celebrate({ kind: 'day-cleared', isLite, tr: language === 'tr' });
-
-
-        spawnNextInstance(task);
+        // İlk başarı damgası geri alınmaz; gün kutlamasının puanı geri alınınca düşer.
+        clearedPoints = !isFirstWin && allTasksDone ? celebrate({ kind: 'day-cleared', isLite, tr: language === 'tr' }) : 0;
 
         recordCompletion(task.id, task.title);
         // İlk-zafer: kullanıcının HAYATTAKİ ilk görev tamamlaması → milestone + (Pro'da)
@@ -564,53 +584,55 @@ export default function ActionCenter() {
             setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
           });
 
-          if (!isOnline) {
-            // Offline: queue the toggle and keep optimistic UI
-            enqueueOffline({ type: 'toggle-task', id, isCompleted: true, completedAt: new Date().toISOString() });
-            showToast(savedLocallyMessage(), 'success');
-            setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
-          } else {
-            try {
-              await TaskService.updateTask(id, {
-                ...task,
-                priority: task.priority,
-                isCompleted: true,
-                /*
-                  GÖREV BİTİNCE ALT GÖREVLERİ DE BİTER.
+          offerUndo(async () => {
+            if (!useNetworkStore.getState().isOnline) {
+              // Offline: queue the toggle and keep optimistic UI
+              enqueueOffline({ type: 'toggle-task', id, isCompleted: true, completedAt: new Date().toISOString() });
+              showToast(savedLocallyMessage(), 'success');
+              setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+            } else {
+              try {
+                await TaskService.updateTask(id, {
+                  ...task,
+                  priority: task.priority,
+                  isCompleted: true,
+                  /*
+                    GÖREV BİTİNCE ALT GÖREVLERİ DE BİTER.
 
-                  Tek dokunuşla tamamlamak DOĞRU — alt görevleri tek tek işaretlemeye
-                  zorlamak, işi bitmiş kullanıcıya angarya çıkarır (Apple Hatırlatıcılar
-                  ve Things de üst öğeyi doğrudan tamamlatır). Alt görevler bir yardımcı,
-                  bir kapı değil.
+                    Tek dokunuşla tamamlamak DOĞRU — alt görevleri tek tek işaretlemeye
+                    zorlamak, işi bitmiş kullanıcıya angarya çıkarır (Apple Hatırlatıcılar
+                    ve Things de üst öğeyi doğrudan tamamlatır). Alt görevler bir yardımcı,
+                    bir kapı değil.
 
-                  Ama alt görevler ESKİ HÂLİNDE bırakılırsa kayıt kendi kendisiyle
-                  çelişir: satırda üstü çizili bir başlık ve yanında "1/4" yazar. Aynı
-                  görev hem bitmiş hem bitmemiş görünür — ve kullanıcı geri aldığında
-                  hangi adımda kaldığını artık bilemez.
+                    Ama alt görevler ESKİ HÂLİNDE bırakılırsa kayıt kendi kendisiyle
+                    çelişir: satırda üstü çizili bir başlık ve yanında "1/4" yazar. Aynı
+                    görev hem bitmiş hem bitmemiş görünür — ve kullanıcı geri aldığında
+                    hangi adımda kaldığını artık bilemez.
 
-                  Bu yüzden tamamlama alt görevlere de iner: tek dokunuş, tutarlı kayıt.
-                */
-                subtasks: (task.subtasks ?? []).map((st: any) => ({ ...st, done: true })),
-              });
-            } catch (error: unknown) {
-              const isNetwork = isNetworkError(error);
-              if (isNetwork) {
-                enqueueOffline({ type: 'toggle-task', id, isCompleted: true, completedAt: new Date().toISOString() });
-                showToast(savedLocallyMessage(), 'success');
-              } else if (httpStatusOf(error) === 404) {
-                useTaskStore.getState().removeTask(id);
-                setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
-                exitAnimMap.current.delete(id);
-                showToast(language === 'tr' ? 'Bu görev gün aşımı nedeniyle kaldırıldı.' : 'This task was removed due to date rollover.', 'info');
-              } else {
-                toggleTaskCompletion(id);
-                setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
-                exitAnimMap.current.delete(id);
-                showToast(t.toastUpdateFailed, 'error');
-                rescheduleNotificationOnRejection();
+                    Bu yüzden tamamlama alt görevlere de iner: tek dokunuş, tutarlı kayıt.
+                  */
+                  subtasks: (task.subtasks ?? []).map((st: any) => ({ ...st, done: true })),
+                });
+              } catch (error: unknown) {
+                const isNetwork = isNetworkError(error);
+                if (isNetwork) {
+                  enqueueOffline({ type: 'toggle-task', id, isCompleted: true, completedAt: new Date().toISOString() });
+                  showToast(savedLocallyMessage(), 'success');
+                } else if (httpStatusOf(error) === 404) {
+                  useTaskStore.getState().removeTask(id);
+                  setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+                  exitAnimMap.current.delete(id);
+                  showToast(language === 'tr' ? 'Bu görev gün aşımı nedeniyle kaldırıldı.' : 'This task was removed due to date rollover.', 'info');
+                } else {
+                  toggleTaskCompletion(id);
+                  setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+                  exitAnimMap.current.delete(id);
+                  showToast(t.toastUpdateFailed, 'error');
+                  rescheduleNotificationOnRejection();
+                }
               }
             }
-          }
+          });
           return;
         }
       }
@@ -620,9 +642,17 @@ export default function ActionCenter() {
       setCompletingIds(prev => new Set([...prev, id]));
       toggleTaskCompletion(id);
 
+      if (isCompleting) {
+        setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+        offerUndo(() => sendToggle(true));
+        return;
+      }
+      await sendToggle(false);
+    };
 
-      if (!isOnline) {
-        enqueueOffline({ type: 'toggle-task', id, isCompleted: isCompleting, completedAt: isCompleting ? new Date().toISOString() : null });
+    const sendToggle = async (completing: boolean) => {
+      if (!useNetworkStore.getState().isOnline) {
+        enqueueOffline({ type: 'toggle-task', id, isCompleted: completing, completedAt: completing ? new Date().toISOString() : null });
         showToast(savedLocallyMessage(), 'success');
         setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
         return;
@@ -632,12 +662,12 @@ export default function ActionCenter() {
         await TaskService.updateTask(id, {
           ...task,
           priority: task.priority,
-          isCompleted: isCompleting
+          isCompleted: completing
         });
       } catch (error: unknown) {
         const isNetwork = isNetworkError(error);
         if (isNetwork) {
-          enqueueOffline({ type: 'toggle-task', id, isCompleted: isCompleting, completedAt: isCompleting ? new Date().toISOString() : null });
+          enqueueOffline({ type: 'toggle-task', id, isCompleted: completing, completedAt: completing ? new Date().toISOString() : null });
           showToast(savedLocallyMessage(), 'success');
         } else if (httpStatusOf(error) === 404) {
           useTaskStore.getState().removeTask(id);
@@ -646,7 +676,7 @@ export default function ActionCenter() {
           toggleTaskCompletion(id);
           showToast(t.toastUpdateFailed, 'error');
           // Yalnız TAMAMLAMA reddedildiyse: geri alma yolu bildirimi hiç iptal etmedi.
-          if (isCompleting) rescheduleNotificationOnRejection();
+          if (completing) rescheduleNotificationOnRejection();
         }
       } finally {
         setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });

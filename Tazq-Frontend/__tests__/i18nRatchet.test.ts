@@ -108,13 +108,13 @@ const BASELINE: Record<string, number> = {
   'app/mod-ozet.tsx': 22,
   'app/modlar.tsx': 66,
   'app/onboarding.tsx': 21,
-  'app/profile.tsx': 46, // +2 (2026-10-19): Ödemeler satırının label/sub metinleri
+  'app/profile.tsx': 6, // 46 → 6 (2026-11-06): sözlüğe taşındı (settingsCopy) · // +2 (2026-10-19): Ödemeler satırının label/sub metinleri
   // promo.tsx LİSTEDEN ÇIKTI (47 → 6 → 0): önce mock ekranların bütün metinleri tek
   // sözlüğe taşındı (COPY, bkz. PromoMock.tsx), sonra tanıtım kabuğunun kendi düğme
   // etiketleri de (UI). Slayt metinleri zaten SlideDef alanlarından geliyor.
   'app/register.tsx': 35,
   'app/report.tsx': 1, // 13 → 1: ekran yeniden yazıldı, metinler COPY sözlüğüne taşındı
-  'app/settings.tsx': 84,
+  'app/settings.tsx': 8, // 84 → 8 (2026-11-06): sözlüğe taşındı (settingsCopy)
   'app/tasks.tsx': 58, // 85 → 58: satır bileşeni TaskListItem'a taşındı (11), ölü tarih/tekrar yardımcıları silindi
   'app/verify-email.tsx': 11,
   'features/dashboard/components/MyDayHabits.tsx': 5,

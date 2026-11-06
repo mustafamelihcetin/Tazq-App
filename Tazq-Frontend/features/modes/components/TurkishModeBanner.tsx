@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { makeClientKey } from '@/shared/utils/planKey';
+import { isNetworkError } from '@/shared/utils/errors';
+import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, Platform, ActivityIndicator, Animated, useWindowDimensions, TextInput } from 'react-native';
 import { CustomAlert as Alert, AlertHost } from '@/shared/components/CustomAlert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -385,23 +388,26 @@ export const TurkishModeBanner: React.FC<Props> = ({
       
       const translatedTags = tagsFor(task).map(tag => translateTag(tag, tr ? 'tr' : 'en'));
 
+      const payload = {
+        title, description, priority: task.priority,
+        isCompleted: false, subtasks: [],
+        // Ham yuva etiketi kalır: çevrilince görev plana ait olduğunu kaybediyordu.
+        tags: Array.from(new Set([...translatedTags, planSlot])),
+        ...(dueDate && { dueDate }),
+      };
+      const keyed = { ...payload, clientKey: makeClientKey(payload) };
+      const planLocal = { titleTr: taskTitleTr, titleEn: taskTitleEn };
       try {
-        const created = await TaskService.createTask({
-          title, description, priority: task.priority,
-          isCompleted: false, tags: translatedTags, subtasks: [],
-          ...(dueDate && { dueDate }),
-        } as any);
-        addTask({ ...created, title, titleTr: taskTitleTr, titleEn: taskTitleEn } as any);
+        const created = await TaskService.createTask(keyed as never);
+        addTask({ ...created, title, ...planLocal } as never);
         addedTaskIds.push(created.id);
-      } catch {
-        const localId = Math.floor(Date.now() + Math.random() * 1000);
-        addTask({
-          id: localId, title, description, priority: task.priority,
-          isCompleted: false, tags: translatedTags, subtasks: [],
-          ...(dueDate && { dueDate }),
-          titleTr: taskTitleTr, titleEn: taskTitleEn,
-        } as any);
-        addedTaskIds.push(localId);
+      } catch (e) {
+        // Yanıt gelmediyse aynı anahtarla kuyruğa: sunucuya ulaştıysa çift oluşmaz. Gerçek ret yerelde hayalet görev bırakmaz.
+        if (!isNetworkError(e)) { swallow('TurkishModeBanner.createTask', e); continue; }
+        const tempId = -Date.now() - addedTaskIds.length;
+        useOfflineQueue.getState().enqueue({ type: 'create-task', tempId, payload: keyed });
+        addTask({ ...keyed, id: tempId, ...planLocal } as never);
+        addedTaskIds.push(tempId);
       }
     }
 

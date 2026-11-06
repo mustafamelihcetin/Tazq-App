@@ -4,6 +4,7 @@ import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { isNetworkError } from '@/shared/utils/errors';
 import { swallow } from '@/shared/utils/swallow';
+import { cancelCommit, scheduleCommit } from '@/shared/utils/deferredCommit';
 import type { Payment } from '@/features/payments/store/usePaymentsStore';
 
 /**
@@ -101,7 +102,28 @@ export async function deletePaymentAction(id: number): Promise<PaymentOpResult> 
   if (!before) return 'skipped';
 
   store.removePayment(id);
+  return sendDelete(id, before);
+}
 
+/**
+ * GERİ ALINABİLİR SİLME (2026-11-06). Ödeme hemen gizlenir, sunucudan süre dolunca silinir. Uygulama bu arada kapanırsa ödeme
+ * sunucuda durur ve bir sonraki eşitlemede geri gelir: veri kaybı yönünde hata yapılmaz. Dönen işlev süre geçtiyse false döner.
+ */
+export function deletePaymentUndoable(id: number): (() => boolean) | null {
+  const store = usePaymentsStore.getState();
+  const before = store.payments.find(p => p.id === id);
+  if (!before) return null;
+  store.removePayment(id);
+  const key = `payment:${id}`;
+  scheduleCommit(key, () => sendDelete(id, before));
+  return () => {
+    if (!cancelCommit(key)) return false;
+    usePaymentsStore.getState().addPayment(before);
+    return true;
+  };
+}
+
+async function sendDelete(id: number, before: Payment): Promise<PaymentOpResult> {
   if (id < 0) return 'ok'; // hiç sunucuya ulaşmamış tempId — silinecek bir sunucu kaydı yok
 
   if (!useNetworkStore.getState().isOnline) {
@@ -133,8 +155,80 @@ export async function markPaymentPaidAction(id: number, cycleKey: string, amount
   if (!before) return 'skipped';
 
   // Değişken tutar: ödenen tutar bir sonraki ayın tahmini olur (sunucu da aynısını yapar).
-  store.updatePayment(id, before.isVariable && amount != null ? { lastPaidCycleKey: cycleKey, amount } : { lastPaidCycleKey: cycleKey });
+  store.updatePayment(id, paidPatch(before, cycleKey, amount));
+  return sendMarkPaid(id, cycleKey, amount, before);
+}
 
+const paidPatch = (before: Payment, cycleKey: string, amount?: number): Partial<Payment> => ({
+  lastPaidCycleKey: cycleKey,
+  lastSkippedCycleKey: null,
+  ...(before.isVariable && amount != null ? { amount } : null),
+});
+
+const restoreCycle = (id: number, before: Payment) => usePaymentsStore.getState().updatePayment(id, {
+  lastPaidCycleKey: before.lastPaidCycleKey,
+  lastSkippedCycleKey: before.lastSkippedCycleKey,
+  amount: before.amount,
+});
+
+/** Dönem işaretini yerelde hemen yapar, sunucuya süre dolunca gönderir. Geri alınca önceki dönem ve tutar aynen döner. */
+function undoableCycle(id: number, patch: (before: Payment) => Partial<Payment>, send: (before: Payment) => Promise<unknown>): (() => boolean) | null {
+  const store = usePaymentsStore.getState();
+  const before = store.payments.find(p => p.id === id);
+  if (!before) return null;
+  store.updatePayment(id, patch(before));
+  const key = `paid:${id}`;
+  scheduleCommit(key, () => send(before));
+  return () => {
+    if (!cancelCommit(key)) return false;
+    restoreCycle(id, before);
+    return true;
+  };
+}
+
+/** Geri alınabilir "ödendi". `onSent`: sunucu yanıt verince (geçmiş tazelensin diye). */
+export function markPaidUndoable(id: number, cycleKey: string, amount?: number, onSent?: () => void): (() => boolean) | null {
+  return undoableCycle(
+    id,
+    before => paidPatch(before, cycleKey, amount),
+    before => sendMarkPaid(id, cycleKey, amount, before).finally(() => onSent?.()),
+  );
+}
+
+/** Taksit ve tek seferlik ödemede dönem atlanmaz: taksit sayacı kayar, tek seferlik zaten silinir. */
+export const canSkipCycle = (p: Payment): boolean => p.recurrence !== 'Once' && !p.installmentCount;
+
+/** Geri alınabilir "bu dönemi atla": geçmişe yazılmaz, tutar tahmini değişmez. */
+export function skipCycleUndoable(id: number, cycleKey: string): (() => boolean) | null {
+  return undoableCycle(
+    id,
+    () => ({ lastPaidCycleKey: cycleKey, lastSkippedCycleKey: cycleKey }),
+    before => sendSkip(id, cycleKey, before),
+  );
+}
+
+async function sendSkip(id: number, cycleKey: string, before: Payment): Promise<PaymentOpResult> {
+  if (id < 0) return 'ok';
+
+  if (!useNetworkStore.getState().isOnline) {
+    useOfflineQueue.getState().enqueue({ type: 'skip-payment', id, cycleKey });
+    return 'queued';
+  }
+
+  try {
+    await PaymentService.skipCycle(id, cycleKey);
+    return 'ok';
+  } catch (err: unknown) {
+    if (isNetworkError(err)) {
+      useOfflineQueue.getState().enqueue({ type: 'skip-payment', id, cycleKey });
+      return 'queued';
+    }
+    restoreCycle(id, before);
+    return 'failed';
+  }
+}
+
+async function sendMarkPaid(id: number, cycleKey: string, amount: number | undefined, before: Payment): Promise<PaymentOpResult> {
   if (id < 0) return 'ok';
 
   if (!useNetworkStore.getState().isOnline) {
@@ -150,7 +244,7 @@ export async function markPaymentPaidAction(id: number, cycleKey: string, amount
       useOfflineQueue.getState().enqueue({ type: 'mark-paid-payment', id, cycleKey, amount });
       return 'queued';
     }
-    usePaymentsStore.getState().updatePayment(id, { lastPaidCycleKey: before.lastPaidCycleKey, amount: before.amount });
+    restoreCycle(id, before);
     return 'failed';
   }
 }

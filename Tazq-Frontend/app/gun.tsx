@@ -16,7 +16,7 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { useActiveTasks, getLocalizedTaskTitle, type Task } from '@/features/tasks';
-import { completeTask, setTaskDue, archiveTask, localDateISO, timeAtHour } from '@/features/tasks/utils/taskActions';
+import { completeWithUndoToast, setTaskDue, archiveTask, localDateISO, timeAtHour } from '@/features/tasks/utils/taskActions';
 import { useFocusStore } from '@/features/focus';
 import { haptic } from '@/shared/utils/haptics';
 import { langOf } from '@/shared/utils/lang';
@@ -228,7 +228,7 @@ export default function GunScreen() {
     ...(menuTask.isCompleted ? [] : [{
       label: d.actionComplete,
       icon: <Check size={ICON.sm} color={theme.success} />,
-      onPress: () => { haptic.success(); completeTask(menuTask.id); },
+      onPress: () => { haptic.success(); completeWithUndoToast(menuTask.id, lang); },
     }]),
     // Anlık eylemde (su iç, tartıl…) odak önerilmez — bkz. focusWorthy.
     ...(isFocusWorthy(menuTask) ? [{
@@ -400,7 +400,7 @@ export default function GunScreen() {
                     style={[styles.row, { backgroundColor: picked ? theme.primaryContainer : 'transparent' }]}
                   >
                     <Touchable
-                      onPress={() => { haptic.success(); completeTask(task.id); }}
+                      onPress={() => { haptic.success(); completeWithUndoToast(task.id, lang); }}
                       hitSlop={touchSlop(RING)}
                       accessibilityRole="checkbox"
                       accessibilityState={{ checked: false }}

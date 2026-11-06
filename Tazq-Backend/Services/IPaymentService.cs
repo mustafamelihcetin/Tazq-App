@@ -10,6 +10,7 @@ namespace Tazq_App.Services
         Task<bool> DeletePaymentAsync(int userId, int paymentId);
         Task<Payment?> MarkPaidAsync(int userId, int paymentId, string cycleKey, decimal? actualAmount = null);
         Task<Payment?> UnmarkPaidAsync(int userId, int paymentId);
+        Task<Payment?> SkipCycleAsync(int userId, int paymentId, string cycleKey);
         Task<List<PaymentRecord>> GetHistoryAsync(int userId, int months);
     }
 }

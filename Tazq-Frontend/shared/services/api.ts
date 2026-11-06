@@ -1,4 +1,5 @@
 import { AppState } from 'react-native';
+import { withPlanKey } from '@/shared/utils/planKey';
 import axios from 'axios';
 import { useAuthStore, isKeychainUnavailable } from '@/features/user/store/useAuthStore';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
@@ -443,6 +444,9 @@ export interface UserStatsResponse {
   lastWeekFocusMinutes?: number;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const creatingTasks = new Map<string, Promise<any>>();
+
 export const TaskService = {
   /*
     TÜM SAYFALAR ÇEKİLİR — tek sayfa yetmiyordu.
@@ -477,9 +481,19 @@ export const TaskService = {
     const response = await api.get(`/api/tasks/${id}`);
     return response.data;
   },
-  createTask: async (payload: CreateTaskPayload) => {
-    const response = await api.post('/api/tasks', payload);
-    return response.data;
+  // Aynı anahtarlı eş zamanlı istek tek istektir: sunucudaki kontrol ikisini birden geçirebilir (kontrol et, sonra yaz).
+  createTask: (payload: CreateTaskPayload) => {
+    const keyed = withPlanKey(payload);
+    const key = keyed.clientKey;
+    const running = key ? creatingTasks.get(key) : undefined;
+    if (running) return running;
+    const request = api.post('/api/tasks', keyed).then((response) => response.data);
+    if (key) {
+      creatingTasks.set(key, request);
+      const done = () => { creatingTasks.delete(key); };
+      request.then(done, done);
+    }
+    return request;
   },
   // `isArchived`: arşivleme normal görev alanlarından biri değil (CreateTaskPayload'da
   // yok, çünkü görev arşivli DOĞMAZ) ama güncellenebilir olmalı. Tip burada açıkça
@@ -612,6 +626,10 @@ export const PaymentService = {
     } catch {
       return null;
     }
+  },
+  skipCycle: async (id: number, cycleKey: string) => {
+    const response = await api.post(`/api/payments/${id}/skip`, { cycleKey });
+    return response.data;
   },
   unmarkPaid: async (id: number) => {
     const response = await api.post(`/api/payments/${id}/unmark-paid`);

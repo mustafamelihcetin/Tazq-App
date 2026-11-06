@@ -127,6 +127,9 @@ export function useOfflineSync() {
           } else if (op.type === 'mark-paid-payment') {
             await PaymentService.markPaid(op.id, op.cycleKey, op.amount);
             paymentOpsProcessed = true;
+          } else if (op.type === 'skip-payment') {
+            await PaymentService.skipCycle(op.id, op.cycleKey);
+            paymentOpsProcessed = true;
           } else if (op.type === 'unmark-paid-payment') {
             await PaymentService.unmarkPaid(op.id);
             paymentOpsProcessed = true;

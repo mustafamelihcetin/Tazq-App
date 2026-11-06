@@ -28,6 +28,8 @@ interface Props {
   flush?: boolean;
 }
 
+const SWIPE_OPEN_AT = 40;
+
 // Worklet-safe: called via runOnJS so haptics fires from JS thread
 function triggerLightHaptic() {
   haptic.surface();
@@ -71,6 +73,7 @@ export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint, flus
   }, [showPeekHint]);
 
   // Pan gesture runs entirely on UI thread — no JS thread involvement during drag
+  const armed = useSharedValue(false);
   const panGesture = Gesture.Pan()
     .enabled(!disabled)
     // Activate after 10px horizontal; fail (→ scroll wins) if vertical moves first
@@ -78,23 +81,29 @@ export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint, flus
     .failOffsetY([-8, 8])
     .onBegin(() => {
       contextX.value = translateX.value;
+      armed.value = translateX.value < -SWIPE_OPEN_AT;
     })
     .onUpdate((e) => {
       // Only allow leftward swipe
       const newX = Math.min(0, contextX.value + e.translationX);
       translateX.value = newX;
       deleteOpacity.value = Math.min(Math.abs(newX) / 80, 1);
+      // Eşikte tek titreşim: bırakınca ne olacağı parmak daha kalkmadan hissedilir (Bluesky GestureActionView).
+      const past = newX < -SWIPE_OPEN_AT;
+      if (past && !armed.value) runOnJS(triggerLightHaptic)();
+      armed.value = past;
     })
     .onEnd((e) => {
       const total = contextX.value + e.translationX;
       // velocityX in gesture handler is px/s; -500 px/s ≈ the original -0.5 px/ms threshold
       const isFastSwipe = e.velocityX < -500;
-      const isOpened = total < -40;
+      const isOpened = total < -SWIPE_OPEN_AT;
 
       if (isFastSwipe || isOpened) {
         translateX.value = withSpring(-80, { ...RSPRING.default, velocity: e.velocityX });
         deleteOpacity.value = withTiming(1);
-        runOnJS(triggerLightHaptic)();
+        // Eşik geçilmeden hızlı fırlatıldıysa titreşim burada.
+        if (!armed.value) runOnJS(triggerLightHaptic)();
         runOnJS(setIsOpen)(true);
       } else {
         translateX.value = withSpring(0, { ...RSPRING.snappy, velocity: e.velocityX });

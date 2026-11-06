@@ -54,7 +54,8 @@ import { useBudgetStore, type BudgetType } from '@/shared/store/useBudgetStore';
 import { useQuitStore, type QuitType } from '@/shared/store/useQuitStore';
 import { buildTasarrufPlan, buildBirakmaPlan } from '@/shared/utils/lifeModePlans';
 import { isWeightEntryTask, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask, isPhantomKiloPlan } from '@/features/modes/utils/weightCheckin';
-import { MODE_TASK_TAGS, PLAN_TAGS, retireModeTasksByTag } from '@/features/modes/utils/planTaskOps';
+import { MODE_TASK_TAGS, PLAN_TAGS, duplicatePlanTasks, planDedupeKey, retireModeTasksByTag } from '@/features/modes/utils/planTaskOps';
+import { makeClientKey } from '@/shared/utils/planKey';
 import { getExtraPool, ensureExtraPool } from '@/features/modes/utils/planPoolSync';
 import { parseDateKey, calendarDayOf } from '@/shared/utils/dateKey';
 import { isSlotPausedNow, markPausedHabitsSkipped } from '@/features/modes/utils/pauseOps';
@@ -122,17 +123,6 @@ function isPlanGeneratedTask(task: { tags?: string[] | null }): boolean {
   return (task.tags ?? []).some(tag => PLAN_TAGS.includes(tag));
 }
 
-// Deterministik idempotency anahtarı: aynı (etiketler|gün|başlık) için aynı sonucu
-// verir → backend çift kaydı reddedebilir. FNV-1a tabanlı kısa hash (<=64 char).
-function fnv1a(str: string): string {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return (h >>> 0).toString(16).padStart(8, '0');
-}
-
 // Adaptif zorluk sinyali: son tamamlama davranışından (plan görevleri).
 // activeDays7 = son 7 günde en az 1 plan görevi tamamlanan gün sayısı.
 // total14 = son 14 gündeki plan tamamlaması sayısı (yeterli geçmiş eşiği).
@@ -152,18 +142,7 @@ function computeAdherenceSignal(): { activeDays7: number; total14: number } {
   return { activeDays7: days.size, total14 };
 }
 
-export function makeClientKey(payload: { title: string; dueDate?: string | null; tags?: string[] | null }): string {
-  const tags = (payload.tags ?? []).slice().sort().join(',');
-  const day = dateKey(payload.dueDate);
-  const basis = `${tags}|${day}|${payload.title.trim().toLocaleLowerCase('tr')}`;
-  // Çift FNV (ileri + ters) ile çakışma riskini düşür; okunur bir önek ekle.
-  return `${day}:${fnv1a(basis)}${fnv1a(basis.split('').reverse().join(''))}`.slice(0, 64);
-}
-
-function planDedupeKey(task: { title: string; tags?: string[] | null }): string {
-  const tags = (task.tags ?? []).filter(tag => PLAN_TAGS.includes(tag)).sort().join(',');
-  return `${task.title.trim().toLocaleLowerCase('tr')}|${tags}`;
-}
+export { makeClientKey };
 
 function inferBudgetType(name?: string | null): BudgetType {
   if (!name) return '';
@@ -759,34 +738,14 @@ export function usePlanAdaptations() {
     const activeSeasonal = activePrefs.seasonal;
 
     // ── DEDUPE PLAN TASKS CREATED DURING OFFLINE / BLOCKED API PERIODS ─────
-    // Sort tasks: completed ones first, then positive IDs (real ones from server)
-    const sortedForDedupe = [...existing].sort((a, b) => {
-      if (a.isCompleted !== b.isCompleted) return a.isCompleted ? -1 : 1;
-      return b.id - a.id;
-    });
+    const duplicates = duplicatePlanTasks(existing);
 
-    const seenPlanTasks = new Set<string>();
-    const duplicatePlanTasks: typeof existing = [];
-
-    sortedForDedupe.forEach(task => {
-      if (!isPlanGeneratedTask(task)) return;
-      const dedupeKey = planDedupeKey(task);
-      const dateKeyStr = task.dueDate ? new Date(task.dueDate).toDateString() : '';
-      const key = `${dedupeKey}|${dateKeyStr}`;
-
-      if (seenPlanTasks.has(key)) {
-        duplicatePlanTasks.push(task);
-      } else {
-        seenPlanTasks.add(key);
-      }
-    });
-
-    duplicatePlanTasks.forEach(task => {
+    duplicates.forEach(task => {
       retirePlanTask(task.id, task.tags?.find(tag => PLAN_TAGS.includes(tag)));
     });
 
-    if (duplicatePlanTasks.length > 0) {
-      const removedIds = new Set(duplicatePlanTasks.map(task => task.id));
+    if (duplicates.length > 0) {
+      const removedIds = new Set(duplicates.map(task => task.id));
       const updatedPrefs = usePrefsStore.getState();
       const slots = [
         { mode: 'exam' as const, taskIds: updatedPrefs.examPlanTaskIds, habitIds: updatedPrefs.examPlanHabitIds },
