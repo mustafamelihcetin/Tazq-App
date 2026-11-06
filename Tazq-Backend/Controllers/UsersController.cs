@@ -176,7 +176,7 @@ namespace Tazq_App.Controllers
                 ProfilePicture = user.ProfilePicture ?? "/default-profile.png",
                 user.Motto,
                 user.AvatarBorderColor,
-                user.Preferences,
+                Preferences = SensitivePrefs.Unseal(user.Preferences, HttpContext.RequestServices.GetRequiredService<ICryptoService>(), user.Id),
                 user.IsEmailVerified,
                 HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
                 NotificationPreferences = user.NotificationPreferences

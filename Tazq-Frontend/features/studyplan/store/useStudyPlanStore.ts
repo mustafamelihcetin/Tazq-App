@@ -4,7 +4,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { swallow } from '@/shared/utils/swallow';
 import {
-  addExtraBlock, confirmMissed, Course, dismissNotice, emptyCore, invalidate, mergeCloud, reconcileTasks, setBlockDone, skipBlock, SlotInput, StudyCloud, StudyCore, syncCore, toCloud, unitsOfPlan,
+  addCustomSubject, addCustomTopic, removeCustomTopic, setTopicWeight, type TopicWeight, addExtraBlock, confirmMissed, Course, dismissNotice, emptyCore, invalidate, mergeCloud, reconcileTasks, setBlockDone, skipBlock, SlotInput, StudyCloud, StudyCore, syncCore, toCloud, unitsOfPlan,
 } from '../utils/planCore';
 import { dayNum, emptyUnitState, ensureTopics, extendTopic, initTopic, markTopicDone, reopenTopic, StartLevel, UnitState } from '../utils/scheduler';
 import { applyMock, MockRecord } from '../utils/mockScore';
@@ -24,6 +24,10 @@ interface StudyPlanState extends StudyCore {
   setClosed: (closed: string[], today: string) => void;
   setLevel: (key: string, subject: string, level: StartLevel, today: string) => void;
   setExcluded: (key: string, id: string, excluded: boolean, today: string) => void;
+  addTopic: (key: string, subject: string, name: string, weight: TopicWeight, today: string) => boolean;
+  addSubject: (key: string, name: string, today: string) => boolean;
+  removeTopic: (key: string, id: string, today: string) => void;
+  setWeight: (key: string, id: string, weight: TopicWeight, today: string) => void;
   setCourses: (key: string, courses: Course[], today: string) => void;
   topicDone: (key: string, unitId: string, topicId: string, rating: 'kolay' | 'orta' | 'zor', today: string) => void;
   topicMore: (key: string, unitId: string, topicId: string, today: string) => void;
@@ -101,6 +105,22 @@ export const useStudyPlanStore = create<StudyPlanState>()(
           return { ...p, states, levels: { ...p.levels, [subject]: level } };
         }, today),
         setExcluded: (key, id, excluded, today) => updatePlan(key, p => ({ ...p, excluded: excluded ? [...p.excluded.filter(x => x !== id), id] : p.excluded.filter(x => x !== id) }), today),
+        addTopic: (key, subject, name, weight, today) => {
+          const p = get().plans[key];
+          const next = p && addCustomTopic(p, subject, name, weight);
+          if (!next) return false;
+          updatePlan(key, () => next, today);
+          return true;
+        },
+        addSubject: (key, name, today) => {
+          const p = get().plans[key];
+          const next = p && addCustomSubject(p, name);
+          if (!next) return false;
+          updatePlan(key, () => next, today);
+          return true;
+        },
+        removeTopic: (key, id, today) => updatePlan(key, p => removeCustomTopic(p, id), today),
+        setWeight: (key, id, weight, today) => updatePlan(key, p => setTopicWeight(p, id, weight), today),
         setCourses: (key, courses, today) => updatePlan(key, p => ({ ...p, courses }), today),
         topicDone: (key, unitId, topicId, rating, today) => updateUnit(key, unitId, (u, d) => markTopicDone(u, topicId, rating, d, Date.now()), today),
         topicMore: (key, unitId, topicId, today) => updateUnit(key, unitId, u => extendTopic(u, topicId, Date.now()), today),

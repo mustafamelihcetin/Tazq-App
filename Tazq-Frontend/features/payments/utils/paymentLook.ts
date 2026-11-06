@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { Home, Building2, Landmark, CreditCard, ShieldCheck, GraduationCap, Zap, Droplet, Flame, Wifi, Smartphone, Tv, Repeat, Car, Fuel, Dumbbell, HeartPulse, Baby, PawPrint, ShoppingBag, Receipt, Plane, Gift, PiggyBank, Wallet } from 'lucide-react-native';
+import { Home, Building2, Landmark, CreditCard, ShieldCheck, GraduationCap, Zap, Droplet, Flame, Wifi, Smartphone, Tv, Repeat, Car, Fuel, Dumbbell, HeartPulse, Baby, PawPrint, ShoppingBag, Receipt, Plane, Gift, Coins, Wallet } from 'lucide-react-native';
 import { PaymentPalette } from '@/shared/constants/Colors';
 import { matchProvider } from '@/shared/utils/paymentProviders';
 import type { Payment } from '@/features/payments/store/usePaymentsStore';
@@ -12,7 +12,7 @@ export const PAYMENT_ICONS: Record<string, LucideIcon> = {
   home: Home, building: Building2, bank: Landmark, card: CreditCard, shield: ShieldCheck, school: GraduationCap,
   power: Zap, water: Droplet, gas: Flame, wifi: Wifi, phone: Smartphone, tv: Tv, sub: Repeat, car: Car, fuel: Fuel,
   gym: Dumbbell, health: HeartPulse, baby: Baby, pet: PawPrint, shop: ShoppingBag, tax: Receipt, travel: Plane,
-  gift: Gift, saving: PiggyBank, wallet: Wallet,
+  gift: Gift, saving: Coins, wallet: Wallet,
 };
 
 const P = PaymentPalette;
@@ -40,8 +40,21 @@ export const REMINDER_OPTIONS = [-1, 0, 1, 3, 7] as const;
 export const DEFAULT_REMINDER_DAYS = 3;
 export const reminderDaysOf = (p: Pick<Payment, 'reminderDays'>): number => p.reminderDays ?? DEFAULT_REMINDER_DAYS;
 
+/** Yazılan ad hazır türlerden biriyse onun görünümü: "Kira" gri cüzdan kalmasın. */
+const KIND_WORDS: Record<string, string[]> = {
+  rent: ['kira', 'rent'], dues: ['aidat', 'site aidatı', 'building fees'], loan: ['kredi', 'taksit', 'loan', 'konut kredisi', 'ihtiyaç kredisi'], card: ['kredi kartı', 'credit card', 'kart'],
+  insurance: ['sigorta', 'kasko', 'insurance'], school: ['okul', 'school', 'kreş', 'dershane'], tax: ['vergi', 'tax', 'emlak vergisi', 'gelir vergisi'], power: ['elektrik', 'electricity'],
+  water: ['su', 'water'], gas: ['doğalgaz', 'dogalgaz', 'gas'], net: ['internet', 'i̇nternet'], phone: ['telefon', 'phone', 'fatura'], sub: ['abonelik', 'subscription'], car: ['araç', 'araba', 'car', 'mtv'],
+  gym: ['spor', 'gym', 'spor salonu'], health: ['sağlık', 'health'],
+};
+function kindOf(title: string) {
+  const q = title.trim().toLocaleLowerCase('tr-TR');
+  return PAYMENT_KINDS.find(k => KIND_WORDS[k.id]?.includes(q));
+}
+
 export function paymentLook(p: Pick<Payment, 'title' | 'icon' | 'color'>): { icon: LucideIcon; color: string | null } {
   const provider = matchProvider(p.title);
-  const icon = (p.icon && PAYMENT_ICONS[p.icon]) || provider?.icon || Wallet;
-  return { icon, color: p.color || provider?.color || null };
+  const kind = provider ? undefined : kindOf(p.title);
+  const icon = (p.icon && PAYMENT_ICONS[p.icon]) || provider?.icon || (kind && PAYMENT_ICONS[kind.icon]) || Wallet;
+  return { icon, color: p.color || provider?.color || kind?.color || null };
 }

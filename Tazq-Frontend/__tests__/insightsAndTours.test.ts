@@ -14,7 +14,7 @@ describe('İçgörü penceresi — kopya geri gelmez', () => {
   it("bileşen yok, ana sayfa başlığı Bu Hafta'ya götürür", () => {
     expect(fs.existsSync(path.join(__dirname, '..', 'features/dashboard/components/StatusHubModal.tsx'))).toBe(false);
     // 2026-11-01: başlık düğmesi kalktı — her hedefi zaten bir yolu vardı (kopyaydı).
-    expect(read('app/index.tsx')).not.toContain('<StatusHub');
+    expect((read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'))).not.toContain('<StatusHub');
   });
 
   it("öneriler Rapor'da yaşıyor", () => {

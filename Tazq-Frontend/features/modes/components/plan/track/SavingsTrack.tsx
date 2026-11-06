@@ -1,3 +1,5 @@
+import { DeviceOnlyNote } from '@/features/modes/components/DeviceOnlyNote';
+import { MoneyBox } from '../MoneyBox';
 import { useMoneySymbol } from '@/features/modes/hooks/useMoneySymbol';
 import { PLAN_COPY } from '../planCopy';
 import { usePaymentsStore } from '@/features/payments/store/usePaymentsStore';
@@ -26,7 +28,6 @@ import { TRACK_COPY } from './trackCopy';
   Eski karttaki her iş burada: ekle, çek, düzelt, hedefi değiştir, geri al, süre uzat.
 */
 const JAR_H = 148;
-const JAR_W = 92;
 const QUICK = [100, 500, 1000, 5000];
 const MAX_AMOUNT = 1_000_000_000;
 const HISTORY_SHORT = 5;
@@ -83,14 +84,10 @@ export function SavingsTrack({ plan, accent, lang }: { plan: ActivePlan; accent:
         {noData && <Text style={{ fontSize: F.footnote, lineHeight: 19, color: theme.onSurfaceVariant }}>{c.deviceOnly}</Text>}
         {!noData && type === 'birikim' && (
           <View accessible accessibilityLabel={`${words.current} ${money(v.current)}, ${v.fillPct}%`} style={st.jarRow}>
-            <View style={[st.jar, { backgroundColor: theme.surfaceContainerHigh }]}>
-              <MotiView from={{ height: 0 }} animate={{ height: (JAR_H * v.fillPct) / 100 }} transition={{ type: 'spring', damping: 16, stiffness: 70 }} style={[st.jarFill, { backgroundColor: accent }]} />
-              {[25, 50, 75].map(m => <View key={m} style={[st.jarMark, { bottom: (JAR_H * m) / 100, backgroundColor: v.fillPct >= m ? theme.onPrimary : theme.outlineVariant }]} />)}
-              <Text style={[st.jarPct, { color: v.fillPct >= 55 ? theme.onPrimary : theme.onSurface }]}>{v.fillPct}%</Text>
-            </View>
+            <MoneyBox pct={v.fillPct / 100} height={JAR_H} color={accent} body={theme.surfaceContainerHigh} surface={theme.surfaceCard} glint={theme.surfaceCard} symbol={symbol} />
             <View style={{ flex: 1, gap: S.xs }}>
               <Text numberOfLines={1} adjustsFontSizeToFit style={[st.big, { color: accent }]}>{money(shownCurrent)}</Text>
-              <Text style={{ fontSize: F.footnote, color: theme.onSurfaceVariant }}>{words.goalOf(money(parseFloat(targetAmount) || 0))}</Text>
+              <Text style={{ fontSize: F.footnote, color: theme.onSurfaceVariant }}>{words.goalOf(money(parseFloat(targetAmount) || 0))} · %{v.fillPct}</Text>
               <Fact label={words.remaining} value={money(v.remaining)} />
             </View>
           </View>
@@ -203,6 +200,7 @@ export function SavingsTrack({ plan, accent, lang }: { plan: ActivePlan; accent:
           <Touchable accessibilityRole="button" onPress={() => setAll(true)} style={st.link}><Text style={{ fontSize: F.footnote, fontWeight: W.semibold, color: accent }}>+{(moves ?? []).length - HISTORY_SHORT}</Text></Touchable>
         )}
       </View>
+      <DeviceOnlyNote kind="budget" backup="budget" />
     </View>
   );
 }
@@ -239,10 +237,6 @@ const st = StyleSheet.create({
   title: { fontSize: F.subhead, fontWeight: W.bold },
   big: { fontSize: F.title, fontWeight: W.bold, fontVariant: ['tabular-nums'] },
   jarRow: { flexDirection: 'row', alignItems: 'center', gap: S.md },
-  jar: { width: JAR_W, height: JAR_H, borderRadius: R.lg, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' },
-  jarFill: { position: 'absolute', left: 0, right: 0, bottom: 0 },
-  jarMark: { position: 'absolute', right: 0, width: S.sm, height: 2 },
-  jarPct: { fontSize: F.body, fontWeight: W.bold, fontVariant: ['tabular-nums'] },
   melt: { height: 14, borderRadius: R.full, overflow: 'hidden' },
   cells: { flexDirection: 'row', gap: S.xs, height: 56 },
   cell: { flex: 1, borderRadius: R.sm, overflow: 'hidden', justifyContent: 'flex-end' },

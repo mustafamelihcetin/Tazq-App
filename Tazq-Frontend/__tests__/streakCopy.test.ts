@@ -11,7 +11,7 @@ import path from 'path';
 const read = (f: string) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 
 describe('seri uyarıları', () => {
-  const INDEX = read('app/index.tsx');
+  const INDEX = (read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'));
   const PROFILE = read('app/profile.tsx');
 
   it('"siz" dili yok', () => {

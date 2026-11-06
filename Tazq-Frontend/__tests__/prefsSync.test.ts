@@ -32,7 +32,7 @@ describe('syncToCloud sonucu bildiriyor', () => {
 
   it('başarıda true, hatada false', () => {
     // Başarı ancak istek tamamlanınca true (arada bellekteki kullanıcı kopyası güncellenir — 2026-11-01).
-    expect(STORE).toMatch(/const json = JSON\.stringify\(snapshot\);\s*\n\s*await AuthService\.updateProfile\(\{ preferences: json \}\);[\s\S]{0,900}?return true;/);
+    expect(STORE).toMatch(/const json = JSON\.stringify\(snapshot\);[\s\S]{0,300}?preferences === json\) return true;\s*\n\s*await AuthService\.updateProfile\(\{ preferences: json \}\);[\s\S]{0,900}?return true;/);
     expect(STORE).toMatch(/swallow\('prefsStore\.syncToCloud', err\);\s*\n\s*return false;/);
   });
 });

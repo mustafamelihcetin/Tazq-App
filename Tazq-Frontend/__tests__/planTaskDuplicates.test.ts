@@ -15,6 +15,7 @@ import { api, TaskService } from '@/shared/services/api';
 const createTask = jest.spyOn(TaskService, 'createTask');
 const yesterday = fmtDateKey(new Date(Date.now() - 86400000));
 const TODAY = '2026-11-06';
+const NOW = new Date(2026, 10, 6, 12);
 const keyOf = (p: { title: string; description: string; dueDate?: string; tags: string[]; clientKey?: string }) => withPlanKey(p);
 const JSON_DESC = JSON.stringify({ tr: 'Eğitim Bilimleri kaynak kitap temin et', en: 'Get a book' });
 
@@ -105,26 +106,40 @@ describe('var olan kopyaların temizliği', () => {
 
   it('çevrilmiş etiketli 9 kopyadan biri kalır', () => {
     const tasks = Array.from({ length: 9 }, (_, i) => copy(i + 1));
-    expect(duplicatePlanTasks(tasks)).toHaveLength(8);
+    expect(duplicatePlanTasks(tasks, NOW)).toHaveLength(8);
   });
 
   it('tamamlanmış olan korunur', () => {
-    const removed = duplicatePlanTasks([copy(1), copy(2, { isCompleted: true }), copy(3)]);
+    const removed = duplicatePlanTasks([copy(1), copy(2, { isCompleted: true }), copy(3)], NOW);
     expect(ids(removed)).toEqual([1, 3]);
   });
 
   it('başka günün aynı adlı görevi kopya değildir', () => {
-    expect(duplicatePlanTasks([copy(1), copy(2, { dueDate: '2026-11-07T00:00:00' })])).toHaveLength(0);
+    expect(duplicatePlanTasks([copy(1), copy(2, { dueDate: '2026-11-07T00:00:00' })], NOW)).toHaveLength(0);
+  });
+
+  it('süresi geçmiş eski örnek, güncel örnek varken fazlalıktır', () => {
+    const removed = duplicatePlanTasks([copy(1, { dueDate: '2026-11-02T00:00:00' }), copy(2)], NOW);
+    expect(ids(removed)).toEqual([1]);
+  });
+
+  it('güncel örnek yoksa gecikmiş görev kalır', () => {
+    expect(duplicatePlanTasks([copy(1, { dueDate: '2026-11-02T00:00:00' })], NOW)).toHaveLength(0);
+  });
+
+  it('kullanıcının kendi gecikmiş görevi silinmez, aynı adda yenisi olsa da', () => {
+    const mine = (id: number, dueDate: string) => ({ id, title: 'Kitap al', description: '', dueDate, isCompleted: false, tags: ['sınav'] });
+    expect(duplicatePlanTasks([mine(1, '2026-11-02T00:00:00'), mine(2, `${TODAY}T00:00:00`)], NOW)).toHaveLength(0);
   });
 
   it('kullanıcının kendi görevine dokunmaz, etiketi aynı olsa da', () => {
     const mine = (id: number) => ({ id, title: 'Kitap al', description: '', dueDate: `${TODAY}T00:00:00`, isCompleted: false, tags: ['sınav'] });
-    expect(duplicatePlanTasks([mine(1), mine(2)])).toHaveLength(0);
+    expect(duplicatePlanTasks([mine(1), mine(2)], NOW)).toHaveLength(0);
   });
 
   it('ham etiketli plan görevleri eskisi gibi yakalanır', () => {
     const raw = (id: number) => ({ id, title: 'Tez: Kaynak', description: '', dueDate: `${TODAY}T00:00:00`, isCompleted: false, tags: ['tez'] });
-    expect(duplicatePlanTasks([raw(1), raw(2)])).toHaveLength(1);
+    expect(duplicatePlanTasks([raw(1), raw(2)], NOW)).toHaveLength(1);
   });
 });
 

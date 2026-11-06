@@ -20,8 +20,9 @@ export const BentoCard: React.FC<BentoCardProps> = ({ children, style, index = 0
 
   const card = (
     <MotiView
-      from={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+      // Yalnız kayma: opaklıkla giriş zayıf Android'de 0'da takılıp kartı görünmez bırakıyordu (bkz. EntranceStage).
+      from={{ translateY: 4 }}
+      animate={{ translateY: 0 }}
       transition={{ type: 'timing', duration: 200 }}
       style={[
         styles.card,

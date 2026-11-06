@@ -1,3 +1,4 @@
+import { appDayKey } from '@/shared/utils/appDay';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -60,9 +61,7 @@ interface HabitState {
 }
 
 export function fmtDateKey(d: Date = new Date()): string {
-  const adjusted = new Date(d);
-  adjusted.setHours(adjusted.getHours() - 3); // 3-hour buffer for night owls
-  return `${adjusted.getFullYear()}-${String(adjusted.getMonth() + 1).padStart(2, '0')}-${String(adjusted.getDate()).padStart(2, '0')}`;
+  return appDayKey(d);
 }
 
 /*

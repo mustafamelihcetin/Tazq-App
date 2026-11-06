@@ -55,7 +55,7 @@ const days = (v: unknown): string[] => list(v).map(day).filter((d): d is string 
 
 const PRIORITY: Record<string, Priority> = { low: 'Low', medium: 'Medium', high: 'High' };
 const REPEAT: Record<string, RecurrenceType> = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
-const PAY_REPEAT: Record<string, PaymentRecurrence> = { monthly: 'Monthly', yearly: 'Yearly', once: 'Once' };
+const PAY_REPEAT: Record<string, PaymentRecurrence> = { monthly: 'Monthly', quarterly: 'Quarterly', semiannual: 'SemiAnnual', yearly: 'Yearly', once: 'Once' };
 
 const taskKey = (title: string, due: string | null) => `${norm(title)}|${due ?? ''}`;
 const payKey = (title: string, amount: number) => `${norm(title)}|${amount}`;

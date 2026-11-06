@@ -1,3 +1,4 @@
+import { NavGlassArea } from '@/shared/components/NavGlass';
 import { cancelCommit, scheduleCommit } from '@/shared/utils/deferredCommit';
 import { doneToastText, revertLocalCompletion, undoLabel } from '@/features/tasks/utils/taskActions';
 import React, { useEffect, useState, useRef, useMemo } from 'react';
@@ -21,8 +22,11 @@ import { useAuthStore, useAchievementStore, ACHIEVEMENTS } from '@/features/user
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore } from '@/features/focus';
 import { usePrefsStore, getModeInfoForTask } from '@/features/modes';
+import { hiddenByGoalPause } from '@/features/modes/utils/liteScope';
 import { track } from '@/shared/utils/analytics';
 import { MagneticFAB } from '@/shared/components/MagneticFAB';
+import { buildTaskRows, type TaskCell, type TaskRow } from '@/features/tasks/utils/taskGroups';
+import { TaskGroupHeader } from '@/features/tasks/components/TaskGroupHeader';
 import { useTabletLayout, useWideLayout } from '@/shared/components/ResponsiveColumns';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
@@ -114,6 +118,18 @@ type FilterType = TaskFilter;
 const OVERDUE_LABEL = { tr: 'Gecikmiş', en: 'Overdue' } as const;
 /** Üst çubuk düğmeleri 40 pt çiziliyor; dokunma alanı 44 pt'ye tamamlanır (görsel boyut aynı). */
 const HEADER_SLOP = touchSlop(scale(40));
+const MENU_COPY = { tr: { show: 'GÖSTER', sort: 'SIRALAMA', go: 'GİT' }, en: { show: 'SHOW', sort: 'SORTING', go: 'GO TO' } };
+/** Tamamlanan satır, tik oynarken bu kadar yerinde kalır. */
+const COMPLETE_SETTLE_MS = 650;
+
+/** Menünün bölüm etiketi: zemin ve yazı tema jetonundan (ham rgba + %50 opaklık kontrastı bozuyordu). */
+function MenuSection({ label, theme }: { label: string; theme: AppTheme }) {
+  return (
+    <View style={{ paddingHorizontal: S.lg, paddingVertical: S.xs, backgroundColor: theme.surfaceField }}>
+      <Text accessibilityRole="header" style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceMuted, letterSpacing: 1 }}>{label}</Text>
+    </View>
+  );
+}
 
 
 
@@ -643,7 +659,8 @@ export default function ActionCenter() {
       toggleTaskCompletion(id);
 
       if (isCompleting) {
-        setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+        // Tik görünsün, sonra "Tamamlanan"a insin: anında uçan satırda ne olduğu seçilemiyordu.
+        setTimeout(() => setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; }), COMPLETE_SETTLE_MS);
         offerUndo(() => sendToggle(true));
         return;
       }
@@ -1136,10 +1153,21 @@ export default function ActionCenter() {
     [filteredAndSortedTasks, searchQuery, tagFilter, dateFilter],
   );
   // Sabit kimlik: her çizimde yeni dizi FlatList'i ve satır animasyonlarını boşuna tetiklerdi.
-  const filteredTasks = React.useMemo(
-    () => (showLater ? [...horizon.near, ...horizon.later] : horizon.near),
-    [showLater, horizon],
-  );
+  const goalPause = usePrefsStore(st => st.uiMode === 'lite' && st.liteGoalsPaused);
+  /*
+    BÖLÜMLER: Gecikmiş / Bugün / Yarın / Yakında / Tarihsiz / Daha sonra / Tamamlanan (bkz. utils/taskGroups).
+    Öncelik sıralamasında bölümler önceliğe göre. Arama ve daraltılmış görünümde başlık yok: sonuç zaten tek bir küme.
+    `filteredTasks` çizilen düz sıradır; taşıma ve sayılar onu okur, böylece ekrandaki sırayla çelişmez.
+  */
+  const taskView = React.useMemo(() => {
+    const keep = (t: (typeof filteredAndSortedTasks)[number]) => !goalPause || !hiddenByGoalPause(t, { uiMode: 'lite', liteGoalsPaused: true });
+    const narrowed = !!searchQuery.trim() || !!dateFilter || filter !== 'all';
+    return buildTaskRows(horizon.near.filter(keep), showLater ? horizon.later.filter(keep) : [], {
+      mode: narrowed ? 'none' : sortBy === 'priority' ? 'priority' : 'date',
+      cols: listCols, laterCount: horizon.later.length, exiting: completingIds, lang: langOf(language),
+    });
+  }, [showLater, horizon, goalPause, searchQuery, dateFilter, filter, sortBy, listCols, completingIds, language]);
+  const filteredTasks = taskView.flat;
 
   /*
     RAF GÖRÜNÜMÜ GEÇİCİDİR. Filtre tercihi kalıcı; "Belki Bir Gün" açık bırakılınca
@@ -1439,6 +1467,7 @@ export default function ActionCenter() {
 
   return (
     <View ref={rootRef} style={{ flex: 1, backgroundColor: theme.background }}>
+      <NavGlassArea nav={isBulkMode ? null : <BottomNavBar />}>
       
         {/* Floating TopBar */}
         <ScreenHeader
@@ -1456,7 +1485,7 @@ export default function ActionCenter() {
                     <View>
                         <SlidersHorizontal size={ICON.md} color={(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) ? theme.primary : theme.onSurface} />
                         {(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) && (
-                            <View style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: R.full, backgroundColor: theme.primary }} />
+                            <View style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: R.full, backgroundColor: theme.primaryFill }} />
                         )}
                     </View>
                 </Touchable>
@@ -1480,29 +1509,16 @@ export default function ActionCenter() {
             {isBulkMode ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
                     {selectedIds.size > 0 && (
-                        <View style={[styles.selBadge, { backgroundColor: theme.primary }]}>
-                            <Text style={{ color: theme.onPrimary, fontSize: F.caption, fontWeight: '700', textAlign: 'center' }}>{selectedIds.size}</Text>
+                        <View style={[styles.selBadge, { backgroundColor: theme.primaryFill }]}>
+                            <Text style={{ color: theme.onPrimaryFill, fontSize: F.caption, fontWeight: '700', textAlign: 'center' }}>{selectedIds.size}</Text>
                         </View>
                     )}
                 </View>
             ) : (
-                <>
-                <Touchable
-                  onPress={() => router.push('/gun')}
-                  hitSlop={HEADER_SLOP}
-                  style={styles.headerIconBtn}
-                  accessibilityRole="button"
-                  accessibilityLabel={t.dayView.title}
-                  accessibilityHint={t.dayView.unplannedHint}
-                >
-                    <ChromeShell />
-                    <CalendarDays size={ICON.md} color={theme.onSurface} />
-                </Touchable>
                 <Touchable onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); haptic.surface(); }} hitSlop={HEADER_SLOP} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Ara' : 'Search'}>
                     <ChromeShell />
                     <Search size={ICON.md} color={showSearch ? theme.primary : theme.onSurface} />
                 </Touchable>
-                </>
             )}
             </>
           }
@@ -1551,6 +1567,7 @@ export default function ActionCenter() {
                 */}
                 {/* BELKİ BİR GÜN ikinci görünüm: Zen'in rafa kaldırdığı işler başka hiçbir
                     yerde toplu görünmüyordu. Satır yalnız rafta iş varken çıkar. */}
+                <MenuSection label={MENU_COPY[langOf(language)].show} theme={theme} />
                 {([['today', language === 'tr' ? 'Sadece bugün' : 'Today Only'],
                    ...(overdueCount > 0 || filter === 'overdue' ? [['overdue', `${overdueLabel} (${overdueCount})`]] : []),
                    ...(somedayCount > 0 || filter === 'someday' ? [['someday', `${language === 'tr' ? 'Belki Bir Gün' : 'Someday'} (${somedayCount})`]] : []),
@@ -1581,23 +1598,8 @@ export default function ActionCenter() {
                     {hideCompleted && <Check size={ICON.md} color={theme.primary} />}
                 </Touchable>
 
-                {/* Archive Button */}
-                <Touchable
-                    onPress={() => { setShowSortMenu(false); router.push('/archive'); }}
-                    accessibilityRole="button"
-                    style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: StyleSheet.hairlineWidth }]}
-                >
-                    <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>
-                        {language === 'tr' ? 'Arşiv klasörü' : 'Archive Folder'}
-                    </Text>
-                    <Archive size={ICON.md} color={theme.onSurfaceVariant} />
-                </Touchable>
-
                 {/* Sorting Options */}
-                {/* Zemin ve yazı tema jetonundan: ham rgba + %50 opaklık ölçülen kontrastı geçersiz kılıyordu. */}
-                <View style={{ paddingHorizontal: S.lg, paddingVertical: S.xs, backgroundColor: theme.surfaceField }}>
-                   <Text accessibilityRole="header" style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceMuted, letterSpacing: 1 }}>{language === 'tr' ? 'SIRALAMA' : 'SORTING'}</Text>
-                </View>
+                <MenuSection label={MENU_COPY[langOf(language)].sort} theme={theme} />
 
                 {([['creation', t.sortByCreation], ['priority', t.sortByPriority], ['date', t.sortByDate]] as const).map(([key, label]) => (
                   <Touchable
@@ -1606,7 +1608,7 @@ export default function ActionCenter() {
                     // Seçili sıralama yalnız RENK ve ✓ ile belliydi; ekran okuyucu da duysun.
                     accessibilityRole="button"
                     accessibilityState={{ selected: sortBy === key }}
-                    style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: key === 'date' ? 0 : StyleSheet.hairlineWidth }]}
+                    style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: StyleSheet.hairlineWidth }]}
                   >
                     <Text style={[{ color: sortBy === key ? theme.primary : theme.onSurface, fontSize: F.body, fontWeight: sortBy === key ? '700' : '400' }]}>
                       {label}
@@ -1614,6 +1616,30 @@ export default function ActionCenter() {
                     {sortBy === key && <Check size={ICON.md} color={theme.primary} />}
                   </Touchable>
                 ))}
+
+                {/* Sıra ve süzgeç değil, BAŞKA EKRANA giden satırlar: ayrı, en altta. Gün görünümü üst çubuktan buraya geldi; çubuk iki yanda birer düğmeyle simetrik. */}
+                <MenuSection label={MENU_COPY[langOf(language)].go} theme={theme} />
+                {usePrefsStore.getState().uiMode !== 'lite' && (
+                <Touchable
+                    onPress={() => { setShowSortMenu(false); router.push('/gun'); }}
+                    accessibilityRole="button"
+                    accessibilityHint={t.dayView.unplannedHint}
+                    style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: StyleSheet.hairlineWidth }]}
+                >
+                    <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>{t.dayView.title}</Text>
+                    <CalendarDays size={ICON.md} color={theme.onSurfaceVariant} />
+                </Touchable>
+                )}
+                <Touchable
+                    onPress={() => { setShowSortMenu(false); router.push('/archive'); }}
+                    accessibilityRole="button"
+                    style={[styles.sortOption, { borderBottomWidth: 0 }]}
+                >
+                    <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>
+                        {language === 'tr' ? 'Arşiv klasörü' : 'Archive Folder'}
+                    </Text>
+                    <Archive size={ICON.md} color={theme.onSurfaceVariant} />
+                </Touchable>
               </MotiView>
             )}
         </AnimatePresence>
@@ -1680,26 +1706,17 @@ export default function ActionCenter() {
         >
           
         {/*
-          ── GENİŞ EKRANDA İKİ SÜTUN ─────────────────────────────────────────────
-          Tablette liste 600pt'lik sütunda tek sıra hâlinde akıyordu ve ekranın yarısı
-          boş kalıyordu. Satırı uzatmak çözüm değil: bir görevin solundaki onay
-          kutusuyla sağındaki saati yarım ekran ayırırsa göz ikisini birleştiremez.
-          Çözüm satırı uzatmak değil, İKİNCİ bir sütun açmak.
-
-          `key` değişimi ŞART: FlatList `numColumns`'u canlı değiştiremez, listeyi
-          yeniden kurmak gerekir. `columnWrapperStyle` de yalnız çok sütunluyken
-          verilebilir — tek sütunda geçilirse RN hata atar.
+          ── GENİŞ EKRANDA SÜTUNLAR ─────────────────────────────────────────────
+          Tablette tek sütun ekranın yarısını boş bırakıyordu; satırı uzatmak yerine sütun açılıyor.
+          `numColumns` yerine satırlar kendi hücrelerini taşır: tam genişlikte bölüm başlığı FlatList sütunlarına girmiyor.
         */}
         {/* Yer değiştirme yayı KRİTİK SÖNÜMÜN hemen üstünde: eski 18/90'da kritik 2·√90≈19, yani
             alt-sönümlüydü ve tamamlanan görev yerine otururken sekiyordu ("zıplama bir tık fazla",
             2026-10-30). 28/170 (kritik ≈26) → yay hissi kalır, taşma yok. */}
         <Animated.FlatList itemLayoutAnimation={LinearTransition.springify().damping(28).stiffness(170)}
-            key={`cols-${listCols}`}
-            numColumns={listCols}
-            columnWrapperStyle={listCols > 1 ? { gap: S.sm } : undefined}
             style={{ flex: 1 }}
-            data={filteredTasks}
-            keyExtractor={(item: any) => item.id.toString()}
+            data={taskView.rows}
+            keyExtractor={(row: TaskRow<(typeof filteredTasks)[number]>) => row.key}
             initialNumToRender={15}
             maxToRenderPerBatch={10}
             windowSize={5}
@@ -1869,12 +1886,12 @@ export default function ActionCenter() {
                       {!isSearch && !hasCompletedTasks && !onlyLater && (
                         <Touchable
                           onPress={handleAddBtnPress}
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: theme.primary, paddingHorizontal: S.lg, paddingVertical: S.sm + 2, borderRadius: R.full, marginTop: S.lg }}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: theme.primaryFill, paddingHorizontal: S.lg, paddingVertical: S.sm + 2, borderRadius: R.full, marginTop: S.lg }}
                           accessibilityRole="button"
                           accessibilityLabel={language === 'tr' ? 'İlk görevini ekle' : 'Add your first task'}
                         >
-                          <Plus size={ICON.md} color={theme.onPrimary} strokeWidth={2.5} />
-                          <Text style={{ color: theme.onPrimary, fontWeight: '700', fontSize: F.body }}>
+                          <Plus size={ICON.md} color={theme.onPrimaryFill} strokeWidth={2.5} />
+                          <Text style={{ color: theme.onPrimaryFill, fontWeight: '700', fontSize: F.body }}>
                             {language === 'tr' ? 'İlk görevini ekle' : 'Add your first task'}
                           </Text>
                         </Touchable>
@@ -1882,15 +1899,13 @@ export default function ActionCenter() {
                   </MotiView>
                 );
             }}
-            renderItem={({ item: task, index: i }: any) => (
-              /*
-                Hücre kabı: `flex: 1` iki kartı eşit böler. `maxWidth: '50%'` ise TEK
-                KALAN son kart içindir — kapsız bırakılınca satırın tamamını kaplar ve
-                ızgaranın son satırı ötekilerden farklı görünür.
-              */
-              <View style={listCols > 1 ? { flex: 1, minWidth: 0, maxWidth: `${100 / listCols}%` } : undefined}>
+            renderItem={({ item: row, index: rowIndex }: { item: TaskRow<(typeof filteredTasks)[number]>; index: number }) => {
+              if (row.kind === 'header') return <TaskGroupHeader label={row.label} count={row.count} tone={row.group === 'overdue' ? 'warn' : 'plain'} first={rowIndex === 0} theme={theme} />;
+              if (row.kind === 'later') return <LaterToggle count={horizon.later.length} open={showLater} onToggle={() => setShowLater(v => !v)} theme={theme} lang={langOf(language)} />;
+              const renderCell = ({ task, index: i, group, position, canUp, canDown }: TaskCell<(typeof filteredTasks)[number]>) => (
                 <MemoizedTaskItem
-                    task={task}
+                    task={task as (typeof tasks)[number]}
+                    group={group}
                     // Mod bilgisi ebeveynde TEK geçişte hesaplandı; kart artık hiçbir
                     // store'a abone değil ve React.memo gerçekten işe yarıyor.
                     modeInfo={modeInfoById.get(task.id) ?? null}
@@ -1908,11 +1923,11 @@ export default function ActionCenter() {
                     handleToggleExpand={handleToggleExpand}
                     sortBy={sortBy}
                     // Tek sütunda satırlar TEK yüzeyde birleşir (gruplu liste); ızgarada her biri kart.
-                    position={listCols === 1 ? (filteredTasks.length === 1 ? 'only' : i === 0 ? 'first' : i === filteredTasks.length - 1 ? 'last' : 'middle') : undefined}
+                    position={position}
                     tourId={i === 0 ? 'list' : undefined}
                     onEdit={() => handleEditBtnPress(task.id)}
-                    onMoveUp={i > 0 && sortBy === 'creation' ? () => handleMoveTask(i, 'up') : undefined}
-                    onMoveDown={i < filteredTasks.length - 1 && sortBy === 'creation' ? () => handleMoveTask(i, 'down') : undefined}
+                    onMoveUp={canUp && sortBy === 'creation' ? () => handleMoveTask(i, 'up') : undefined}
+                    onMoveDown={canDown && sortBy === 'creation' ? () => handleMoveTask(i, 'down') : undefined}
                     handleLongPress={(id: number) => {
                         if (!isBulkMode) {
                             haptic.commit();
@@ -1933,12 +1948,22 @@ export default function ActionCenter() {
                     completingIds={completingIds}
                     expandedId={expandedId}
                 />
-              </View>
-            )}
+              );
+              if (listCols === 1) return renderCell(row.cells[0]);
+              /* `maxWidth`: TEK KALAN son kart satırın tamamını kaplamasın. */
+              return (
+                <View style={{ flexDirection: 'row', gap: S.sm }}>
+                  {row.cells.map(cell => (
+                    <View key={cell.task.id} style={{ flex: 1, minWidth: 0, maxWidth: `${100 / listCols}%` }}>{renderCell(cell)}</View>
+                  ))}
+                </View>
+              );
+            }}
             ListFooterComponent={() => (<>
-                <LaterToggle count={horizon.later.length} open={showLater} onToggle={() => setShowLater(v => !v)} theme={theme} lang={langOf(language)} />
-                {filteredTasks.length > 0 && !isBulkMode ? (
-                    // Soluklaştırma OPAKLIKLA değil SEVİYEYLE: 0.35 opaklık ~2:1 kontrasttı (okunmuyordu).
+                {/* Yakın liste boşken satır yok: katlı uzak görevlerin girişi burada kalır. */}
+                {taskView.rows.length === 0 && <LaterToggle count={horizon.later.length} open={showLater} onToggle={() => setShowLater(v => !v)} theme={theme} lang={langOf(language)} />}
+                {/* Yalnız ilk girişte: her oturumda duran talimat, öğrenilmiş bir şeyi tekrar ediyordu. */}
+                {showSwipePeek && filteredTasks.length > 0 && !isBulkMode ? (
                     <Text style={{ fontSize: F.caption2, color: theme.onSurfaceMuted, textAlign: 'center', marginTop: S.md, fontWeight: '500', letterSpacing: 0.2 }}>
                         {t.swipeHint}
                     </Text>
@@ -2069,7 +2094,7 @@ export default function ActionCenter() {
             // bileşen `left:0/top:0` + translate ile konumlanıyor. Kaldırıldı.
             position: 'absolute',
             zIndex: 100,
-            backgroundColor: theme.primary,
+            backgroundColor: theme.primaryFill,
             shadowColor: theme.primary,
             alignItems: 'center',
             justifyContent: 'center',
@@ -2077,7 +2102,7 @@ export default function ActionCenter() {
           buttonSize={54}
           tourId="quickAdd"
         >
-          <Plus size={ICON.lg} color={theme.onPrimary} strokeWidth={2.5} />
+          <Plus size={ICON.lg} color={theme.onPrimaryFill} strokeWidth={2.5} />
         </MagneticFAB>
       )}
 
@@ -2090,7 +2115,7 @@ export default function ActionCenter() {
         bırakmak, hem çubukları çakıştırır hem "hem buradayım hem gidebilirim" gibi
         çelişkili bir durum kurar.
       */}
-      {!isBulkMode && <BottomNavBar />}
+      </NavGlassArea>
 
       <WeightEntryModal
         visible={weightModalTaskId !== null}

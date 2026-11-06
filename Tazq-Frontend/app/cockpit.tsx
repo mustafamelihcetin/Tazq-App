@@ -1,3 +1,4 @@
+import { NavGlassArea } from '@/shared/components/NavGlass';
 import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Modal, KeyboardAvoidingView, Keyboard, Platform, Dimensions, Animated, useWindowDimensions } from 'react-native';
@@ -28,6 +29,8 @@ import { BentoCard } from '@/shared/components/BentoCard';
 import { DisplayValue, DisplayReadout } from '@/shared/components/DisplayPanel';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
+import { useSessionStore } from '@/shared/store/useSessionStore';
+import { goHome } from '@/shared/utils/authNavigation';
 import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { ICON, S, R, F, B, TRACKING, MAX_W, contentMaxWidth, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT , sheetMaxHeight, touchSlop, SCRIM } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
@@ -186,6 +189,7 @@ const DAY_COPY = {
 };
 
 export default function CockpitScreen() {
+  const isGuest = useSessionStore(st => st.isGuest);
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
@@ -675,6 +679,7 @@ export default function CockpitScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <NavGlassArea nav={<BottomNavBar />}>
       <DottedBackground color={theme.onBackground} opacity={isDark ? 0.05 : 0.08} size={24} dotSize={1} />
 
         {/*
@@ -682,6 +687,8 @@ export default function CockpitScreen() {
           Gün saatleri sol üstten kalktı ("yeri burası değil"): o ekran ana sayfanın tarihinden açılır.
         */}
         <ScreenHeader
+          // Misafirde bu sekme yok, buraya ana sayfadan gelinir: geri dönüş olmalı (2026-11-06).
+          onBack={isGuest ? () => (router.canGoBack() ? router.back() : goHome(router)) : undefined}
           left={
             <Touchable onPress={() => router.push({ pathname: '/takvim', params: { date: selectedDay } })} style={styles.headerIconBtn} accessibilityRole="link" accessibilityLabel={wc.calendar}>
               <ChromeShell />
@@ -792,9 +799,9 @@ export default function CockpitScreen() {
                   ? (tr ? 'Manuel ekle veya ana ekrandan mod planını uygula.' : 'Add manually or apply your mode plan from Home.')
                   : (tr ? 'Her gün tek dokunuşla işaretleyeceğin küçük bir şeyle başla: su içmek, 10 sayfa okumak.' : 'Start with one small thing you can tick daily: drink water, read 10 pages.')}
               </Text>
-              <Touchable onPress={openAddHabit} accessibilityRole="button" style={[styles.emptyAddBtn, { backgroundColor: theme.primary }]}>
-                <Plus size={ICON.sm} color={theme.onPrimary} />
-                <Text style={[styles.emptyAddText, { color: theme.onPrimary }]}>{tr ? 'Alışkanlık ekle' : 'Add Habit'}</Text>
+              <Touchable onPress={openAddHabit} accessibilityRole="button" style={[styles.emptyAddBtn, { backgroundColor: theme.primaryFill }]}>
+                <Plus size={ICON.sm} color={theme.onPrimaryFill} />
+                <Text style={[styles.emptyAddText, { color: theme.onPrimaryFill }]}>{tr ? 'Alışkanlık ekle' : 'Add Habit'}</Text>
               </Touchable>
             </BentoCard>
           ) : (
@@ -895,7 +902,7 @@ export default function CockpitScreen() {
         );
       })()}
 
-      <BottomNavBar />
+      </NavGlassArea>
       {tourOn && (
         <HelpTourModal
           pageId="cockpit"

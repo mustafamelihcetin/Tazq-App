@@ -1,3 +1,4 @@
+import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Modal, ScrollView, TextInput, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -110,12 +111,12 @@ export function CommandPortal({
       desc: c.allTasksDesc,
       onPress: () => run(() => router.push('/tasks')),
     },
-    {
+    ...(usePrefsStore.getState().uiMode === 'lite' ? [] : [{
       icon: <Rocket size={ICON.sm} color={theme.primary} />,
       label: c.modes,
       desc: c.modesDesc,
       onPress: () => run(() => router.push('/modlar')),
-    },
+    }]),
   ];
 
   /*
@@ -260,7 +261,7 @@ export function CommandPortal({
                       paddingHorizontal: S.smd,
                       paddingVertical: S.smd,
                       borderRadius: R.md,
-                      backgroundColor: theme.primary + '12',
+                      backgroundColor: theme.primaryFill + '12',
                       borderWidth: 1,
                       borderColor: theme.primary + '30',
                       gap: S.smd,

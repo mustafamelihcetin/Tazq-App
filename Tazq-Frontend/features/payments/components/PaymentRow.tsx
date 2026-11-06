@@ -4,7 +4,6 @@ import { MotiView } from 'moti';
 import { Touchable } from '@/shared/components/Touchable';
 import { SwipeableItem } from '@/shared/components/SwipeableItem';
 import { TickCircle } from '@/shared/components/TickCircle';
-import { AppIcon } from '@/shared/components/AppIcon';
 import { ICON, S, R, F, W, HAIRLINE, touchSlop } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 import type { TranslationKeys } from '@/shared/constants/i18n';
@@ -34,7 +33,7 @@ export function dueText(v: PaymentView, t: Copy, dateLabel: string): { text: str
   return { text: dateLabel, tone: 'muted' };
 }
 
-const RING = 26;
+const RING = 24;
 
 interface Props {
   view: PaymentView;
@@ -43,6 +42,8 @@ interface Props {
   t: Copy;
   amountLabel: string;
   dateLabel: string;
+  /** Aylık dışı tekrar: "3 ayda bir". */
+  repeatLabel?: string;
   onToggle: () => void;
   onDelete: () => void;
   /** Uzun bas = Düzenle / Sil menüsü (kaydırma yine doğrudan siler). */
@@ -50,28 +51,29 @@ interface Props {
   onEdit: () => void;
 }
 
-export const PaymentRow = React.memo(({ view, position, theme, t, amountLabel, dateLabel, onToggle, onDelete, onMenu, onEdit }: Props) => {
+export const PaymentRow = React.memo(({ view, position, theme, t, amountLabel, dateLabel, repeatLabel, onToggle, onDelete, onMenu, onEdit }: Props) => {
   const { p, status } = view;
   const paid = status === 'paid';
   const isTop = position === 'first' || position === 'only';
   const isBottom = position === 'last' || position === 'only';
   const look = paymentLook(p);
   const LookIcon = look.icon;
-  const baseDue = dueText(view, t, dateLabel);
+  const dated = dueText(view, t, dateLabel);
+  const baseDue = repeatLabel ? { ...dated, text: `${dated.text} · ${repeatLabel}` } : dated;
   // Taksitliyse kaçıncı taksit olduğu vade yazısının yanında ("3/12. taksit").
   const due = view.installment ? { ...baseDue, text: `${baseDue.text} · ${t.installmentOf(view.installment.no, view.installment.total)}` } : baseDue;
   const toneColor = due.tone === 'error' ? theme.error : due.tone === 'warning' ? theme.warning : theme.onSurfaceMuted;
 
   return (
     <SwipeableItem onDelete={onDelete} flush={!isBottom}>
+      {/* Satır düzenler, halka işaretler (2026-11-06): 12.000 ₺'lik kirayı satırın ortasına dokununca "ödendi" yapmak kazaya açıktı, testte de oldu. */}
       <Touchable
         activeOpacity={0.7}
-        onPress={onToggle}
+        onPress={onEdit}
         onLongPress={onMenu}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: paid }}
+        accessibilityRole="button"
         accessibilityLabel={`${p.title}, ${amountLabel}, ${due.text}`}
-        accessibilityHint={paid ? t.undoPaid : t.markPaid}
+        accessibilityHint={t.edit}
         accessibilityActions={[{ name: 'edit', label: t.edit }, { name: 'delete', label: t.delete }]}
         onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'delete') onDelete(); else if (e.nativeEvent.actionName === 'edit') onEdit(); }}
         style={{
@@ -82,25 +84,24 @@ export const PaymentRow = React.memo(({ view, position, theme, t, amountLabel, d
         }}
       >
         {/* Halka: gecikmişte kırmızı çerçeve — rengi yalnız durum söyler (bkz. TaskListItem). */}
-        <View
+        <Touchable
+          onPress={onToggle}
           hitSlop={touchSlop(RING)}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: paid }}
+          accessibilityLabel={paid ? t.undoPaid : t.markPaid}
           style={styles.ring}
         >
           <TickCircle checked={paid} size={RING} color={theme.success} ringColor={status === 'overdue' ? theme.error : theme.onSurfaceMuted} tickColor={theme.onPrimary} />
-        </View>
+        </Touchable>
 
         {/* Ayırıcı halkanın sağından başlar — Apple listelerinin imzası. */}
         <View style={[styles.body, { borderBottomWidth: isBottom ? 0 : HAIRLINE, borderBottomColor: theme.separator }]}>
-          <MotiView animate={{ opacity: paid ? 0.5 : 1 }} transition={{ type: 'timing', duration: 220 }} style={styles.inner}>
-            {look.color
-              ? <AppIcon Icon={LookIcon} color={look.color} size={32} radius={R.sm} iconSize={ICON.sm} />
-              : (
-                // Sağlayıcı yoksa NÖTR kutu: gri dolgu + beyaz glif koyu temada açık gri
-                // bir kare olarak parlıyordu. Soluk nötr dolgu + ikincil glif iki temada da sakin durur.
-                <View style={[styles.generic, { backgroundColor: theme.onSurfaceMuted + '26' }]}>
-                  <LookIcon size={ICON.sm} color={theme.onSurfaceVariant} />
-                </View>
-              )}
+          <MotiView animate={{ opacity: paid ? 0.62 : 1 }} transition={{ type: 'timing', duration: 220 }} style={styles.inner}>
+            {/* Dolu renkli kareler listede gökkuşağı oluyordu (2026-11-06, 8 ödemeyle görüldü): renk yalnız glifte ve hafif zeminde. */}
+            <View style={[styles.generic, { backgroundColor: (look.color ?? theme.onSurfaceMuted) + '1F' }]}>
+              <LookIcon size={ICON.sm} color={look.color ?? theme.onSurfaceVariant} />
+            </View>
             <View style={{ flex: 1, gap: S.xxs }}>
               <Text style={{ color: theme.onSurface, fontWeight: W.semibold, fontSize: F.body }} numberOfLines={1}>{p.title}</Text>
               <Text style={{ color: toneColor, fontSize: F.caption, fontWeight: due.tone === 'muted' ? W.regular : W.semibold }} numberOfLines={1}>{due.text}</Text>

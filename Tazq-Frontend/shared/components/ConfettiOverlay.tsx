@@ -271,8 +271,8 @@ export const ConfettiOverlay: React.FC = () => {
         opacity: badgeOpacity,
         transform: [{ scale: badgeScale }]
       }]}>
-        <View style={[styles.iconWrapper, { backgroundColor: theme.primary }]}>
-          <Check size={ICON.md} color={theme.onPrimary} strokeWidth={3.5} />
+        <View style={[styles.iconWrapper, { backgroundColor: theme.primaryFill }]}>
+          <Check size={ICON.md} color={theme.onPrimaryFill} strokeWidth={3.5} />
         </View>
         <View style={{ gap: S.xxs }}>
           <Text style={[styles.badgeTitle, { color: theme.onSurface }]}>

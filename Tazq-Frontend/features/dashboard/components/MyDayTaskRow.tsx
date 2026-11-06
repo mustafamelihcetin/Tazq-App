@@ -275,10 +275,10 @@ export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme
           hitSlop={touchSlop(28)}
           accessibilityRole="button"
           accessibilityLabel={`${focusLabel ?? ''} — ${title}`}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginLeft: S.sm, paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: theme.primary }}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginLeft: S.sm, paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: theme.primaryFill }}
         >
-          <Play size={ICON.xs} color={theme.onPrimary} fill={theme.onPrimary} />
-          <Text style={{ fontSize: F.footnote, fontWeight: '600', color: theme.onPrimary }}>{focusLabel}</Text>
+          <Play size={ICON.xs} color={theme.onPrimaryFill} fill={theme.onPrimaryFill} />
+          <Text style={{ fontSize: F.footnote, fontWeight: '600', color: theme.onPrimaryFill }}>{focusLabel}</Text>
         </Touchable>
       ) : (
         <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.3} style={{ marginLeft: S.sm }} />

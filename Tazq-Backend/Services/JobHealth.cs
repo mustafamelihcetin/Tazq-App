@@ -39,6 +39,7 @@ namespace Tazq_App.Services
         public const string SignupDigest = "signup-digest";
         public const string MailQueue = "mail-queue";
         public const string CrashRetention = "crash-retention";
+        public const string ServerWatch = "server-watch";
 
         /// <param name="interval">Beklenen tur aralığı; kuyruk için 0 (olay güdümlü, gecikme yok).</param>
         public void Register(string key, TimeSpan interval) =>

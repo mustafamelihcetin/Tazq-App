@@ -71,10 +71,10 @@ describe('Hafta ekranı kararları (kullanıcı: "karmaşa, minimalist değil")'
     expect(FOCUS).toContain('setSkyOpen(true)');
     expect(FOCUS).toContain('onOpenSky=');
     expect(read('features/focus/components/SessionSummary.tsx')).toContain('onPress={onOpenSky}');
-    expect(read('app/report.tsx')).toContain('<WeekSky');
+    expect(read('app/report.tsx')).toContain('<WeekSkySheet');
   });
   it('seans sırasında gökyüzü düğmesi çıkmaz: seans sade kalır', () => {
-    expect(read('app/focus.tsx')).toContain('sessionStarted ? <View style={styles.closeBtn} />');
+    expect(read('app/focus.tsx')).toContain('sessionStarted || isLiteMode ? <View style={styles.closeBtn} />');
   });
   it('bağlanmayan plan sayfası kalktı, öncelik rotaya bağlı', () => {
     expect(COCKPIT).not.toContain('Gelecek haftayı planla');
@@ -106,6 +106,6 @@ describe('Hafta ekranı kararları (kullanıcı: "karmaşa, minimalist değil")'
     expect(COCKPIT).not.toContain('personalTasks');
   });
   it('ana sayfa gün ekranına gitmeyi sürdürür', () => {
-    expect(read('app/index.tsx')).toContain("pathname: '/gun'");
+    expect((read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'))).toContain("pathname: '/gun'");
   });
 });

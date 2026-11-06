@@ -599,7 +599,9 @@ namespace Tazq_Backend.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.HasIndex("UserId", "ClientKey");
+                    b.HasIndex("UserId", "ClientKey")
+                        .IsUnique()
+                        .HasFilter("\"ClientKey\" IS NOT NULL AND NOT \"IsCompleted\"");
 
                     b.HasIndex("UserId", "TagsBlindIndex");
 

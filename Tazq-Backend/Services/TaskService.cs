@@ -253,7 +253,20 @@ namespace Tazq_App.Services
             EncryptTask(task, key);
 
             _context.Tasks.Add(task);
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (IsUniqueViolation(ex) && !string.IsNullOrEmpty(task.ClientKey))
+            {
+                // Aynı anahtar başka bir istekten (ikinci cihaz) az önce yazıldı: yenisi yok, var olan döner.
+                _context.Entry(task).State = EntityState.Detached;
+                var winner = await _context.Tasks.AsNoTracking()
+                    .FirstOrDefaultAsync(t => t.UserId == userId && t.ClientKey == task.ClientKey && !t.IsCompleted);
+                if (winner == null) throw;
+                DecryptTask(winner, key);
+                return winner;
+            }
 
             // Decrypt for returning to client
             DecryptTask(task, key);
@@ -357,6 +370,10 @@ namespace Tazq_App.Services
 
             task.DueDate = finalDueDate;
             task.DueTime = finalDueTime;
+            // Bitmiş görev yeniden açılıyor ve aynı anahtarla açık bir görev varsa bu görev anahtarını bırakır: ikisi de kullanıcının, biri silinmez.
+            if (task.IsCompleted && !updatedTask.IsCompleted && !string.IsNullOrEmpty(task.ClientKey)
+                && await _context.Tasks.AnyAsync(t => t.UserId == userId && t.Id != task.Id && t.ClientKey == task.ClientKey && !t.IsCompleted))
+                task.ClientKey = null;
             task.IsCompleted = updatedTask.IsCompleted;
             task.Priority = updatedTask.Priority;
             task.Tags = (updatedTask.Tags ?? new List<string>()).Take(MaxTagsPerTask).ToList();
@@ -481,8 +498,18 @@ namespace Tazq_App.Services
 
             EncryptTask(newTask, key);
             _context.Tasks.Add(newTask);
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+            {
+                _context.Entry(newTask).State = EntityState.Detached;
+            }
         }
+
+        private static bool IsUniqueViolation(DbUpdateException ex) =>
+            ex.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation };
 
         private void EncryptTask(TaskItem task, byte[] key)
         {

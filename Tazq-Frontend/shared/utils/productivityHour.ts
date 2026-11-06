@@ -15,7 +15,8 @@ export const PRODUCTIVITY_HOURS: Record<ProductivityHour, { brief: number; work:
   morning: { brief: 7, work: 9 },
   afternoon: { brief: 12, work: 13 },
   evening: { brief: 17, work: 18 },
-  night: { brief: 21, work: 22 },
+  // Gece çalışan da günün planını önceden görür; 21:00 akşam özetiyle çakışıp aynı anda iki bildirim veriyordu (2026-11-06, cihazda).
+  night: { brief: 17, work: 22 },
 };
 
 const entry = (p: string | null | undefined) =>

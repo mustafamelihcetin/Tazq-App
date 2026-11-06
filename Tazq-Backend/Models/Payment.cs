@@ -9,7 +9,10 @@ namespace Tazq_App.Models
 	{
 		Once,
 		Monthly,
-		Yearly
+		Yearly,
+		// Sona eklenir: kolon sayı tutuyor, mevcut değerler kaymamalı. Dönem anahtarı aylıkla aynı ("YYYY-MM"), vade NextDueDate'ten türer.
+		Quarterly,
+		SemiAnnual
 	}
 
 	/// <summary>

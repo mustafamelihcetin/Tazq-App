@@ -29,6 +29,7 @@ initSentry();
 
 import '../global.css';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import { useLiteRouteGuard } from '@/features/modes/hooks/useLiteRouteGuard';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useColorScheme, View, AppState, Text, TextInput, Animated, StyleSheet } from 'react-native';
@@ -74,6 +75,7 @@ import {
   briefHourFor,
   scheduleTaskNotification,
 } from '@/shared/utils/notifications';
+import { TONE } from '@/shared/utils/notificationTones';
 import { openThrough, completedOn, nextAt, reminderTasks, notificationSignature } from '@/features/tasks/utils/briefCounts';
 import { completeTask } from '@/features/tasks/utils/taskActions';
 import { toDateKey } from '@/shared/utils/dateKey';
@@ -143,6 +145,16 @@ const safeNavigationBar = (style: 'light' | 'dark') => {
   }
 };
 
+/** Açılış tam ekrandır: üç tuşlu telefonlarda tuşlar açılışın üstüne biniyordu (Samsung M31s, 2026-11-06). */
+const setNavBarHidden = (hidden: boolean) => {
+  if (Platform.OS !== 'android') return;
+  try {
+    require('expo-navigation-bar').setVisibilityAsync?.(hidden ? 'hidden' : 'visible')?.catch?.(() => {});
+  } catch (e) {
+    // Sessiz: gizlenemezse imza çubuğun üstünde durur (bkz. AnimatedSplash signBottom).
+  }
+};
+
 
 import {
   useFonts,
@@ -202,6 +214,7 @@ export default function RootLayout() {
   }, [currentUser?.id]);
   const segments = useSegments();
   const router = useRouter();
+  useLiteRouteGuard(segments[0], router);
   const [isInitialized, setIsInitialized] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
 
@@ -211,7 +224,7 @@ export default function RootLayout() {
   usePrefsSync();
   // Alışkanlıklar hesaba eşitlenir — çıkışta/telefon değişince seriler kaybolmasın (bkz. habitsSync).
   useHabitsSync();
-  usePlanAdaptations();
+  usePlanAdaptations({ lifecycle: true });
   const [assetsLoaded, setAssetsLoaded] = useState(false);
 
   const { sync, language } = useLanguageStore();
@@ -372,7 +385,8 @@ export default function RootLayout() {
       } catch (e) { swallow('layout.readHabitStreakForBrief', e); }
 
       // Morning brief: today's task count + streak + (varsa) en yakın hedef (respects user preference)
-      if (morningBriefEnabled) {
+      const briefs = usePrefsStore.getState().uiMode !== 'lite'; // Sade mod: özet yok, görevin kendi hatırlatması yeter
+      if (morningBriefEnabled && briefs) {
         const activeGoal = nearestMode && nearestMode.days != null && nearestMode.days >= 0
           ? { label: nearestMode.label, daysLeft: nearestMode.days }
           : undefined;
@@ -382,7 +396,7 @@ export default function RootLayout() {
       }
 
       // Evening brief: completed today vs still pending (respects user preference)
-      if (eveningBriefEnabled) {
+      if (eveningBriefEnabled && briefs) {
         scheduleEveningBrief(completedToday, pending, language || 'en', currentUser?.name, eveningAt, habitsPendingEvening);
       } else {
         cancelEveningBrief();
@@ -496,6 +510,7 @@ export default function RootLayout() {
                 body: response?.notification?.request?.content?.body ?? '',
                 data: data,
                 categoryIdentifier: 'task-reminder',
+                sound: TONE.reminder.file,
               },
               /*
                 TETİKLEYİCİ NESNE OLMALI — ham `Date` DEĞİL.
@@ -507,7 +522,7 @@ export default function RootLayout() {
                 kurulmuyor ya da anında geri geliyordu — ve alttaki sessiz `catch`
                 hatayı da yutuyordu, yani kimse fark edemiyordu.
               */
-              trigger: { type: 'date', date: snoozeTime },
+              trigger: { type: 'date', date: snoozeTime, channelId: TONE.reminder.channel },
             }).catch((e: unknown) => swallow('layout.notifActionSnoozeSchedule', e, { capture: true }));
           } catch (e) { swallow('layout.notifActionSnoozeReschedule', e, { capture: true }); }
           return;
@@ -869,6 +884,8 @@ export default function RootLayout() {
   // Admin "Şimdi oynat" (bkz. SplashAdminCard): açılış katmanı yeniden kurulur ve baştan oynar.
   const previewNonce = useSplashPrefs(s => s.previewNonce);
   useEffect(() => { if (previewNonce > 0) setShowSplash(true); }, [previewNonce]);
+  // Çıkış başlarken de geri gelir (onExitStart); buradaki, her ihtimale karşı son güvence.
+  useEffect(() => { setNavBarHidden(showSplash); }, [showSplash]);
   const splashLayer = showSplash ? (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 9999 }]}>
       <AnimatedSplash
@@ -876,6 +893,7 @@ export default function RootLayout() {
         // Hazır olmadan kaybolmaz: yavaş açılışta boş ekran görünmesin.
         ready={appReady}
         canStart={treeMounted}
+        onExitStart={() => setNavBarHidden(false)}
         onFinish={() => { setShowSplash(false); useBootStore.getState().setSplashDone(); }}
         onReady={() => {
           // Yerel splash yalnız bizim açılışımız ekrandayken kapanır.

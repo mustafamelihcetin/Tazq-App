@@ -21,9 +21,10 @@ export interface FocusScene {
   en: string;
   descTr: string;
   descEn: string;
-  /** null → uygulama temasının renkleri (Aurora; eski görünüm korunur). */
+  /** Sahnenin ışıkları. */
   lights: [string, string, string] | null;
   base: [string, string];
+  /** Odak ekranının rengi sahneden gelir, kullanıcının vurgusundan değil. Bilerek düşük doygunlukta: odağı ve rahatlamayı bozmamalı (2026-11-06). */
   accent: string | null;
   /** Vurgu zeminindeki ikon/yazı — açık vurgularda koyu (beyaz kehribar üstünde okunmuyor). */
   onAccent: string | null;
@@ -43,10 +44,10 @@ export interface FocusScene {
 }
 
 export const FOCUS_SCENES: FocusScene[] = [
-  { id: 'aurora', tr: 'Aurora', en: 'Aurora', descTr: 'Odaklandıkça gök açılır, takımyıldız çizilir', descEn: 'Focus opens the sky and draws a constellation', lights: ['#34F5A0', '#16C7B8', '#B25CF6'], base: ['#0A1230', '#03060F'], accent: null, onAccent: null, backdrop: ['#0C1024', '#080B16', '#05070F'], zen: ['#010006', '#08031D', '#13042B', '#06162D'], stars: ['#FFFFFF', '#E3F2FD', '#E0F7FA', '#FFF9C4', '#F3E5F5'], zenOpacity: 0.95, marker: 'star' },
-  { id: 'tide', tr: 'Gelgit', en: 'Tide', descTr: 'Odaklandıkça ışık dibe iner, inci birikir', descEn: 'Focus sends light down; pearls gather below', lights: ['#22D3EE', '#14B8A6', '#7DD3FC'], base: ['#062A3A', '#02131C'], accent: '#22D3EE', onAccent: '#0B0B0F', backdrop: ['#06243A', '#041622', '#020C14'], zen: ['#000609', '#021722', '#04293A', '#011019'], stars: ['#FFFFFF', '#CFFAFE', '#A5F3FC', '#E0F2FE'], zenOpacity: 0.95, marker: 'moon' },
-  { id: 'ember', tr: 'Kor', en: 'Ember', descTr: 'Odaklandıkça tarla tutuşur, kor birikir', descEn: 'Focus lights the field; embers gather', lights: ['#FFB35C', '#D9793A', '#FFE7C2'], base: ['#2E1D12', '#140C07'], accent: '#F59E0B', onAccent: '#0B0B0F', backdrop: ['#2E1D12', '#1E130B', '#140C07'], zen: ['#100904', '#1E130B', '#2A1A0F', '#140C07'], stars: ['#FFF7ED', '#FDE68A', '#FDBA74', '#FECACA'], zenOpacity: 0.95, marker: 'ember' },
-  { id: 'mist', tr: 'Sis', en: 'Mist', descTr: 'Odaklandıkça sis kalkar, ateşböceği gelir', descEn: 'Focus lifts the mist; fireflies arrive', lights: ['#86B59A', '#3F6F62', '#F0DDA8'], base: ['#0E1F1A', '#07110E'], accent: '#7FB89A', onAccent: '#0B0B0F', backdrop: ['#11221D', '#0B1714', '#060E0B'], zen: ['#010403', '#06120E', '#0C1F18', '#030907'], stars: ['#FFFFFF', '#E7F2EA', '#D1E7DA', '#F0FDF4'], zenOpacity: 0.95, marker: 'firefly' },
+  { id: 'aurora', tr: 'Aurora', en: 'Aurora', descTr: 'Odaklandıkça gök açılır, takımyıldız çizilir', descEn: 'Focus opens the sky and draws a constellation', lights: ['#34F5A0', '#16C7B8', '#B25CF6'], base: ['#0A1230', '#03060F'], accent: '#8CCDB5', onAccent: '#04130D', backdrop: ['#0C1024', '#080B16', '#05070F'], zen: ['#010006', '#08031D', '#13042B', '#06162D'], stars: ['#FFFFFF', '#E3F2FD', '#E0F7FA', '#FFF9C4', '#F3E5F5'], zenOpacity: 0.95, marker: 'star' },
+  { id: 'tide', tr: 'Gelgit', en: 'Tide', descTr: 'Odaklandıkça ışık dibe iner, inci birikir', descEn: 'Focus sends light down; pearls gather below', lights: ['#22D3EE', '#14B8A6', '#7DD3FC'], base: ['#062A3A', '#02131C'], accent: '#7FBFCB', onAccent: '#0B0B0F', backdrop: ['#06243A', '#041622', '#020C14'], zen: ['#000609', '#021722', '#04293A', '#011019'], stars: ['#FFFFFF', '#CFFAFE', '#A5F3FC', '#E0F2FE'], zenOpacity: 0.95, marker: 'moon' },
+  { id: 'ember', tr: 'Kor', en: 'Ember', descTr: 'Odaklandıkça tarla tutuşur, kor birikir', descEn: 'Focus lights the field; embers gather', lights: ['#FFB35C', '#D9793A', '#FFE7C2'], base: ['#2E1D12', '#140C07'], accent: '#D6A878', onAccent: '#0B0B0F', backdrop: ['#2E1D12', '#1E130B', '#140C07'], zen: ['#100904', '#1E130B', '#2A1A0F', '#140C07'], stars: ['#FFF7ED', '#FDE68A', '#FDBA74', '#FECACA'], zenOpacity: 0.95, marker: 'ember' },
+  { id: 'mist', tr: 'Sis', en: 'Mist', descTr: 'Odaklandıkça sis kalkar, ateşböceği gelir', descEn: 'Focus lifts the mist; fireflies arrive', lights: ['#86B59A', '#3F6F62', '#F0DDA8'], base: ['#0E1F1A', '#07110E'], accent: '#9DBBA8', onAccent: '#0B0B0F', backdrop: ['#11221D', '#0B1714', '#060E0B'], zen: ['#010403', '#06120E', '#0C1F18', '#030907'], stars: ['#FFFFFF', '#E7F2EA', '#D1E7DA', '#F0FDF4'], zenOpacity: 0.95, marker: 'firefly' },
 ];
 
 /** Sahnenin doğal sesi: gelgitte okyanus, korda şömine. Öneridir, seçim kullanıcının. */
@@ -76,7 +77,7 @@ export const sceneAccent = (s: FocusScene, fallback: string) => s.accent ?? fall
 export function sceneTheme<T extends { primary: string; onPrimary: string; background: string }>(s: FocusScene, base: T): T {
   if (!s.accent) return base;
   // Zemin de sahnenin tabanından: daire içindeki dünya ekranın kenarına kadar sürsün.
-  return { ...base, primary: s.accent, onPrimary: s.onAccent ?? base.onPrimary, background: s.backdrop[1] };
+  return { ...base, primary: s.accent, primaryFill: s.accent, onPrimary: s.onAccent ?? base.onPrimary, onPrimaryFill: s.onAccent ?? base.onPrimary, background: s.backdrop[1] };
 }
 
 const hexToRgb = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -101,7 +102,9 @@ export function sceneSheetTheme<T extends { primary: string; onPrimary: string; 
   return {
     ...base,
     primary,
+    primaryFill: primary,
     onPrimary: isDark ? (s.onAccent ?? base.onPrimary) : '#FFFFFF',
+    onPrimaryFill: isDark ? (s.onAccent ?? base.onPrimary) : '#FFFFFF',
     primaryContainer: mixHex(s.accent, base.surface, isDark ? 0.78 : 0.84),
     onPrimaryContainer: isDark ? s.accent : mixHex(s.accent, '#000000', 0.55),
   };

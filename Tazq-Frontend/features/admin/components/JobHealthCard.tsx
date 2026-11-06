@@ -20,7 +20,7 @@ const COPY = {
   tr: {
     label: 'ARKA PLAN İŞLERİ', refresh: 'İşleri yenile', loadFail: 'İş durumu alınamadı.',
     allOk: (n: number) => `${n} iş · hepsi çalışıyor`, issues: (n: number) => `${n} işte sorun var`,
-    names: { 'account-purge': 'Hesap temizleme', 'signup-digest': 'Günlük kayıt özeti', 'mail-queue': 'Mail kuyruğu', 'crash-retention': 'Çökme kaydı temizliği' } as Record<string, string>,
+    names: { 'account-purge': 'Hesap temizleme', 'signup-digest': 'Günlük kayıt özeti', 'mail-queue': 'Mail kuyruğu', 'crash-retention': 'Çökme kaydı temizliği', 'server-watch': 'Sunucu kontrolü' } as Record<string, string>,
     states: { ok: 'Çalışıyor', failing: 'Hata', late: 'Gecikiyor', waiting: 'Bekliyor' } as Record<string, string>,
     every: (m: number) => (m >= 60 ? `${Math.round(m / 60)} saatte bir` : `${Math.round(m)} dk'da bir`),
     onEvent: 'iş geldikçe',
@@ -31,7 +31,7 @@ const COPY = {
   en: {
     label: 'BACKGROUND JOBS', refresh: 'Refresh jobs', loadFail: 'Could not load job status.',
     allOk: (n: number) => `${n} jobs · all running`, issues: (n: number) => `${n} job${n > 1 ? 's' : ''} need attention`,
-    names: { 'account-purge': 'Account purge', 'signup-digest': 'Daily signup digest', 'mail-queue': 'Mail queue', 'crash-retention': 'Crash log cleanup' } as Record<string, string>,
+    names: { 'account-purge': 'Account purge', 'signup-digest': 'Daily signup digest', 'mail-queue': 'Mail queue', 'crash-retention': 'Crash log cleanup', 'server-watch': 'Server watch' } as Record<string, string>,
     states: { ok: 'Running', failing: 'Error', late: 'Late', waiting: 'Waiting' } as Record<string, string>,
     every: (m: number) => (m >= 60 ? `every ${Math.round(m / 60)} h` : `every ${Math.round(m)} min`),
     onEvent: 'on demand',

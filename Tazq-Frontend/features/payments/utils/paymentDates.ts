@@ -7,11 +7,20 @@ import type { Payment } from '@/features/payments/store/usePaymentsStore';
  *
  * TASARIM: `Monthly` ayın GÜNÜNE (dueDay) dayanır — ay kısaysa son gün kullanılır.
  * `Yearly`/`Once` ise `nextDueDate`in AY+GÜNÜNE dayanır (yıllık her yıl o güne döner).
+ * `Quarterly`/`SemiAnnual` (2026-11-06: MTV, emlak vergisi, sigorta, okul taksiti) `nextDueDate`ten 3/6 ayda bir döner; dönem anahtarı aylıkla aynı biçimde.
  */
 
 function daysInMonth(year: number, month0: number): number {
   return new Date(year, month0 + 1, 0).getDate();
 }
+
+const PERIOD: Partial<Record<Payment['recurrence'], number>> = { Quarterly: 3, SemiAnnual: 6 };
+const monthIdx = (d: Date) => d.getFullYear() * 12 + d.getMonth();
+/** Çapanın gününde, verilen aydaki vade (ay kısaysa son gün). */
+const dateAtMonth = (anchor: Date, idx: number) => {
+  const y = Math.floor(idx / 12), m = idx % 12;
+  return new Date(y, m, Math.min(anchor.getDate(), daysInMonth(y, m)));
+};
 
 /** Bu ayki/yılki vade — dönem geçmiş olsa da olsun, "bir sonraki" hesabı ayrı fonksiyonda. */
 export function currentCycleDate(p: Payment, today: Date): Date {
@@ -23,6 +32,13 @@ export function currentCycleDate(p: Payment, today: Date): Date {
   }
   // Yearly / Once: nextDueDate'in ay+günü, BU yılda.
   const anchor = p.nextDueDate ? new Date(p.nextDueDate) : today;
+  const period = PERIOD[p.recurrence];
+  if (period) {
+    // İçinde bulunulan dönemin vadesi: bu aya kadarki son tekrar. İlk vade gelecekteyse o.
+    const diff = monthIdx(today) - monthIdx(anchor);
+    if (diff < 0) return anchor;
+    return dateAtMonth(anchor, monthIdx(anchor) + Math.floor(diff / period) * period);
+  }
   if (p.recurrence === 'Once') return anchor;
   const y = today.getFullYear();
   // İlk vade gelecek yıldaysa (Ekim'de "Mart 2027" seçildi) bu yılın Mart'ı bir dönem
@@ -65,6 +81,8 @@ export function nextDueDateOf(p: Payment, today: Date = new Date()): Date | null
     const d = Math.min(p.dueDay, daysInMonth(y, m));
     return new Date(y, m, d);
   }
+  const period = PERIOD[p.recurrence];
+  if (period) return dateAtMonth(p.nextDueDate ? new Date(p.nextDueDate) : current, monthIdx(current) + period);
   // Yearly
   const y = current.getFullYear() + 1;
   const d = Math.min(current.getDate(), daysInMonth(y, current.getMonth()));
@@ -101,7 +119,7 @@ export function installmentNo(p: Payment, cycleKey: string): number | null {
     const [y, m] = k.split('-').map(Number);
     return p.recurrence === 'Yearly' ? y : y * 12 + (m - 1);
   };
-  return idx(cycleKey) - idx(p.installmentStart) + 1;
+  return Math.floor((idx(cycleKey) - idx(p.installmentStart)) / (PERIOD[p.recurrence] ?? 1)) + 1;
 }
 
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -153,13 +171,17 @@ export function occurrenceInMonth(p: Payment, year: number, month0: number, toda
   } else {
     if (!p.nextDueDate) return null;
     const a = new Date(p.nextDueDate);
-    if (a.getMonth() !== month0 && p.recurrence === 'Yearly') return null;
+    const period = PERIOD[p.recurrence];
+    if (period) {
+      const diff = year * 12 + month0 - monthIdx(a);
+      if (diff < 0 || diff % period !== 0) return null;
+    } else if (a.getMonth() !== month0 && p.recurrence === 'Yearly') return null;
     if (p.recurrence === 'Once') {
       if (a.getFullYear() !== year || a.getMonth() !== month0) return null;
       date = a;
     } else {
       if (year < a.getFullYear()) return null;
-      date = new Date(year, month0, Math.min(a.getDate(), daysInMonth(year, month0)));
+      date = dateAtMonth(a, year * 12 + month0);
     }
   }
   const key = cycleKeyOf(p, date);

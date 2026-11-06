@@ -47,7 +47,7 @@ describe('geri düğmesi deseni', () => {
    */
   const HEADER_SCREENS = [
     'app/settings.tsx', 'app/report.tsx', 'app/archive.tsx',
-    'app/mod-ozet.tsx', 'app/legal.tsx',
+    'app/mod-ozet.tsx', 'app/legal.tsx', 'app/profile.tsx', 'app/achievements.tsx',
   ];
 
   it('başlıklı ekranlar geri okunu KENDİ çizmez — ScreenHeader onBack kullanır', () => {
@@ -58,8 +58,8 @@ describe('geri düğmesi deseni', () => {
   });
 
   it('yüzen cam geri butonu yalnız BAŞLIKSIZ ekranlarda', () => {
-    // profile/achievements/register/verify-email: tam ekran, başlık satırı yok.
-    const glass = ['app/profile.tsx', 'app/achievements.tsx', 'app/register.tsx', 'app/verify-email.tsx'];
+    // register/verify-email: tam ekran, başlık satırı yok. Profil ve Başarılar 2026-11-06'da başlık çubuğuna geçti: yüzen düğme içeriğin üstüne biniyordu.
+    const glass = ['app/register.tsx', 'app/verify-email.tsx'];
     const missing = glass.filter(f => !/<BackButton/.test(read(f)));
     expect(missing).toEqual([]);
     // Başlıklı ekranlar bu deseni KULLANMAMALI (iki desen karışmasın).
@@ -357,7 +357,7 @@ describe('başlık çubuğu öğe ölçüleri', () => {
   });
 
   it('dashboard avatarı avatar ölçüsünü kullanır', () => {
-    const src = read('app/index.tsx');
+    const src = (read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'));
     expect(src).toMatch(/avatarContainer: \{ width: TOP_AVATAR_SIZE, height: TOP_AVATAR_SIZE/);
   });
 
@@ -368,7 +368,7 @@ describe('başlık çubuğu öğe ölçüleri', () => {
    * kullanıcılarda, yani tasarımı test edenin göremeyeceği bir durumda.
    */
   it('avatar halkası HER durumda hairline — kalınlık kişiselleştirmeye bağlı değil', () => {
-    const src = read('app/index.tsx');
+    const src = (read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'));
     const block = src.match(/hitSlop=\{touchSlop\(TOP_AVATAR_SIZE\)\}[\s\S]*?borderWidth: [^,\n]+/)?.[0] ?? '';
     // Renk seçilince kalınlaşıyordu (2.5 → 1.5): dolu fotoğraf + kalın renkli halka,
     // karşısındaki saydam zeminli glife göre gözle görülür biçimde ağır basıyordu.
@@ -381,7 +381,7 @@ describe('başlık çubuğu öğe ölçüleri', () => {
    * beyaz, yani hiç görünmüyordu. Koyu temada bakılıp doğru sanılmış bir renk.
    */
   it('varsayılan halka rengi tema jetonundan gelir — açık temada da görünür', () => {
-    const src = read('app/index.tsx');
+    const src = (read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'));
     const line = src.match(/borderColor: \(!avatarBorderColor.*/)?.[0] ?? '';
     expect(line).toContain('theme.outlineVariant');
     // Kod içinde (yorumlar hariç) o renk hiç kalmamalı: aynı hata başka kutulara
@@ -403,7 +403,7 @@ describe('başlık çubuğu öğe ölçüleri', () => {
  * iOS'ta bunlar TEK sistemdir — büyük başlık kaydıkça kompakt başlığa dönüşür.
  */
 describe('ana sayfa başlığı — tek sistem', () => {
-  const src = read('app/index.tsx');
+  const src = (read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'));
   const header = read('shared/components/ScreenHeader.tsx');
 
   /**
@@ -463,7 +463,7 @@ describe('ana sayfa başlığı — tek sistem', () => {
  * bir daha olmasın diye giriş test altında.
  */
 describe('komut paleti erişilebilir', () => {
-  const src = read('app/index.tsx');
+  const src = (read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'));
   const portal = stripComments(read('features/dashboard/components/CommandPortal.tsx'));
 
   it('logonun bir işi var — paleti DOĞRUDAN açar', () => {

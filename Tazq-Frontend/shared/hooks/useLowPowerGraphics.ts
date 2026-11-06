@@ -34,6 +34,9 @@ const LOW_POWER = isLowPowerGraphics({
   totalMemory: Device.totalMemory ?? null,
 });
 
+/** Bileşen dışı kararlar için (bkz. NavGlass). */
+export const isLowPowerGraphicsDevice = (): boolean => LOW_POWER;
+
 export function useLowPowerGraphics(): boolean {
   return LOW_POWER;
 }

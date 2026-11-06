@@ -7,7 +7,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
 import Reanimated, { FadeInDown, FadeOut, LinearTransition } from 'react-native-reanimated';
-import { Ban, BookOpen, Briefcase, Check, ChevronRight, Dumbbell, GraduationCap, Moon, PiggyBank, Scale } from 'lucide-react-native';
+import { Ban, BookOpen, Briefcase, Check, ChevronRight, Dumbbell, GraduationCap, Moon, Coins, Scale } from 'lucide-react-native';
 import { fmtDateKey, useHabitStore } from '@/features/habits';
 import { openPlan, PlanLinkHidden } from '@/features/modes/components/plan/PlanLink';
 import { PLAN_COPY } from '@/features/modes/components/plan/planCopy';
@@ -44,7 +44,7 @@ const specOf = (prefs: Record<string, unknown>, slot: string) => (prefs.planSpec
 const SEGMENTS_MAX = 10;
 const SWEEP_W = 90;
 
-const ICONS: Record<PlanType, typeof Ban> = { exam: BookOpen, tez: GraduationCap, mulakat: Briefcase, spor: Dumbbell, ramazan: Moon, tasarruf: PiggyBank, birakma: Ban };
+const ICONS: Record<PlanType, typeof Ban> = { exam: BookOpen, tez: GraduationCap, mulakat: Briefcase, spor: Dumbbell, ramazan: Moon, tasarruf: Coins, birakma: Ban };
 
 type Lang = 'tr' | 'en';
 export interface GoalCard { id: string; node: React.ReactNode }
@@ -173,8 +173,8 @@ export function GoalSummary({ lang }: { lang: Lang }) {
         </View>
       )}
       {route.total > 0 && !route.complete && (
-        <View style={[st.cta, { backgroundColor: theme.primary }]}>
-          <Text style={{ fontSize: F.body, fontWeight: W.bold, color: theme.onPrimary }}>{route.done === 0 ? c.start : c.resume}</Text>
+        <View style={[st.cta, { backgroundColor: theme.primaryFill }]}>
+          <Text style={{ fontSize: F.body, fontWeight: W.bold, color: theme.onPrimaryFill }}>{route.done === 0 ? c.start : c.resume}</Text>
         </View>
       )}
     </Touchable>
@@ -217,6 +217,15 @@ export function GoalRows({ cards, section, open, onOpen, onCardLayout, lang }: {
         );
       })}
     </Reanimated.View>
+  );
+}
+
+/** Hedef ikonu: aktif satır ve "Yeni hedef" aynı dili konuşur (2026-11-06, kullanıcı: "uyuşmuyor, üstteki daha şık"). */
+export function GoalIconTile({ Icon, accent, isDark }: { Icon: React.ComponentType<{ size?: number; color?: string }>; accent: string; isDark: boolean }) {
+  return (
+    <View style={[st.tile, { backgroundColor: accent + (isDark ? '26' : '1A') }]}>
+      <Icon size={ICON.sm} color={accent} />
+    </View>
   );
 }
 

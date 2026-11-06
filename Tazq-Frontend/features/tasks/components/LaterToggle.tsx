@@ -10,9 +10,8 @@ import type { AppLang } from '@/shared/utils/lang';
 /**
  * "DAHA SONRA · N GÖREV" — açık ufkun ötesindeki görevleri açıp kapatan satır.
  *
- * Listenin SONUNDA duruyor (FlatList'in alt bileşeni): geniş ekranda liste iki-üç
- * sütunlu ve sütunlu bir listenin ortasına tam genişlikte bir başlık konamıyor.
- * Açılınca uzak görevler listenin sonuna eklenir ve satır "gizle"ye döner.
+ * Yakın bölümlerin altında, "Tamamlanan"ın üstünde durur. Açılınca uzak görevler hemen
+ * altında belirir ve satır "gizle"ye döner: ayrı bir başlığa gerek kalmaz.
  */
 export function LaterToggle({ count, open, onToggle, theme, lang }: {
   count: number; open: boolean; onToggle: () => void; theme: AppTheme; lang: AppLang;
@@ -38,7 +37,7 @@ export function LaterToggle({ count, open, onToggle, theme, lang }: {
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs,
-    minHeight: MIN_TOUCH, borderRadius: R.md, marginTop: S.sm,
+    minHeight: MIN_TOUCH, borderRadius: R.md, marginTop: S.lg,
   },
   label: { fontSize: F.body, fontWeight: W.semibold },
 });

@@ -87,7 +87,7 @@ let releasing: Promise<void> | null = null;
 
 /** Tek uçuş: açılış, öne geliş ve yeniden kurulan efekt aynı anda çağırır; ikinci çağrı ilkini bekler, yeniden üretmez. */
 export function releaseStagedPlanItems(): Promise<void> {
-  // GECICI-KANIT
+  if (releasing) return releasing;
   const run = releaseOnce();
   const done = () => { releasing = null; };
   releasing = run;
@@ -151,7 +151,7 @@ async function releaseOnce(): Promise<void> {
           .find(x => !x.isCompleted && (same(x.title, t.titleTr) || same(x.title, t.titleEn)));
         if (already) {
           usePrefsStore.getState().setPlanIds(slot, habitIds, taskIds.includes(already.id) ? taskIds : [...taskIds, already.id]);
-          useStagedPlanStore.getState().commitAt(slot, index, today);
+          useStagedPlanStore.getState().commitAt(slot, head, today);
           continue;
         }
         const description = JSON.stringify({ tr: t.titleTr, en: t.titleEn, ...(t.descTr && { descTr: t.descTr }), ...(t.descEn && { descEn: t.descEn }) });
@@ -166,7 +166,7 @@ async function releaseOnce(): Promise<void> {
         useTaskStore.getState().addTask({ ...created, title });
         usePrefsStore.getState().setPlanIds(slot, habitIds, [...taskIds, created.id]);
       }
-      useStagedPlanStore.getState().commitAt(slot, index, today);
+      useStagedPlanStore.getState().commitAt(slot, head, today);
     } catch (e) {
       swallow('stagedRollout.release', e); // sırada kalır, sonraki çalışmada yeniden denenir
     }

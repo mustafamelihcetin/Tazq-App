@@ -3,13 +3,24 @@
     "name": "TAZQ",
     "slug": "Tazq-Frontend",
     "owner": "melihctn",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "orientation": "portrait",
     "icon": "./assets/brand/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "tazq-app",
     "plugins": [
       "expo-router",
+      [
+        "expo-notifications",
+        {
+          "sounds": [
+            "./assets/sounds/notify/tazq_hatirlatma.wav",
+            "./assets/sounds/notify/tazq_odak.wav",
+            "./assets/sounds/notify/tazq_odeme.wav",
+            "./assets/sounds/notify/tazq_ozet.wav"
+          ]
+        }
+      ],
       [
         "expo-splash-screen",
         {

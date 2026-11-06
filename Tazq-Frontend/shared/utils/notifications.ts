@@ -2,6 +2,7 @@ import { calendarDayOf, parseDateKey } from '@/shared/utils/dateKey';
 import { Platform, AppState } from 'react-native';
 import Constants from 'expo-constants';
 import { swallow } from './swallow';
+import { CHANNEL_NAMES, HAS_TONES, TONE, toneOfCategory } from './notificationTones';
 import { briefHourOf } from '@/shared/utils/productivityHour';
 
 const isExpoGo = Constants.appOwnership === 'expo';
@@ -46,6 +47,15 @@ export function parseTimeParts(timeStr: string): { hours: number; minutes: numbe
 
 // ─── Categories ───────────────────────────────────────────────────────────────
 
+/** Android kanalları: özet ekrana düşmez, diğerleri düşer. Sesler yokken kurulmaz (bkz. notificationTones); iOS'ta kanal yoktur, ses içerikten gelir. */
+async function ensureSoundChannels(lang: 'tr' | 'en'): Promise<void> {
+  if (!HAS_TONES || !Notifications?.setNotificationChannelAsync) return;
+  const { HIGH, DEFAULT } = Notifications.AndroidImportance ?? {};
+  for (const key of Object.keys(TONE) as (keyof typeof TONE)[]) {
+    await Notifications.setNotificationChannelAsync(TONE[key].channel, { name: CHANNEL_NAMES[lang][key], importance: key === 'summary' ? DEFAULT : HIGH, sound: TONE[key].file });
+  }
+}
+
 export async function registerNotificationCategories(): Promise<void> {
   if (!Notifications?.setNotificationCategoryAsync) return;
   try {
@@ -53,6 +63,8 @@ export async function registerNotificationCategories(): Promise<void> {
     // alışkanlık/odak butonları Türkçe-sabitti, İngilizce kullanıcı Türkçe metin görüyordu).
     const lang = require('@/shared/store/useLanguageStore').useLanguageStore.getState().language;
     const tr = lang === 'tr';
+    // Kanal ayrı denenir: başarısız olsa da eylem düğmeleri kurulsun.
+    await ensureSoundChannels(tr ? 'tr' : 'en').catch((e: unknown) => swallow('notifications.ensureSoundChannels', e));
 
     // Sabah özeti — odaklan ya da görevleri aç
     await Notifications.setNotificationCategoryAsync('morning-brief', [
@@ -257,12 +269,13 @@ export async function scheduleMorningBrief(
       content: {
         title: greeting,
         body,
-        sound: true,
+        sound: TONE.summary.file,
         // Dokunuş "Bugün" ekranını açar: sabah özetinin işi günü KURMAK.
         data: { type: 'morning-brief' },
         categoryIdentifier: 'morning-brief',
       },
       trigger: {
+        channelId: TONE.summary.channel,
         type: 'date',
         date: fireAt ?? nextOccurrence(briefHour),
       } as any,
@@ -355,7 +368,7 @@ export async function scheduleEveningBrief(
       content: {
         title,
         body,
-        sound: true,
+        sound: TONE.summary.file,
         /*
           Dokunuş "Bugün" ekranını açar. Akşam özeti eskiden bir bildirim olarak gelip
           hiçbir yere GÖTÜRMÜYORDU: kullanıcı "3 iş kaldı" cümlesini okuyup uygulamayı
@@ -366,6 +379,7 @@ export async function scheduleEveningBrief(
         categoryIdentifier: 'evening-close',
       },
       trigger: {
+        channelId: TONE.summary.channel,
         type: 'date',
         date: trigger,
       } as any,
@@ -458,10 +472,11 @@ export async function scheduleTaskNotification(
           ? (isTR ? 'Bir görevinin zamanı geldi' : 'A task is due')
           : title,
         data: { taskId, type: 'task-reminder' },
-        sound: true,
+        sound: TONE.reminder.file,
         categoryIdentifier: 'task-reminder',
       },
       trigger: {
+        channelId: TONE.reminder.channel,
         type: 'date',
         date: triggerDate,
       } as any,
@@ -535,11 +550,12 @@ export async function scheduleHabitReminder(
       content: {
         title: isTR ? 'Alışkanlık zamanı' : 'Habit time',
         body: habitName,
-        sound: true,
+        sound: TONE.reminder.file,
         data: { type: 'habit-reminder', habitId },
         categoryIdentifier: 'habit-reminder',
       },
       trigger: {
+        channelId: TONE.reminder.channel,
         type: 'daily',
         hour,
         minute,
@@ -572,8 +588,8 @@ export async function scheduleComeback(locale: string = 'tr', enabled: boolean =
     const copy = COMEBACK_COPY[locale === 'en' ? 'en' : 'tr'];
     await Notifications.scheduleNotificationAsync({
       identifier: 'comeback',
-      content: { title: copy.title, body: copy.body, sound: 'default', data: { type: 'comeback' } },
-      trigger: { type: 'date', date: comebackTime() },
+      content: { title: copy.title, body: copy.body, sound: TONE.summary.file, data: { type: 'comeback' } },
+      trigger: { type: 'date', date: comebackTime(), channelId: TONE.summary.channel },
     });
   } catch (e) { swallow('notifications.scheduleComeback', e); }
 }
@@ -582,7 +598,7 @@ export async function scheduleComeback(locale: string = 'tr', enabled: boolean =
 export function refreshComeback(): void {
   const prefs = require('@/features/modes/store/usePrefsStore').usePrefsStore.getState();
   const lang = require('@/shared/store/useLanguageStore').useLanguageStore.getState().language;
-  void scheduleComeback(lang, prefs.morningBrief !== false);
+  void scheduleComeback(lang, prefs.morningBrief !== false && prefs.uiMode !== 'lite');
 }
 
 export async function scheduleHabitAtRisk(
@@ -608,11 +624,12 @@ export async function scheduleHabitAtRisk(
         body: isTR
           ? 'Serini canlı tutmak için bugünün alışkanlıklarını tamamla. Küçük bir adım yeter.'
           : "Complete today's habits to keep your streak alive. One small step is enough.",
-        sound: true,
+        sound: TONE.reminder.file,
         data: { type: 'habit-risk' },
         categoryIdentifier: 'habit-risk',
       },
       trigger: {
+        channelId: TONE.reminder.channel,
         type: 'date',
         date: trigger,
       } as any,
@@ -637,8 +654,8 @@ export async function scheduleFocusAlert(id: string, at: Date, title: string, bo
     await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
     await Notifications.scheduleNotificationAsync({
       identifier: id,
-      content: { title, body, sound: 'default', data: { type: 'focus' } },
-      trigger: { type: 'date', date: at } as any,
+      content: { title, body, sound: TONE.focus.file, data: { type: 'focus' } },
+      trigger: { type: 'date', date: at, channelId: TONE.focus.channel } as any,
     });
   } catch (e) { swallow('notifications.scheduleFocusAlert', e); }
 }
@@ -718,8 +735,8 @@ export async function scheduleWeeklySummary(
       await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
       await Notifications.scheduleNotificationAsync({
         identifier: id,
-        content: { title, body: week === 0 ? body : copy.evergreen, sound: true, data: { type: 'weekly' }, categoryIdentifier: 'weekly-summary' },
-        trigger: { type: 'date', date: trigger } as any,
+        content: { title, body: week === 0 ? body : copy.evergreen, sound: TONE.summary.file, data: { type: 'weekly' }, categoryIdentifier: 'weekly-summary' },
+        trigger: { type: 'date', date: trigger, channelId: TONE.summary.channel } as any,
       });
     }
   } catch (e) { swallow('notifications.scheduleWeeklySummary', e); }
@@ -787,11 +804,11 @@ export async function scheduleExamCountdownNotifs(
               : (daysBefore === 1
                   ? 'Final stretch. Review your plan and stay ready.'
                   : `${daysBefore} days to go. Review your plan and keep the pace.`),
-            sound: true,
+            sound: TONE.summary.file,
             data: { type: 'exam-countdown', daysBefore },
             categoryIdentifier: 'exam-countdown',
           },
-          trigger: { type: 'date', date: trigger } as any,
+          trigger: { type: 'date', date: trigger, channelId: TONE.summary.channel } as any,
         });
       }
     }
@@ -847,11 +864,11 @@ export async function syncPaymentDueNotifs(plan: PaymentNotif[]): Promise<void> 
         content: {
           title: n.title,
           body: n.body,
-          sound: true,
+          sound: TONE.payment.file,
           data: { type: 'payment-due', paymentId: n.paymentId },
           categoryIdentifier: n.variable ? 'payment-due-variable' : 'payment-due',
         },
-        trigger: { type: 'date', date: n.fireAt } as any,
+        trigger: { type: 'date', date: n.fireAt, channelId: TONE.payment.channel } as any,
       });
     }
   } catch (e) { swallow('notifications.syncPaymentDueNotifs', e); }
@@ -891,8 +908,8 @@ export async function sendDemoNotifications(locale: string = 'tr'): Promise<numb
     try {
       await Notifications.scheduleNotificationAsync({
         identifier: `demo-${i}`,
-        content: { title: x.title, body: x.body, sound: true, categoryIdentifier: x.category, data: { type: x.type, demo: true } },
-        trigger: { type: 'timeInterval', seconds: 5 * (i + 1), repeats: false },
+        content: { title: x.title, body: x.body, sound: toneOfCategory(x.category).file, categoryIdentifier: x.category, data: { type: x.type, demo: true } },
+        trigger: { type: 'timeInterval', seconds: 5 * (i + 1), repeats: false, channelId: toneOfCategory(x.category).channel },
       });
       n++;
     } catch (e) { swallow('notifications.sendDemo', e); }
@@ -932,11 +949,11 @@ export async function scheduleRamadanStartNotification(
           body: isTR
             ? 'Alışkanlık planını bir kez gözden geçir — yarın hazır ol.'
             : 'Review your habit plan once — be ready for tomorrow.',
-          sound: true,
+          sound: TONE.summary.file,
           data: { type: 'ramazan-eve' },
           categoryIdentifier: 'daily-summary',
         },
-        trigger: { type: 'date', date: eve } as any,
+        trigger: { type: 'date', date: eve, channelId: TONE.summary.channel } as any,
       });
     }
 
@@ -951,11 +968,11 @@ export async function scheduleRamadanStartNotification(
           body: isTR
             ? 'Planın aktif. İlk günü güçlü başlatmak için alışkanlıklarına bak.'
             : 'Your plan is active. Check your habits to start the first day strong.',
-          sound: true,
+          sound: TONE.summary.file,
           data: { type: 'ramazan-start' },
           categoryIdentifier: 'daily-summary',
         },
-        trigger: { type: 'date', date: start } as any,
+        trigger: { type: 'date', date: start, channelId: TONE.summary.channel } as any,
       });
     }
   } catch (e) { swallow('notifications.scheduleRamadanStartNotification', e); }
@@ -985,9 +1002,9 @@ export async function sendAdminSupportNotification(userName: string, tr: boolean
       content: {
         title: tr ? 'Yeni Destek Mesajı!' : 'New Support Message!',
         body: tr ? `${userName} bir destek mesajı gönderdi.` : `${userName} sent a support request.`,
-        sound: true,
+        sound: TONE.reminder.file,
       },
-      trigger: null, // send immediately
+      trigger: TONE.reminder.channel ? { channelId: TONE.reminder.channel } : null, // send immediately
     });
   } catch (e) { swallow('notifications.sendAdminSupportNotification', e); }
 }

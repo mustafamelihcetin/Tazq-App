@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { makeClientKey } from '@/shared/utils/planKey';
+import { formatWithPrefix } from '@/features/modes/utils/stagedRepair';
 import { isNetworkError } from '@/shared/utils/errors';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, Platform, ActivityIndicator, Animated, useWindowDimensions, TextInput } from 'react-native';
@@ -319,24 +320,6 @@ export const TurkishModeBanner: React.FC<Props> = ({
     };
 
     const taskPrefix = getTaskPrefix();
-
-    const formatWithPrefix = (titleStr: string, prefixStr: string): string => {
-      if (!prefixStr || !titleStr) return titleStr;
-      const p = prefixStr.trim();
-      const t = titleStr.trim();
-      const pLower = p.toLowerCase();
-      const tLower = t.toLowerCase();
-
-      if (tLower.startsWith(pLower + ':') || tLower.startsWith(pLower + ' -')) {
-        const rest = t.slice(p.length + 1).replace(/^[:\s-]+/, '').trim();
-        return `${p}: ${rest}`;
-      }
-      if (tLower.startsWith(pLower + ' ')) {
-        const rest = t.slice(p.length).trim();
-        return `${p}: ${rest}`;
-      }
-      return `${p}: ${t}`;
-    };
 
     // newTasks zaten gelecek-tarihli dökümü hariç tutuyor (bkz. tanımı) — doğrudan oluştur.
     const addedTaskIds: number[] = [];

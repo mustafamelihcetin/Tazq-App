@@ -36,7 +36,7 @@ export function UserFilterChips({ value, counts, total, onChange, lang }: {
             style={{
               flexDirection: 'row', alignItems: 'center', gap: S.xxs, paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full,
               borderWidth: B.thin, borderColor: selected ? theme.primary : theme.outlineVariant,
-              backgroundColor: selected ? theme.primary + '1A' : 'transparent',
+              backgroundColor: selected ? theme.primaryFill + '1A' : 'transparent',
             }}>
             <Text style={{ fontSize: F.caption, fontWeight: W.semibold, color: selected ? theme.primary : theme.onSurfaceVariant }}>{LABELS[lang][f]}</Text>
             {n != null && <Text style={{ fontSize: F.caption, fontWeight: W.bold, color: selected ? theme.primary : theme.onSurfaceMuted, fontVariant: ['tabular-nums'] }}>{n}</Text>}

@@ -1,126 +1,104 @@
-import React from 'react';
-import { View, Text } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
-import { S, F, R, B } from '@/shared/constants/tokens';
+import { Touchable } from '@/shared/components/Touchable';
+import { S, F, R, B, W, MIN_TOUCH } from '@/shared/constants/tokens';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
-import { shortDayLabels, type WeekSummary, type ReportHabit } from '../weeklyReport';
+import { DAY_NAMES, shortDayLabels, type WeekSummary, type ReportHabit } from '../weeklyReport';
 
-/**
- * HAFTANIN PANOSU — grafik ve alışkanlık şeridi.
- *
- * Eski rapor yalnız odak dakikasını çiziyordu: görevler bir sayı, alışkanlıklar ise
- * HİÇ yoktu. Kullanıcının haftasının yarısı raporda görünmüyordu.
- */
+/*
+  HAFTANIN GRAFİĞİ VE ALIŞKANLIKLARI (2026-11-06, kullanıcı: "çok karmaşık").
+  Sütunların üstünde ve altında iki sıra sayı, yanında lejant vardı. Şimdi yalnız sütun: güne dokununca o günün odak, iş ve alışkanlık sayısı tek satırda (Actual ve goodtime'daki seçili gün deseni).
+  Alışkanlıklarda en çok dört satır; fazlası bir dokunuşta açılır.
+*/
 
 type Lang = 'tr' | 'en';
 
 const COPY = {
   tr: {
-    chartTitle: 'Günlük odak',
-    minutesShort: 'dk',
-    tasksLine: 'Tamamlanan iş',
     habitsTitle: 'Alışkanlıklar',
     noHabits: 'Henüz alışkanlık eklemedin.',
     empty: 'Bu hafta kayıt yok.',
-    noFocus: 'Bu hafta odak seansı yok — tamamlanan işler aşağıda.',
-    today: 'bugün',
+    detail: (day: string, min: number, tasks: number, habits: number) => [day, min > 0 ? `${min} dk odak` : 'odak yok', tasks > 0 ? `${tasks} iş` : '', habits > 0 ? `${habits} alışkanlık` : ''].filter(Boolean).join(' · '),
     dayA11y: (day: string, min: number, tasks: number) => `${day}: ${min} dakika odak, ${tasks} iş`,
     habitA11y: (name: string, done: number, total: number) => `${name}: ${total} günün ${done} günü`,
+    more: (n: number) => `${n} alışkanlık daha`,
+    less: 'Daha az göster',
   },
   en: {
-    chartTitle: 'Daily focus',
-    minutesShort: 'min',
-    tasksLine: 'Tasks done',
     habitsTitle: 'Habits',
     noHabits: 'No habits yet.',
     empty: 'Nothing recorded this week.',
-    noFocus: 'No focus sessions this week — finished tasks below.',
-    today: 'today',
+    detail: (day: string, min: number, tasks: number, habits: number) => [day, min > 0 ? `${min} min focus` : 'no focus', tasks > 0 ? `${tasks} task${tasks === 1 ? '' : 's'}` : '', habits > 0 ? `${habits} habit${habits === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · '),
     dayA11y: (day: string, min: number, tasks: number) => `${day}: ${min} minutes focus, ${tasks} tasks`,
     habitA11y: (name: string, done: number, total: number) => `${name}: ${done} of ${total} days`,
+    more: (n: number) => `${n} more habits`,
+    less: 'Show less',
   },
 };
+
+const CHART_H = 96;
+const HABIT_LIMIT = 4;
 
 export interface WeekChartProps {
   summary: WeekSummary;
   language: Lang;
-  /** Bugünün gün anahtarı — bu haftaya bakılıyorsa sütun işaretlenir. */
+  /** Bugünün gün anahtarı — bu haftaya bakılıyorsa o gün seçili başlar. */
   todayKey: string;
 }
 
+/** Başlangıçta seçili gün: bugün, yoksa haftanın en iyi günü, o da yoksa ilk gün. */
+export function initialWeekDay(summary: Pick<WeekSummary, 'range' | 'bestDayIndex'>, todayKey: string): number {
+  const today = summary.range.days.indexOf(todayKey);
+  if (today >= 0) return today;
+  return summary.bestDayIndex >= 0 ? summary.bestDayIndex : 0;
+}
+
 export const WeekChart: React.FC<WeekChartProps> = ({ summary, language, todayKey }) => {
-  const { theme, isDark } = useAppTheme();
+  const { theme } = useAppTheme();
   const c = COPY[language];
   const labels = shortDayLabels(language);
+  const [picked, setPicked] = useState(() => initialWeekDay(summary, todayKey));
   const max = Math.max(1, ...summary.focusPerDay);
-  const hasAny = summary.totalFocusMin > 0 || summary.totalTasks > 0;
-  /*
-    ODAK YOKSA SÜTUN YOK. Odak 0, iş > 0 iken 110pt'lik alan 2%'lik görünmez sütunlarla
-    çiziliyordu: kartın üçte ikisi boş, tek bilgi en alttaki "1". Tremor'un kuralı: boş
-    seri çizilmez. Gün satırı ve iş sayıları kalır, grafik alanı yerini nota bırakır.
-  */
-  const hasFocus = summary.totalFocusMin > 0;
-  // Uygulamanın kart yüzeyi (bkz. SettingsCard) — eskiden gri zemin + çerçeveyle ayrı bir dil.
-  const cardStyle = { borderRadius: R.lg, borderWidth: isDark ? B.thin : 0, borderColor: theme.outline, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, padding: S.md, gap: S.sm } as const;
+  const hasAny = summary.totalFocusMin > 0 || summary.totalTasks > 0 || summary.habitDone > 0;
+
+  if (!hasAny) {
+    return (
+      <View style={[styles.card, { backgroundColor: theme.surfaceCard }]}>
+        <Text style={{ color: theme.onSurfaceMuted, fontSize: F.footnote, textAlign: 'center', paddingVertical: S.sm }}>{c.empty}</Text>
+      </View>
+    );
+  }
 
   return (
-    <View style={cardStyle}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{c.chartTitle}</Text>
-        <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600' }}>{c.minutesShort}</Text>
+    <View style={[styles.card, { backgroundColor: theme.surfaceCard }]}>
+      <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: theme.onSurfaceVariant, fontSize: F.footnote, fontWeight: W.medium, fontVariant: ['tabular-nums'] }}>
+        {c.detail(DAY_NAMES[language][picked], summary.focusPerDay[picked], summary.tasksPerDay[picked], summary.habitDonePerDay[picked])}
+      </Text>
+      <View style={styles.chart}>
+        {summary.focusPerDay.map((min, i) => {
+          const on = i === picked;
+          const isToday = summary.range.days[i] === todayKey;
+          const h = min > 0 ? Math.max(6, (min / max) * CHART_H) : 3;
+          return (
+            <Touchable
+              key={summary.range.days[i]}
+              onPress={() => setPicked(i)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={c.dayA11y(labels[i], min, summary.tasksPerDay[i])}
+              style={styles.col}
+            >
+              <MotiView
+                animate={{ height: h }}
+                transition={{ type: 'timing', duration: 320 }}
+                style={{ width: '62%', borderRadius: R.xs, backgroundColor: min === 0 ? theme.outline : on ? theme.primaryFill : theme.primaryFill + '4D' }}
+              />
+              <Text style={{ fontSize: F.caption, color: on || isToday ? theme.onSurface : theme.onSurfaceMuted, fontWeight: on ? W.bold : W.medium }}>{labels[i]}</Text>
+            </Touchable>
+          );
+        })}
       </View>
-
-      {!hasAny ? (
-        <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, paddingVertical: S.md }}>{c.empty}</Text>
-      ) : (
-        <>
-        {!hasFocus && <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{c.noFocus}</Text>}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: hasFocus ? 110 : undefined, gap: S.xs }}>
-          {summary.focusPerDay.map((min, i) => {
-            const dayKey = summary.range.days[i];
-            const isToday = dayKey === todayKey;
-            const isBest = i === summary.bestDayIndex && min > 0;
-            const tasks = summary.tasksPerDay[i];
-            const pct = Math.max((min / max) * 100, min > 0 ? 6 : 2);
-            return (
-              <View
-                key={dayKey}
-                accessible
-                accessibilityLabel={c.dayA11y(labels[i], min, tasks)}
-                style={{ flex: 1, alignItems: 'center', gap: S.xxs }}
-              >
-                {/* Dakika yazısı yalnız DOLU günlerde: boş günler sessiz kalsın. */}
-                {hasFocus && <Text style={{ fontSize: F.caption, color: min > 0 ? theme.onSurfaceVariant : 'transparent', fontWeight: '700' }}>
-                  {min > 0 ? min : '0'}
-                </Text>}
-                {hasFocus && <View style={{ flex: 1, width: '100%', justifyContent: 'flex-end' }}>
-                  <MotiView
-                    from={{ height: 2 }}
-                    animate={{ height: `${pct}%` as never }}
-                    transition={{ type: 'timing', duration: 420, delay: i * 50 }}
-                    style={{ width: '70%', alignSelf: 'center', borderRadius: R.xs, backgroundColor: isBest ? theme.primary : theme.primary + (min > 0 ? '66' : '1F') }}
-                  />
-                </View>}
-                {/* Tamamlanan iş: grafiğin altında ikinci bir satır — sayı olarak. */}
-                <Text style={{ fontSize: F.caption, color: tasks > 0 ? theme.success : 'transparent', fontWeight: '700' }}>
-                  {tasks > 0 ? `${tasks}` : '0'}
-                </Text>
-                <Text style={{ fontSize: F.caption, color: isToday ? theme.primary : theme.onSurfaceMuted, fontWeight: isToday ? '700' : '600' }}>
-                  {labels[i]}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-        </>
-      )}
-
-      {hasAny && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
-          <View style={{ width: 8, height: 8, borderRadius: R.full, backgroundColor: theme.success }} />
-          <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{c.tasksLine}</Text>
-        </View>
-      )}
     </View>
   );
 };
@@ -132,56 +110,69 @@ export interface HabitWeekListProps {
   todayKey: string;
 }
 
-/** Alışkanlıklar hafta boyunca gün gün: yapılan gün dolu, geçen gün boş, gelecek gün soluk. */
+/** Alışkanlıklar hafta boyunca gün gün: yapılan gün dolu, geçen gün boş, gelecek gün soluk. Alışkanlık yoksa hiç çizilmez. */
 export const HabitWeekList: React.FC<HabitWeekListProps> = ({ habits, summary, language, todayKey }) => {
-  const { theme, isDark } = useAppTheme();
+  const { theme } = useAppTheme();
   const c = COPY[language];
   const days = summary.range.days;
+  const [open, setOpen] = useState(false);
+  // O hafta henüz var olmayan alışkanlık boş "0/0" satırı olmaz.
+  const relevant = habits.filter(h => {
+    const created = h.createdAt ? h.createdAt.slice(0, 10) : null;
+    return days.some(d => (h.completedDates ?? []).includes(d) || (d <= todayKey && (!created || d >= created)));
+  });
+  if (relevant.length === 0) return null;
+  const shown = open ? relevant : relevant.slice(0, HABIT_LIMIT);
+  const rest = relevant.length - HABIT_LIMIT;
 
   return (
-    <View style={{ borderRadius: R.lg, borderWidth: isDark ? B.thin : 0, borderColor: theme.outline, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, padding: S.md, gap: S.sm }}>
-      <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{c.habitsTitle}</Text>
-      {habits.length === 0 ? (
-        <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{c.noHabits}</Text>
-      ) : (
-        habits.map((h) => {
-          const done = new Set(h.completedDates ?? []);
-          const created = h.createdAt ? h.createdAt.slice(0, 10) : null;
-          const doneCount = days.filter((d) => done.has(d)).length;
-          const expected = days.filter((d) => d <= todayKey && (!created || d >= created)).length;
-          return (
-            <View
-              key={h.id}
-              accessible
-              accessibilityLabel={c.habitA11y(h.name ?? '', doneCount, expected)}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}
-            >
-              <Text numberOfLines={1} style={{ flex: 1, color: theme.onSurface, fontSize: F.footnote, fontWeight: '600' }}>{h.name}</Text>
-              <View style={{ flexDirection: 'row', gap: S.xxs }}>
-                {days.map((d) => {
-                  const isDone = done.has(d);
-                  const future = d > todayKey || (created != null && d < created);
-                  return (
-                    <View
-                      key={d}
-                      style={{
-                        width: 10, height: 10, borderRadius: R.full,
-                        backgroundColor: isDone ? theme.success : 'transparent',
-                        borderWidth: isDone ? 0 : B.thin,
-                        borderColor: future ? theme.outlineVariant : theme.onSurfaceMuted + '80',
-                        opacity: future ? 0.4 : 1,
-                      }}
-                    />
-                  );
-                })}
-              </View>
-              <Text style={{ width: 38, textAlign: 'right', color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700' }}>
-                {doneCount}/{Math.max(expected, doneCount)}
-              </Text>
+    <View style={[styles.card, { backgroundColor: theme.surfaceCard }]}>
+      <Text style={{ color: theme.onSurface, fontWeight: W.semibold, fontSize: F.body }}>{c.habitsTitle}</Text>
+      {shown.map((h) => {
+        const done = new Set(h.completedDates ?? []);
+        const created = h.createdAt ? h.createdAt.slice(0, 10) : null;
+        const doneCount = days.filter((d) => done.has(d)).length;
+        const expected = days.filter((d) => d <= todayKey && (!created || d >= created)).length;
+        return (
+          <View key={h.id} accessible accessibilityLabel={c.habitA11y(h.name ?? '', doneCount, expected)} style={styles.habit}>
+            <Text numberOfLines={1} style={{ flex: 1, color: theme.onSurface, fontSize: F.footnote, fontWeight: W.medium }}>{h.name}</Text>
+            <View style={{ flexDirection: 'row', gap: S.xxs }}>
+              {days.map((d) => {
+                const isDone = done.has(d);
+                const future = d > todayKey || (created != null && d < created);
+                return (
+                  <View
+                    key={d}
+                    style={{
+                      width: 10, height: 10, borderRadius: R.full,
+                      backgroundColor: isDone ? theme.success : 'transparent',
+                      borderWidth: isDone ? 0 : B.thin,
+                      borderColor: future ? theme.outlineVariant : theme.onSurfaceMuted + '80',
+                      opacity: future ? 0.4 : 1,
+                    }}
+                  />
+                );
+              })}
             </View>
-          );
-        })
+            <Text style={{ width: 32, textAlign: 'right', color: theme.onSurfaceVariant, fontSize: F.caption, fontVariant: ['tabular-nums'] }}>
+              {doneCount}/{Math.max(expected, doneCount)}
+            </Text>
+          </View>
+        );
+      })}
+      {rest > 0 && (
+        <Touchable onPress={() => setOpen(v => !v)} accessibilityRole="button" accessibilityState={{ expanded: open }} style={styles.more}>
+          <Text style={{ color: theme.primary, fontSize: F.footnote, fontWeight: W.semibold }}>{open ? c.less : c.more(rest)}</Text>
+        </Touchable>
       )}
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  card: { borderRadius: R.lg, padding: S.md, gap: S.sm },
+  chart: { flexDirection: 'row', alignItems: 'flex-end', height: CHART_H + 28 },
+  col: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'flex-end', gap: S.xs },
+  habit: { flexDirection: 'row', alignItems: 'center', gap: S.sm, minHeight: 28 },
+  more: { minHeight: MIN_TOUCH - S.sm, justifyContent: 'center' },
+});

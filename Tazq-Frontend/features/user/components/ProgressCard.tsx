@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
-import { ChevronRight, Shield } from 'lucide-react-native';
+import { ChevronRight, RefreshCw, Shield } from 'lucide-react-native';
+import { DisplayValue } from '@/shared/components/DisplayPanel';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { S, R, F, W, B, ICON, HAIRLINE } from '@/shared/constants/tokens';
 import { SettingsChip } from '@/shared/constants/Colors';
@@ -20,14 +21,14 @@ import { Touchable } from '@/shared/components/Touchable';
 type Lang = 'tr' | 'en';
 const COPY = {
   tr: {
-    focus: 'sa odak', tasks: 'görev', streak: 'en uzun seri', retry: '↺ Yenile',
+    focus: 'sa odak', tasks: 'görev', streak: (best: number) => `gün seri · en iyi ${best}`, retry: 'Yüklenemedi, tekrar dene', use: 'Kullan', none: 'Puan biriktirince kazanılır',
     achievements: 'Başarılar', firstMedal: 'İlk madalyanı kazan',
     shield: 'Seri kalkanı', points: (p: number) => `sonraki kalkana ${100 - p} puan`, full: 'kalkanlar dolu',
     shieldA11y: (n: number, p: number) => `Seri kalkanı, ${n} / 3 hazır, ${p} / 100 puan. Kullanmak için dokun: bugün mola olur, seri bozulmaz.`,
     achA11y: (e: number, t: number) => `Başarılar, ${e} / ${t} açıldı`,
   },
   en: {
-    focus: 'focus hrs', tasks: 'tasks', streak: 'best streak', retry: '↺ Retry',
+    focus: 'focus hrs', tasks: 'tasks', streak: (best: number) => `day streak · best ${best}`, retry: 'Could not load, try again', use: 'Use', none: 'Earned with points',
     achievements: 'Achievements', firstMedal: 'Earn your first medal',
     shield: 'Streak shield', points: (p: number) => `${100 - p} points to next shield`, full: 'shields full',
     shieldA11y: (n: number, p: number) => `Streak shield, ${n} of 3 ready, ${p} of 100 points. Tap to use: today becomes a break, streak stays.`,
@@ -35,9 +36,13 @@ const COPY = {
   },
 };
 
-export function ProgressCard({ lang, stats, statsState, onRetry, medals, earnedCount, totalMedals, onShowcase, renderMedal, shields, points, onShield }: {
+export function ProgressCard({ identity, lite, lang, stats, statsState, onRetry, medals, earnedCount, totalMedals, onShowcase, renderMedal, shields, points, onShield }: {
+  /** Kimlik satırı: kartın başı. Kim olduğun ile ne yaptığın tek yüzeyde (Streak'in üst özeti). */
+  identity?: React.ReactNode;
+  /** Sade mod: yalnız kimlik; sayı, ödül ve kalkan yok. */
+  lite?: boolean;
   lang: Lang;
-  stats: { focusHours: number; tasks: number; bestStreak: number };
+  stats: { focusHours: number; tasks: number; bestStreak: number; currentStreak: number };
   statsState: 'loading' | 'error' | 'ok';
   onRetry: () => void;
   /** Önizlenecek madalyalar (en son kazanılan önde); kazanılmamışlar soluk çizilir. */
@@ -56,29 +61,34 @@ export function ProgressCard({ lang, stats, statsState, onRetry, medals, earnedC
 
   return (
     <View style={[styles.card, { backgroundColor: surface, borderColor: isDark ? theme.outline : 'transparent', borderWidth: isDark ? B.thin : 0 }]}>
+      {identity}
+      {!lite && !!identity && <View style={[styles.divider, { backgroundColor: theme.separator }]} />}
+
       {/* 1 · NE YAPTIM */}
-      {statsState === 'loading' ? (
+      {lite ? null : statsState === 'loading' ? (
         <MotiView animate={{ opacity: [0.35, 0.7, 0.35] }} transition={{ loop: true, duration: 1200 }}
           style={[styles.statsSkeleton, { backgroundColor: theme.surfaceContainerHigh }]} />
       ) : statsState === 'error' ? (
-        <Touchable onPress={onRetry} accessibilityRole="button" style={styles.retry}>
+        <Touchable onPress={onRetry} accessibilityRole="button" accessibilityLabel={c.retry} style={styles.retry}>
+          <RefreshCw size={ICON.xs} color={theme.onSurfaceVariant} />
           <Text style={{ color: theme.onSurfaceVariant, fontWeight: W.semibold, fontSize: F.caption }}>{c.retry}</Text>
         </Touchable>
       ) : (
         <View style={styles.stats}>
           {[
-            { v: String(stats.focusHours), l: c.focus },
-            { v: String(stats.tasks), l: c.tasks },
-            { v: String(stats.bestStreak), l: c.streak },
+            { k: 'focus', v: String(stats.focusHours), l: c.focus },
+            { k: 'tasks', v: String(stats.tasks), l: c.tasks },
+            { k: 'streak', v: String(stats.currentStreak), l: c.streak(stats.bestStreak) },
           ].map((s, i) => (
             <View key={i} style={[styles.stat, i > 0 && { borderLeftWidth: HAIRLINE, borderLeftColor: theme.separator }]}>
-              <Text style={[styles.statValue, { color: theme.onSurface }]}>{s.v}</Text>
-              <Text style={[styles.statLabel, { color: theme.onSurfaceMuted }]} numberOfLines={1}>{s.l}</Text>
+              <DisplayValue value={s.v} color={theme.onSurface} seenKey={`profile:${s.k}`} />
+              <Text style={[styles.statLabel, { color: theme.onSurfaceMuted }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{s.l}</Text>
             </View>
           ))}
         </View>
       )}
 
+      {!lite && (<>
       <View style={[styles.divider, { backgroundColor: theme.separator }]} />
 
       {/* 2 · NE KAZANDIM */}
@@ -100,7 +110,7 @@ export function ProgressCard({ lang, stats, statsState, onRetry, medals, earnedC
       <View style={[styles.divider, { backgroundColor: theme.separator }]} />
 
       {/* 3 · NEYLE KORUNUYORUM — odak puanı = sonraki kalkanın çubuğu */}
-      <Touchable onPress={onShield} accessibilityRole="button" accessibilityLabel={c.shieldA11y(shields, p)} style={styles.row}>
+      <Touchable disabled={shields <= 0} onPress={onShield} accessibilityRole={shields > 0 ? 'button' : 'text'} accessibilityLabel={c.shieldA11y(shields, p)} style={styles.row}>
         <View style={{ flex: 1, gap: S.xs }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
             <Text style={[styles.rowLabel, { color: theme.onSurface }]}>{c.shield}</Text>
@@ -115,22 +125,24 @@ export function ProgressCard({ lang, stats, statsState, onRetry, medals, earnedC
             <View style={[styles.track, { backgroundColor: theme.surfaceContainerHigh }]}>
               <View style={{ width: `${shields >= 3 ? 100 : p}%`, height: '100%', borderRadius: R.full, backgroundColor: gold }} />
             </View>
-            <Text style={[styles.count, { color: theme.onSurfaceMuted }]}>{shields >= 3 ? c.full : c.points(p)}</Text>
+            <Text style={[styles.count, { color: theme.onSurfaceMuted }]}>{shields >= 3 ? c.full : shields === 0 && p === 0 ? c.none : c.points(p)}</Text>
           </View>
         </View>
-        <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} />
+        {/* Dokunuş bir kalkan tüketir: ok "aç" derdi, eylem açıkça yazılır. Kalkan yoksa dokunulmaz, hata da verilmez. */}
+        {shields > 0 && <Text style={[styles.use, { color: gold }]}>{c.use}</Text>}
       </Touchable>
+      </>)}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { marginTop: S.lg, borderRadius: R.lg, paddingHorizontal: S.md },
+  card: { borderRadius: R.lg, paddingHorizontal: S.md },
   stats: { flexDirection: 'row', paddingVertical: S.smd },
   statsSkeleton: { height: 44, borderRadius: R.md, marginVertical: S.smd },
-  retry: { alignSelf: 'center', paddingHorizontal: S.md, paddingVertical: S.smd },
+  retry: { flexDirection: 'row', alignItems: 'center', gap: S.xs, alignSelf: 'center', paddingHorizontal: S.md, paddingVertical: S.smd, minHeight: 44 },
+  use: { fontSize: F.footnote, fontWeight: W.semibold },
   stat: { flex: 1, alignItems: 'center', gap: S.xxs },
-  statValue: { fontSize: F.title3, fontWeight: W.bold, fontVariant: ['tabular-nums'] },
   statLabel: { fontSize: F.caption },
   divider: { height: HAIRLINE },
   row: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: S.smd, minHeight: 52 },

@@ -82,5 +82,21 @@ namespace Tazq_Backend.Tests
             Assert.Equal(first.Id, retry.Id);
             Assert.Equal(1, _context.Tasks.Count(x => x.UserId == 1));
         }
+
+        [Fact]
+        public async Task Reopening_WhenSameKeyIsOpen_ReleasesKey_AndKeepsBothTasks()
+        {
+            // Benzersiz dizin açık görevde aynı anahtarı yasaklar: yeniden açma hataya düşmemeli, görev de silinmemeli.
+            TaskItem Make() => new() { Title = "Kira", Description = string.Empty, ClientKey = "u-reopen" };
+            var done = await _service.CreateTaskAsync(1, Make());
+            await _service.UpdateTaskAsync(1, done.Id, new TaskItem { Title = "Kira", Description = string.Empty, IsCompleted = true });
+            var open = await _service.CreateTaskAsync(1, Make());
+            Assert.NotEqual(done.Id, open.Id);
+
+            await _service.UpdateTaskAsync(1, done.Id, new TaskItem { Title = "Kira", Description = string.Empty, IsCompleted = false });
+
+            Assert.Equal(2, _context.Tasks.Count(x => x.UserId == 1 && !x.IsCompleted));
+            Assert.Equal(1, _context.Tasks.Count(x => x.UserId == 1 && x.ClientKey == "u-reopen" && !x.IsCompleted));
+        }
     }
 }

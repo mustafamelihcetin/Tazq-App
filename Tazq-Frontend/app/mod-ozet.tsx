@@ -189,8 +189,8 @@ export default function ModOzetScreen() {
           <View style={{ marginBottom: S.md }}><Compass size={ICON.xl} color={theme.primary} strokeWidth={1.6} /></View>
           <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: W.bold, textAlign: 'center', marginBottom: S.sm }}>{c.emptyTitle}</Text>
           <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, textAlign: 'center', lineHeight: 20, marginBottom: S.lg }}>{c.emptyBody}</Text>
-          <Touchable onPress={() => router.back()} style={{ paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: theme.primary }} accessibilityRole="button">
-            <Text style={{ color: theme.onPrimary, fontWeight: W.bold }}>{c.emptyCta}</Text>
+          <Touchable onPress={() => router.back()} style={{ paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: theme.primaryFill }} accessibilityRole="button">
+            <Text style={{ color: theme.onPrimaryFill, fontWeight: W.bold }}>{c.emptyCta}</Text>
           </Touchable>
         </View>
       ) : (

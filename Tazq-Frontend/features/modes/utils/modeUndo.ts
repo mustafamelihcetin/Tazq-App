@@ -1,3 +1,5 @@
+import { useAchievementStore } from '@/features/user/store/useAchievementStore';
+import { ACHIEVEMENTS, goalCountsAsDone } from '@/features/user/utils/achievements';
 import { useHabitStore, type Habit } from '@/features/habits';
 import { useTaskStore, type Task } from '@/features/tasks';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
@@ -218,6 +220,7 @@ export function closeModeWithUndo(
   const record = captureGoalRecord(mode);
   close();
   if (record) usePrefsStore.getState().addGoalHistory(record);
+  if (record && goalCountsAsDone(record)) useAchievementStore.getState().trigger(ACHIEVEMENTS.goal_done);
   haptic.destructive();
   useToastStore.getState().show(message, 'info', {
     label: undoLabel,

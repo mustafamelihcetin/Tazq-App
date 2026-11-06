@@ -12,7 +12,7 @@ import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { haptic } from '@/shared/utils/haptics';
 import { S, R, F, W, ICON, MIN_TOUCH, HAIRLINE, topBarSpace, navBarSpace, touchSlop } from '@/shared/constants/tokens';
-import { TOUR_STEPS, type TourStepDef } from '@/features/onboarding/tour/tourSteps';
+import { tourStepsFor, type TourStepDef } from '@/features/onboarding/tour/tourSteps';
 import { spotRect, holePath, placeTip, placeTipX, type Rect } from '@/features/onboarding/tour/spotlightGeometry';
 import type { FirstRunPage } from '@/features/onboarding/utils/firstRun';
 
@@ -54,9 +54,11 @@ interface Props {
   /** Sayfanın kaydırma görünümü — hedef ekran dışındaysa oraya kaydırılır. */
   scrollRef?: React.RefObject<ScrollLike | null>;
   onDone: () => void;
+  /** Yalnız ilk açılışın kısa adımları (bkz. tourStepsFor). */
+  brief?: boolean;
 }
 
-export function SpotlightTour({ pageId, scrollRef, onDone }: Props) {
+export function SpotlightTour({ pageId, scrollRef, onDone, brief = false }: Props) {
   const insets = useSafeAreaInsets();
   const { width: winW, height: winH } = useWindowDimensions();
   const { theme, isDark } = useAppTheme();
@@ -82,7 +84,8 @@ export function SpotlightTour({ pageId, scrollRef, onDone }: Props) {
   const sw = frame?.width ?? winW;
   const sh = frame?.height ?? winH;
 
-  const steps: TourStepDef[] = TOUR_STEPS[pageId] ?? [];
+  // Sabit kimlik: adım geçişleri bu diziye bağlı.
+  const [steps] = useState<TourStepDef[]>(() => tourStepsFor(pageId, brief));
   // Gösterilebilen adımlar: hedefi o an ekranda olmayan adım atlanır (Sade mod, boş liste…).
   const [shown, setShown] = useState<boolean[]>(() => steps.map(() => true));
   const [index, setIndex] = useState(0);
@@ -255,9 +258,9 @@ export function SpotlightTour({ pageId, scrollRef, onDone }: Props) {
               <Touchable
                 onPress={next}
                 accessibilityRole="button"
-                style={IS_IOS ? [styles.primaryBtn, { backgroundColor: theme.primary }] : styles.textBtn}
+                style={IS_IOS ? [styles.primaryBtn, { backgroundColor: theme.primaryFill }] : styles.textBtn}
               >
-                <Text style={[styles.textBtnLabel, { color: IS_IOS ? theme.onPrimary : theme.primary }]}>{isLast ? c.done : c.next}</Text>
+                <Text style={[styles.textBtnLabel, { color: IS_IOS ? theme.onPrimaryFill : theme.primary }]}>{isLast ? c.done : c.next}</Text>
               </Touchable>
             </View>
           </View>

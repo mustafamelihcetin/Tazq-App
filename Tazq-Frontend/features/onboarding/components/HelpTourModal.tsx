@@ -31,6 +31,8 @@ export function HelpTourModal({ pageId, scrollRef }: Props) {
   const setTourCompleted = usePrefsStore((s) => s.setTourCompleted);
   const requested = useTourRun((s) => s.requested === pageId);
   const [started, setStarted] = useState(() => AUTO_START_PAGES.includes(pageId) || requested);
+  // Kendiliğinden başladıysa kısa tur; Yardım'dan istendiyse tamamı.
+  const [brief] = useState(() => !requested && AUTO_START_PAGES.includes(pageId));
 
   useEffect(() => {
     if (requested) setStarted(true);
@@ -70,5 +72,5 @@ export function HelpTourModal({ pageId, scrollRef }: Props) {
   if (steps.length === 0) return null;
   // Odak tam ekran: sekme çubuğu yok (bkz. BottomNavBar kullanan sayfalar).
   if (!started) return <TourBeacon count={steps.length} aboveTabBar={pageId !== 'focus'} onStart={() => setStarted(true)} onDismiss={finish} />;
-  return <SpotlightTour pageId={pageId} scrollRef={scrollRef} onDone={finish} />;
+  return <SpotlightTour pageId={pageId} scrollRef={scrollRef} onDone={finish} brief={brief} />;
 }

@@ -30,7 +30,7 @@ describe('productivityHour', () => {
   });
 
   it('açıklama iki dilde, davranıştaki saatleri söyler', () => {
-    expect(productivityHint('night', 'tr')).toBe("Günlük özetin 21:00'de gelir; saat vermediğin hatırlatıcılar 22:00'ye kurulur.");
+    expect(productivityHint('night', 'tr')).toBe("Günlük özetin 17:00'de gelir; saat vermediğin hatırlatıcılar 22:00'ye kurulur.");
     expect(productivityHint('morning', 'tr')).toBe("Günlük özetin 07:00'de gelir; saat vermediğin hatırlatıcılar 09:00'a kurulur.");
     expect(productivityHint('afternoon', 'tr')).toBe("Günlük özetin 12:00'de gelir; saat vermediğin hatırlatıcılar 13:00'e kurulur.");
     expect(productivityHint('evening', 'tr')).toBe("Günlük özetin 17:00'de gelir; saat vermediğin hatırlatıcılar 18:00'e kurulur.");

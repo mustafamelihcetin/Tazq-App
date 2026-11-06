@@ -15,11 +15,19 @@ const VERB: Record<L, Record<StudyBlock['type'], string>> = {
 };
 const MIN_UNIT: Record<L, string> = { tr: 'dk', en: 'min' };
 
+/** Ders adı: hazır liste, sınav dersi ya da kullanıcının eklediği. */
+export function subjectName(plan: PlanRecord | undefined, sub: string, lang: L): string {
+  if (!plan) return sub;
+  return blueprintFor(plan.name)?.subjects.find(s => s.id === sub)?.[lang] ?? plan.courses?.find(k => k.id === sub)?.name ?? plan.customSubjects?.find(s => s.id === sub)?.name ?? sub;
+}
+
 export function topicName(plan: PlanRecord | undefined, topicId: string | undefined, lang: L): string {
   if (!plan || !topicId) return '';
   const label = blueprintFor(plan.name)?.labels[topicId];
   if (label) return label[lang];
   for (const c of plan.courses ?? []) { const t = c.topics.find(x => x.id === topicId); if (t) return t.name; }
+  const own = plan.customTopics?.find(x => x.id === topicId);
+  if (own) return own.name;
   return '';
 }
 

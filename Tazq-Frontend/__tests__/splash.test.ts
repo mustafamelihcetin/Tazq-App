@@ -106,7 +106,7 @@ describe('açılış — sistem splash\'i ile aynı zemin', () => {
       buraya da uzanınca içeri giriş, ekran değişimi değil devam gibi okunuyor.
     */
     expect(SPLASH).toContain('<DottedBackground');
-    const home = read('app/index.tsx');
+    const home = (read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'));
     for (const prop of ['opacity={isDark ? 0.05 : 0.08}', 'size={24}', 'dotSize={1}']) {
       expect(SPLASH).toContain(prop);
       expect(home).toContain(prop);
@@ -206,7 +206,7 @@ describe('açılış — süre ve erişilebilirlik', () => {
   it('zayıf Android: kuşak daha az parçayla ve bulanık gölgesiz çizilir', () => {
     expect(SPLASH).toContain('useLowPowerGraphics()');
     const ribbon = read('shared/components/SilkRibbon.tsx');
-    expect(ribbon).toContain('const segs = lowPower ? SEGMENTS_LOW : SEGMENTS;');
+    expect(ribbon).toContain('const segs = lowPower ? SEGMENTS_LOW : Math.min(SEGMENTS_MAX');
     expect(ribbon).toContain('{!lowPower && (');
   });
 

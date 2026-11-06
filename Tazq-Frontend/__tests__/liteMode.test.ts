@@ -10,6 +10,7 @@
  * Skorlanmaktan kaçmak için düğmeyi açan kullanıcı skorlanmaya devam ediyordu.
  * Bir ayar söylediğini yapmıyorsa, ayarın kendisi bir hatadır.
  */
+import { hiddenByGoalPause, isHiddenInLite } from '@/features/modes/utils/liteScope';
 import fs from 'fs';
 import path from 'path';
 
@@ -18,7 +19,7 @@ const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const stripComments = (src: string) =>
   src.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter(l => !l.trim().startsWith('//')).join('\n');
 
-const HOME = stripComments(read('app/index.tsx'));
+const HOME = stripComments((read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx')));
 
 /**
  * KUTLAMA TETİKLEYEN HER EKRAN — yalnız ana ekran değil.
@@ -62,10 +63,13 @@ describe('ana ekran — oyunlaştırma gizlenir', () => {
     expect(HOME).toContain('if (!isLite && todayHighlight) return todaySurprise;');
   });
 
-  it('günlük ilerleme KALIR — işin durumu oyun değil', () => {
-    // Halkalar koşulsuz çiziliyor: görev/odak/alışkanlık Sade modda da görünür
-    expect(HOME).toContain('<TodayRings');
-    expect(HOME).not.toMatch(/!isLite && \(\s*<TodayRings/);
+  it('ana sayfa yalnız yapılacaklar: halka, alışkanlık, ödeme ve alt bölümler yok (2026-11-06)', () => {
+    expect(HOME).toContain('{!isLite && <TodayRings');
+    // Ödeme kartı yalnız bugün/gecikmişse görünür: kaçırmanın bedeli gerçek, Sade modda da kalır.
+    expect(HOME).toContain('<PaymentsSummaryCard />');
+    expect(HOME).toContain('{!isLite && <><TourTarget id="habits"');
+    expect(HOME).toContain('{!demoActive && !isLite && (');
+    expect(HOME).toContain('saveTheDay={!isLite && zen.saveTheDayHint');
   });
 });
 
@@ -147,7 +151,7 @@ describe('tur gördüğü ekranı anlatır', () => {
   });
 
   it('Haftalık göstergesi kalktı (2026-11-01): başlıkta tur hedefi "cockpit" yok, yerinde gelen kutusu', () => {
-    const src = read('app/index.tsx');
+    const src = (read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'));
     expect(src).not.toContain('<TourTarget id="cockpit"');
     expect(src).toContain('<InboxButton');
   });
@@ -168,14 +172,53 @@ describe('ayar metni yaptığı işi anlatır', () => {
       → LITE_TAB_IDS). Haftalık Merkez'in sessizce kaybolması sürpriz oluyordu; bir
       ayarın altyazısı yaptığı işin TAMAMINI saymak zorunda.
     */
-    expect(SETTINGS).toContain('İvme skorunu, kutlamaları, Hedefler ve Hafta sekmelerini gizler');
-    expect(SETTINGS).toContain('Hides momentum, celebrations, Goals & Week tabs');
+    expect(SETTINGS).toContain('Yalnız yapılacaklar ve Odak. Değiştirince uygulama yeniden başlar');
+    expect(SETTINGS).toContain('Just your to-dos and Focus. The app restarts when you change this');
+    expect(read('features/modes/components/ModeTodayCard.tsx')).toContain('if (bare && lite) return null');
+    expect(read('app/profile.tsx')).toContain("lite={uiMode === 'lite'}");
   });
 
-  it('Bu Hafta ekranı Sade modda erişilebilir kalıyor', () => {
-    // Durum merkezi düğmesi gizlendiği için bu satır TEK erişim yolu
-    expect(SETTINGS).toContain("uiMode === 'lite' && (");
-    expect(SETTINGS).toContain("'Bu Hafta'");
+  it('kapsam dışı sayfaların başka yolu yok: sadelik, yolu taşımak değil', () => {
+    const profile = read('app/profile.tsx');
+    expect(profile).not.toContain("router.push('/cockpit')");
+    expect(profile).not.toContain("router.push('/modlar')");
+    expect(read('features/dashboard/components/CommandPortal.tsx')).toContain("uiMode === 'lite' ? [] : [{");
+    expect(read('app/index.tsx')).toContain('...(isLite ? [] : [{ Icon: Rocket');
+    expect(read('app/tasks.tsx')).toContain("usePrefsStore.getState().uiMode !== 'lite' && (");
+    expect(read('features/dashboard/hooks/useHomeModel.tsx')).toContain('payments: isLite ? [] : payments');
+  });
+
+  it('bildirimle gelinse de açılmaz, ana sayfaya döner; tam modda hepsi açık', () => {
+    for (const r of ['cockpit', 'modlar', 'mod-ozet', 'plan', 'achievements', 'report', 'gun', 'rota', 'takvim', 'aliskanlik']) expect(isHiddenInLite(r)).toBe(true);
+    for (const r of ['index', 'tasks', 'focus', 'nefes', 'archive', 'odemeler', 'profile', 'settings', undefined]) expect(isHiddenInLite(r)).toBe(false);
+    expect(read('app/_layout.tsx')).toContain('useLiteRouteGuard(segments[0], router)');
+    expect(read('features/dashboard/hooks/useHomeModel.tsx')).toContain('weeklyNotification && !isLite');
+  });
+
+  it('Profil yalnız kimlik ve tek çıkış: sayı ve sağlık yok', () => {
+    const profile = read('app/profile.tsx');
+    expect(profile).toContain('<LiteModeCard');
+    expect(read('features/user/components/ProgressCard.tsx')).toContain("{lite ? null : statsState === 'loading'");
+  });
+
+  it('hedef duraklatılınca motor çalışmaz, plan görevi listede görünmez ama silinmez', () => {
+    const on = { uiMode: 'lite', liteGoalsPaused: true };
+    expect(hiddenByGoalPause({ tags: ['exam'] }, on)).toBe(true);
+    expect(hiddenByGoalPause({ tags: ['iş'] }, on)).toBe(false);
+    expect(hiddenByGoalPause({ tags: ['exam'] }, { uiMode: 'lite', liteGoalsPaused: false })).toBe(false);
+    expect(hiddenByGoalPause({ tags: ['exam'] }, { uiMode: 'pro', liteGoalsPaused: true })).toBe(false);
+    expect(read('features/modes/hooks/usePlanAdaptations.ts')).toContain("p.uiMode === 'lite' && p.liteGoalsPaused) return;");
+  });
+
+  it('açılış sade: yalnız TAZQ', () => {
+    expect(read('shared/components/AnimatedSplash.tsx')).toContain('s.enabled && !s.plain');
+    expect(read('features/modes/hooks/useLiteRouteGuard.ts')).toContain('setPlain(lite)');
+  });
+
+  it('anahtar modu doğrudan değiştirmez: önce onay, sonra temiz başlangıç', () => {
+    const settings = read('app/settings.tsx');
+    expect(settings).toContain("confirmUiMode(v ? 'lite' : 'pro'");
+    expect(settings).not.toContain("setUiMode(v ? 'lite' : 'pro')");
   });
 });
 

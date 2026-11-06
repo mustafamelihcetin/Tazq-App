@@ -142,11 +142,11 @@ export const TriageModal = React.memo<TriageModalProps>(({
                       style={[
                         styles.radio,
                         checked
-                          ? { backgroundColor: theme.primary, borderColor: theme.primary }
+                          ? { backgroundColor: theme.primaryFill, borderColor: theme.primary }
                           : { borderColor: theme.outline },
                       ]}
                     >
-                      {checked && <Check size={ICON.xs} color={theme.onPrimary} strokeWidth={3} />}
+                      {checked && <Check size={ICON.xs} color={theme.onPrimaryFill} strokeWidth={3} />}
                     </View>
                   </Touchable>
                 );
@@ -168,9 +168,9 @@ export const TriageModal = React.memo<TriageModalProps>(({
               accessibilityRole="button"
               accessibilityLabel={c.confirm}
               accessibilityState={{ disabled: !canConfirm }}
-              style={[styles.confirm, { backgroundColor: theme.primary, opacity: canConfirm ? 1 : 0.4 }]}
+              style={[styles.confirm, { backgroundColor: theme.primaryFill, opacity: canConfirm ? 1 : 0.4 }]}
             >
-              <Text style={[styles.confirmText, { color: theme.onPrimary }]}>{c.confirm}</Text>
+              <Text style={[styles.confirmText, { color: theme.onPrimaryFill }]}>{c.confirm}</Text>
             </Touchable>
 
             <Touchable onPress={onClose} accessibilityRole="button" accessibilityLabel={c.cancel} style={styles.cancel}>

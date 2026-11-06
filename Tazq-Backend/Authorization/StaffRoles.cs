@@ -10,7 +10,7 @@ namespace Tazq_App.Authorization
     ///
     /// En az yetki (kullanıcı: "bir yetkili mesela userları göremesin, rolleri iyi ayır"):
     ///   Support   = YALNIZ destek kutusu (oku, yanıtla, okundu). Kullanıcı listesi yok.
-    ///   Analyst   = Ürün Analisti: Analiz Merkezi (istatistik, segment, huni, benimseme, odak
+    ///   Analyst   = Gözlemci: sunucu durumu ve Analiz Merkezi (istatistik, segment, huni, benimseme, odak
     ///               davranışı, kararlılık). KİŞİ LİSTESİ YOK — "kim" değil "kaç kişi, ne yapıyor".
     ///               Müdahale yok, teknik kısım yok.
     ///   Moderator = kullanıcı listesi, ban/ban kaldırma, ban geçmişi, destek kutusu + mesaj silme.

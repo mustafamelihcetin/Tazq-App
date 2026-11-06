@@ -374,8 +374,8 @@ export default function RegisterScreen() {
                   activeOpacity={0.7}
                   style={styles.consentRow}
                 >
-                  <View style={[styles.checkbox, { borderWidth: consentChecked ? 0 : 2, borderColor: theme.onSurfaceMuted, backgroundColor: consentChecked ? theme.primary : 'transparent' }]}>
-                    {consentChecked && <Check size={ICON.xs} color={theme.onPrimary} strokeWidth={3} />}
+                  <View style={[styles.checkbox, { borderWidth: consentChecked ? 0 : 2, borderColor: theme.onSurfaceMuted, backgroundColor: consentChecked ? theme.primaryFill : 'transparent' }]}>
+                    {consentChecked && <Check size={ICON.xs} color={theme.onPrimaryFill} strokeWidth={3} />}
                   </View>
                   <Text style={[styles.consentText, { color: theme.onSurfaceVariant }]}>
                     {c.consentLead}
@@ -394,9 +394,9 @@ export default function RegisterScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={c.create}
                   accessibilityState={{ disabled: isLoading, busy: isLoading }}
-                  style={[styles.registerButton, { backgroundColor: theme.primary, opacity: isLoading ? 0.75 : 1 }]}
+                  style={[styles.registerButton, { backgroundColor: theme.primaryFill, opacity: isLoading ? 0.75 : 1 }]}
                 >
-                  {isLoading ? <ActivityIndicator color={theme.onPrimary} /> : <Text style={[styles.buttonText, { color: theme.onPrimary }]}>{c.create}</Text>}
+                  {isLoading ? <ActivityIndicator color={theme.onPrimaryFill} /> : <Text style={[styles.buttonText, { color: theme.onPrimaryFill }]}>{c.create}</Text>}
                 </Touchable>
               </View>
             </MotiView>

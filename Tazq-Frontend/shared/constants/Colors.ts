@@ -48,11 +48,13 @@ const lightPalette = {
   // ve turkuaz tarafına bakar — canlı görünmesinin sebebi bu, açıklık değil (systemBlue
   // %50, Blue 600 %53 — yani eskisi daha AÇIKTI ama daha lacivert duruyordu).
   // Beyaz yazı 5.28:1 (AA) · açık zemin 4.80:1 · koyu zemin 3.77:1 — üçü de geçiyor.
-  primary: '#0B6BCB',
-  primaryDim: '#08528F',        // basılı durum
-  primaryContainer: '#DBEAFE',  // Blue 100
+  primary: '#2A5BCB',
+  primaryFill: '#2A5BCB',
+  primaryDim: '#1E429A',        // basılı durum
+  primaryContainer: '#DFE8FF',  // Blue 100
   onPrimary: '#FFFFFF',         // 5.17:1
-  onPrimaryContainer: '#0A3D62',  // primary'nin koyu ucu (hue 210 ailesi)
+  onPrimaryFill: '#FFFFFF',
+  onPrimaryContainer: '#14306F',  // primary'nin koyu ucu (hue 210 ailesi)
 
   secondary: '#7C3AED',         // Violet 600
   secondaryContainer: '#EDE9FE', // Violet 100
@@ -176,15 +178,17 @@ const darkPalette = {
   // ("Bugünkü Alışkanlıklarım", "Günlük Görevler") okunmuyordu. Apple'ın da iki mavisi
   // olmasının sebebi bu: systemBlue açıkta #007AFF, koyuda #0A84FF. Aşağıdaki değer
   // Apple'ın koyu tema mavisinin ta kendisi — metin olarak 5.45:1.
-  primary: '#0A84FF',
-  primaryDim: '#0B6BCB',        // basılı durum — açık temanın mavisi
-  primaryContainer: '#0A2A4A',  // primary'nin koyu ucu (hue 210 ailesi)
+  primary: '#86AEFF',
+  primaryFill: '#3B6FE0',
+  primaryDim: '#3B6FE0',        // basılı durum — açık temanın mavisi
+  primaryContainer: '#16264F',  // primary'nin koyu ucu (hue 210 ailesi)
   // 2026-10-25 kullanıcı kararı: BEYAZ (iOS'un koyu teması gibi). Önce Material 3 kuralıyla
   // koyuydu (5.45:1) ama mavi düğmelerde siyah glif sert/teknik duruyordu. Beyaz 3.65:1 —
   // buton etiketleri kalın/büyük ve ikonlar UI bileşeni: WCAG eşiği 3:1 (bkz. colorContrast.test).
   // Tek mavi hem metin hem beyaz zemini için 4.5 veremez; metin rolü 4.5'te korunuyor.
   onPrimary: '#FFFFFF',
-  onPrimaryContainer: '#BFDBFE', // Blue 200, hue 213 — eskiden #C7D2FE (Indigo 200, hue 228): konteyner 210 ailesindeyken yazısı indigoydu. 10.24:1
+  onPrimaryFill: '#FFFFFF',
+  onPrimaryContainer: '#C9D8FF', // Blue 200, hue 213 — eskiden #C7D2FE (Indigo 200, hue 228): konteyner 210 ailesindeyken yazısı indigoydu. 10.24:1
 
   secondary: '#A78BFA',         // Violet 400
   secondaryContainer: '#2D1B69',// Violet 950
@@ -317,7 +321,7 @@ export type CategoryColor = typeof CategoryColors[keyof typeof CategoryColors];
  * Küratörlü sabit set: marka mavisi + ayar çipleriyle aynı ailenin üç tonu; kişinin vurgusu DEĞİL.
  */
 export const SplashEditionColors = {
-  blue: { light: '#0B6BCB', dark: '#0A84FF' },
+  blue: { light: '#2A5BCB', dark: '#86AEFF' },
   teal: { light: '#00877C', dark: '#1AA7A0' },
   coral: { light: '#C35045', dark: '#E06C5F' },
   lavender: { light: '#7B4EAF', dark: '#A579DD' },
@@ -345,6 +349,19 @@ export const SettingsChip = {
 export const PaymentPalette = ['#2563EB', '#0891B2', '#059669', '#65A30D', '#D97706', '#EA580C', '#DC2626', '#DB2777', '#7C3AED', '#475569'] as const;
 
 export const PaymentProviderColors = {
+  // Dünyada ve Türkiye'de en çok abone olunan dijital ürünler (2026-11-06)
+  appleTv: '#111827', paramountPlus: '#2563EB', hulu: '#16A34A', peacock: '#CA8A04', crunchyroll: '#EA580C', discoveryPlus: '#1D4ED8',
+  dazn: '#1F2937', espnPlus: '#DC2626', youtubeTv: '#DC2626', tod: '#7C3AED', tvPlus: '#2563EB', deezer: '#7C3AED',
+  tidal: '#111827', soundcloud: '#EA580C', amazonMusic: '#0891B2', muud: '#DB2777', kindleUnlimited: '#CA8A04', scribd: '#0D9488',
+  blinkist: '#16A34A', appleOne: '#111827', evernote: '#16A34A', todoist: '#DC2626', zoom: '#2563EB', slack: '#7C3AED',
+  figma: '#DB2777', capcut: '#111827', grammarly: '#16A34A', onePassword: '#2563EB', surfshark: '#0D9488', proton: '#7C3AED',
+  copilotPro: '#2563EB', grok: '#111827', cursor: '#1F2937', xPremium: '#111827', linkedinPremium: '#1D4ED8', discordNitro: '#4F46E5',
+  telegramPremium: '#0891B2', snapchatPlus: '#CA8A04', twitch: '#7C3AED', tinder: '#DC2626', bumble: '#CA8A04', hinge: '#1F2937',
+  eaPlay: '#DC2626', ubisoftPlus: '#2563EB', geforceNow: '#16A34A', appleArcade: '#111827', googlePlayPass: '#16A34A', robloxPremium: '#1F2937',
+  duolingo: '#16A34A', babbel: '#EA580C', cambly: '#CA8A04', masterclass: '#1F2937', strava: '#EA580C', peloton: '#DC2626',
+  myfitnesspal: '#2563EB', headspace: '#EA580C', calm: '#2563EB', uberOne: '#111827', walmartPlus: '#2563EB', doordash: '#DC2626',
+  instacart: '#16A34A', yemeksepeti: '#DB2777', getir: '#7C3AED', migros: '#EA580C', nyt: '#111827', medium: '#1F2937',
+  substack: '#EA580C',
   // Doğalgaz — turuncu/kehribar ailesi
   igdas: '#EA580C',
   baskentgaz: '#EA580C',
@@ -589,35 +606,50 @@ export function modeTile(type: string | undefined, isDark: boolean): string {
  *  · Hiçbir iki ton ΔE <5 (OKLab×100) değil; elenenler: Orkide, Mürver, Petrol, Kil, Zeytin, Kum.
  *  · Mavi = marka mavisi BİREBİR (varsayılan; seçmeyen için hiçbir şey değişmez).
  *  · Her palet iki temada ölçülü: primary metin ≥4.5, beyaz düğme yazısı açık ≥4.5 / koyu ≥3,
- *    container yazısı ≥4.5 (bkz. __tests__/accentContrast.test.ts). Düğme yazısı hep BEYAZ.
+ *    container yazısı ≥4.5 (bkz. __tests__/accentContrast.test.ts). Düğme yazısı beyaz, sarı tonlarda koyu (onPrimary).
  */
-export type AccentId = 'blue' | 'indigo' | 'lavender' | 'plum' | 'rose' | 'coral' | 'orange' | 'mustard' | 'leaf' | 'emerald' | 'teal' | 'sky' | 'night' | 'slate' | 'mauve' | 'cocoa' | 'sage' | 'graphite';
-export interface AccentTokens { primary: string; primaryDim: string; primaryContainer: string; onPrimary: string; onPrimaryContainer: string }
+export type AccentId = 'blue' | 'lavender' | 'red' | 'sun' | 'emerald' | 'graphite' | 'rose' | 'coral' | 'amber' | 'leaf' | 'teal' | 'sky' | 'plum' | 'wine' | 'cocoa' | 'sage' | 'slate' | 'sand';
+/**
+ * primary = metin ve simge (zeminde okunur). primaryFill = dolgu (düğme, seçili öğe); üstündeki yazı onPrimaryFill.
+ * onPrimary her tonda beyazdır: tamamlandı yeşili, mod rengi gibi vurgu OLMAYAN dolguların üstünde de kullanılır (2026-11-06: sarıda siyaha dönmüştü).
+ * Çoğu tonda ikisi aynı. Sarıda ayrılır: gerçek sarı zeminde metin olarak okunmaz, koyu altın da sarı görünmez (Kado'daki color/onFill ayrımı).
+ */
+export interface AccentTokens { primary: string; primaryFill: string; primaryDim: string; primaryContainer: string; onPrimary: string; onPrimaryFill: string; onPrimaryContainer: string }
 export interface AccentPalette { id: AccentId; label: { tr: string; en: string }; light: AccentTokens; dark: AccentTokens }
 export const AccentPalettes: AccentPalette[] = [
-  { id: 'blue', label: { tr: 'Mavi', en: 'Blue' }, light: { primary: '#0B6BCB', primaryDim: '#08528F', primaryContainer: '#DBEAFE', onPrimary: '#FFFFFF', onPrimaryContainer: '#0A3D62' }, dark: { primary: '#0A84FF', primaryDim: '#0B6BCB', primaryContainer: '#0A2A4A', onPrimary: '#FFFFFF', onPrimaryContainer: '#BFDBFE' } },
-  { id: 'indigo', label: { tr: 'İndigo', en: 'Indigo' }, light: { primary: '#565CBD', primaryDim: '#42469E', primaryContainer: '#E8EDFF', onPrimary: '#FFFFFF', onPrimaryContainer: '#2C306A' }, dark: { primary: '#7C87EC', primaryDim: '#565CBD', primaryContainer: '#1F2343', onPrimary: '#FFFFFF', onPrimaryContainer: '#D6DCFD' } },
-  { id: 'lavender', label: { tr: 'Lavanta', en: 'Lavender' }, light: { primary: '#7B4EAF', primaryDim: '#633991', primaryContainer: '#F3E9FF', onPrimary: '#FFFFFF', onPrimaryContainer: '#432862' }, dark: { primary: '#A579DD', primaryDim: '#7B4EAF', primaryContainer: '#2C1E3E', onPrimary: '#FFFFFF', onPrimaryContainer: '#E4D7F7' } },
-  { id: 'plum', label: { tr: 'Erik', en: 'Plum' }, light: { primary: '#9B418B', primaryDim: '#7E2D70', primaryContainer: '#FEE6F8', onPrimary: '#FFFFFF', onPrimaryContainer: '#56204C' }, dark: { primary: '#C96BB6', primaryDim: '#9B418B', primaryContainer: '#381A32', onPrimary: '#FFFFFF', onPrimaryContainer: '#F2D3EA' } },
-  { id: 'rose', label: { tr: 'Gül', en: 'Rose' }, light: { primary: '#AB3A5D', primaryDim: '#8D2648', primaryContainer: '#FFE5EB', onPrimary: '#FFFFFF', onPrimaryContainer: '#601C31' }, dark: { primary: '#DB6686', primaryDim: '#AB3A5D', primaryContainer: '#3E1822', onPrimary: '#FFFFFF', onPrimaryContainer: '#FAD2DA' } },
-  { id: 'coral', label: { tr: 'Mercan', en: 'Coral' }, light: { primary: '#AE4024', primaryDim: '#932605', primaryContainer: '#FFE9E3', onPrimary: '#FFFFFF', onPrimaryContainer: '#692311' }, dark: { primary: '#DE6B4F', primaryDim: '#AE4024', primaryContainer: '#381A13', onPrimary: '#FFFFFF', onPrimaryContainer: '#FDD3C8' } },
-  { id: 'orange', label: { tr: 'Mandalina', en: 'Tangerine' }, light: { primary: '#9E5209', primaryDim: '#7D4007', primaryContainer: '#FDEBDF', onPrimary: '#FFFFFF', onPrimaryContainer: '#5E2F05' }, dark: { primary: '#D67523', primaryDim: '#9E5209', primaryContainer: '#361D0A', onPrimary: '#FFFFFF', onPrimaryContainer: '#F9D6BF' } },
-  { id: 'mustard', label: { tr: 'Hardal', en: 'Mustard' }, light: { primary: '#846305', primaryDim: '#694E00', primaryContainer: '#F9EDD5', onPrimary: '#FFFFFF', onPrimaryContainer: '#4E3A06' }, dark: { primary: '#B88A01', primaryDim: '#846305', primaryContainer: '#2F2203', onPrimary: '#FFFFFF', onPrimaryContainer: '#EDDCB9' } },
-  { id: 'leaf', label: { tr: 'Yaprak', en: 'Leaf' }, light: { primary: '#4E770C', primaryDim: '#3D5E06', primaryContainer: '#E7F4DB', onPrimary: '#FFFFFF', onPrimaryContainer: '#2C4602' }, dark: { primary: '#6A9A29', primaryDim: '#4E770C', primaryContainer: '#1C290D', onPrimary: '#FFFFFF', onPrimaryContainer: '#D3E5C3' } },
-  { id: 'emerald', label: { tr: 'Zümrüt', en: 'Emerald' }, light: { primary: '#0A7D51', primaryDim: '#0C6240', primaryContainer: '#DBF6E7', onPrimary: '#FFFFFF', onPrimaryContainer: '#034A2E' }, dark: { primary: '#0DA26B', primaryDim: '#0A7D51', primaryContainer: '#082B1B', onPrimary: '#FFFFFF', onPrimaryContainer: '#C2E9D3' } },
-  { id: 'teal', label: { tr: 'Deniz', en: 'Teal' }, light: { primary: '#007872', primaryDim: '#006661', primaryContainer: '#D5F7F4', onPrimary: '#FFFFFF', onPrimaryContainer: '#004743' }, dark: { primary: '#009690', primaryDim: '#007872', primaryContainer: '#002F2D', onPrimary: '#FFFFFF', onPrimaryContainer: '#BDE8E4' } },
-  { id: 'sky', label: { tr: 'Gök', en: 'Sky' }, light: { primary: '#067396', primaryDim: '#025B77', primaryContainer: '#DBF3FF', onPrimary: '#FFFFFF', onPrimaryContainer: '#024459' }, dark: { primary: '#24A0CC', primaryDim: '#067396', primaryContainer: '#012837', onPrimary: '#FFFFFF', onPrimaryContainer: '#BCE5F8' } },
-  { id: 'night', label: { tr: 'Gece', en: 'Night' }, light: { primary: '#3F5482', primaryDim: '#2B3E6A', primaryContainer: '#E8EFFC', onPrimary: '#FFFFFF', onPrimaryContainer: '#2F3C5B' }, dark: { primary: '#6F85B7', primaryDim: '#3F5482', primaryContainer: '#18233C', onPrimary: '#FFFFFF', onPrimaryContainer: '#D0DEFD' } },
-  { id: 'slate', label: { tr: 'Arduvaz', en: 'Slate' }, light: { primary: '#536B89', primaryDim: '#3E5471', primaryContainer: '#E6EFFC', onPrimary: '#FFFFFF', onPrimaryContainer: '#2F3E51' }, dark: { primary: '#7C94B4', primaryDim: '#536B89', primaryContainer: '#12253C', onPrimary: '#FFFFFF', onPrimaryContainer: '#CBE0FC' } },
-  { id: 'mauve', label: { tr: 'Leylak', en: 'Mauve' }, light: { primary: '#7D5C7A', primaryDim: '#654662', primaryContainer: '#FDE7FA', onPrimary: '#FFFFFF', onPrimaryContainer: '#4A3548' }, dark: { primary: '#A885A4', primaryDim: '#7D5C7A', primaryContainer: '#311B2F', onPrimary: '#FFFFFF', onPrimaryContainer: '#F2D3EE' } },
-  { id: 'cocoa', label: { tr: 'Kakao', en: 'Cocoa' }, light: { primary: '#846047', primaryDim: '#6C4932', primaryContainer: '#FDEBDF', onPrimary: '#FFFFFF', onPrimaryContainer: '#4F3728' }, dark: { primary: '#B0896F', primaryDim: '#846047', primaryContainer: '#361D0A', onPrimary: '#FFFFFF', onPrimaryContainer: '#F9D6BF' } },
-  { id: 'sage', label: { tr: 'Adaçayı', en: 'Sage' }, light: { primary: '#527258', primaryDim: '#3C5B42', primaryContainer: '#DFF6E2', onPrimary: '#FFFFFF', onPrimaryContainer: '#2E4332' }, dark: { primary: '#7B9C81', primaryDim: '#527258', primaryContainer: '#102B17', onPrimary: '#FFFFFF', onPrimaryContainer: '#C8E8CD' } },
-  { id: 'graphite', label: { tr: 'Grafit', en: 'Graphite' }, light: { primary: '#4A4D54', primaryDim: '#505259', primaryContainer: '#EBEEF7', onPrimary: '#FFFFFF', onPrimaryContainer: '#35383E' }, dark: { primary: '#898C94', primaryDim: '#4A4D54', primaryContainer: '#24262C', onPrimary: '#FFFFFF', onPrimaryContainer: '#DBDEE6' } },
+  /* Varsayılan (2026-11-06): 18 ton ölçüldü. Mavi ailesi başarı/uyarı/hata ve renk körlüğü simülasyonunda en az karışan aile; ton 210°→222°, ikonun lacivertine (227°) yaklaştı, doygunluk indi. Koyuda yazı 8,8:1, dolgu üstünde beyaz AA. */
+  { id: 'blue', label: { tr: 'TAZQ Mavisi', en: 'TAZQ Blue' }, light: { primary: '#2A5BCB', primaryFill: '#2A5BCB', primaryDim: '#1E429A', primaryContainer: '#DFE8FF', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#14306F' }, dark: { primary: '#86AEFF', primaryFill: '#3B6FE0', primaryDim: '#3B6FE0', primaryContainer: '#16264F', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#C9D8FF' } },
+  { id: 'lavender', label: { tr: 'Nebula', en: 'Nebula' }, light: { primary: '#735FC3', primaryFill: '#735FC3', primaryDim: '#3A2770', primaryContainer: '#EEECFE', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#362B60' }, dark: { primary: '#9784EC', primaryFill: '#9784EC', primaryDim: '#735FC3', primaryContainer: '#2B244B', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#D6D2FA' } },
+  { id: 'red', label: { tr: 'Nar', en: 'Pomegranate' }, light: { primary: '#C34247', primaryFill: '#C34247', primaryDim: '#6C0515', primaryContainer: '#FEE9E7', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#5E1A1D' }, dark: { primary: '#EE696A', primaryFill: '#EE696A', primaryDim: '#C34247', primaryContainer: '#481B1B', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#FACAC7' } },
+  { id: 'sun', label: { tr: 'Safran', en: 'Saffron' }, light: { primary: '#563E00', primaryFill: '#EDB83F', primaryDim: '#493400', primaryContainer: '#FFE5B1', onPrimary: '#FFFFFF', onPrimaryFill: '#2A1E00', onPrimaryContainer: '#3D2A00' }, dark: { primary: '#F7C24B', primaryFill: '#EDB83F', primaryDim: '#563E00', primaryContainer: '#392800', onPrimary: '#FFFFFF', onPrimaryFill: '#2A1E00', onPrimaryContainer: '#E9D5AF' } },
+  { id: 'emerald', label: { tr: 'Orman', en: 'Forest' }, light: { primary: '#2A7D57', primaryFill: '#2A7D57', primaryDim: '#01442A', primaryContainer: '#DEF5E8', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#133F2B' }, dark: { primary: '#52A27A', primaryFill: '#52A27A', primaryDim: '#2A7D57', primaryContainer: '#003520', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#B9E3CB' } },
+  { id: 'graphite', label: { tr: 'Mürekkep', en: 'Ink' }, light: { primary: '#232833', primaryFill: '#232833', primaryDim: '#333840', primaryContainer: '#ECEEF3', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#32363C' }, dark: { primary: '#8C93A3', primaryFill: '#8C93A3', primaryDim: '#232833', primaryContainer: '#282B32', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#D3D8DF' } },
+  { id: 'rose', label: { tr: 'Gül', en: 'Rose' }, light: { primary: '#B44B6E', primaryFill: '#B44B6E', primaryDim: '#631633', primaryContainer: '#FFE8ED', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#572032' }, dark: { primary: '#DE7192', primaryFill: '#DE7192', primaryDim: '#B44B6E', primaryContainer: '#461A29', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#F8C9D4' } },
+  { id: 'coral', label: { tr: 'Kor', en: 'Ember' }, light: { primary: '#B45127', primaryFill: '#B45127', primaryDim: '#621F00', primaryContainer: '#FFE9E1', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#58240D' }, dark: { primary: '#DE774E', primaryFill: '#DE774E', primaryDim: '#B45127', primaryContainer: '#471D0C', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#F8CCBC' } },
+  { id: 'amber', label: { tr: 'Bal', en: 'Honey' }, light: { primary: '#5E3905', primaryFill: '#E29940', primaryDim: '#512F01', primaryContainer: '#FEE3C6', onPrimary: '#FFFFFF', onPrimaryFill: '#2A1E00', onPrimaryContainer: '#432600' }, dark: { primary: '#FFBB70', primaryFill: '#E29940', primaryDim: '#5E3905', primaryContainer: '#402400', onPrimary: '#FFFFFF', onPrimaryFill: '#2A1E00', onPrimaryContainer: '#F0D1B1' } },
+  { id: 'leaf', label: { tr: 'Zeytin', en: 'Olive' }, light: { primary: '#64762E', primaryFill: '#64762E', primaryDim: '#313E03', primaryContainer: '#EBF2DC', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#303A14' }, dark: { primary: '#879B53', primaryFill: '#879B53', primaryDim: '#64762E', primaryContainer: '#263000', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#D1DEB6' } },
+  { id: 'teal', label: { tr: 'Gelgit', en: 'Tide' }, light: { primary: '#187B7C', primaryFill: '#187B7C', primaryDim: '#004141', primaryContainer: '#DCF4F4', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#0B3D3D' }, dark: { primary: '#47A1A0', primaryFill: '#47A1A0', primaryDim: '#187B7C', primaryContainer: '#003333', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#B5E2E1' } },
+  { id: 'sky', label: { tr: 'Gök', en: 'Sky' }, light: { primary: '#23769F', primaryFill: '#23769F', primaryDim: '#003D58', primaryContainer: '#DDF2FF', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#0F3A50' }, dark: { primary: '#4D9BC6', primaryFill: '#4D9BC6', primaryDim: '#23769F', primaryContainer: '#003045', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#B5DEF7' } },
+  { id: 'plum', label: { tr: 'Erik', en: 'Plum' }, light: { primary: '#955A98', primaryFill: '#955A98', primaryDim: '#4F2452', primaryContainer: '#F9E8FA', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#472849' }, dark: { primary: '#BB7EBF', primaryFill: '#BB7EBF', primaryDim: '#955A98', primaryContainer: '#3C1E3E', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#EBCCEC' } },
+  { id: 'wine', label: { tr: 'Bordo', en: 'Wine' }, light: { primary: '#8A2340', primaryFill: '#8A2340', primaryDim: '#5F1D2A', primaryContainer: '#FEE8EA', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#54242B' }, dark: { primary: '#E56D80', primaryFill: '#E56D80', primaryDim: '#8A2340', primaryContainer: '#481A22', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#F9C9CE' } },
+  { id: 'cocoa', label: { tr: 'Kakao', en: 'Cocoa' }, light: { primary: '#8B6754', primaryFill: '#8B6754', primaryDim: '#4B3123', primaryContainer: '#F8ECE5', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#433126' }, dark: { primary: '#B18B77', primaryFill: '#B18B77', primaryDim: '#8B6754', primaryContainer: '#3B261A', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#E9D2C6' } },
+  { id: 'sage', label: { tr: 'Adaçayı', en: 'Sage' }, light: { primary: '#5E7562', primaryFill: '#5E7562', primaryDim: '#2C3D2F', primaryContainer: '#E9F1EA', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#2D392F' }, dark: { primary: '#819985', primaryFill: '#819985', primaryDim: '#5E7562', primaryContainer: '#212F24', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#CEDCD0' } },
+  { id: 'slate', label: { tr: 'Arduvaz', en: 'Slate' }, light: { primary: '#5E7182', primaryFill: '#5E7182', primaryDim: '#2C3A46', primaryContainer: '#E9EFF5', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#2D3740' }, dark: { primary: '#8296A8', primaryFill: '#8296A8', primaryDim: '#5E7182', primaryContainer: '#212D37', onPrimary: '#FFFFFF', onPrimaryFill: '#FFFFFF', onPrimaryContainer: '#CDD9E4' } },
+  { id: 'sand', label: { tr: 'Kum', en: 'Sand' }, light: { primary: '#4A4130', primaryFill: '#C0AF8D', primaryDim: '#41361F', primaryContainer: '#F0E7D4', onPrimary: '#FFFFFF', onPrimaryFill: '#2A1E00', onPrimaryContainer: '#352D1C' }, dark: { primary: '#DAC9A6', primaryFill: '#C0AF8D', primaryDim: '#4A4130', primaryContainer: '#332A16', onPrimary: '#FFFFFF', onPrimaryFill: '#2A1E00', onPrimaryContainer: '#E0D7C4' } },
 ];
 export const DEFAULT_ACCENT: AccentId = 'blue';
-/** Seçici kapalıyken görünen 6 ton — çemberden dengeli bir seçki. */
-export const ACCENT_FEATURED: AccentId[] = ['blue', 'lavender', 'rose', 'orange', 'emerald', 'graphite'];
-export const accentOf = (id: string | null | undefined): AccentPalette => AccentPalettes.find(a => a.id === id) ?? AccentPalettes[0];
+/**
+ * TAZQ RENKLERİ (2026-11-06). Kullanıcı: "en fark yaratacak, herkesi içine almalı"; ilk denemede en doygun değerler "çok Paint" oldu.
+ * Kural: her tonun doygunluğu elle seçilir, aydınlığı kontrast kuralının izin verdiği en yüksek değerdir. İlk sıra soğuk, sıcak, sarı, doğa ve nötrü
+ * yan yana koyar; kırmızı ve sarı artık var. Adlar TAZQ'ın kendi dünyasından.
+ */
+export const ACCENT_FEATURED: AccentId[] = ['blue', 'lavender', 'red', 'sun', 'emerald', 'graphite'];
+/** Kaldırılan tonu seçmiş kullanıcı maviye düşmez, en yakın yeni tona geçer. */
+const ACCENT_MOVED: Record<string, AccentId> = { indigo: 'lavender', mauve: 'plum', orange: 'coral', mustard: 'amber', night: 'slate' };
+export const accentOf = (id: string | null | undefined): AccentPalette => {
+  const wanted = (id && ACCENT_MOVED[id]) || id;
+  return AccentPalettes.find(a => a.id === wanted) ?? AccentPalettes[0];
+};
 
 /**
  * ELLE EKLENEN ALIŞKANLIK PALETİ (2026-10-30) — ModeAccents ile AYNI açıklık/doygunluk ailesi
@@ -716,3 +748,6 @@ export const BreathPalette = {
   sleep:     { petals: ['#A78BDA', '#7C6BC4'], bg: ['#160F2A', '#0A0718'], accent: '#C4B5FD' }, // Uyu — lavanta
   resonance: { petals: ['#8CC79E', '#5FA383'], bg: ['#0E1D17', '#07110D'], accent: '#A7D7B5' }, // Denge — adaçayı
 } as const;
+
+/** Kumbaradaki sikkenin metali: vurgu rengine bağlı değil, para her temada altındır. */
+export const CoinMetal = { light: '#FBEBB0', mid: '#E9C25A', deep: '#B98A2C', shade: '#8A6318' } as const;

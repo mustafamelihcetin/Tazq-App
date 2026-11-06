@@ -32,6 +32,6 @@ describe('yarım kalan misafirlik', () => {
   });
 
   it('hoş geldin açılış animasyonu bitmeden açılmaz (Modal açılışın üstüne biniyordu)', () => {
-    expect(read('app/index.tsx')).toContain("if (welcomeStatus === 'pending' && !welcomeSetupShown && splashDone) {");
+    expect((read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'))).toContain("if (welcomeStatus === 'pending' && !welcomeSetupShown && splashDone) {");
   });
 });

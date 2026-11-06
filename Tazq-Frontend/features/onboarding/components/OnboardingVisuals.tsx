@@ -167,7 +167,7 @@ function TodayStack({ active, theme, isDark, tr, width, height }: VisualProps) {
         </Animated.View>
 
         {/* Odak — tek dokunuşla başlar */}
-        <Animated.View style={[...card, lift(2, 6), { marginRight: S.lg, backgroundColor: theme.primary, borderColor: theme.primary }]}>
+        <Animated.View style={[...card, lift(2, 6), { marginRight: S.lg, backgroundColor: theme.primaryFill, borderColor: theme.primary }]}>
           <View style={[styles.iconTile, { backgroundColor: theme.onPrimary + '26' }]}>
             <Play size={ICON.sm} color={theme.onPrimary} fill={theme.onPrimary} />
           </View>
@@ -233,7 +233,7 @@ function SmartInput({ active, theme, isDark, tr, width, height }: VisualProps) {
         <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[styles.inputText, { color: theme.onSurface }]}>
           {sentence.slice(0, typed)}
         </Text>
-        <Animated.View style={[styles.caret, { backgroundColor: theme.primary, opacity: caret }]} />
+        <Animated.View style={[styles.caret, { backgroundColor: theme.primaryFill, opacity: caret }]} />
       </View>
 
       <View style={{ flexDirection: 'row', gap: S.sm }}>
@@ -302,9 +302,9 @@ function ModesPlan({ active, theme, isDark, tr, width, height }: VisualProps) {
           </View>
         );
       })}
-      <Animated.View style={[styles.chip, { marginTop: S.xs, backgroundColor: theme.primary }, { transform: [{ scale: ready.interpolate({ inputRange: [0, 1], outputRange: [0.001, 1] }) }] }]}>
-        <Check size={ICON.xs} color={theme.onPrimary} strokeWidth={3} />
-        <Text style={[styles.chipText, { color: theme.onPrimary }]}>{c.ready}</Text>
+      <Animated.View style={[styles.chip, { marginTop: S.xs, backgroundColor: theme.primaryFill }, { transform: [{ scale: ready.interpolate({ inputRange: [0, 1], outputRange: [0.001, 1] }) }] }]}>
+        <Check size={ICON.xs} color={theme.onPrimaryFill} strokeWidth={3} />
+        <Text style={[styles.chipText, { color: theme.onPrimaryFill }]}>{c.ready}</Text>
       </Animated.View>
     </View>
   );

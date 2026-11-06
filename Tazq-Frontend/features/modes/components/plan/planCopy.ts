@@ -70,6 +70,7 @@ export const PLAN_COPY = {
     tasksEmpty: 'Bugünün işleri bitti ya da yarın gelecek.',
     routines: 'Rutinlerin',
     routineHint: 'Her satırdaki noktalar son 7 gün.',
+    kiloLeft: (kg: string) => `Hedefe ${kg} kg kaldı`,
     streak: (n: number) => (n > 0 ? `${n} gün seri` : 'Seri yok'),
     startFocus: 'Odakla başla',
     taskMore: 'Görev seçenekleri',
@@ -135,7 +136,7 @@ export const PLAN_COPY = {
       emptyBody: 'Bugünlük plan işin yok. Yeni iş gelince rotan burada kurulur.',
       restingTitle: 'Bugün dinlenen hedefler',
       restingBody: (n: string) => `${n} bugün rotada yok. Dokunulmadıkça öne çıkarlar, unutulmazlar.`,
-      resting: 'Bugün dinleniyor, sırası yakında',
+      resting: 'Bugün rotada yok, sırası yakında',
       start: 'Rotayı başlat', resume: 'Devam et',
     },
     postpone: {
@@ -147,6 +148,7 @@ export const PLAN_COPY = {
     water: { drink: 'Bir bardak içtim', count: (n: number, t: number) => `${n}/${t} bardak`, full: 'Bugünün suyu tamam', fullRest: 'Su tamam. Gerisini akşam işaretle', undoHint: 'Yanlış saydıysan uzun bas' },
     money: { title: 'Para birimi', hint: 'Yalnız simge değişir, tutar çevrilmez.' },
     ramadan: {
+      dayOf: (d: number) => `Ramazan'ın ${d}. günü`,
       title: 'Ramazan düzeni',
       body: 'Oruçluyken bütün planlar birlikte hafifler ve doğru vakte oturur. Günde en fazla 3 plan işi gelir.',
       paused: 'Bugün düzen durdu: planların normal akışında. Ramazan görevlerin duruyor.',
@@ -229,6 +231,7 @@ export const PLAN_COPY = {
     tasksEmpty: 'All done for today, or more arrives tomorrow.',
     routines: 'Your routines',
     routineHint: 'The dots on each row are the last 7 days.',
+    kiloLeft: (kg: string) => `${kg} kg to go`,
     streak: (n: number) => (n > 0 ? `${n}-day streak` : 'No streak'),
     startFocus: 'Start focus',
     taskMore: 'Task options',
@@ -294,7 +297,7 @@ export const PLAN_COPY = {
       emptyBody: 'No plan work today. Your route appears here when new work arrives.',
       restingTitle: 'Goals resting today',
       restingBody: (n: string) => `${n} not on today’s route. The longer they wait, the sooner they come up.`,
-      resting: 'Resting today, its turn is coming',
+      resting: 'Not on today’s route; its turn is coming',
       start: 'Start route', resume: 'Continue',
     },
     postpone: {
@@ -306,6 +309,7 @@ export const PLAN_COPY = {
     water: { drink: 'I had a glass', count: (n: number, t: number) => `${n}/${t} glasses`, full: 'Today’s water is done', fullRest: 'Water done. Mark the rest this evening', undoHint: 'Long press if you miscounted' },
     money: { title: 'Currency', hint: 'Only the symbol changes; amounts are not converted.' },
     ramadan: {
+      dayOf: (d: number) => `Ramadan day ${d}`,
       title: 'Ramadan rhythm',
       body: 'While you fast, all your plans lighten together and move to the right time of day. At most 3 plan tasks a day.',
       paused: 'The rhythm is paused today: your plans run as usual. Your Ramadan tasks stay.',

@@ -1,3 +1,4 @@
+import { logicalNow } from '@/shared/utils/appDay';
 import { ramadanRangesNow } from '@/features/modes/utils/ramadanPreview';
 import { findExamCurriculum } from '@/shared/utils/curriculum';
 import { CategoryColors } from '@/shared/constants/Colors';
@@ -100,8 +101,7 @@ const asLocalDay = (s: string) => (/^\d{4}-\d{2}-\d{2}$/.test(s) ? parseLocalDat
  * güvenli olan yön bu.
  */
 function daysUntilEnd(endStr: string): number {
-  const adjustedNow = new Date();
-  adjustedNow.setHours(adjustedNow.getHours() - 3);
+  const adjustedNow = logicalNow();
   adjustedNow.setHours(0, 0, 0, 0);
 
   const end = asLocalDay(endStr);
@@ -137,8 +137,7 @@ function daysUntilEnd(endStr: string): number {
  * yoğun döneme bir gün ERKEN giriliyor. Sınav/teslim hazırlığında güvenli yön budur.
  */
 function daysLeftInfo(dateStr: string): { days: number; isPast: boolean; isToday: boolean } {
-  const adjustedNow = new Date();
-  adjustedNow.setHours(adjustedNow.getHours() - 3);
+  const adjustedNow = logicalNow();
   adjustedNow.setHours(0, 0, 0, 0);
 
   const end = asLocalDay(dateStr);

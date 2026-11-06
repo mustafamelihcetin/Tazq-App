@@ -39,6 +39,6 @@ describe('görev oluşturan her yol anahtar taşır', () => {
   });
 
   it('hızlı ekleme ve palet', () => {
-    expect(read('app/index.tsx')).toContain('clientKey: newTaskKey(),');
+    expect((read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'))).toContain('clientKey: newTaskKey(),');
   });
 });

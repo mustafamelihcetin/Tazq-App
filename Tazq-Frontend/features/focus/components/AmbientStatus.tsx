@@ -35,6 +35,8 @@ export function ambientStatusText(p: { sound: string | null; audible: 'off' | 'p
 }
 
 export function AmbientStatus(props: { sound: string | null; audible: 'off' | 'preview' | 'session'; sessionActive: boolean; paused: boolean; language: 'tr' | 'en'; color: string; accent: string }) {
+  // Ses yokken düğmenin kendisi söylüyor; aynı söz iki kez yazılmaz.
+  if (!props.sound) return null;
   const text = ambientStatusText(props);
   const live = props.audible !== 'off';
   return (

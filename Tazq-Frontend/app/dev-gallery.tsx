@@ -135,7 +135,7 @@ function SpringDemo({ name }: { name: keyof typeof RSPRING }) {
   return (
     <Touchable accessibilityRole="button" accessibilityLabel={`${name} yayını oynat`} onPress={() => { x.value = withSpring(x.value === 0 ? 200 : 0, RSPRING[name]); }} style={{ paddingVertical: S.xs }}>
       <Text style={{ fontSize: F.footnote, color: theme.onSurfaceVariant, marginBottom: S.xs }}>{name} — dokun</Text>
-      <Animated.View style={[styles.dot, { backgroundColor: theme.primary }, style]} />
+      <Animated.View style={[styles.dot, { backgroundColor: theme.primaryFill }, style]} />
     </Touchable>
   );
 }

@@ -1,7 +1,13 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
+import { MoonPhase, QuitVine } from './PlanSignature';
+import { MoneyBox } from './MoneyBox';
+import { PlanScene, type PlanSceneData } from './PlanScenes';
+import { CompletionBurst } from '@/shared/components/CompletionBurst';
+import { haptic } from '@/shared/utils/haptics';
 import { MotiView } from 'moti';
-import { F, W, S, R } from '@/shared/constants/tokens';
+import { F, W, S, R, MIN_TOUCH } from '@/shared/constants/tokens';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useCountUp } from '@/shared/hooks/useCountUp';
 import { PlanRoadLine } from './PlanRoadLine';
@@ -10,7 +16,7 @@ import type { PlanCopy } from './planCopy';
 /*
   PLANIN ÜSTÜ: NEREDEYİM, BUGÜN NE VAR (2026-11-05, kullanıcı: "UI/UX'i yukarı çek"). Eskiden boş bir halka ve her planda aynı kalıp cümle vardı.
   Şimdi yolun gerçek çizgisi: başladığın gün, bugün, hedef günü. Başlangıç bilinmiyorsa çizgi çizilmez, ilerleme uydurulmaz.
-  Sınavda konu çubuğu yolun yerine geçer: orada asıl ölçü biten konudur. Hareket yalnız burada ve tek sefer: çizgi bugüne kadar uzanır.
+  Hareket yalnız burada ve tek sefer: çizgi bugüne kadar uzanır.
 */
 const SEG_DELAY = 500;
 const LOCALE = { tr: 'tr-TR', en: 'en-US' };
@@ -25,18 +31,34 @@ export interface PlanHeroProps {
   done: number;
   total: number;
   road: { progress: number; startIso: string; endKey: string } | null;
-  topics?: { done: number; total: number } | null;
   line?: string | null;
+  /** Hedefin kendi ölçüsü (bkz. PlanSignature); yoksa tarih çizgisi. */
+  signature?: PlanHeroSignature | null;
+  /** İmzanın altındaki tek eylem: "Para ekle". */
+  action?: { label: string; onPress: () => void } | null;
 }
+
+export type PlanHeroSignature =
+  | { kind: 'moneybox'; pct: number; label: string; amount: string; goal: string; symbol: string }
+  | { kind: 'quit'; days: number; milestones: readonly number[]; a11y: string }
+  | { kind: 'scene'; scene: PlanSceneData }
+  | { kind: 'moon'; day: number; duration: number; caption: string };
 
 const shortDate = (d: Date, lang: 'tr' | 'en') => d.toLocaleDateString(LOCALE[lang], { day: 'numeric', month: 'short' });
 
-export function PlanHero({ title, accent, c, lang, metric, note, done, total, road, topics, line }: PlanHeroProps) {
+export function PlanHero({ title, accent, c, lang, metric, note, done, total, road, line, signature, action }: PlanHeroProps) {
   const { theme } = useAppTheme();
   const parts = Math.min(total, 10);
   const shown = useCountUp(metric?.value ?? 0);
   const filled = total ? Math.round((done / total) * parts) : 0;
-  const topicPct = topics && topics.total ? Math.round((topics.done / topics.total) * 100) : 0;
+  // Günün son işi bitince tek seferlik kıvılcım ve dokunuş. Açılışta zaten bitmiş gün patlamaz.
+  const [burst, setBurst] = useState(0);
+  const wasDone = useRef(total > 0 && done >= total);
+  useEffect(() => {
+    const nowDone = total > 0 && done >= total;
+    if (nowDone && !wasDone.current) { setBurst(b => b + 1); haptic.celebrate(); }
+    wasDone.current = nowDone;
+  }, [done, total]);
   return (
     <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 280 }} style={[st.card, { backgroundColor: theme.surfaceCard }]}>
       <View style={st.head}>
@@ -53,12 +75,24 @@ export function PlanHero({ title, accent, c, lang, metric, note, done, total, ro
         )}
       </View>
 
-      {topics && topics.total > 0 ? (
-        <View style={{ gap: S.xs }}>
-          <View accessibilityRole="progressbar" accessibilityValue={{ now: topics.done, min: 0, max: topics.total }} style={[st.track, { backgroundColor: theme.surfaceContainerHigh }]}>
-            <MotiView from={{ width: '0%' }} animate={{ width: `${topicPct}%` }} transition={{ type: 'timing', duration: 700 }} style={[st.fill, { backgroundColor: accent }]} />
+      {signature?.kind === 'moneybox' ? (
+        <View accessible accessibilityRole="progressbar" accessibilityLabel={`${signature.amount}, ${signature.goal}`} accessibilityValue={{ now: Math.round(signature.pct * 100), min: 0, max: 100 }} style={st.boxRow}>
+          <MoneyBox pct={signature.pct} height={124} color={accent} body={theme.surfaceContainerHigh} surface={theme.surfaceCard} glint={theme.surfaceCard} symbol={signature.symbol} />
+          <View style={{ flex: 1, gap: S.xxs }}>
+            <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: F.title, fontWeight: W.bold, fontVariant: ['tabular-nums'], color: accent }}>{signature.amount}</Text>
+            <Text numberOfLines={1} style={{ fontSize: F.footnote, color: theme.onSurfaceVariant }}>{signature.goal} · {signature.label}</Text>
           </View>
-          <Text style={{ fontSize: F.caption2, color: theme.onSurfaceMuted }}>{c.topicProgress(topics.done, topics.total)}</Text>
+        </View>
+      ) : signature?.kind === 'scene' ? (
+        <PlanScene scene={signature.scene} accent={accent} />
+      ) : signature?.kind === 'quit' ? (
+        <View accessible accessibilityLabel={signature.a11y}>
+          <QuitVine days={signature.days} milestones={signature.milestones} color={accent} track={theme.surfaceContainerHigh} />
+        </View>
+      ) : signature?.kind === 'moon' ? (
+        <View accessible accessibilityLabel={signature.caption} style={st.moonRow}>
+          <MoonPhase day={signature.day} duration={signature.duration} color={accent} surface={theme.surfaceCard} track={theme.surfaceContainerHigh} />
+          <Text style={{ fontSize: F.footnote, fontWeight: W.semibold, color: theme.onSurfaceVariant }}>{signature.caption}</Text>
         </View>
       ) : road ? (
         <View accessible accessibilityLabel={c.journey(Math.round(road.progress * 100))} style={{ gap: S.xs }}>
@@ -70,7 +104,14 @@ export function PlanHero({ title, accent, c, lang, metric, note, done, total, ro
         </View>
       ) : null}
 
+      {action && (
+        <Touchable accessibilityRole="button" onPress={action.onPress} style={st.action}>
+          <Text style={{ fontSize: F.footnote, fontWeight: W.semibold, color: accent }}>{action.label} ›</Text>
+        </Touchable>
+      )}
+
       <View style={{ gap: S.xs }}>
+        <View pointerEvents="none" style={st.burst}><CompletionBurst trigger={burst} color={accent} radius={8} spread={34} particles={10} duration={800} /></View>
         <Text style={{ fontSize: F.footnote, fontWeight: W.semibold, color: theme.onSurfaceVariant }}>{c.todayProgress(done, total)}</Text>
         {parts > 0 && (
           <View style={st.segments}>
@@ -87,9 +128,11 @@ export function PlanHero({ title, accent, c, lang, metric, note, done, total, ro
 const st = StyleSheet.create({
   card: { borderRadius: R.lg, padding: S.md, gap: S.md },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: S.md },
-  track: { height: 6, borderRadius: R.full, overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: R.full },
   ends: { flexDirection: 'row', justifyContent: 'space-between' },
+  burst: { position: 'absolute', left: '50%', top: 8 },
+  boxRow: { flexDirection: 'row', alignItems: 'center', gap: S.md },
+  moonRow: { flexDirection: 'row', alignItems: 'center', gap: S.md },
+  action: { minHeight: MIN_TOUCH, justifyContent: 'center', marginVertical: -S.sm },
   segments: { flexDirection: 'row', gap: S.xxs },
   segment: { flex: 1, height: 4, borderRadius: R.full },
 });

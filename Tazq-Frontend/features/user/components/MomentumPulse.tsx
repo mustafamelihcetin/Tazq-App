@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import { MotiView } from 'moti';
 import { Easing } from 'react-native-reanimated';
-import { TrendingUp, TrendingDown, Minus, CheckCircle2, Zap, Flame, Shield, Info } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, Minus, CheckCircle2, Zap, Flame, Shield, Info, Repeat } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { ICON, S, F, R, B, METRIC, LH, trackingFor, SCRIM } from '@/shared/constants/tokens';
 import { modeAccentOn } from '@/shared/constants/Colors';
@@ -19,7 +19,7 @@ import { useEntranceReady, useFirstInSession } from '@/shared/components/Entranc
 import { DISPLAY_FONT } from '@/shared/components/DisplayPanel';
 import { useSettledValue, useHasSettled } from '@/shared/hooks/useSettledValue';
 import { haptic } from '@/shared/utils/haptics';
-import { isBestDayOfWeek } from '@/shared/utils/momentum';
+import { isBestDayOfWeek, MOMENTUM_WEIGHTS, type MomentumHint } from '@/shared/utils/momentum';
 import { useSeenChange } from '@/shared/hooks/useSeenChange';
 
 interface DayScore { date: string; score: number }
@@ -38,6 +38,8 @@ interface Props {
    * boşluğu yok. Isı şeridi, bilgi penceresi ve trend aynen kalır.
    */
   embedded?: boolean;
+  /** Skoru en çok ne yükseltir (bkz. momentumHint). */
+  hint?: MomentumHint | null;
   /** Uyanış sinyali: artınca küre bir nefes alır, çubuklar sırayla yeniden yükselir (bkz. TodayRings). */
   wake?: number;
 }
@@ -79,12 +81,17 @@ const MomentumSkeleton = ({ embedded, tone }: { embedded?: boolean; tone: string
   );
 };
 
+const HINT = {
+  tr: { task: (n: number) => `Bir görev bitirmek yaklaşık +${n} puan`, focus: (n: number) => `25 dakika odak yaklaşık +${n} puan` },
+  en: { task: (n: number) => `Finishing a task adds about +${n}`, focus: (n: number) => `25 minutes of focus adds about +${n}` },
+} as const;
+
 const FIRST_DAY = {
   tr: 'Gidişatın yarından itibaren burada çizilecek.',
   en: 'Your trend starts drawing here tomorrow.',
 } as const;
 
-export const MomentumPulse: React.FC<Props> = ({ score, history, language, loading, embedded, wake = 0 }) => {
+export const MomentumPulse: React.FC<Props> = ({ score, history, language, loading, embedded, wake = 0, hint }) => {
   const reduceMotion = useReduceMotion();
   // Açılış animasyonları (sayım, çubuklar, giriş) açılış katmanı KALKINCA oynar — altında boşa gitmesin.
   const ready = useEntranceReady();
@@ -131,7 +138,8 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
   */
   // Renk hedef değerden türetilir: sayım eşikleri geçerken renk gri→turuncu→yeşil
   // diye titremesin, en baştan varacağı rengi alsın.
-  const accentColor = targetScore >= 75 ? theme.tertiary : targetScore >= 40 ? theme.streak : theme.onSurfaceVariant;
+  // Marka rengi: 40-74 arası her şeyi turuncuya boyamak panelde alakasız duruyor ve uyarı gibi okunuyordu (2026-11-06, kullanıcı). Düzeyi sayı ve sütun boyu söyler.
+  const accentColor = theme.primary;
 
   // Week-over-week delta: yesterday vs 7 days ago
   const isEight = history.length >= 8;
@@ -330,11 +338,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
             const h = has ? Math.max(3, Math.round((day.score / 100) * 24)) : 3;
             // Veri olmayan gün PALET jetonuyla çiziliyor; ham `rgba()` ile tema başına
             // elle yazılıydı ve palet değişince sessizce eskiyordu.
-            const barColor = !has
-              ? theme.outlineVariant
-              : day.score >= 75 ? theme.tertiary
-              : day.score >= 40 ? theme.streak
-              : theme.onSurfaceVariant;
+            const barColor = !has ? theme.outlineVariant : isToday ? theme.primaryFill : theme.onSurfaceMuted;
             return (
               <View key={day.date} style={{ flex: 1, height: 24, justifyContent: 'flex-end' }}>
                 {/*
@@ -438,6 +442,11 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
         </MotiView>
       )}
     </View>
+    {hint && (
+      <Text accessibilityLiveRegion="polite" style={{ fontSize: F.caption, color: theme.onSurfaceVariant, marginTop: S.xs }}>
+        {HINT[language === 'en' ? 'en' : 'tr'][hint.kind](hint.gain)}
+      </Text>
+    )}
     </CardBox>
     </View>
 
@@ -456,13 +465,14 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
           </Text>
           <Text style={{ fontSize: 13, fontWeight: '500', color: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)', lineHeight: 20 }}>
             {tr
-              ? 'Momentum, takip etmen gereken tek skor. Görevlerin, odağın ve serin bir araya gelip onu besler:'
-              : 'Momentum is the one score to watch. Your tasks, focus, and streak come together to feed it:'}
+              ? 'Son 7 günde yaptıklarını ölçer. İleri tarihli işler skoru düşürmez; alışkanlığın yoksa payı diğerlerine dağılır.'
+              : 'Measures what you did in the last 7 days. Future tasks never lower it; without habits, their share goes to the rest.'}
           </Text>
           {[
-            { icon: <CheckCircle2 size={ICON.sm} color={theme.success} />, label: tr ? 'Görev Tamamlama' : 'Task Completion', pct: '40%', color: theme.success },
-            { icon: <Zap size={ICON.sm} color={accentColor} />, label: tr ? 'Odak Süresi' : 'Focus Time', pct: '35%', color: accentColor },
-            { icon: <Flame size={ICON.sm} color={theme.streak} />, label: tr ? 'Günlük Seri' : 'Daily Streak', pct: '25%', color: theme.streak },
+            { icon: <CheckCircle2 size={ICON.sm} color={theme.success} />, label: tr ? 'Görev Tamamlama' : 'Task Completion', pct: `${MOMENTUM_WEIGHTS.tasks}%`, color: theme.success },
+            { icon: <Zap size={ICON.sm} color={accentColor} />, label: tr ? 'Odak Süresi' : 'Focus Time', pct: `${MOMENTUM_WEIGHTS.focus}%`, color: accentColor },
+            { icon: <Flame size={ICON.sm} color={theme.streak} />, label: tr ? 'Günlük Seri' : 'Daily Streak', pct: `${MOMENTUM_WEIGHTS.streak}%`, color: theme.streak },
+            { icon: <Repeat size={ICON.sm} color={theme.tertiary} />, label: tr ? 'Alışkanlıklar' : 'Habits', pct: `${MOMENTUM_WEIGHTS.habits}%`, color: theme.tertiary },
           ].map((row) => (
             <View key={row.label} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.smd }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>

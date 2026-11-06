@@ -100,13 +100,14 @@ export function RowDivider({ theme }: { theme: AppTheme }) {
   );
 }
 
-// ── İkon çipi (satırların solundaki renkli kare) ─────────────────────────
-export function IconChip({ bg, theme, children }: { bg?: string; theme: AppTheme; children: React.ReactNode }) {
-  return (
-    <View style={[styles.chip, { backgroundColor: bg ?? theme.surfaceContainerHigh }]}>
-      {children}
-    </View>
-  );
+// ── Satırın solundaki nötr ikon ─────────────────────────
+/*
+  AYAR İKONLARI NÖTR (2026-11-06, kullanıcı: "tüm ikonlar mor, anlamadım; daha profesyonel düşün"). Bluesky, Kado, Tasks.org ve Cashew'da ikon tek renk, renkli kutu yok.
+  Renkli kutular kullanıcının vurgusuyla yarışıyordu; ayarda renk yalnız anlam taşıdığında var (Hesabımı sil kırmızı, anahtar vurgu). `bg` eski çağrılar için durur, kullanılmaz.
+*/
+export function IconChip({ theme, children }: { bg?: string; theme: AppTheme; children: React.ReactNode }) {
+  const glyph = React.isValidElement<{ color?: string }>(children) ? React.cloneElement(children, { color: theme.onSurfaceVariant }) : children;
+  return <View style={styles.chip}>{glyph}</View>;
 }
 
 // ── Tıklanabilir satır (sağda chevron) ───────────────────────────────────
@@ -217,7 +218,8 @@ export interface ToggleRowProps {
  */
 export function ToggleRow({ icon, bg, title, subtitle, value, onValueChange, theme, isDark, disabled }: ToggleRowProps) {
   return (
-    <View style={[styles.toggleRow, disabled && { opacity: 0.45 }]}>
+    // Satırın tamamı anahtar: yazıya dokunmak da çevirir (2026-11-06, cihazda: yalnız küçük düğme çalışıyordu). Ekran okuyucu anahtarı okur.
+    <Touchable disabled={disabled} accessible={false} activeOpacity={0.7} onPress={() => onValueChange(!value)} style={[styles.toggleRow, disabled && { opacity: 0.45 }]}>
       <IconChip bg={bg} theme={theme}>{icon}</IconChip>
       <View style={styles.rowText}>
         <Text style={[styles.label, { color: theme.onSurface }]}>{title}</Text>
@@ -235,11 +237,11 @@ export function ToggleRow({ icon, bg, title, subtitle, value, onValueChange, the
           vardı — iOS'ta yabancı duruyordu ve devre dışı + açık anahtar (opacity 0.45
           ile) ne açık ne kapalı okunuyordu. Android'de Material 3 kalıyor.
         */
-        trackColor={{ false: theme.surfaceContainerHighest, true: Platform.OS === 'ios' ? theme.primary : theme.primary + '80' }}
-        thumbColor={Platform.OS === 'ios' ? undefined : value ? theme.primary : isDark ? theme.onSurfaceMuted : '#FFFFFF'}
+        trackColor={{ false: theme.surfaceContainerHighest, true: Platform.OS === 'ios' ? theme.primaryFill : theme.primaryFill + '80' }}
+        thumbColor={Platform.OS === 'ios' ? undefined : value ? theme.primaryFill : isDark ? theme.onSurfaceMuted : '#FFFFFF'}
         ios_backgroundColor={theme.surfaceContainerHighest}
       />
-    </View>
+    </Touchable>
   );
 }
 
@@ -279,13 +281,7 @@ export function SettingsActionRow({ label, onPress, theme, destructive, disabled
 const styles = StyleSheet.create({
   actionRow: { minHeight: 52, alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.md },
   actionText: { fontSize: F.body, fontWeight: '600' },
-  chip: {
-    width: 36,
-    height: 36,
-    borderRadius: R.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  chip: { width: ICON.lg, alignItems: 'center', justifyContent: 'center' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

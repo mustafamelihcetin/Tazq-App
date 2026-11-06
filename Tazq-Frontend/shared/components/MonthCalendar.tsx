@@ -82,7 +82,7 @@ export function MonthCalendar({ year, month0, onShift, selected, onSelect, marks
                 accessibilityLabel={`${new Date(`${key}T12:00:00`).toLocaleDateString(locale, { day: 'numeric', month: 'long', weekday: 'long' })}${dayA11y?.(key) ? `, ${dayA11y(key)}` : dots.length ? `, ${marks[key].length}` : ''}`}
                 style={styles.slot}>
                 <MotiView animate={{ scale: sel ? 1 : 0.92 }} transition={{ type: 'spring', damping: 16, stiffness: 240 }}
-                  style={[styles.day, sel ? { backgroundColor: theme.primary } : isToday ? { borderWidth: 1.5, borderColor: theme.primary, backgroundColor: dayTint?.(key) ?? 'transparent' } : dayTint?.(key) ? { backgroundColor: dayTint(key) as string } : null]}>
+                  style={[styles.day, sel ? { backgroundColor: theme.primaryFill } : isToday ? { borderWidth: 1.5, borderColor: theme.primary, backgroundColor: dayTint?.(key) ?? 'transparent' } : dayTint?.(key) ? { backgroundColor: dayTint(key) as string } : null]}>
                   <Text style={{ fontSize: F.body, fontWeight: sel || isToday ? W.bold : W.medium, fontVariant: ['tabular-nums'], color: sel ? theme.onPrimary : theme.onSurface }}>{n}</Text>
                 </MotiView>
                 {renderBelow ? renderBelow(key) : (

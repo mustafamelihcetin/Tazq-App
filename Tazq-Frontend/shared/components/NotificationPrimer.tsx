@@ -57,7 +57,7 @@ export function NotificationPrimer({ visible, onEnable, onDismiss }: Notificatio
     <Modal supportedOrientations={['portrait', 'landscape']} visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
       <View style={styles.backdrop}>
         <GlassSheet>
-          <View style={[styles.badge, { backgroundColor: theme.primary + '18' }]}>
+          <View style={[styles.badge, { backgroundColor: theme.primaryFill + '18' }]}>
             <Bell size={ICON.lg} color={theme.primary} strokeWidth={2.2} />
           </View>
 
@@ -85,9 +85,9 @@ export function NotificationPrimer({ visible, onEnable, onDismiss }: Notificatio
             onPress={() => { haptic.commit(); onEnable(); }}
             accessibilityRole="button"
             accessibilityLabel={t.enable}
-            style={[styles.primary, { backgroundColor: theme.primary }]}
+            style={[styles.primary, { backgroundColor: theme.primaryFill }]}
           >
-            <Text style={[styles.primaryText, { color: theme.onPrimary }]}>
+            <Text style={[styles.primaryText, { color: theme.onPrimaryFill }]}>
               {t.enable}
             </Text>
           </Touchable>

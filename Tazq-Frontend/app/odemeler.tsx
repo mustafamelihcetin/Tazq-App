@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Animated, Platform, type FlatList } from 'react-native';
+import { View, Text, Animated, type FlatList } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { Plus, Wallet, Zap, Layers } from 'lucide-react-native';
+import { CalendarDays, List, Plus, Wallet } from 'lucide-react-native';
 import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -11,35 +11,33 @@ import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { Touchable } from '@/shared/components/Touchable';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { AppIcon } from '@/shared/components/AppIcon';
-import { ModeField, FormReveal } from '@/features/modes/components/ModeField';
-import { ICON, S, R, F, B, MIN_TOUCH, topBarSpace } from '@/shared/constants/tokens';
-import { ChromeShell } from '@/shared/components/ChromeShell';
+import { ICON, S, R, F, MIN_TOUCH, topBarSpace } from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { haptic } from '@/shared/utils/haptics';
-import { usePaymentsStore, type Payment, type PaymentRecurrence } from '@/features/payments/store/usePaymentsStore';
+import { usePaymentsStore, type Payment } from '@/features/payments/store/usePaymentsStore';
 import { createPaymentAction, updatePaymentAction, deletePaymentUndoable, markPaidUndoable, skipCycleUndoable, canSkipCycle, unmarkPaymentPaidAction, refreshPayments, type CreatePaymentResult } from '@/features/payments/utils/paymentActions';
 import { nextDueDateOf, activeCycleKeyOf, paymentView, type PaymentView } from '@/features/payments/utils/paymentDates';
 import { PaymentRow } from '@/features/payments/components/PaymentRow';
 import { PaidAmountSheet } from '@/features/payments/components/PaidAmountSheet';
-import { PaymentAppearance } from '@/features/payments/components/PaymentAppearance';
+import { CurrencyPick } from '@/features/payments/components/CurrencyPick';
+import { PaymentForm, type PaymentDraft } from '@/features/payments/components/PaymentForm';
 import { PaymentsCalendar } from '@/features/payments/components/PaymentsCalendar';
-import { DEFAULT_REMINDER_DAYS, reminderDaysOf } from '@/features/payments/utils/paymentLook';
-import { ToggleRow } from '@/shared/components/SettingsRows';
 import { PaymentsMonthCard } from '@/features/payments/components/PaymentsMonthCard';
 import { PaymentsHistoryCard } from '@/features/payments/components/PaymentsHistoryCard';
 import { totalsByCurrency, formatTotals, formatMoney, approxTotal, withLocalPaid, type FxRates } from '@/features/payments/utils/money';
 import { PaymentService, type PaymentRecordRow } from '@/shared/services/api';
-import { formatPlanDate } from '@/features/modes/utils/planTaskOps';
-import { CURRENCIES, currencySymbol, defaultCurrencyFor, type CurrencyCode } from '@/shared/utils/currency';
-import { matchProvider, searchProviders, providerDisplayName, type PaymentProvider } from '@/shared/utils/paymentProviders';
+import { currencySymbol, defaultCurrencyFor, type CurrencyCode } from '@/shared/utils/currency';
 import { upperFor } from '@/shared/utils/localeCase';
 
 /** Dil kodu → Intl locale. Ternary DEĞİL (bkz. __tests__/i18nRatchet.test.ts) — bu
  *  dosya metinlerini TAMAMEN `t.payments` sözlüğünden alıyor, sayı/tarih biçimi
  *  için de aynı ilke: eşleme bir tabloda, dallanma yok. */
 const INTL_LOCALE: Record<'tr' | 'en', string> = { tr: 'tr-TR', en: 'en-US' };
-const VIEW_COPY = { tr: { list: 'Liste', calendar: 'Takvim' }, en: { list: 'List', calendar: 'Calendar' } };
+const VIEW_COPY = {
+  tr: { list: 'Liste görünümü', calendar: 'Takvim görünümü', overdue: 'Gecikmiş', paidGroup: 'Ödendi', Quarterly: '3 ayda bir', SemiAnnual: '6 ayda bir', Yearly: 'yılda bir' },
+  en: { list: 'List view', calendar: 'Calendar view', overdue: 'Overdue', paidGroup: 'Paid', Quarterly: 'every 3 months', SemiAnnual: 'every 6 months', Yearly: 'yearly' },
+};
 
 /**
  * Ödeme takibi — GÖREVLERDEN AYRI ekran. Bottom tab EKLENMEDİ (5 sekme zaten dar
@@ -91,28 +89,15 @@ export default function OdemelerScreen() {
   const thisMonth = views.filter(v => v.thisMonth);
   const later = views.filter(v => !v.thisMonth);
 
-  // Ödeme yoksa form BAŞTAN AÇIK — boş bir davet yerine doldurmaya hazır bir form
-  // (ExamCard/TezCard'ın `expanded` init deseniyle AYNI mantık).
-  const [showAdd, setShowAdd] = useState(() => usePaymentsStore.getState().payments.length === 0);
-  // Düzenleme (2026-10-31, kullanıcı: "ödenecekleri sonradan düzenleyebilmeli, şu an yalnız sil var"):
-  // aynı form, o ödemenin değerleriyle dolar; kaydet = güncelle.
-  const [editingId, setEditingId] = useState<number | null>(null);
+  // Form ayrı sayfa (bkz. PaymentForm). `editing` doluysa düzenleme.
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Payment | null>(null);
   const listRef = useRef<FlatList<never>>(null);
-  const [title, setTitle] = useState('');
-  const [amount, setAmount] = useState('');
-  const [recurrence, setRecurrence] = useState<PaymentRecurrence>('Monthly');
-  // Ödeme BAŞINA birim (madde 12): 200 ₺ kira ile 20 $ abonelik aynı listede. Varsayılan ana birim.
-  const [payCurrency, setPayCurrency] = useState<CurrencyCode>(currency);
-  // Değişken tutar + taksit (2026-11-01): elektrik gibi her ay değişen faturalar, "12 taksit" gibi biten ödemeler.
-  const [isVariable, setIsVariable] = useState(false);
-  const [installmentOn, setInstallmentOn] = useState(false);
-  const [installmentCount, setInstallmentCount] = useState('12');
-  const [payIcon, setPayIcon] = useState<string | null>(null);
-  const [payColor, setPayColor] = useState<string | null>(null);
-  const [payReminder, setPayReminder] = useState<number>(DEFAULT_REMINDER_DAYS);
   const [view, setView] = useState<'list' | 'calendar'>('list');
   // Gün seçilince takvim üst çubuğun hemen altına gelir, altındaki liste görünür olur (2026-11-05).
   const calendarY = useRef(0);
+  // Takvimin altındaki boşluk yalnız gün seçilince: seçilen gün yukarı kaysın diye gerekir, durup dururken sayfa boş kalmaz.
+  const [calendarRoom, setCalendarRoom] = useState(false);
   // Değişken tutarlıda "ödendi" → o ayın gerçek tutarı sorulur (bkz. PaidAmountSheet).
   const [paidPrompt, setPaidPrompt] = useState<Payment | null>(null);
   // Bildirimdeki "Tutarı gir" buraya `pay=<id>` ile gelir: o ödemenin tutar penceresi doğrudan açılır.
@@ -122,42 +107,8 @@ export default function OdemelerScreen() {
     const p = usePaymentsStore.getState().payments.find(x => String(x.id) === pay);
     if (p) setPaidPrompt(p);
   }, [pay]);
-  // Monthly — "ayın kaçı" GÜN GRİDİ (1-31), bir sayı yazmaktan ya da tam bir takvimden
-  // (ay/yıl seçmek zorunda bırakmak) daha doğrudan: aylık bir fatura için önemli olan
-  // tek bilgi gündür. Yearly/Once — gerçek bir TARİH gerekiyor (ay/yıl de önemli),
-  // onlar için takvim kalıyor.
-  const [dueDayValue, setDueDayValue] = useState<number>(new Date().getDate());
-  const [anchorDate, setAnchorDate] = useState<Date>(new Date());
-  const [showPicker, setShowPicker] = useState(false);
-  // Sağlayıcı önerisi — ExamCard'daki `PresetEditor` ile AYNI desen: yazarken kısmi
-  // eşleşmeleri göster, seçince adı otomatik tamamla + ikonla tanı (bkz. paymentProviders.ts).
-  const [providerSuggestions, setProviderSuggestions] = useState<PaymentProvider[]>([]);
-  const titleProvider = useMemo(() => matchProvider(title), [title]);
-
-  const resetForm = () => {
-    setEditingId(null); setTitle(''); setAmount(''); setRecurrence('Monthly'); setPayCurrency(currency); setDueDayValue(new Date().getDate()); setAnchorDate(new Date()); setShowPicker(false); setProviderSuggestions([]);
-    setIsVariable(false); setInstallmentOn(false); setInstallmentCount('12');
-    setPayIcon(null); setPayColor(null); setPayReminder(DEFAULT_REMINDER_DAYS);
-  };
-
-  const openAdd = () => { haptic.select(); setShowAdd(true); };
-
-  const openEdit = (p: Payment) => {
-    setEditingId(p.id);
-    setTitle(p.title);
-    setAmount(p.amount.toLocaleString(locale, { useGrouping: false, maximumFractionDigits: 2 })); // yerel ondalık ayıracı
-    setRecurrence(p.recurrence);
-    setPayCurrency((p.currency as CurrencyCode) || currency);
-    setIsVariable(!!p.isVariable);
-    setInstallmentOn(!!p.installmentCount);
-    setInstallmentCount(String(p.installmentCount ?? 12));
-    setPayIcon(p.icon ?? null); setPayColor(p.color ?? null); setPayReminder(reminderDaysOf(p));
-    setDueDayValue(p.dueDay);
-    setAnchorDate(p.nextDueDate ? new Date(p.nextDueDate) : new Date());
-    setShowPicker(false); setProviderSuggestions([]);
-    setShowAdd(true);
-    listRef.current?.scrollToOffset({ offset: 0, animated: true }); // form listenin başında
-  };
+  const openAdd = () => { haptic.select(); setEditing(null); setFormOpen(true); };
+  const openEdit = (p: Payment) => { setEditing(p); setFormOpen(true); };
 
   // Uzun bas: Düzenle / Sil (kaydırarak silme aynen duruyor).
   const handleMenu = (p: Payment) => {
@@ -171,51 +122,33 @@ export default function OdemelerScreen() {
     ]);
   };
 
-  const canSave = title.trim() !== '' && parseFloat(amount.replace(',', '.')) > 0;
-
-  const handleSave = async () => {
-    if (!canSave) return;
-    haptic.commit();
-    const amountNum = parseFloat(amount.replace(',', '.'));
-    const isMonthly = recurrence === 'Monthly';
-    // Monthly: gün gridinden gelir. Yearly/Once: takvimden seçilen tarihin günü +
-    // tarihin kendisi nextDueDate olur (bkz. paymentDates.ts).
-    const day = isMonthly ? dueDayValue : anchorDate.getDate();
-    const nextDueDate = isMonthly ? null : anchorDate.toISOString();
-    // Taksit: ilk taksit = bu ödemenin ŞU ANKİ dönemi; düzenlemede mevcut başlangıç korunur (sayaç kaymasın).
-    const count = parseInt(installmentCount, 10);
-    const editing = editingId != null ? payments.find(x => x.id === editingId) : undefined;
-    const draft = { id: 0, title, amount: amountNum, dueDay: day, recurrence, nextDueDate } as Payment;
-    const useInst = installmentOn && recurrence !== 'Once' && count >= 2;
+  const handleSubmit = async (d: PaymentDraft) => {
+    const isMonthly = d.recurrence === 'Monthly';
+    // Aylık: günden. Yıllık/tek seferlik: seçilen tarihin günü + tarihin kendisi (bkz. paymentDates.ts).
+    const day = isMonthly ? d.dueDay : d.anchorDate.getDate();
+    const nextDueDate = isMonthly ? null : d.anchorDate.toISOString();
+    const draft = { id: 0, title: d.title, amount: d.amount, dueDay: day, recurrence: d.recurrence, nextDueDate } as Payment;
+    // Taksit: ilk taksit = bu ödemenin şu anki dönemi; düzenlemede başlangıç korunur (sayaç kaymasın).
     const kind = {
-      isVariable,
-      installmentCount: useInst ? Math.min(120, count) : null,
-      installmentStart: useInst ? (editing?.installmentStart ?? activeCycleKeyOf(draft, today)) : null,
-      icon: payIcon, color: payColor, reminderDays: payReminder,
+      isVariable: d.isVariable,
+      installmentCount: d.installmentCount,
+      installmentStart: d.installmentCount ? (editing?.installmentStart ?? activeCycleKeyOf(draft, today)) : null,
+      icon: d.icon, color: d.color, reminderDays: d.reminderDays,
     };
-
-    if (editingId != null) {
-      const r = await updatePaymentAction(editingId, { title: title.trim(), amount: amountNum, dueDay: day, recurrence, nextDueDate, currency: payCurrency, ...kind });
+    const base = { title: d.title, amount: d.amount, dueDay: day, recurrence: d.recurrence, nextDueDate, currency: d.currency, ...kind };
+    if (editing) {
+      const r = await updatePaymentAction(editing.id, base);
       if (r === 'failed') { showToast(t.updateFailedToast, 'error'); return; }
       showToast(r === 'queued' ? t.queuedToast : t.updatedToast, 'success');
-      setShowAdd(false); resetForm();
+      setFormOpen(false);
       return;
     }
-    const result: CreatePaymentResult = await createPaymentAction({
-      title: title.trim(),
-      amount: amountNum,
-      dueDay: day,
-      recurrence,
-      nextDueDate,
-      category: null,
-      currency: payCurrency,
-      ...kind,
-    });
+    const result: CreatePaymentResult = await createPaymentAction({ ...base, category: null });
     // Sonuç HER ZAMAN bildirilir — sessiz başarısızlık yok.
     if (result === 'ok') showToast(t.addedToast, 'success');
     else if (result === 'queued') showToast(t.queuedToast, 'success');
     else showToast(t.failedToast, 'error');
-    if (result !== 'failed') { setShowAdd(false); resetForm(); }
+    if (result !== 'failed') setFormOpen(false);
   };
 
   const handleMarkPaid = async (payment: Payment, actualAmount?: number) => {
@@ -245,7 +178,7 @@ export default function OdemelerScreen() {
   const locale = INTL_LOCALE[language];
   const formatAmount = (n: number) => `${n.toLocaleString(locale, { maximumFractionDigits: 2 })} ${symbol}`;
   // Gün adı da yazılır (2026-11-05): "17 Aralık Perşembe" — hangi güne denk geldiği bilinsin.
-  const formatDue = (d: Date) => d.toLocaleDateString(locale, { day: 'numeric', month: 'long', weekday: 'long' });
+  const formatDue = (d: Date) => d.toLocaleDateString(locale, { day: 'numeric', month: 'long', weekday: 'short' });
 
   // Birim birim kesin toplamlar; ilerleme ve "≈" ana birimde (kur varsa).
   const totalsOf = (list: PaymentView[]) => totalsByCurrency(list.map(v => ({ amount: v.p.amount, currency: v.p.currency })), currency);
@@ -269,7 +202,8 @@ export default function OdemelerScreen() {
           // Değişken tutar ödenene kadar TAHMİN: başında "~" (ödenince gerçek tutar görünür).
           amountLabel={`${v.p.isVariable && v.status !== 'paid' ? '~' : ''}${formatMoney(v.p.amount, v.p.currency || currency, lang)}`}
           dateLabel={formatDue(v.date)}
-          onToggle={() => (v.status === 'paid' ? unmarkPaymentPaidAction(v.p.id) : handleMarkPaid(v.p))}
+          repeatLabel={v.p.recurrence === 'Quarterly' || v.p.recurrence === 'SemiAnnual' || v.p.recurrence === 'Yearly' ? VIEW_COPY[lang][v.p.recurrence] : undefined}
+          onToggle={() => (v.status === 'paid' ? void unmarkPaymentPaidAction(v.p.id).finally(loadHistory) : handleMarkPaid(v.p))}
           onDelete={() => handleDelete(v.p)}
           onMenu={() => handleMenu(v.p)}
           onEdit={() => openEdit(v.p)}
@@ -277,15 +211,28 @@ export default function OdemelerScreen() {
       ))}
     </View>
   );
-  const sectionTitle = (text: string) => (
-    <Text style={{ color: theme.onSurfaceMuted, fontWeight: '600', fontSize: F.caption, letterSpacing: 0.6, marginLeft: S.md }}>{upperFor(text, language)}</Text>
+  // Birim karışıksa uzun zincir yerine ana birimde tek yaklaşık sayı; kur yoksa dürüstçe zincir.
+  const sumPayments = (list: Payment[]) => {
+    const totals = totalsByCurrency(list.map(p => ({ amount: p.amount, currency: p.currency })), currency);
+    const approx = totals.length > 1 ? approxTotal(totals, currency, fx) : null;
+    return approx != null ? `≈ ${formatMoney(Math.round(approx), currency, lang)}` : formatTotals(totals, lang);
+  };
+  const sumLabel = (list: PaymentView[]) => sumPayments(list.map(v => v.p));
+  const section = (title: string, list: PaymentView[], tone?: string) => list.length > 0 && (
+    <View style={{ gap: S.sm }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: S.sm, paddingHorizontal: S.md }}>
+        <Text style={{ color: tone ?? theme.onSurfaceMuted, fontWeight: '600', fontSize: F.caption, letterSpacing: 0.6 }}>{upperFor(title, language)}</Text>
+        <Text numberOfLines={1} style={{ color: tone ?? theme.onSurfaceMuted, fontWeight: '600', fontSize: F.caption, fontVariant: ['tabular-nums'] }}>{sumLabel(list)}</Text>
+      </View>
+      {renderGroup(list)}
+    </View>
   );
-
-  const recurrenceOptions: { key: PaymentRecurrence; label: string }[] = [
-    { key: 'Monthly', label: t.recurrenceMonthly },
-    { key: 'Yearly', label: t.recurrenceYearly },
-    { key: 'Once', label: t.recurrenceOnce },
-  ];
+  const allTotals = totalsOf(thisMonth);
+  const paidRatio = allTotals.length === 1
+    ? (totalsOf(paidList)[0]?.amount ?? 0) / Math.max(allTotals[0].amount, 0.01)
+    : approxAll && approxPaid != null ? approxPaid / approxAll : null;
+  // Ana birim yalnız yabancı birimli ödeme varken anlamlı: toplamın hangi birimde gösterileceğini seçer.
+  const foreign = payments.some(p => p.currency && p.currency !== currency);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -294,17 +241,18 @@ export default function OdemelerScreen() {
         title={t.title}
         scrollY={scrollY}
         // Ekleme ÇUBUKTA (iOS: sağ üst "+") — eskiden sayfanın en değerli yerini tam
-        // genişlikte kesikli bir kutu kaplıyordu. Form açıkken düğme gizlenir.
-        right={showAdd ? undefined : (
-          <Touchable
-            onPress={openAdd}
-            accessibilityRole="button"
-            accessibilityLabel={t.addPayment}
-            style={{ width: MIN_TOUCH, height: MIN_TOUCH, alignItems: 'center', justifyContent: 'center', marginRight: -S.sm }}
-          >
-            <ChromeShell />
-            <Plus size={ICON.md} color={theme.primary} />
-          </Touchable>
+        // genişlikte kesikli bir kutu kaplıyordu.
+        right={(
+          <View style={{ flexDirection: 'row', marginRight: -S.sm }}>
+            {payments.length > 0 && (
+              <Touchable onPress={() => { haptic.select(); setView(view === 'list' ? 'calendar' : 'list'); }} accessibilityRole="button" accessibilityLabel={VIEW_COPY[lang][view === 'list' ? 'calendar' : 'list']} style={{ width: MIN_TOUCH, height: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' }}>
+                {view === 'list' ? <CalendarDays size={ICON.md} color={theme.onSurface} /> : <List size={ICON.md} color={theme.onSurface} />}
+              </Touchable>
+            )}
+            <Touchable onPress={openAdd} accessibilityRole="button" accessibilityLabel={t.addPayment} style={{ width: MIN_TOUCH, height: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' }}>
+              <Plus size={ICON.md} color={theme.primary} />
+            </Touchable>
+          </View>
         )}
       />
 
@@ -320,244 +268,54 @@ export default function OdemelerScreen() {
         // dokunuşu Touchable'a ULAŞMADAN yutuyordu). 'handled': dokunulabilir bir
         // öğeye basılıyorsa dokunuş HEMEN işlenir, klavye kapanması yan etkidir.
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl + (view === 'calendar' ? 320 : 0), gap: S.md, width: '100%', maxWidth: contentW, alignSelf: 'center' }}
+        contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl + (view === 'calendar' && calendarRoom ? 320 : 0), width: '100%', maxWidth: contentW, alignSelf: 'center' }}
         renderItem={() => null}
         ListHeaderComponent={
-          <View style={{ gap: S.md }}>
-            {showAdd && (
-              <FormReveal style={{ gap: S.md, padding: S.md, borderRadius: R.md, backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
-                <View style={{ gap: S.sm }}>
-                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.3, textTransform: 'uppercase' }}>{upperFor(t.sectionWhat, language)}</Text>
-                  <ModeField
-                    accent={theme.primary}
-                    value={title}
-                    // Öneriden seçilince (veya bilinen bir ada yazarken) kutunun İÇİNDE de
-                    // aynı ikon görünür — altındaki öneri listesi kapandıktan sonra hangi
-                    // sağlayıcıyı seçtiğini unutturmamak için (bkz. kayıtlı satırlardaki
-                    // AYNI matchProvider deseni, bkz. PaymentRow).
-                    prefix={titleProvider ? <AppIcon Icon={titleProvider.icon} color={titleProvider.color} size={24} radius={R.sm} iconSize={ICON.xs} /> : undefined}
-                    onChangeText={(v) => { setTitle(v); setProviderSuggestions(searchProviders(v)); }}
-                    onBlur={() => {
-                      // Alandan çıkınca öneriler KAPANIR — eskiden açık kalıyordu
-                      // ("dikte ediliyormuş gibi" hissettiriyordu). Gecikme BİLEREK
-                      // var: bir öneriye dokunmak önce bu blur'u, sonra Touchable'ın
-                      // onPress'ini tetikler; anında kapatsaydık dokunuş hiç işlenmeden
-                      // liste yok olurdu. 150ms, dokunuşun geçmesine yetecek kısa bir pay.
-                      setTimeout(() => setProviderSuggestions([]), 150);
-                    }}
-                    placeholder={t.namePlaceholder}
-                    maxLength={100}
-                  />
-                  {/* Bilinen sağlayıcı önerisi — ikonla birlikte (bkz. paymentProviders.ts
-                      başlığı: gerçek marka logosu DEĞİL, kavram ikonu + ayırt edici renk). */}
-                  {providerSuggestions.length > 0 && (
-                    <View style={{ borderRadius: R.md, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.09)', backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surface, overflow: 'hidden' }}>
-                      {providerSuggestions.map(p => (
-                        <Touchable
-                          key={p.id}
-                          // onPressIn, onPress DEĞİL — bkz. ModeField'daki aynı not: komşu
-                          // TextInput'un onBlur'u klavyeyi kapatıp düzeni YUKARI KAYDIRIYOR;
-                          // onPress (dokunuş BIRAKILDIĞINDA) ateşlenseydi parmak artık bu
-                          // satırın üzerinde olmayabilirdi — öneri sessizce kaybolup başlık
-                          // hiç dolmazdı. onPressIn dokunuşun İLK anında ateşlenir, kaydırma
-                          // henüz başlamadan.
-                          onPressIn={() => { haptic.select(); setTitle(providerDisplayName(p, language)); setProviderSuggestions([]); }}
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingVertical: S.smd, borderBottomWidth: 1, borderBottomColor: theme.separator }}
-                          activeOpacity={0.7}
-                        >
-                          <AppIcon Icon={p.icon} color={p.color} size={28} radius={R.sm} iconSize={ICON.sm} />
-                          <Text style={{ fontSize: F.body, fontWeight: '500', color: theme.onSurface }}>{providerDisplayName(p, language)}</Text>
-                        </Touchable>
-                      ))}
-                    </View>
-                  )}
-                </View>
-
-                <PaymentAppearance theme={theme} lang={lang} icon={payIcon} color={payColor} reminder={payReminder}
-                  onIcon={setPayIcon} onColor={setPayColor} onReminder={setPayReminder}
-                  onKind={(name, ic, col) => { setPayIcon(ic); setPayColor(col); if (!title.trim()) setTitle(name); }} />
-
-                <View style={{ gap: S.sm }}>
-                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.3, textTransform: 'uppercase' }}>{upperFor(t.sectionHowMuch, language)}</Text>
-                  <ModeField accent={theme.primary} value={amount} onChangeText={setAmount} placeholder={t.amountPlaceholder} keyboardType="decimal-pad" suffix={<Text style={{ color: theme.onSurfaceVariant, fontWeight: '600' }}>{currencySymbol(payCurrency)}</Text>} />
-                  {/* Para birimi ÖDEME BAŞINA (madde 12); varsayılan ana birim. Ana birim
-                      sayfanın altında seçilir (bkz. currency.ts). */}
-                  <View style={{ flexDirection: 'row', gap: S.xs }}>
-                    {CURRENCIES.map(c => {
-                      const active = payCurrency === c.code;
-                      return (
-                        <Touchable key={c.code} onPress={() => { haptic.select(); setPayCurrency(c.code); }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.medium, borderColor: active ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? theme.primary + '18' : 'transparent' }} activeOpacity={0.7}>
-                          <Text style={{ fontSize: F.caption, fontWeight: '600', color: active ? theme.primary : theme.onSurfaceVariant }}>{c.symbol} {c.code}</Text>
-                        </Touchable>
-                      );
-                    })}
-                  </View>
-                  {recurrence !== 'Once' && (
-                    <ToggleRow
-                      icon={<Zap size={ICON.sm} color="#FFFFFF" />}
-                      bg={theme.warning}
-                      title={t.variableLabel}
-                      subtitle={isVariable ? t.variableHint : undefined}
-                      value={isVariable}
-                      onValueChange={(v) => { haptic.select(); setIsVariable(v); }}
-                      theme={theme}
-                      isDark={isDark}
-                    />
-                  )}
-                </View>
-
-                <View style={{ gap: S.sm }}>
-                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.3, textTransform: 'uppercase' }}>{upperFor(t.sectionWhen, language)}</Text>
-                  <View style={{ flexDirection: 'row', gap: S.xs }}>
-                    {recurrenceOptions.map(opt => {
-                      const active = recurrence === opt.key;
-                      return (
-                        <Touchable key={opt.key} onPress={() => { haptic.select(); setRecurrence(opt.key); }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.medium, borderColor: active ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? theme.primary + '18' : 'transparent' }} activeOpacity={0.7}>
-                          <Text style={{ fontSize: F.caption, fontWeight: '600', color: active ? theme.primary : theme.onSurfaceVariant }}>{opt.label}</Text>
-                        </Touchable>
-                      );
-                    })}
-                  </View>
-                  {recurrence === 'Monthly' ? (
-                    <>
-                      {/* Aylık fatura için önemli olan tek bilgi GÜNdür — tam bir takvimden
-                          ay/yıl seçmeye zorlamak anlamsız. Sayı yazdırmak yerine dokunmatik
-                          bir gün gridi (1-31). */}
-                      <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant }}>{t.dueDayPrompt}</Text>
-                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
-                        {Array.from({ length: 31 }, (_, i) => i + 1).map(day => {
-                          const active = dueDayValue === day;
-                          return (
-                            <Touchable
-                              key={day}
-                              onPress={() => { haptic.select(); setDueDayValue(day); }}
-                              style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, borderWidth: B.medium, borderColor: active ? theme.primary : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)'), backgroundColor: active ? theme.primary : 'transparent' }}
-                              activeOpacity={0.7}
-                            >
-                              <Text style={{ fontSize: F.caption, fontWeight: '600', color: active ? (theme.onPrimary ?? '#fff') : theme.onSurfaceVariant }}>{day}</Text>
-                            </Touchable>
-                          );
-                        })}
-                      </View>
-                    </>
-                  ) : (
-                    <>
-                      <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant }}>{t.firstDuePrompt}</Text>
-                      <Touchable onPress={() => { haptic.select(); setShowPicker(true); }} style={{ borderRadius: R.md, paddingHorizontal: S.md, height: 48, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }} activeOpacity={0.7}>
-                        <Text style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600', flex: 1 }}>{formatPlanDate(anchorDate.toISOString(), language === 'tr')}</Text>
-                      </Touchable>
-                      {showPicker && (
-                        <DateTimePicker
-                          value={anchorDate}
-                          mode="date"
-                          display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                          minimumDate={new Date()}
-                          onChange={(event: DateTimePickerEvent, date?: Date) => {
-                            if (Platform.OS === 'android') setShowPicker(false);
-                            if (event.type === 'dismissed') { setShowPicker(false); return; }
-                            if (date) setAnchorDate(date);
-                          }}
-                        />
-                      )}
-                    </>
-                  )}
-                </View>
-
-                {recurrence !== 'Once' && (
-                  <View style={{ gap: S.sm }}>
-                    <ToggleRow
-                      icon={<Layers size={ICON.sm} color="#FFFFFF" />}
-                      bg={theme.primary}
-                      title={t.installmentLabel}
-                      subtitle={installmentOn && parseInt(installmentCount, 10) >= 2 ? t.installmentHint(Math.min(120, parseInt(installmentCount, 10))) : undefined}
-                      value={installmentOn}
-                      onValueChange={(v) => { haptic.select(); setInstallmentOn(v); }}
-                      theme={theme}
-                      isDark={isDark}
-                    />
-                    {installmentOn && (
-                      <ModeField accent={theme.primary} value={installmentCount} onChangeText={(v) => setInstallmentCount(v.replace(/[^0-9]/g, '').slice(0, 3))} placeholder="12" keyboardType="number-pad" suffix={<Text style={{ color: theme.onSurfaceVariant, fontWeight: '600' }}>{t.installmentLabel}</Text>} />
-                    )}
-                  </View>
-                )}
-
-                {/* CTA — diğer mod kartlarının birincil butonlarıyla AYNI ölçü
-                    (S.smd dolgu + F.body metin): eskiden S.sm + F.caption basık duruyordu. */}
-                <View style={{ flexDirection: 'row', gap: S.sm }}>
-                  <Touchable onPress={() => { setShowAdd(false); resetForm(); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.smd, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
-                    <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.body }}>{t.cancel}</Text>
-                  </Touchable>
-                  <Touchable onPress={handleSave} disabled={!canSave} style={{ flex: 2, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.smd, backgroundColor: canSave ? theme.primary : theme.primary + '55' }} activeOpacity={0.8}>
-                    <Text style={{ color: theme.onPrimary ?? '#fff', fontWeight: '700', fontSize: F.body }}>{editingId != null ? t.save : t.add}</Text>
-                  </Touchable>
-                </View>
-              </FormReveal>
-            )}
-
-            {payments.length === 0 && !showAdd && (
+          <View style={{ gap: S.lg }}>
+            {payments.length === 0 && (
               <View style={{ alignItems: 'center', paddingVertical: S.xxl, gap: S.sm }}>
                 <AppIcon Icon={Wallet} color={theme.onSurfaceVariant} size={48} radius={R.lg} iconSize={ICON.lg} />
                 <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, textAlign: 'center' }}>
                   {t.emptyState}
                 </Text>
-                <Touchable onPress={openAdd} accessibilityRole="button" style={{ marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: theme.primary + '1F' }}>
+                <Touchable onPress={openAdd} accessibilityRole="button" style={{ marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: theme.primaryFill + '1F' }}>
                   <Text style={{ color: theme.primary, fontWeight: '600', fontSize: F.body }}>{`+ ${t.addPayment}`}</Text>
                 </Touchable>
               </View>
             )}
 
-            {thisMonth.length > 0 && (
+            {payments.length > 0 && (
               <PaymentsMonthCard
                 theme={theme}
-                isDark={isDark}
                 t={t}
-                language={language}
+                language={lang}
                 remaining={formatTotals(totalsOf(unpaidList), lang)}
                 remainingAmount={totalsOf(unpaidList).length === 1 ? { value: totalsOf(unpaidList)[0].amount, code: totalsOf(unpaidList)[0].code } : null}
-                paid={formatTotals(totalsOf(paidList), lang)}
-                total={formatTotals(totalsOf(thisMonth), lang)}
-                marks={thisMonth.map(v => ({ day: new Date().getDate() + v.days, state: v.status === 'paid' ? 'paid' as const : v.status === 'overdue' ? 'overdue' as const : 'due' as const }))}
-                allPaid={unpaidList.length === 0}
-                overdue={overdueList.length ? { count: overdueList.length, amount: formatTotals(totalsOf(overdueList), lang) } : null}
-                next={unpaidList[0] ? { title: unpaidList[0].p.title, days: unpaidList[0].days } : null}
+                paid={sumLabel(paidList) || formatMoney(0, currency, lang)}
+                total={sumLabel(thisMonth)}
+                progress={paidRatio}
+                allPaid={thisMonth.length > 0 && unpaidList.length === 0}
+                noneThisMonth={thisMonth.length === 0}
+                overdue={view === 'calendar' && overdueList.length ? { count: overdueList.length, amount: formatTotals(totalsOf(overdueList), lang) } : null}
+                next={view === 'list' && overdueList.length ? null : unpaidList[0] ? { title: unpaidList[0].p.title, days: unpaidList[0].days } : later[0] ? { title: later[0].p.title, days: later[0].days } : null}
                 approx={multiCurrency && approxLeft != null ? `≈ ${formatMoney(Math.round(approxLeft), currency, lang)}` : null}
               />
             )}
 
-            {/* KOMPAKT SIRA (2026-11-01, kullanıcı: "ödemeler daha kompakt, minimalist, kolay yönetilebilir olmalı"):
-                özet → liste (yönetilen şey) → geçmiş → ana para birimi. Liste eskiden grafik ve para biriminin altında kalıyordu. */}
-            {payments.length > 0 && !showAdd && (
-              <View accessibilityRole="tablist" style={{ flexDirection: 'row', padding: S.xxs, borderRadius: R.full, backgroundColor: theme.surfaceField }}>
-                {(['list', 'calendar'] as const).map(k => (
-                  <Touchable key={k} onPress={() => setView(k)} accessibilityRole="tab" accessibilityState={{ selected: view === k }}
-                    style={{ flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, backgroundColor: view === k ? theme.surfaceCard : 'transparent' }}>
-                    <Text style={{ fontSize: F.footnote, fontWeight: '600', color: view === k ? theme.onSurface : theme.onSurfaceVariant }}>{VIEW_COPY[lang][k]}</Text>
-                  </Touchable>
-                ))}
-              </View>
-            )}
-
-            {view === 'calendar' && !showAdd && payments.length > 0 && (
+            {view === 'calendar' && payments.length > 0 && (
               <View onLayout={e => { calendarY.current = e.nativeEvent.layout.y; }}>
                 <PaymentsCalendar payments={payments} theme={theme} lang={lang} locale={locale} onOpen={openEdit}
-                  onDaySelected={() => listRef.current?.scrollToOffset({ offset: calendarY.current + S.md - S.sm, animated: true })}
-                  formatAmount={p => formatMoney(p.amount, p.currency || currency, lang)} />
+                  onDaySelected={() => { setCalendarRoom(true); setTimeout(() => listRef.current?.scrollToOffset({ offset: calendarY.current + S.md - S.sm, animated: true }), 0); }}
+                  sumOf={sumPayments} formatAmount={p => formatMoney(p.amount, p.currency || currency, lang)} />
               </View>
             )}
 
-            {view === 'list' && thisMonth.length > 0 && (
-              <View style={{ gap: S.sm }}>
-                {sectionTitle(t.thisMonth)}
-                {renderGroup(thisMonth)}
-              </View>
-            )}
+            {/* Önce yapılması gereken: gecikmiş, bu ay, sonraki. Ödenen en altta, dikkat çekmez. */}
+            {view === 'list' && section(VIEW_COPY[lang].overdue, overdueList, theme.error)}
+            {view === 'list' && section(t.thisMonth, unpaidList.filter(v => v.status !== 'overdue'))}
+            {view === 'list' && section(t.upcoming, later)}
+            {view === 'list' && section(VIEW_COPY[lang].paidGroup, paidList)}
 
-            {view === 'list' && later.length > 0 && (
-              <View style={{ gap: S.sm }}>
-                {sectionTitle(t.upcoming)}
-                {renderGroup(later)}
-              </View>
-            )}
             {(history.length > 0 || payments.length > 0) && (
               <PaymentsHistoryCard theme={theme} isDark={isDark} lang={lang} main={currency} fx={fx}
                 records={withLocalPaid(history, payments)} />
@@ -565,24 +323,27 @@ export default function OdemelerScreen() {
 
             {/* ANA PARA BİRİMİ — toplamların "≈" satırı ve grafik bu birimde. Yeni ödemenin
                 varsayılanı da bu; her ödeme kendi birimini korur. */}
-            {payments.length > 0 && (
-              <View style={{ gap: S.sm }}>
-                {sectionTitle(t.mainCurrency)}
-                <View style={{ flexDirection: 'row', gap: S.xs }}>
-                  {CURRENCIES.map(c => {
-                    const active = currency === c.code;
-                    return (
-                      <Touchable key={c.code} onPress={() => { haptic.select(); setCurrencyPref(c.code); setPayCurrency(c.code); }} accessibilityRole="button" accessibilityState={{ selected: active }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.medium, borderColor: active ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? theme.primary + '18' : 'transparent' }} activeOpacity={0.7}>
-                        <Text style={{ fontSize: F.caption, fontWeight: '600', color: active ? theme.primary : theme.onSurfaceVariant }}>{c.symbol} {c.code}</Text>
-                      </Touchable>
-                    );
-                  })}
-                </View>
+            {foreign && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, padding: S.md, borderRadius: R.lg, backgroundColor: theme.surfaceCard }}>
+                <Text style={{ flex: 1, fontSize: F.body, color: theme.onSurface }}>{t.mainCurrency}</Text>
+                <CurrencyPick value={currency} onChange={setCurrencyPref} theme={theme} label={t.mainCurrency} />
               </View>
             )}
 
           </View>
         }
+      />
+      <PaymentForm
+        visible={formOpen}
+        editing={editing}
+        mainCurrency={currency}
+        lang={lang}
+        locale={locale}
+        t={t}
+        onClose={() => setFormOpen(false)}
+        onSubmit={handleSubmit}
+        onDelete={editing ? () => { setFormOpen(false); handleDelete(editing); } : undefined}
+        onSkip={editing && canSkipCycle(editing) && paymentView(editing, today)?.status !== 'paid' ? () => { setFormOpen(false); handleSkip(editing); } : undefined}
       />
       <PaidAmountSheet
         visible={paidPrompt != null}

@@ -15,6 +15,15 @@ import type { MockRecord } from './mockScore';
 export interface StudyBlock extends Block { id: string; planKey: string; done: boolean; skipped?: boolean; }
 export interface CourseTopic { id: string; name: string; }
 export interface Course { id: string; name: string; date: string; topics: CourseTopic[]; }
+/** Elle eklenen konunun ve dersin kaydı. Hazır liste kopyalanmaz: yalnız kullanıcının farkı saklanır, sunucuda çok az yer tutar. */
+export type TopicWeight = 'low' | 'mid' | 'high';
+export interface CustomTopic { id: string; name: string; subject: string; }
+export interface CustomSubject { id: string; name: string; }
+export const TOPIC_NAME_MAX = 60;
+export const CUSTOM_TOPICS_MAX = 60;
+export const CUSTOM_SUBJECTS_MAX = 10;
+/** Az soru yarım, çok soru bir buçuk kat pay ve süre alır. */
+const WEIGHT_FACTOR: Record<TopicWeight, number> = { low: 0.5, mid: 1, high: 1.5 };
 
 export interface PlanRecord {
   key: string;
@@ -28,6 +37,10 @@ export interface PlanRecord {
   /** Bilerek silinen denemeler: cihazlar arası birleşmede geri dönmesin. */
   removedMocks?: string[];
   courses?: Course[];
+  customTopics?: CustomTopic[];
+  customSubjects?: CustomSubject[];
+  /** Yalnız orta dışındakiler yazılır. */
+  weights?: Record<string, TopicWeight>;
   states: Record<string, UnitState>;
   mocks: MockRecord[];
   createdAt: number;
@@ -86,19 +99,83 @@ export function planKeyFor(name: string): string {
 
 export const courseUnitId = (key: string, courseId: string) => `${key}__${courseId}`;
 
+const weighed = (t: PlanTopic, plan: PlanRecord): PlanTopic => {
+  const w = plan.weights?.[t.id];
+  if (!w || w === 'mid') return t;
+  const f = WEIGHT_FACTOR[w];
+  return { ...t, q: t.q * f, hours: Math.max(1, Math.round(t.hours * f)) };
+};
+
+/** Elle eklenen konu, dersinin ortalamasıyla başlar: tek konu planı bozmaz, ağırlığı sonra değişir. */
+function customPlanTopics(plan: PlanRecord, known: PlanTopic[], subjects?: string[]): PlanTopic[] {
+  const avg = (list: PlanTopic[], f: (t: PlanTopic) => number, or: number) => (list.length ? list.reduce((a, t) => a + f(t), 0) / list.length : or);
+  return (plan.customTopics ?? [])
+    .filter(t => !plan.excluded.includes(t.id) && !plan.excluded.includes(t.subject) && (!subjects || subjects.includes(t.subject)))
+    .map(t => {
+      const same = known.filter(k => k.subject === t.subject);
+      const pool = same.length ? same : known;
+      return { id: t.id, subject: t.subject, q: avg(pool, k => k.q, 1), hours: Math.max(1, Math.round(avg(pool, k => k.hours, COURSE_TOPIC_HOURS))), kind: 'beceri' as const };
+    });
+}
+
 export function unitsOfPlan(plan: PlanRecord): ExamUnit[] {
   const bp = blueprintFor(plan.name);
   if (bp) {
     const topics = bp.topics.filter(t => !plan.excluded.includes(t.id) && !plan.excluded.includes(t.subject));
-    return topics.length && plan.examDate ? [{ id: plan.key, topics, mockMin: bp.mockMin, examDay: dayNum(plan.examDate) }] : [];
+    const all = [...topics, ...customPlanTopics(plan, topics)].map(t => weighed(t, plan));
+    return all.length && plan.examDate ? [{ id: plan.key, topics: all, mockMin: bp.mockMin, examDay: dayNum(plan.examDate) }] : [];
   }
   return (plan.courses ?? [])
     .filter(c => c.date)
     .map((c): ExamUnit => {
-      const topics: PlanTopic[] = c.topics.filter(t => !plan.excluded.includes(t.id)).map(t => ({ id: t.id, subject: c.id, q: 1, hours: COURSE_TOPIC_HOURS, kind: 'beceri' }));
+      const own: PlanTopic[] = c.topics.filter(t => !plan.excluded.includes(t.id)).map(t => ({ id: t.id, subject: c.id, q: 1, hours: COURSE_TOPIC_HOURS, kind: 'beceri' }));
+      const topics = [...own, ...customPlanTopics(plan, own, [c.id])].map(t => weighed(t, plan));
       return { id: courseUnitId(plan.key, c.id), topics, mockMin: COURSE_MOCK_MIN, examDay: dayNum(c.date) };
     })
     .filter(u => u.topics.length > 0);
+}
+
+const sameName = (a: string, b: string) => a.trim().toLocaleLowerCase('tr') === b.trim().toLocaleLowerCase('tr');
+
+/** null: eklenemedi (boş ad, aynı ad ya da sınır). */
+export function addCustomTopic(plan: PlanRecord, subject: string, name: string, weight: TopicWeight): PlanRecord | null {
+  const clean = name.trim().slice(0, TOPIC_NAME_MAX);
+  const list = plan.customTopics ?? [];
+  if (!clean || list.length >= CUSTOM_TOPICS_MAX) return null;
+  if (list.some(t => t.subject === subject && sameName(t.name, clean))) return null;
+  const known = blueprintFor(plan.name);
+  if (known?.topics.some(t => t.subject === subject && sameName(known.labels[t.id]?.tr ?? '', clean))) return null;
+  const id = `c_${makeId(`${subject}/${clean}`)}`;
+  const weights = { ...(plan.weights ?? {}) };
+  if (weight === 'mid') delete weights[id]; else weights[id] = weight;
+  return { ...plan, customTopics: [...list, { id, name: clean, subject }], weights };
+}
+
+export function addCustomSubject(plan: PlanRecord, name: string): PlanRecord | null {
+  const clean = name.trim().slice(0, TOPIC_NAME_MAX);
+  const list = plan.customSubjects ?? [];
+  if (!clean || list.length >= CUSTOM_SUBJECTS_MAX || list.some(s => sameName(s.name, clean))) return null;
+  if (blueprintFor(plan.name)?.subjects.some(s => sameName(s.tr, clean) || sameName(s.en, clean))) return null;
+  return { ...plan, customSubjects: [...list, { id: `s_${makeId(clean)}`, name: clean }] };
+}
+
+export function setTopicWeight(plan: PlanRecord, id: string, weight: TopicWeight): PlanRecord {
+  const weights = { ...(plan.weights ?? {}) };
+  if (weight === 'mid') delete weights[id]; else weights[id] = weight;
+  return { ...plan, weights };
+}
+
+/** Konu izsiz gider: ağırlığı ve durumu da silinir, buluta artık taşınmaz. */
+export function removeCustomTopic(plan: PlanRecord, id: string): PlanRecord {
+  const weights = { ...(plan.weights ?? {}) };
+  delete weights[id];
+  const states = Object.fromEntries(Object.entries(plan.states).map(([k, u]) => {
+    if (!u.topics?.[id]) return [k, u];
+    const topics = { ...u.topics };
+    delete topics[id];
+    return [k, { ...u, topics }];
+  }));
+  return { ...plan, customTopics: (plan.customTopics ?? []).filter(t => t.id !== id), weights, states };
 }
 
 /** Konusu yoksa görevler eski motordan gelir; ekran "konularını ekle" der. */
@@ -519,7 +596,7 @@ export function mergeCloud(core: StudyCore, cloud: StudyCloud | null | undefined
     for (const m of c.mocks ?? []) if (!mocks.some(x => x.id === m.id)) mocks.push(m);
     mocks.sort((a, b) => a.day.localeCompare(b.day));
     const newer = c.at > l.at;
-    plans[key] = { ...l, ...(newer ? { levels: c.levels, excluded: c.excluded, courses: c.courses, reviewed: c.reviewed } : null), states, mocks: mocks.filter(m => !removed.includes(m.id)), removedMocks: removed, at: Math.max(l.at, c.at) };
+    plans[key] = { ...l, ...(newer ? { levels: c.levels, excluded: c.excluded, courses: c.courses, reviewed: c.reviewed, customTopics: c.customTopics, customSubjects: c.customSubjects, weights: c.weights } : null), states, mocks: mocks.filter(m => !removed.includes(m.id)), removedMocks: removed, at: Math.max(l.at, c.at) };
   }
   const lastActive = [core.lastActive, cloud.lastActive].filter((x): x is string => !!x).sort().pop() ?? null;
   const newerWeek = cloud.weekAt > core.weekAt && cloud.week;

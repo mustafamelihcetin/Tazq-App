@@ -69,7 +69,7 @@ export function NlpHintRow({ hint, theme }: { hint: NlpHint; theme: AppTheme }) 
                   paddingHorizontal: S.sm,
                   paddingVertical: S.xxs,
                   borderRadius: R.sm,
-                  backgroundColor: theme.primary + '14',
+                  backgroundColor: theme.primaryFill + '14',
                 }}
               >
                 <Icon size={ICON.xs} color={theme.primary} strokeWidth={2.5} />

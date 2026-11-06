@@ -83,7 +83,7 @@ const CEILING: Record<string, number> = {
   'app/focus.tsx': 9,  // derin odak — kendi görsel dili; 13 → 9: yıldız alanı + aurora FocusBackdrop'a taşındı
   // 5 → 0: son üç sabit hex de (iki sistem rengi + '#fff') tema token'larına bağlandı
   // (theme.streak/theme.success/theme.onPrimary) — ekran tamamen palet disiplininde.
-  'shared/utils/achievementIcons.tsx': 15,  // her başarımın kimlik rengi
+  'shared/utils/achievementIcons.tsx': 20, // +5 (2026-11-06): alışkanlık, rota ve hedef rozetleri; rozet renkleri kimliktir  // her başarımın kimlik rengi
   'features/modes/components/modes/RamazanCard.tsx': 12,
   'features/user/components/CelebrationOverlay.tsx': 12,
   'shared/components/ConfettiOverlay.tsx': 12,

@@ -5,6 +5,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { MotiView } from 'moti';
 import { Check } from 'lucide-react-native';
 import { DisplayPanel, DisplayStatus, DisplayDivider } from '@/shared/components/DisplayPanel';
+import { RolloverCaption } from '@/features/dashboard/components/RolloverCaption';
 import { EntranceStage } from '@/shared/components/EntranceStage';
 import { DayOrb, petalsOf } from '@/features/dashboard/components/DayOrb';
 import { buildDaySentence } from '@/features/dashboard/utils/daySentence';
@@ -176,11 +177,12 @@ function RingsBody({ label, caption, captionHighlight, metrics: raw, footer, top
           pressLabel={bc.openDay}
           right={back > 0 ? (
             <Touchable onPress={() => go(0)} accessibilityRole="button" accessibilityLabel={bc.back} hitSlop={{ top: S.sm, bottom: S.sm, left: S.sm, right: S.sm }}
-              style={[styles.todayPill, { backgroundColor: theme.primary + '1F' }]}>
+              style={[styles.todayPill, { backgroundColor: theme.primaryFill + '1F' }]}>
               <Text style={{ fontSize: F.caption, fontWeight: W.semibold, color: theme.primary }}>{`${bc.today} ›`}</Text>
             </Touchable>
           ) : undefined}
         />
+        {back === 0 && <RolloverCaption language={language === 'en' ? 'en' : 'tr'} theme={theme} />}
         {topSlot}
         {/* Dokunma bir ÖZELLİK değil, kolay yumurta — ekran okuyucu ağacına girmez (bkz. TodayCard). */}
         <Touchable accessible={false} onPress={onTap} activeOpacity={1} accessibilityLabel={label}>
@@ -197,7 +199,7 @@ function RingsBody({ label, caption, captionHighlight, metrics: raw, footer, top
                 <Touchable disabled={!detail || back > 0} onPress={() => setOpen(open === seg.kind ? null : seg.kind)}
                   accessibilityRole="button" accessibilityState={{ expanded: open === seg.kind }} accessibilityLabel={seg.s}
                   hitSlop={{ top: S.xs, bottom: S.xs }}
-                  style={[styles.token, { backgroundColor: (seg.done ? theme.success : theme.primary) + (open === seg.kind ? '2E' : '17') }]}>
+                  style={[styles.token, { backgroundColor: (seg.done ? theme.success : theme.primaryFill) + (open === seg.kind ? '2E' : '17') }]}>
                   <Text style={[styles.word, { color: seg.done ? theme.success : theme.primary }]}>{seg.s}</Text>
                 </Touchable>
                 </MotiView>
@@ -213,7 +215,7 @@ function RingsBody({ label, caption, captionHighlight, metrics: raw, footer, top
                 const on = b === back;
                 return (
                   <Touchable key={d.key} accessible={false} onPress={() => go(b)} hitSlop={{ top: S.sm, bottom: S.sm, left: S.xxs, right: S.xxs }}
-                    style={[styles.dayDot, { width: on ? 16 : 6, backgroundColor: on ? theme.primary : theme.onSurfaceMuted + '55' }]} />
+                    style={[styles.dayDot, { width: on ? 16 : 6, backgroundColor: on ? theme.primaryFill : theme.onSurfaceMuted + '55' }]} />
                 );
               })}
             </View>
@@ -232,7 +234,7 @@ function RingsBody({ label, caption, captionHighlight, metrics: raw, footer, top
             accessibilityLabel={addLabel}
             // Hap görsel olarak küçük kalır; dokunma alanı 44 pt'ye tamamlanır (HIG).
             hitSlop={{ top: S.sm, bottom: S.sm, left: S.xs, right: S.xs }}
-            style={[styles.addPill, { backgroundColor: theme.primary + '1F' }]}
+            style={[styles.addPill, { backgroundColor: theme.primaryFill + '1F' }]}
           >
             <Text style={{ fontSize: F.footnote, fontWeight: W.semibold, color: theme.primary }}>{`+ ${addLabel}`}</Text>
           </Touchable>

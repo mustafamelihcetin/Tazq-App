@@ -84,9 +84,9 @@ export function StudyMocks({ plan, c, lang, today, onChanged }: { plan: PlanReco
   return (
     <View style={{ gap: S.md }}>
       {!adding && (
-        <Touchable accessibilityRole="button" onPress={() => setAdding(true)} style={[st.add, { backgroundColor: theme.primary }]}>
-          <Plus size={ICON.sm} color={theme.onPrimary} />
-          <Text style={{ color: theme.onPrimary, fontSize: F.body, fontWeight: W.semibold }}>{c.mockNew}</Text>
+        <Touchable accessibilityRole="button" onPress={() => setAdding(true)} style={[st.add, { backgroundColor: theme.primaryFill }]}>
+          <Plus size={ICON.sm} color={theme.onPrimaryFill} />
+          <Text style={{ color: theme.onPrimaryFill, fontSize: F.body, fontWeight: W.semibold }}>{c.mockNew}</Text>
         </Touchable>
       )}
       {adding && (
@@ -97,8 +97,8 @@ export function StudyMocks({ plan, c, lang, today, onChanged }: { plan: PlanReco
                 const name = plan.courses?.find(k => u.id.endsWith(`__${k.id}`))?.name ?? u.id;
                 const on = u.id === unitId;
                 return (
-                  <Touchable key={u.id} accessibilityRole="radio" accessibilityState={{ selected: on }} onPress={() => setUnitId(u.id)} style={[st.chip, { backgroundColor: on ? theme.primary : theme.surfaceContainerHigh }]}>
-                    <Text style={{ fontSize: F.footnote, fontWeight: W.semibold, color: on ? theme.onPrimary : theme.onSurface }}>{name}</Text>
+                  <Touchable key={u.id} accessibilityRole="radio" accessibilityState={{ selected: on }} onPress={() => setUnitId(u.id)} style={[st.chip, { backgroundColor: on ? theme.primaryFill : theme.surfaceContainerHigh }]}>
+                    <Text style={{ fontSize: F.footnote, fontWeight: W.semibold, color: on ? theme.onPrimaryFill : theme.onSurface }}>{name}</Text>
                   </Touchable>
                 );
               })}
@@ -166,8 +166,8 @@ export function StudyMocks({ plan, c, lang, today, onChanged }: { plan: PlanReco
             <Touchable accessibilityRole="button" onPress={reset} style={[st.btn, { flex: 1, backgroundColor: theme.surfaceContainerHigh }]}>
               <Text style={{ fontSize: F.body, fontWeight: W.semibold, color: theme.onSurface }}>{c.mockCancel}</Text>
             </Touchable>
-            <Touchable accessibilityRole="button" onPress={save} style={[st.btn, { flex: 2, backgroundColor: theme.primary }]}>
-              <Text style={{ fontSize: F.body, fontWeight: W.semibold, color: theme.onPrimary }}>{c.mockSave}</Text>
+            <Touchable accessibilityRole="button" onPress={save} style={[st.btn, { flex: 2, backgroundColor: theme.primaryFill }]}>
+              <Text style={{ fontSize: F.body, fontWeight: W.semibold, color: theme.onPrimaryFill }}>{c.mockSave}</Text>
             </Touchable>
           </View>
         </MotiView>
@@ -179,7 +179,7 @@ export function StudyMocks({ plan, c, lang, today, onChanged }: { plan: PlanReco
           <View style={st.bars}>
             {trend.map((r, i) => (
               <View key={i} style={{ flex: 1, justifyContent: 'flex-end', height: 64 }}>
-                <MotiView from={{ height: 2 }} animate={{ height: Math.max(3, Math.round((r ?? 0) * 64)) }} transition={{ type: 'timing', duration: 450, delay: i * 40 }} style={{ borderRadius: R.xs, backgroundColor: i === trend.length - 1 ? theme.primary : theme.primary + '55' }} />
+                <MotiView from={{ height: 2 }} animate={{ height: Math.max(3, Math.round((r ?? 0) * 64)) }} transition={{ type: 'timing', duration: 450, delay: i * 40 }} style={{ borderRadius: R.xs, backgroundColor: i === trend.length - 1 ? theme.primaryFill : theme.primaryFill + '55' }} />
               </View>
             ))}
           </View>

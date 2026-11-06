@@ -30,8 +30,10 @@ interface StagedPlanState {
   /** Plan yuvasına göre (exam, exam2, tez, spor…) bekleyen öğeler — bkz. stagedRollout. */
   queues: Record<string, Queue>;
   setQueue: (slot: string, items: StagedPlanEntry[]) => void;
-  /** `index`teki öğe başarıyla oluşturuldu: sıradan düş, bugünü işaretle. */
-  commitAt: (slot: string, index: number, today: string) => void;
+  /** Öğe başarıyla oluşturuldu: sıradan düş, bugünü işaretle. Sıradaki yerine göre değil kimliğine göre: paralel çağrı başka öğeyi silmesin. */
+  commitAt: (slot: string, entry: StagedPlanEntry, today: string) => void;
+  /** Sonuna ekler; bugünün açılım kaydına dokunmaz (günde bir adım kuralı bozulmasın). */
+  appendItems: (slot: string, items: StagedPlanEntry[]) => void;
   clear: (slot: string) => void;
   reset: () => void;
 }
@@ -46,10 +48,17 @@ export const useStagedPlanStore = create<StagedPlanState>()(
     (set) => ({
       queues: {},
       setQueue: (slot, items) => set((s) => ({ queues: { ...s.queues, [slot]: { items, lastUnlockDay: null } } })),
-      commitAt: (slot, index, today) => set((s) => {
+      commitAt: (slot, entry, today) => set((s) => {
         const q = s.queues[slot];
         if (!q) return s;
-        return { queues: { ...s.queues, [slot]: { items: q.items.filter((_, i) => i !== index), lastUnlockDay: today } } };
+        const wanted = JSON.stringify(entry);
+        const index = q.items.findIndex(item => JSON.stringify(item) === wanted);
+        const items = index < 0 ? q.items : q.items.filter((_, i) => i !== index);
+        return { queues: { ...s.queues, [slot]: { items, lastUnlockDay: today } } };
+      }),
+      appendItems: (slot, items) => set((s) => {
+        const q = s.queues[slot];
+        return { queues: { ...s.queues, [slot]: { items: [...(q?.items ?? []), ...items], lastUnlockDay: q?.lastUnlockDay ?? null } } };
       }),
       clear: (slot) => set((s) => {
         const { [slot]: _gone, ...rest } = s.queues;

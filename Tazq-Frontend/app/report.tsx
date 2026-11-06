@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Compass, CloudOff, ChevronRight } from 'lucide-react-native';
+import { Compass, CloudOff, ChevronRight, Sparkles } from 'lucide-react-native';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { Touchable } from '@/shared/components/Touchable';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -12,7 +12,7 @@ import { useMomentumStore } from '@/features/user';
 import { useHabitStore } from '@/features/habits';
 import { useTaskStore } from '@/features/tasks';
 import { useFocusStore } from '@/features/focus';
-import { ICON, S, R, F, B, MIN_TOUCH, topBarSpace } from '@/shared/constants/tokens';
+import { ICON, S, R, F, MIN_TOUCH, topBarSpace } from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { generateWeeklyTips, getCoachAction, ProductivityHour } from '@/shared/utils/insights';
 import { track } from '@/shared/utils/analytics';
@@ -20,10 +20,10 @@ import { toDateKey } from '@/shared/utils/dateKey';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { useFocusHistoryStore } from '@/features/report/useFocusHistoryStore';
 import { WeekChart, HabitWeekList } from '@/features/report/components/WeeklyBoard';
-import { WeekSky } from '@/features/focus/components/WeekSky';
+import { WeekSkySheet } from '@/features/focus/components/WeekSkySheet';
+import { SegmentedControl } from '@/shared/components/SegmentedControl';
 import { WeekDisplay } from '@/features/report/components/WeekDisplay';
-import { upperFor } from '@/shared/utils/localeCase';
-import { weekRange, summarizeWeek, compareWeeks, weekStory, weekLabel, planProgress } from '@/features/report/weeklyReport';
+import { weekRange, summarizeWeek, compareWeeks, weekLabel, planProgress } from '@/features/report/weeklyReport';
 import { PLAN_MODE_TAGS } from '@/features/modes/utils/modeHelpers';
 import { haptic } from '@/shared/utils/haptics';
 
@@ -53,57 +53,64 @@ type Lang = 'tr' | 'en';
 
 const COPY = {
   tr: {
-    title: 'Haftalık Geri Bakış',
+    title: 'Geri Bakış',
     thisWeek: 'Bu hafta',
     prev: 'Önceki hafta',
     next: 'Sonraki hafta',
     focus: 'Odak',
-    tasks: 'Tamamlanan',
+    tasks: 'Görev',
     habits: 'Alışkanlık',
     activeDays: 'Aktif gün',
-    coach: 'KOÇUN',
-    tips: 'ÖNERİLER',
-    goal: (done: number, target: number) => `Haftalık hedef · ${done} / ${target} dk`,
-    goalDone: 'Haftalık hedefin tamam ✦',
+    plan: 'Plan',
+    goal: (done: number, target: number) => `Haftalık hedef ${done} / ${target} dk`,
+    goalDone: 'Haftalık hedefin tamam',
     offline: 'Odak geçmişi henüz indirilemedi. Görev ve alışkanlık verisi cihazından geliyor.',
-    // "0d" gün gibi okunuyordu; aynı ekranın hedef satırı zaten "dk" diyor.
     hour: (h: number, m: number) => (h > 0 ? `${h} sa ${m} dk` : `${m} dk`),
-    plan: (done: number, total: number) => `Plan görevleri · ${done} / ${total}`,
-    closeTitle: 'Haftayı kapat',
-    closeBody: 'Gelecek hafta için günlük odak hedefini seç.',
+    closeTitle: 'Gelecek haftanın günlük odak hedefi',
     closeBtn: 'Haftayı kapat',
-    closed: 'Bu haftayı kapattın ✦',
+    closed: 'Bu haftayı kapattın',
+    goalA11y: 'Günlük odak hedefi',
     goalPick: (m: number) => `${m} dk`,
     legacy: 'Geçmiş haftaların odak kaydı sunucu güncellendiğinde görünecek.',
-    thisWeekLink: 'Bu haftanın planı ve alışkanlıkları',
+    sky: 'Haftanın gökyüzü',
     modesLink: 'Modların geçmişi',
+    up: (m: string) => `Geçen haftadan ${m} fazla`,
+    down: (m: string) => `Geçen haftadan ${m} az`,
+    same: 'Geçen haftayla aynı',
+    empty: 'Henüz kayıt yok',
   },
   en: {
-    title: 'Weekly Review',
+    title: 'Review',
     thisWeek: 'This week',
     prev: 'Previous week',
     next: 'Next week',
     focus: 'Focus',
-    tasks: 'Completed',
+    tasks: 'Tasks',
     habits: 'Habits',
     activeDays: 'Active days',
-    coach: 'YOUR COACH',
-    tips: 'INSIGHTS',
-    goal: (done: number, target: number) => `Weekly goal · ${done} / ${target} min`,
-    goalDone: 'Weekly goal reached ✦',
+    plan: 'Plan',
+    goal: (done: number, target: number) => `Weekly goal ${done} / ${target} min`,
+    goalDone: 'Weekly goal reached',
     offline: 'Focus history not downloaded yet. Task and habit data comes from your device.',
     hour: (h: number, m: number) => (h > 0 ? `${h}h ${m}m` : `${m} min`),
-    plan: (done: number, total: number) => `Plan tasks · ${done} / ${total}`,
-    closeTitle: 'Close the week',
-    closeBody: 'Pick your daily focus goal for next week.',
+    closeTitle: "Next week's daily focus goal",
     closeBtn: 'Close the week',
-    closed: 'You closed this week ✦',
+    closed: 'You closed this week',
+    goalA11y: 'Daily focus goal',
     goalPick: (m: number) => `${m} min`,
     legacy: 'Focus history for past weeks appears once the server is updated.',
-    thisWeekLink: 'This week’s plan and habits',
+    sky: "This week's sky",
     modesLink: 'Your modes over time',
+    up: (m: string) => `${m} more than last week`,
+    down: (m: string) => `${m} less than last week`,
+    same: 'Same as last week',
+    empty: 'Nothing recorded yet',
   },
 };
+
+const GOALS = [15, 25, 45, 60];
+/** Haftayı kapatmak cuma ve sonrasında anlamlı: pazartesi kapatılacak bir hafta yok (gün sırası pazartesiden). */
+const CLOSE_FROM_DAY = 4;
 
 // Koç/ipucu tonlarını tema token'larına bağlar (tek renk kaynağı: Colors).
 const toneColor = (theme: AppTheme, tone: string): string => ({
@@ -149,13 +156,13 @@ export default function ReportScreen() {
   const now = new Date();
   const todayKey = toDateKey(now);
 
-  const { summary, delta, story } = useMemo(() => {
+  const { summary, delta } = useMemo(() => {
     const range = weekRange(now, offset);
     const prevRange = weekRange(now, offset - 1);
     const current = summarizeWeek({ sessions, tasks, habits, range, now });
     const previous = summarizeWeek({ sessions, tasks, habits, range: prevRange, now });
     const d = compareWeeks(current, previous);
-    return { summary: current, delta: d, story: weekStory(current, d, lang, offset < 0) };
+    return { summary: current, delta: d };
     // `now` her render'da yeni: bağımlılık olarak gün anahtarı yeter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessions, tasks, habits, offset, lang, todayKey]);
@@ -189,184 +196,113 @@ export default function ReportScreen() {
   // Mod yoksa Mod özeti'ne bağlantı da yok: boş bir sayfaya göndermez (E-2).
   const hasModes = usePrefsStore(st => { const x = st.seasonal; return !!(x.examMode || x.tezMode || x.mulakatMode || x.sporMode || x.ramazan || x.tasarrufMode || x.birakmaMode); });
 
-  const deltaLabel = delta.comparable && delta.focusMin !== 0
-    ? `${delta.focusMin > 0 ? '+' : '−'}${Math.abs(delta.focusMin)} ${lang === 'tr' ? 'dk' : 'min'}`
+  const [skyOpen, setSkyOpen] = useState(false);
+  const hasData = summary.totalFocusMin > 0 || summary.totalTasks > 0 || summary.habitDone > 0;
+  const deltaAbs = Math.abs(delta.focusMin);
+  const note = !hasData ? { text: c.empty, up: false }
+    : !delta.comparable ? null
+    : deltaAbs <= 5 ? { text: c.same, up: false }
+    : { text: (delta.focusMin > 0 ? c.up : c.down)(c.hour(Math.floor(deltaAbs / 60), deltaAbs % 60)), up: delta.focusMin > 0 };
+  const canClose = isCurrentWeek && summary.range.days.indexOf(todayKey) >= CLOSE_FROM_DAY;
+  // Tek öneri: yapılabilir bir adımı olan koç önce, yoksa ilk içgörü. Dört öneri yan yana hiçbirini okutmuyordu.
+  const advice = !isCurrentWeek ? null
+    : coach.route ? { text: lang === 'tr' ? coach.textTr : coach.textEn, route: coach.route as string, tone: coach.tone }
+    : tips[0] ? { text: lang === 'tr' ? tips[0].textTr : tips[0].textEn, route: null as string | null, tone: tips[0].tone }
     : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <ScreenHeader onBack={() => router.back()} title={c.title} subtitle={weekLabel(summary.range, lang)} />
+      <ScreenHeader onBack={() => router.back()} title={c.title} />
       <ScrollView
-        contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xxl, gap: S.md, width: '100%', maxWidth: contentW, alignSelf: 'center' }}
+        contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.xs, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xxl, gap: S.md, width: '100%', maxWidth: contentW, alignSelf: 'center' }}
         showsVerticalScrollIndicator={false}
       >
-        {/*
-          HAFTA EKRANI (2026-10-30, dijital panel dili): okları, hikâyeyi, dört sayıyı ve hedef/plan
-          çubuklarını TEK ekranda toplar; paneli yatay kaydırmak haftalar arasında gezdirir (bkz. WeekDisplay).
-          HAFTA GEZİNME — eski ekranda yalnız "bu hafta" vardı; pazartesi sabahı bomboştu.
-        */}
         <WeekDisplay
-          label={upperFor(isCurrentWeek ? c.thisWeek : weekLabel(summary.range, lang), lang)}
+          label={isCurrentWeek ? c.thisWeek : weekLabel(summary.range, lang)}
           canPrev={offset > -HISTORY_WEEKS} canNext={!isCurrentWeek}
           onPrev={() => setOffset(o => Math.max(-HISTORY_WEEKS, o - 1))} onNext={() => setOffset(o => Math.min(0, o + 1))}
           prevLabel={c.prev} nextLabel={c.next}
-          story={story}
-          delta={deltaLabel ? { text: deltaLabel, up: delta.focusMin > 0 } : null}
-          readouts={[
-            { label: c.focus, value: c.hour(hours, mins), tone: 'primary' },
-            { label: c.tasks, value: `${summary.totalTasks}`, tone: 'success' },
-            { label: c.habits, value: `${summary.habitPct}%`, tone: 'streak' },
-            { label: c.activeDays, value: `${summary.activeDays}/7`, tone: 'tertiary' },
-          ]}
-          bars={[
-            // Haftalık hedef = günlük hedef × 7. Yalnız İÇİNDE BULUNULAN hafta için anlamlı.
-            ...(isCurrentWeek && weeklyTarget > 0 ? [{ text: goalPct >= 1 ? c.goalDone : c.goal(summary.totalFocusMin, weeklyTarget), pct: goalPct, tone: 'primary' as const, highlight: goalPct >= 1 }] : []),
-            ...(plan.total > 0 ? [{ text: c.plan(plan.done, plan.total), pct: plan.done / plan.total, tone: 'tertiary' as const }] : []),
+          value={c.hour(hours, mins)}
+          valueLabel={c.focus}
+          note={note}
+          // Haftalık hedef = günlük hedef × 7. Yalnız içinde bulunulan hafta için anlamlı.
+          goal={isCurrentWeek && weeklyTarget > 0 ? { text: goalPct >= 1 ? c.goalDone : c.goal(summary.totalFocusMin, weeklyTarget), pct: goalPct } : null}
+          stats={[
+            { label: c.tasks, value: `${summary.totalTasks}` },
+            ...(habits.length > 0 ? [{ label: c.habits, value: `%${summary.habitPct}` }] : []),
+            { label: c.activeDays, value: `${summary.activeDays}/7` },
+            ...(plan.total > 0 ? [{ label: c.plan, value: `${plan.done}/${plan.total}` }] : []),
           ]}
         />
 
-        {/*
-          HAFTANIN GÖKYÜZÜ — özetin hemen altında (2026-11-01, kullanıcı: "daha ön plana çıksın").
-          Her yıldız bir seans: yükseklik saat, büyüklük süre (bkz. WeekSky). Eski sunucuda saat yok.
-        */}
-        <WeekSky sessions={sessions} dayKeys={summary.range.days} language={lang === 'en' ? 'en' : 'tr'} timed={!usingLegacyFallback} todayKey={todayKey} />
-
-        {/* Eski sunucuda yalnız içinde bulunulan hafta dolu gelir (bkz. useFocusHistoryStore). */}
-        {usingLegacyFallback && !isCurrentWeek && (
-          <View style={{ flexDirection: 'row', gap: S.sm, alignItems: 'center', borderRadius: R.md, padding: S.md, backgroundColor: theme.surfaceContainerHigh }}>
-            <CloudOff size={ICON.sm} color={theme.onSurfaceVariant} />
-            <Text style={{ flex: 1, color: theme.onSurfaceVariant, fontSize: F.caption, lineHeight: 18 }}>{c.legacy}</Text>
+        {/* Eski sunucuda yalnız içinde bulunulan hafta dolu gelir; ilk indirme de henüz olmamış olabilir. */}
+        {((usingLegacyFallback && !isCurrentWeek) || neverLoaded) && (
+          <View style={styles.notice}>
+            <CloudOff size={ICON.sm} color={theme.onSurfaceMuted} />
+            <Text style={{ flex: 1, color: theme.onSurfaceMuted, fontSize: F.caption, lineHeight: 18 }}>{neverLoaded ? c.offline : c.legacy}</Text>
           </View>
         )}
 
-        {neverLoaded && (
-          <View style={{ flexDirection: 'row', gap: S.sm, alignItems: 'center', borderRadius: R.md, padding: S.md, backgroundColor: theme.surfaceContainerHigh }}>
-            <CloudOff size={ICON.sm} color={theme.onSurfaceVariant} />
-            <Text style={{ flex: 1, color: theme.onSurfaceVariant, fontSize: F.caption, lineHeight: 18 }}>{c.offline}</Text>
-          </View>
-        )}
-
-        <WeekChart summary={summary} language={lang} todayKey={todayKey} />
+        <WeekChart key={summary.range.startKey} summary={summary} language={lang} todayKey={todayKey} />
         <HabitWeekList habits={habits} summary={summary} language={lang} todayKey={todayKey} />
 
-        {/* Koç — yalnız İÇİNDE BULUNULAN hafta için: geçmiş haftaya eylem önerilmez. */}
-        {isCurrentWeek && (() => {
-          const tone = toneColor(theme, coach.tone);
-          return (
-            <View style={[styles.coach, { backgroundColor: tone + '14', borderColor: tone + '33' }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.xs }}>
-                <Compass size={ICON.xs} color={tone} strokeWidth={2.5} />
-                <Text style={{ color: tone, fontSize: F.caption, fontWeight: '700', letterSpacing: 0.5 }}>{c.coach}</Text>
-              </View>
-              <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', lineHeight: 22 }}>
-                {lang === 'tr' ? coach.textTr : coach.textEn}
-              </Text>
-              {coach.route && (
-                <Touchable
-                  onPress={() => { track('coach_tip_shown', { tone: coach.tone, route: coach.route }); router.push(coach.route as never); }}
-                  style={{ alignSelf: 'flex-start', marginTop: S.sm, backgroundColor: tone, paddingHorizontal: S.md, paddingVertical: S.xs, borderRadius: R.full }}
-                  accessibilityRole="button"
-                  accessibilityLabel={lang === 'tr' ? coach.ctaTr : coach.ctaEn}
-                >
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: F.caption }}>{lang === 'tr' ? coach.ctaTr : coach.ctaEn}</Text>
-                </Touchable>
-              )}
-            </View>
-          );
-        })()}
-
-        {/*
-          HAFTAYI KAPAT — geri dönmek için bir sebep.
-          Eski rapor bir kez bakılıp unutulan bir sayfaydı: ne kıyas, ne geçmiş, ne de
-          bitiren bir adım vardı. Kapatmak kullanıcıya gelecek haftanın hedefini
-          seçtiriyor; hedef zaten odak ekranının kullandığı günlük hedef.
-        */}
-        {isCurrentWeek && (
-          <View style={[styles.close, { borderColor: isDark ? theme.outline : 'transparent', backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest }]}>
-            {weekClosed ? (
-              <Text style={{ color: theme.primary, fontSize: F.body, fontWeight: '700' }}>{c.closed}</Text>
-            ) : (
-              <>
-                <Text style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '700' }}>{c.closeTitle}</Text>
-                <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{c.closeBody}</Text>
-                <View style={{ flexDirection: 'row', gap: S.xs, marginTop: S.xs }}>
-                  {[15, 25, 45, 60].map((m) => {
-                    const on = dailyGoalMinutes === m;
-                    return (
-                      <Touchable
-                        key={m}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: on }}
-                        accessibilityLabel={c.goalPick(m)}
-                        onPress={() => setDailyGoal(m)}
-                        style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin, borderColor: on ? theme.primary : theme.outlineVariant, backgroundColor: on ? theme.primary + '18' : 'transparent' }}
-                      >
-                        <Text style={{ color: on ? theme.primary : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700' }}>{c.goalPick(m)}</Text>
-                      </Touchable>
-                    );
-                  })}
-                </View>
-                <Touchable
-                  accessibilityRole="button"
-                  accessibilityLabel={c.closeBtn}
-                  onPress={() => { haptic.success(); setLastClosedWeek(summary.range.startKey); }}
-                  style={{ marginTop: S.sm, paddingVertical: S.md, borderRadius: R.full, backgroundColor: theme.primary, alignItems: 'center' }}
-                >
-                  <Text style={{ color: theme.onPrimary, fontSize: F.footnote, fontWeight: '700' }}>{c.closeBtn}</Text>
-                </Touchable>
-              </>
-            )}
-          </View>
+        {advice && (
+          <Touchable
+            disabled={!advice.route}
+            onPress={() => { if (advice.route) { track('coach_tip_shown', { tone: advice.tone, route: advice.route }); router.push(advice.route as never); } }}
+            accessibilityRole={advice.route ? 'link' : 'text'}
+            style={[styles.row, styles.card, { backgroundColor: theme.surfaceCard }]}
+          >
+            <Compass size={ICON.sm} color={toneColor(theme, advice.tone)} />
+            <Text style={{ flex: 1, color: theme.onSurface, fontSize: F.footnote, lineHeight: 20 }}>{advice.text}</Text>
+            {advice.route && <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} />}
+          </Touchable>
         )}
 
-        {isCurrentWeek && tips.length > 0 && (
-          <View style={{ gap: S.sm }}>
-            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 0.5 }}>{c.tips}</Text>
-            {tips.map((tip, i) => {
-              const tone = toneColor(theme, tip.tone);
-              return (
-                <View key={i} style={[styles.tip, { backgroundColor: tone + '12', borderLeftColor: tone }]}>
-                  <Text style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '500', lineHeight: 21 }}>
-                    {lang === 'tr' ? tip.textTr : tip.textEn}
-                  </Text>
-                </View>
-              );
-            })}
+        {/* HAFTAYI KAPAT: yalnız haftanın sonuna doğru. Kapatmak gelecek haftanın hedefini seçtirir; hedef odak ekranının günlük hedefi. */}
+        {canClose && (weekClosed ? (
+          <Text style={{ color: theme.onSurfaceVariant, fontSize: F.footnote, textAlign: 'center' }}>{c.closed}</Text>
+        ) : (
+          <View style={[styles.card, { backgroundColor: theme.surfaceCard, gap: S.smd }]}>
+            <Text style={{ color: theme.onSurface, fontSize: F.footnote, fontWeight: '600' }}>{c.closeTitle}</Text>
+            <SegmentedControl
+              options={GOALS.map(m => ({ key: String(m), label: c.goalPick(m) }))}
+              value={String(dailyGoalMinutes)}
+              onChange={k => setDailyGoal(Number(k))}
+              theme={theme}
+              isDark={isDark}
+              accessibilityLabel={c.goalA11y}
+            />
+            <Touchable accessibilityRole="button" onPress={() => { haptic.success(); setLastClosedWeek(summary.range.startKey); }} style={{ minHeight: MIN_TOUCH, borderRadius: R.full, backgroundColor: theme.primaryFill, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: theme.onPrimaryFill, fontSize: F.footnote, fontWeight: '700' }}>{c.closeBtn}</Text>
+            </Touchable>
           </View>
-        )}
+        ))}
 
-        {/*
-          GEÇMİŞ'İN BAĞLANTILARI (2026-10-31, E-2 · K-4). Rapor geçmişin sahibi:
-           · İçinde bulunulan hafta "bu hafta" sorusudur — sahibi Bu Hafta. Yığında varsa ona DÖNER
-             (dismissTo; aynı ekran ikinci kez açılmaz).
-           · Modların geçmişi (Mod özeti) yalnız Hedefler'den açılıyordu. Mod yoksa satır yok.
-        */}
-        {(isCurrentWeek || hasModes) && (
-          <View style={[styles.links, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest }]}>
-            {isCurrentWeek && (
-              <Touchable accessibilityRole="link" accessibilityLabel={c.thisWeekLink} onPress={() => router.dismissTo('/cockpit')} style={styles.linkRow}>
-                <Text style={{ flex: 1, color: theme.onSurface, fontSize: F.footnote, fontWeight: '600' }}>{c.thisWeekLink}</Text>
-                <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} />
-              </Touchable>
-            )}
-            {hasModes && (
-              <Touchable accessibilityRole="link" accessibilityLabel={c.modesLink} onPress={() => router.push('/mod-ozet')} style={styles.linkRow}>
-                <Text style={{ flex: 1, color: theme.onSurface, fontSize: F.footnote, fontWeight: '600' }}>{c.modesLink}</Text>
-                <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} />
-              </Touchable>
-            )}
-          </View>
-        )}
+        <View style={[styles.links, { backgroundColor: theme.surfaceCard }]}>
+          <Touchable accessibilityRole="button" onPress={() => setSkyOpen(true)} style={styles.row}>
+            <Sparkles size={ICON.sm} color={theme.onSurfaceVariant} />
+            <Text style={{ flex: 1, color: theme.onSurface, fontSize: F.footnote, fontWeight: '500' }}>{c.sky}</Text>
+            <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} />
+          </Touchable>
+          {hasModes && (
+            <Touchable accessibilityRole="link" accessibilityLabel={c.modesLink} onPress={() => router.push('/mod-ozet')} style={[styles.row, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.separator }]}>
+              <Compass size={ICON.sm} color={theme.onSurfaceVariant} />
+              <Text style={{ flex: 1, color: theme.onSurface, fontSize: F.footnote, fontWeight: '500' }}>{c.modesLink}</Text>
+              <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} />
+            </Touchable>
+          )}
+        </View>
       </ScrollView>
+      <WeekSkySheet visible={skyOpen} language={lang} days={summary.range.days} onClose={() => setSkyOpen(false)} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  tip: { borderRadius: R.md, borderLeftWidth: 3, padding: S.md },
-  coach: { borderRadius: R.lg, borderWidth: B.thin, padding: S.lg },
-  close: { borderRadius: R.lg, borderWidth: B.thin, padding: S.lg, gap: S.xxs },
-  links: { borderRadius: R.lg, paddingHorizontal: S.lg },
-  linkRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, minHeight: MIN_TOUCH, paddingVertical: S.sm },
+  card: { borderRadius: R.lg, padding: S.md },
+  notice: { flexDirection: 'row', gap: S.sm, alignItems: 'center', paddingHorizontal: S.md },
+  links: { borderRadius: R.lg, paddingHorizontal: S.md },
+  row: { flexDirection: 'row', alignItems: 'center', gap: S.smd, minHeight: MIN_TOUCH, paddingVertical: S.sm },
 });
 export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

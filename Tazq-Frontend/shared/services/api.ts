@@ -550,7 +550,7 @@ export interface PaymentPayload {
   title: string;
   amount: number;
   dueDay: number;
-  recurrence: 'Once' | 'Monthly' | 'Yearly';
+  recurrence: 'Once' | 'Monthly' | 'Quarterly' | 'SemiAnnual' | 'Yearly';
   nextDueDate?: string | null;
   category?: string | null;
   /** ISO 4217; boş = ana birim (madde 12). */
@@ -652,7 +652,7 @@ export interface AdminUser {
   taskCount: number;
   completedTasks: number;
   focusMinutes: number;
-  lastActivityAt?: string;
+  lastActivityAt?: string | null;
   lastLoginIp?: string;
 }
 
@@ -935,6 +935,25 @@ export interface JobHealthEntry {
   runs: number; failures: number; pending: number | null; since: string;
 }
 
+/** Sunucu ölçümü (ops/tazq-maint.py). Dosya okunamazsa yalnız available=false ve uyarı gelir. */
+export interface ServerStatusData {
+  available: boolean; stale?: boolean; at?: string; warnings: string[];
+  load?: { cores: number; one: number; fifteen: number; cpuPct: number };
+  memory?: { totalMb: number; availableMb: number; pct: number };
+  disk?: { totalGb: number; usedGb: number; freeGb: number; pct: number; daysToFull: number | null };
+  cache?: { buildGb: number; journalMb: number };
+  containers?: { name: string; status: string; restarts: number; health: string }[];
+  database?: { sizeMb: number | null; users: number | null; connections: number | null; activeToday?: number | null; activeNow?: number | null };
+  /** Tahmini üst sınır (ops/tazq-maint.py capacity), yük testi değil. */
+  capacity?: { concurrentLimit: number; dauLimit: number; loadUsers: number; dataUsers: number; dataLimitedBy: 'disk' | 'cloud'; overallUsers: number; limitedBy: 'load' | 'data' };
+  backups?: { localCount: number; localMb: number; localLast: string | null; cloudLast: string | null; cloudProblem: string | null };
+  maintenance?: { at: string; freedMb: number; did: string[] } | null;
+  /** Saatlik iz: son 24 ölçüm, eskiden yeniye. */
+  history?: { t: number; ok: boolean }[];
+  /** Son bir saat: yalnız sayı, IP ya da hesap yok (sunucu: AbuseGuard). */
+  abuse?: { blockedNow: number; blocksLastHour: number; rejectedLastHour: number };
+}
+
 export interface SystemHealth {
   status: string; dbOk: boolean; redisOk: boolean | null;
   environment: string; serverTimeUtc: string; uptimeSeconds: number;
@@ -1040,6 +1059,7 @@ export const AdminSystemService = {
   audience: async (): Promise<AudienceStats> => (await api.get('/api/admin/audience')).data,
   stats: async (): Promise<SystemStats> => (await api.get('/api/admin/system/stats')).data,
   jobs: async (): Promise<JobHealthEntry[]> => (await api.get('/api/admin/system/jobs')).data,
+  server: async (): Promise<ServerStatusData> => (await api.get('/api/admin/server-status')).data,
   /**
    * Sayfalanmış sunucu logları.
    *

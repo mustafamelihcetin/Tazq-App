@@ -315,10 +315,10 @@ describe('baslik cubugu ogeleri', () => {
         .split('\n')
         .filter((l) => !l.trim().startsWith('//'))
         .join('\n');
-    const src = strip(fs.readFileSync(path.join(ROOT, 'app/index.tsx'), 'utf8'));
+    const src = strip((fs.readFileSync(path.join(ROOT, 'app/index.tsx'), 'utf8') + fs.readFileSync(path.join(ROOT, 'features/dashboard/hooks/useHomeModel.tsx'), 'utf8')));
     // scale(34) tablette 42.5'e cikiyordu; 44pt cubukta kabul edilemez.
     expect(src).not.toMatch(/scale\(34\)/);
-    expect(src).toContain('TOP_ITEM_SIZE');
+    expect(src).toContain('TOP_AVATAR_SIZE');
     const hub = fs.readFileSync(path.join(ROOT, 'features/dashboard/components/InboxSheet.tsx'), 'utf8');
     expect(hub).toContain('width: TOP_ITEM_SIZE, height: TOP_ITEM_SIZE');
   });
@@ -335,7 +335,8 @@ describe('sayfa üstü boşluğu', () => {
     // 12 -> 13 (2026-11-05): aylık Takvim ekranı (takvim.tsx) eklendi.
     // 13 -> 14 (2026-11-05): Planım ekranı (plan.tsx) eklendi.
     // 14 -> 15 (2026-11-05): Günün rotası (rota.tsx) eklendi.
-    expect(headerScreens.length).toBe(15);
+    // 15 -> 17 (2026-11-06): Profil ve Başarılar başlık çubuğuna geçti.
+    expect(headerScreens.length).toBe(17);
   });
 
   it.each(headerScreens)('%s üstünü topBarSpace’ten türetmeli', (file) => {
@@ -358,8 +359,8 @@ describe('başlık kutusu', () => {
     // legal 14pt(!), mod-ozet kendi çöken 52pt başlığı + ölçek dışı 30pt.
     // Artık dokuzu tek bileşenden çiziyor: eşitlik yapısal, ayrışma imkânsız.
     expect(shared.sort()).toEqual([
-      'aliskanlik.tsx', 'archive.tsx', 'cockpit.tsx', 'gun.tsx', 'index.tsx', 'legal.tsx', 'mod-ozet.tsx',
-      'modlar.tsx', 'odemeler.tsx', 'plan.tsx', 'report.tsx', 'rota.tsx', 'settings.tsx', 'takvim.tsx', 'tasks.tsx',
+      'achievements.tsx', 'aliskanlik.tsx', 'archive.tsx', 'cockpit.tsx', 'gun.tsx', 'index.tsx', 'legal.tsx', 'mod-ozet.tsx',
+      'modlar.tsx', 'odemeler.tsx', 'plan.tsx', 'profile.tsx', 'report.tsx', 'rota.tsx', 'settings.tsx', 'takvim.tsx', 'tasks.tsx',
     ]);
   });
 

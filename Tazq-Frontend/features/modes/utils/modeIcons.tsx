@@ -82,7 +82,7 @@ export const MODE_ICONS: Record<string, React.ComponentType<{ size?: number; col
   // nefes cagristiran bir glif.
   '🧘': Lucide.Wind,
   '🧠': Lucide.Brain,
-  '💰': Lucide.PiggyBank,
+  '💰': Lucide.Coins,
   '🧾': Lucide.Receipt,
   '💳': Lucide.CreditCard,
   '💸': Lucide.Wallet,

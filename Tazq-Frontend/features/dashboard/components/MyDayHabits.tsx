@@ -1,8 +1,9 @@
-import React, { useRef } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { HabitBubble, HABIT_SLOT } from '@/features/habits/components/HabitBubble';
+import { HABIT_SLOT } from '@/features/habits/components/HabitBubble';
+import { HabitTile, type HabitTileProps } from '@/features/habits/components/HabitTile';
 import { keepOrder } from '@/features/habits/utils/habitSchedule';
 import { SectionHeader } from '@/shared/components/SectionHeader';
 import { Touchable } from '@/shared/components/Touchable';
@@ -11,11 +12,11 @@ import { DISPLAY_FONT } from '@/shared/components/DisplayPanel';
 import type { AppTheme } from '@/shared/constants/Colors';
 
 /**
- * Günüm kartının alışkanlık şeridi — yatay kaydırmalı baloncuklar.
+ * Günüm kartının alışkanlıkları — tamamı görünen ızgara.
  *
- * NEDEN YATAY: alışkanlıklar günde 3-6 tane ve hepsi eşit önemde. Dikey liste onları
- * sıralı bir yapılacaklar gibi gösterirdi (üstteki "önce" olur); yatay şerit ise
- * hepsini aynı düzlemde tutuyor — hangisini önce yaptığın önemli değil, yapman önemli.
+ * NEDEN IZGARA (2026-11-06): yatay şerit dördüncüden sonrasını ekranın dışına saklıyordu; yapılmamış alışkanlık görünmeyince
+ * unutuluyordu. Baktığımız repoların (Kado, Loop, Habo, mhabit, Streak) hiçbiri kaydırmanın arkasına saklamıyor. Dikey liste de
+ * görevleri aşağı iterdi; iki sütun hepsini aynı düzlemde tutar: hangisini önce yaptığın önemli değil, yapman önemli.
  *
  * DAVRANIŞ BURADA DEĞİL: bir alışkanlığa basınca ses çalıyor, hepsi bitmişse konfeti
  * patlıyor ve odak puanı ekleniyor. O mantık çağıranda (index.tsx) — buraya taşımak
@@ -34,7 +35,23 @@ import type { AppTheme } from '@/shared/constants/Colors';
 
   Gerekçenin tamamı artık HABIT_SLOT'un başında duruyor; iki yer aynı sayıyı okuyor.
 */
+const COPY = {
+  tr: {
+    add: 'Alışkanlık ekle', addShort: 'Ekle', title: 'ALIŞKANLIKLAR',
+    done: (d: number, n: number) => `${d} / ${n} tamamlandı`,
+    guide: 'Günlük alışkanlıklarını belirle. Yaşam modlarını açtığında hedeflerin buraya otomatik gelir.',
+  },
+  en: {
+    add: 'Add habit', addShort: 'Add', title: 'HABITS',
+    done: (d: number, n: number) => `${d} of ${n} done`,
+    guide: 'Set daily habits. Active life modes will automatically populate habits here.',
+  },
+};
+
 const BUBBLE = 50;
+const ADD_RING = 40;
+/** Kutunun en dar hali: halka + iki satır ad + 7 günlük iz. */
+const TILE_MIN = 150;
 
 export interface MyDayHabitsProps {
   habits: any[];
@@ -49,6 +66,12 @@ export interface MyDayHabitsProps {
 
 export const MyDayHabits = React.memo<MyDayHabitsProps>(
   ({ habits, onToggle, onSkip, onAddHabit, theme, isDark, tr }) => {
+    // Telefonda iki sütun; geniş ekranda (tablet, yatay) kutu daralmadan sütun artar (mhabit'in en büyük genişlik ızgarası).
+    const [gridWidth, setGridWidth] = useState(0);
+    const columns = Math.max(2, Math.floor(gridWidth / TILE_MIN));
+    const cell = { width: `${100 / columns}%` as const };
+    const lang = tr ? 'tr' : 'en';
+    const c = COPY[lang];
     const orderRef = useRef<string[]>([]);
     const ordered = keepOrder(orderRef.current, habits as { id: string }[]) as typeof habits;
     orderRef.current = ordered.map((h: { id: string }) => h.id);
@@ -65,7 +88,7 @@ export const MyDayHabits = React.memo<MyDayHabitsProps>(
         activeOpacity={0.7}
         style={styles.slot}
         accessibilityRole="button"
-        accessibilityLabel={tr ? 'Alışkanlık ekle' : 'Add habit'}
+        accessibilityLabel={c.add}
       >
         {/*
           Kesikli çember SVG ile: Android, yuvarlak köşeli `borderStyle: 'dashed'`ı tırtıklı çiziyor
@@ -80,7 +103,7 @@ export const MyDayHabits = React.memo<MyDayHabitsProps>(
               ölçüyü çöpe atar. */}
           <Plus size={ICON.md} color={theme.onSurfaceMuted} />
         </View>
-        <Text style={[styles.addLabel, { color: theme.onSurfaceMuted }]}>{tr ? 'Ekle' : 'Add'}</Text>
+        <Text style={[styles.addLabel, { color: theme.onSurfaceMuted }]}>{c.addShort}</Text>
       </Touchable>
     );
     return (
@@ -91,9 +114,9 @@ export const MyDayHabits = React.memo<MyDayHabitsProps>(
         ipucunda); her gün okunan bir talimat, ilk günden sonra yalnız yer kaplıyordu.
       */}
       <View style={styles.header}>
-        <Text style={[styles.headerLabel, { color: theme.onSurfaceMuted }]}>{tr ? 'ALIŞKANLIKLAR' : 'HABITS'}</Text>
+        <Text style={[styles.headerLabel, { color: theme.onSurfaceMuted }]}>{c.title}</Text>
         {counted > 0 && (
-          <Text accessibilityLabel={tr ? `${done} / ${counted} tamamlandı` : `${done} of ${counted} done`}
+          <Text accessibilityLabel={c.done(done, counted)}
             style={[styles.headerCount, { color: done >= counted ? theme.success : theme.onSurface }]}>{`${done}/${counted}`}</Text>
         )}
       </View>
@@ -109,32 +132,43 @@ export const MyDayHabits = React.memo<MyDayHabitsProps>(
           {addSlot}
           <View style={[styles.guide, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outline }]}>
             <Text style={[styles.guideText, { color: theme.onSurfaceVariant }]}>
-              {tr
-                ? 'Günlük alışkanlıklarını belirle. Yaşam modlarını açtığında hedeflerin buraya otomatik gelir.'
-                : 'Set daily habits. Active life modes will automatically populate habits here.'}
+              {c.guide}
             </Text>
           </View>
         </View>
       ) : (
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.row}
-      >
+      <View testID="habit-grid" style={styles.grid} onLayout={e => setGridWidth(e.nativeEvent.layout.width)}>
         {ordered.map((item) => (
-          <HabitBubble
-            key={`habit-${item.id}`}
-            item={item}
-            theme={theme}
-            isDark={isDark}
-            tr={tr}
-            onPress={() => onToggle(item)}
-            onLongPress={() => onSkip(item)}
-          />
+          <View key={`habit-${item.id}`} style={[cell, styles.cell]}>
+            <HabitTile
+              item={item as HabitTileProps['item']}
+              theme={theme}
+              isDark={isDark}
+              lang={lang}
+              onPress={() => onToggle(item)}
+              onLongPress={() => onSkip(item)}
+            />
+          </View>
         ))}
-
-        {addSlot}
-      </ScrollView>
+        <View style={[cell, styles.cell]}>
+          <Touchable
+            testID="add-habit"
+            onPress={onAddHabit}
+            activeOpacity={0.7}
+            style={styles.addTile}
+            accessibilityRole="button"
+            accessibilityLabel={c.add}
+          >
+            <View style={styles.addRing}>
+              <Svg width={ADD_RING} height={ADD_RING} style={StyleSheet.absoluteFill}>
+                <Circle cx={ADD_RING / 2} cy={ADD_RING / 2} r={ADD_RING / 2 - 1} fill="none" stroke={theme.outline} strokeWidth={B.medium} strokeDasharray="4 4" />
+              </Svg>
+              <Plus size={ICON.sm} color={theme.onSurfaceMuted} />
+            </View>
+            <Text style={[styles.addLabel, { color: theme.onSurfaceMuted }]}>{c.addShort}</Text>
+          </Touchable>
+        </View>
+      </View>
       )}
     </>
     );
@@ -144,6 +178,10 @@ export const MyDayHabits = React.memo<MyDayHabitsProps>(
 MyDayHabits.displayName = 'MyDayHabits';
 
 const styles = StyleSheet.create({
+  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: S.md - S.xs, paddingVertical: S.sm },
+  cell: { paddingHorizontal: S.xs },
+  addTile: { flexDirection: 'row', alignItems: 'center', gap: S.sm, minHeight: MIN_TOUCH + S.sm, paddingVertical: S.xs },
+  addRing: { width: ADD_RING, height: ADD_RING, alignItems: 'center', justifyContent: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md, paddingTop: S.md },
   headerLabel: { fontSize: F.caption, fontWeight: W.semibold, letterSpacing: 1.2 },
   headerCount: { fontFamily: DISPLAY_FONT.digits, fontSize: F.footnote, fontVariant: ['tabular-nums'] },

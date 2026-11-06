@@ -116,7 +116,7 @@ export default function VerifyEmailScreen() {
                       width: isSmallScreen ? scale(56) : scale(66),
                       height: isSmallScreen ? scale(56) : scale(66),
                       borderRadius: R.lg + 4,
-                      backgroundColor: theme.primary + (isDark ? '20' : '14'),
+                      backgroundColor: theme.primaryFill + (isDark ? '20' : '14'),
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}

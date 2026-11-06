@@ -1,3 +1,4 @@
+import { parseAmount } from '@/features/payments/utils/money';
 import React, { useEffect, useState } from 'react';
 import { View, Text, Modal, StyleSheet, KeyboardAvoidingView, TextInput } from 'react-native';
 import { Touchable } from '@/shared/components/Touchable';
@@ -25,7 +26,7 @@ export function PaidAmountSheet({ visible, title, estimate, symbol, locale, them
   useEffect(() => {
     if (visible) setValue(estimate > 0 ? estimate.toLocaleString(locale, { useGrouping: false, maximumFractionDigits: 2 }) : '');
   }, [visible, estimate, locale]);
-  const num = parseFloat(value.replace(',', '.'));
+  const num = parseAmount(value);
   const ok = Number.isFinite(num) && num > 0;
 
   return (
@@ -62,9 +63,9 @@ export function PaidAmountSheet({ visible, title, estimate, symbol, locale, them
               accessibilityRole="button"
               accessibilityLabel={t.paidAmountConfirm}
               accessibilityState={{ disabled: !ok }}
-              style={[styles.btn, styles.primary, { backgroundColor: ok ? theme.primary : theme.primary + '55' }]}
+              style={[styles.btn, styles.primary, { backgroundColor: ok ? theme.primaryFill : theme.primaryFill + '55' }]}
             >
-              <Text style={[styles.btnText, { color: theme.onPrimary }]}>{t.paidAmountConfirm}</Text>
+              <Text style={[styles.btnText, { color: theme.onPrimaryFill }]}>{t.paidAmountConfirm}</Text>
             </Touchable>
           </View>
         </View>

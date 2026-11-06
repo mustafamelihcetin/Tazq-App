@@ -8,6 +8,7 @@
  * (duplicate önleme için mevcut görev listesi kontrol edilir).
  */
 
+import { logicalNow } from '@/shared/utils/appDay';
 import { CreateTaskPayload } from '@/shared/services/api';
 import type { RecoveryState } from '@/shared/utils/recovery';
 import { WeightEntry } from '@/features/modes/store/useSporStore';
@@ -37,16 +38,14 @@ export function detectSporTypeLocal(goalLabel: string): SporTypeLocal {
  * gerçekten çalışıyor.
  */
 export function daysUntil(dateStr: string): number {
-  const adjustedNow = new Date();
-  adjustedNow.setHours(adjustedNow.getHours() - 3);
+  const adjustedNow = logicalNow();
   adjustedNow.setHours(0, 0, 0, 0);
   const d = parseDateKey(dateStr);
   return Math.ceil((d.getTime() - adjustedNow.getTime()) / 86400000);
 }
 
 export function daysAgo(dateStr: string): number {
-  const adjustedNow = new Date();
-  adjustedNow.setHours(adjustedNow.getHours() - 3);
+  const adjustedNow = logicalNow();
   adjustedNow.setHours(0, 0, 0, 0);
   const d = new Date(dateStr);
   d.setHours(0, 0, 0, 0);
@@ -54,8 +53,7 @@ export function daysAgo(dateStr: string): number {
 }
 
 function daysFromNow(n: number): string {
-  const adjusted = new Date();
-  adjusted.setHours(adjusted.getHours() - 3);
+  const adjusted = logicalNow();
   adjusted.setDate(adjusted.getDate() + n);
   const y = adjusted.getFullYear();
   const m = String(adjusted.getMonth() + 1).padStart(2, '0');

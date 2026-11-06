@@ -177,7 +177,7 @@ export const QuickAddSheet: React.FC<QuickAddSheetProps> = ({
             </View>
 
             <View style={styles.header}>
-              <View style={[styles.badge, { backgroundColor: theme.primary + '20' }]}>
+              <View style={[styles.badge, { backgroundColor: theme.primaryFill + '20' }]}>
                 <Zap size={ICON.md} color={theme.primary} fill={theme.primary} />
               </View>
               <View style={{ flex: 1 }}>
@@ -210,9 +210,9 @@ export const QuickAddSheet: React.FC<QuickAddSheetProps> = ({
                 accessibilityRole="button"
                 accessibilityLabel={listening ? vc.stop : vc.start}
                 accessibilityState={{ selected: listening }}
-                style={[styles.mic, { backgroundColor: listening ? theme.primary : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)') }]}
+                style={[styles.mic, { backgroundColor: listening ? theme.primaryFill : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)') }]}
               >
-                <Mic size={ICON.md} color={listening ? theme.onPrimary : theme.onSurfaceVariant} />
+                <Mic size={ICON.md} color={listening ? theme.onPrimaryFill : theme.onSurfaceVariant} />
               </Touchable>
               </View>
             </Pressable>
@@ -234,10 +234,10 @@ export const QuickAddSheet: React.FC<QuickAddSheetProps> = ({
                       accessibilityLabel={d === 'today' ? q.dayToday : q.dayTomorrow}
                       style={[
                         styles.dayChip,
-                        { backgroundColor: active ? theme.primary : (isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)') },
+                        { backgroundColor: active ? theme.primaryFill : (isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)') },
                       ]}
                     >
-                      <Text style={[styles.dayChipText, { color: active ? theme.onPrimary : theme.onSurface }]}>
+                      <Text style={[styles.dayChipText, { color: active ? theme.onPrimaryFill : theme.onSurface }]}>
                         {d === 'today' ? q.dayToday : q.dayTomorrow}
                       </Text>
                     </Touchable>
@@ -270,11 +270,11 @@ export const QuickAddSheet: React.FC<QuickAddSheetProps> = ({
                 accessibilityRole="button"
                 accessibilityLabel={q.save}
                 accessibilityState={{ disabled: !canSave || isSaving, busy: isSaving }}
-                style={[styles.primary, { backgroundColor: canSave ? theme.primary : theme.surfaceContainerHigh }]}
+                style={[styles.primary, { backgroundColor: canSave ? theme.primaryFill : theme.surfaceContainerHigh }]}
               >
                 {isSaving
-                  ? <ActivityIndicator color={theme.onPrimary} />
-                  : <Text style={[styles.primaryText, { color: canSave ? theme.onPrimary : theme.onSurfaceVariant }]}>{q.save}</Text>}
+                  ? <ActivityIndicator color={theme.onPrimaryFill} />
+                  : <Text style={[styles.primaryText, { color: canSave ? theme.onPrimaryFill : theme.onSurfaceVariant }]}>{q.save}</Text>}
               </Touchable>
             </View>
           </Animated.View>

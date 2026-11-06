@@ -304,6 +304,8 @@ export const SPRING_SOFT = { type: 'spring', mass: 1.1, stiffness: 90, damping: 
   hızlanıyor, "kopukluk" hissi buradan geliyor.
 */
 export const RSPRING = {
+  /** Terazi ve ibre: sallanıp oturan, kasıtlı az sönümlü. */
+  sway: { mass: 1, stiffness: 70, damping: 7 },
   default: { mass: SPRING.mass, stiffness: SPRING.stiffness, damping: SPRING.damping },
   snappy: { mass: SPRING_SNAPPY.mass, stiffness: SPRING_SNAPPY.stiffness, damping: SPRING_SNAPPY.damping },
   soft: { mass: SPRING_SOFT.mass, stiffness: SPRING_SOFT.stiffness, damping: SPRING_SOFT.damping },

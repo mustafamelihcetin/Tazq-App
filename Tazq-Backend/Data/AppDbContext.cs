@@ -71,7 +71,10 @@ namespace Tazq_App.Data
 			// Explicit indexes for query performance
 			modelBuilder.Entity<TaskItem>().HasIndex(t => t.UserId);
 			// Idempotency lookup: aynı kullanıcıda ClientKey ile hızlı çift-kayıt kontrolü
-			modelBuilder.Entity<TaskItem>().HasIndex(t => new { t.UserId, t.ClientKey });
+			// Aynı anahtarla tek AÇIK görev: kontrol et-sonra yaz arasındaki yarışı (iki cihaz) veritabanı kapatır.
+			modelBuilder.Entity<TaskItem>().HasIndex(t => new { t.UserId, t.ClientKey })
+				.IsUnique()
+				.HasFilter("\"ClientKey\" IS NOT NULL AND NOT \"IsCompleted\"");
 			modelBuilder.Entity<TaskItem>().HasIndex(t => new { t.UserId, t.TitleBlindIndex });
 			modelBuilder.Entity<TaskItem>().HasIndex(t => new { t.UserId, t.TagsBlindIndex });
 			modelBuilder.Entity<FocusSession>().HasIndex(f => f.UserId);

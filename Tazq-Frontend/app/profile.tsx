@@ -8,7 +8,7 @@ import { track } from '@/shared/utils/analytics';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
-import { Bell, Moon, LogOut, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, FileText, MessageSquare, Send, Settings, Wallet, Palette, HeartPulse, ShieldCheck, Pencil, CircleSlash, ChevronRight } from 'lucide-react-native';
+import { Bell, Moon, LogOut, Shield, Star, Volume2, Sunrise, Sun, Sunset, FileText, MessageSquare, Send, Settings, Wallet, Palette, HeartPulse, ShieldCheck, Pencil, CircleSlash, ChevronRight, Target } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { AuthService, FocusService } from '@/shared/services/api';
 import { SleepHealth } from '@/shared/services/sleepHealth';
@@ -18,6 +18,7 @@ import { AuraAvatar } from '@/features/user/components/AuraAvatar';
 import { useThemeStore } from '@/shared/store/useThemeStore';
 import { accentOf } from '@/shared/constants/Colors';
 import { useWeekAura } from '@/features/user/hooks/useWeekGlow';
+import { LiteModeCard } from '@/features/modes/components/LiteModeCard';
 import { SegmentedControl } from '@/shared/components/SegmentedControl';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore } from '@/features/focus';
@@ -27,7 +28,7 @@ import { useRouter } from 'expo-router';
 import { requestNotificationPermissions, cancelWeeklySummary, cancelMorningBrief, cancelEveningBrief } from '@/shared/utils/notifications';
 import { requestCalendarPermissions, bulkExportTasksToCalendar } from '@/shared/utils/calendarSync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ICON, S, R, F, B, MAX_W , sheetMaxHeight, SCRIM } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, MAX_W , sheetMaxHeight, SCRIM, topBarSpace } from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { healthSourceName } from '@/shared/utils/healthSource';
@@ -39,7 +40,8 @@ import { useActiveTasks } from '@/features/tasks';
 import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '@/shared/utils/achievementIcons';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
-import { BackButton } from '@/shared/components/BackButton';
+import { ScreenHeader } from '@/shared/components/ScreenHeader';
+import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { swallow } from '@/shared/utils/swallow';
 import { playSoundEffect } from '@/shared/utils/soundEffects';
@@ -374,6 +376,7 @@ export default function ProfileScreen() {
   const currentStreak = useFocusStore(s => s.localStreak);
   const displayBestStreak = Math.max(bestStreak, currentStreak);
   const scrollViewRef = useRef<ScrollView>(null);
+  const { scrollY: profileScrollY, onScroll: onProfileScroll } = useCollapsibleHeader();
   const aura = useWeekAura();
   const ic = ID_COPY[language === 'en' ? 'en' : 'tr'];
   const auraMark = usePrefsStore(st => st.auraMark);
@@ -386,14 +389,13 @@ export default function ProfileScreen() {
       <View style={{ flex: 1 }}>
         {/* Profil bir SEKME değil (dashboard avatarından push edilir) → alt tab-bar göstermek
             "hiçbir sekme aktif değil" tuhaflığı yaratıyordu. iOS deseni: geri butonu + tam ekran. */}
-        <BackButton
-          onPress={() => router.back()}
-          style={{ position: 'absolute', top: insets.top + S.xs, left: S.md, zIndex: 10 }}
-        />
-        <ScrollView
+        <ScreenHeader onBack={() => router.back()} title={settingsText(language).profile} scrollY={profileScrollY} />
+        <Animated.ScrollView
           ref={scrollViewRef}
+          onScroll={onProfileScroll}
+          scrollEventThrottle={16}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: insets.bottom + S.xl, paddingHorizontal: S.lg, paddingTop: S.xl + insets.top, width: '100%', maxWidth: contentW, alignSelf: 'center' }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + S.xl, paddingHorizontal: S.lg, paddingTop: topBarSpace(insets.top) + S.sm, width: '100%', maxWidth: contentW, alignSelf: 'center' }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -402,7 +404,15 @@ export default function ProfileScreen() {
             Eskiden: 88'lik daire + altında ortalanmış ad, e-posta, motto ve ortada dolu bir düğme — ekranın üçte biri.
             Şimdi tek satır: solda aura, yanında ad · e-posta · motto, sağda ikincil "Düzenle". Ayarlar hemen görünür.
           */}
-          <View style={[styles.idCard, { backgroundColor: theme.surfaceCard, borderColor: theme.outlineVariant, marginTop: S.xl }]}>
+          {/* İLERLEME — istatistik + başarılar + seri kalkanı TEK kartta (bkz. ProgressCard). */}
+          {(() => {
+            const allIds = ['streak_3','streak_7','streak_14','streak_30','streak_100','momentum_50','momentum_75','momentum_90','momentum_100','focus_first','focus_5h','focus_25h','first_task','daily_perfect'];
+            const earned = allIds.filter(id => unlockedAchievements.includes(id));
+            // En son kazanılan önde: gururlanılacak şey o AN kazanılan.
+            const preview = [...earned].sort((a, b) => (achievementsUnlockedAt[b] ?? 0) - (achievementsUnlockedAt[a] ?? 0)).slice(0, 4);
+            const identity = (
+            <>
+          <View style={styles.idRow}>
             <View style={[styles.idAvatar, { borderColor: hasRing(avatarBorderColor) ? theme.primary : 'transparent' }]}>
               <UserAvatar avatar={user?.avatar ?? guestAvatar} size={ID_AVATAR} iconSize={ICON.lg} theme={theme} animated />
             </View>
@@ -415,36 +425,39 @@ export default function ProfileScreen() {
                 <Text numberOfLines={1} style={[styles.motto, { color: theme.onSurfaceVariant }]}>“{motto}”</Text>
               )}
               {/* AURANIN ANLAMI — çekici ama dürüst: yalnız son 7 günün ölçülen etkinliği. */}
-              <View style={styles.auraLine}>
-                <View style={[styles.auraDot, { backgroundColor: theme.primary, opacity: 0.35 + 0.65 * (aura.activeDays / 7) }]} />
-                <Text numberOfLines={1} style={[styles.auraText, { color: theme.onSurfaceMuted }]}>
+              {uiMode !== 'lite' && <View style={styles.auraLine}>
+                <View style={[styles.auraDot, { backgroundColor: theme.primaryFill, opacity: 0.35 + 0.65 * (aura.activeDays / 7) }]} />
+                <Text numberOfLines={2} style={[styles.auraText, { color: theme.onSurfaceMuted }]}>
                   {aura.activeDays === 0 ? ic.auraDim : aura.activeDays === 7 ? ic.auraFull : ic.auraDays(aura.activeDays)}
                 </Text>
-              </View>
+              </View>}
             </View>
-            <Touchable
-              onPress={isGuest ? () => router.push('/register') : openEditModal}
-              accessibilityRole="button"
-              accessibilityLabel={isGuest ? t.guest.keepMyData : (t.editProfile || 'Edit Profile')}
-              hitSlop={{ top: S.sm, bottom: S.sm, left: S.sm, right: S.sm }}
-              style={[styles.editBtn, { backgroundColor: theme.primary + '14' }]}
-            >
-              {isGuest
-                ? <Text style={[styles.editBtnText, { color: theme.primary }]}>{t.guest.keepMyData}</Text>
-                : <Pencil size={ICON.sm} color={theme.primary} />}
-            </Touchable>
+            {!isGuest && (
+              <Touchable
+                onPress={openEditModal}
+                accessibilityRole="button"
+                accessibilityLabel={t.editProfile || 'Edit Profile'}
+                hitSlop={{ top: S.sm, bottom: S.sm, left: S.sm, right: S.sm }}
+                style={[styles.editBtn, { backgroundColor: theme.primaryFill + '14' }]}
+              >
+                <Pencil size={ICON.sm} color={theme.primary} />
+              </Touchable>
+            )}
           </View>
-
-          {/* İLERLEME — istatistik + başarılar + seri kalkanı TEK kartta (bkz. ProgressCard). */}
-          {(() => {
-            const allIds = ['streak_3','streak_7','streak_14','streak_30','streak_100','momentum_50','momentum_75','momentum_90','momentum_100','focus_first','focus_5h','focus_25h','first_task','daily_perfect'];
-            const earned = allIds.filter(id => unlockedAchievements.includes(id));
-            // En son kazanılan önde: gururlanılacak şey o AN kazanılan.
-            const preview = [...earned].sort((a, b) => (achievementsUnlockedAt[b] ?? 0) - (achievementsUnlockedAt[a] ?? 0)).slice(0, 4);
+          {/* Misafirin asıl eylemi: dar düğmeye sıkışmaz, kimliğin altında tam genişlik. */}
+          {isGuest && (
+            <Touchable onPress={() => router.push('/register')} accessibilityRole="button" accessibilityLabel={t.guest.keepMyData} style={[styles.guestCta, { backgroundColor: theme.primaryFill + '14' }]}>
+              <Text style={[styles.editBtnText, { color: theme.primary }]}>{t.guest.keepMyData}</Text>
+            </Touchable>
+          )}
+            </>
+          );
             return (
               <ProgressCard
+                identity={identity}
+                lite={uiMode === 'lite'}
                 lang={language === 'en' ? 'en' : 'tr'}
-                stats={{ focusHours: stats.totalFocusHours, tasks: stats.completedTasksCount, bestStreak: displayBestStreak }}
+                stats={{ focusHours: stats.totalFocusHours, tasks: stats.completedTasksCount, bestStreak: displayBestStreak, currentStreak }}
                 statsState={statsLoading ? 'loading' : statsError && !isGuest ? 'error' : 'ok'}
                 onRetry={loadStats}
                 medals={preview.map(id => ({ id, earned: true, color: ACHIEVEMENT_ICONS[id]?.color || theme.primary }))}
@@ -461,6 +474,21 @@ export default function ProfileScreen() {
 
           {/* AYARLAR — gruplu kategori satırları (Apple tarzı ikonlar). Her biri
               ayrıntı için ayarlar sayfasına götürür; profil yalnızca KİMLİK taşır. */}
+          {/* Ödemeler bir ayar değil, bir özellik: ayarların başlığı altında durmaz. */}
+          {uiMode === 'lite' && <LiteModeCard language={language === 'en' ? 'en' : 'tr'} />}
+          {uiMode !== 'lite' && <View style={{ marginTop: S.lg }}>
+            <SettingsCard theme={theme} isDark={isDark}>
+              <SettingItem
+                icon={<Wallet size={ICON.md} color="#FFFFFF" />}
+                bg={A.payments}
+                label={settingsText(language).payments}
+                sub={settingsText(language).billsAndPaymentReminders}
+                onPress={() => router.push('/odemeler')}
+                theme={theme}
+              />
+            </SettingsCard>
+          </View>}
+
           <View style={[styles.settingsSection, { marginTop: S.lg }]}>
             <SectionHeader title={settingsText(language).settings2} theme={theme} tr={language === 'tr'} />
             <SettingsCard theme={theme} isDark={isDark}>
@@ -468,7 +496,7 @@ export default function ProfileScreen() {
                 icon={<Bell size={ICON.md} color="#FFFFFF" />}
                 bg={A.notify}
                 label={settingsText(language).notifications}
-                sub={settingsText(language).briefsCalendarPrivacy}
+                sub={uiMode === 'lite' ? settingsText(language).remindersCalendarPrivacy : settingsText(language).briefsCalendarPrivacy}
                 onPress={() => router.push({ pathname: '/settings', params: { section: 'notify' } })}
                 theme={theme}
               />
@@ -481,6 +509,7 @@ export default function ProfileScreen() {
                 onPress={() => router.push({ pathname: '/settings', params: { section: 'system' } })}
                 theme={theme}
               />
+              {uiMode !== 'lite' && (<>
               <RowDivider theme={theme} />
               <SettingItem
                 icon={<HeartPulse size={ICON.md} color="#FFFFFF" />}
@@ -490,6 +519,7 @@ export default function ProfileScreen() {
                 onPress={() => router.push({ pathname: '/settings', params: { section: 'health' } })}
                 theme={theme}
               />
+              </>)}
               <RowDivider theme={theme} />
               <SettingItem
                 icon={<ShieldCheck size={ICON.md} color="#FFFFFF" />}
@@ -499,25 +529,9 @@ export default function ProfileScreen() {
                 onPress={() => router.push({ pathname: '/settings', params: { section: 'legal' } })}
                 theme={theme}
               />
-              {/*
-                ÖDEMELER — bir AYAR değil, bir ÖZELLİK; yine de bu listenin dışında
-                gerçek bir giriş noktası yoktu (eski yer: /settings'in kapsamsız
-                görünümü — ulaşılamaz çıktı, bkz. app/settings.tsx'teki not). Buradaki
-                dört kategori satırı Profil'den TEK tıkla erişilen ŞEY bu; en doğal yer.
-                `/odemeler`e DİREKT gider — settings.tsx'in section mantığına girmez.
-              */}
-              <RowDivider theme={theme} />
-              <SettingItem
-                icon={<Wallet size={ICON.md} color="#FFFFFF" />}
-                bg={A.payments}
-                label={settingsText(language).payments}
-                sub={settingsText(language).billsAndPaymentReminders}
-                onPress={() => router.push('/odemeler')}
-                theme={theme}
-              />
             </SettingsCard>
           </View>
-        </ScrollView>
+        </Animated.ScrollView>
       </View>
 
       {/* Hesap Silme Onayı — "SİL" yazdıran, parolasız (Google/Apple) kullanıcılar dahil */}
@@ -674,7 +688,7 @@ export default function ProfileScreen() {
                       accessibilityHint={ic.colorHint}
                       style={styles.prefRow}
                     >
-                      <View style={{ width: 14, height: 14, borderRadius: R.full, backgroundColor: theme.primary }} />
+                      <View style={{ width: 14, height: 14, borderRadius: R.full, backgroundColor: theme.primaryFill }} />
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.prefTitle, { color: theme.onSurface }]}>{ic.color} · {accentOf(accentId).label[language === 'en' ? 'en' : 'tr']}</Text>
                         <Text style={[styles.prefHint, { color: theme.onSurfaceMuted }]}>{ic.colorHint}</Text>
@@ -694,16 +708,16 @@ export default function ProfileScreen() {
                   <Touchable
                     onPress={handleSaveProfile}
                     disabled={savingProfile}
-                    style={[styles.saveBtn, { backgroundColor: theme.primary }]}
+                    style={[styles.saveBtn, { backgroundColor: theme.primaryFill }]}
                   >
                     {savingProfile
                       /*
                         Koyu temada theme.primary PARLAK bir mavi (onPrimary bilerek koyu) —
                         sabit beyaz yazı orada düşük kontrastta kalırdı. Hemen üstündeki
-                        "Düzenle" düğmesi zaten theme.onPrimary kullanıyordu; ikisi tutarsızdı.
+                        "Düzenle" düğmesi zaten theme.onPrimaryFill kullanıyordu; ikisi tutarsızdı.
                       */
-                      ? <ActivityIndicator color={theme.onPrimary} />
-                      : <Text style={{ color: theme.onPrimary, fontWeight: '700', fontSize: F.body }}>{t.save}</Text>
+                      ? <ActivityIndicator color={theme.onPrimaryFill} />
+                      : <Text style={{ color: theme.onPrimaryFill, fontWeight: '700', fontSize: F.body }}>{t.save}</Text>
                     }
                   </Touchable>
                 </View>
@@ -775,9 +789,9 @@ function IconChoiceRow<K extends string>({ title, hint, value, onChange, options
               accessibilityRole="radio"
               accessibilityState={{ selected: on, checked: on }}
               accessibilityLabel={o.label}
-              style={[styles.iconChoice, { backgroundColor: on ? theme.primary : 'transparent', borderColor: on ? theme.primary : theme.outlineVariant }]}
+              style={[styles.iconChoice, { backgroundColor: on ? theme.primaryFill : 'transparent', borderColor: on ? theme.primary : theme.outlineVariant }]}
             >
-              {o.render(on ? theme.onPrimary : theme.onSurfaceVariant)}
+              {o.render(on ? theme.onPrimaryFill : theme.onSurfaceVariant)}
             </Touchable>
           );
         })}
@@ -792,7 +806,8 @@ function IconChoiceRow<K extends string>({ title, hint, value, onChange, options
 const ID_AVATAR = 60;
 
 const styles = StyleSheet.create({
-  idCard: { flexDirection: 'row', alignItems: 'center', gap: S.md, padding: S.md, borderRadius: R.xl, borderWidth: B.thin },
+  idRow: { flexDirection: 'row', alignItems: 'center', gap: S.md, paddingVertical: S.md },
+  guestCta: { minHeight: 44, borderRadius: R.md, alignItems: 'center', justifyContent: 'center', marginBottom: S.md, paddingHorizontal: S.md },
   idAvatar: { width: ID_AVATAR + 6, height: ID_AVATAR + 6, borderRadius: R.full, borderWidth: B.medium, alignItems: 'center', justifyContent: 'center' },
   name: { fontSize: F.title3, fontWeight: '700', letterSpacing: -0.4 },
   email: { fontSize: F.footnote, marginTop: S.xxs },

@@ -14,6 +14,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 interface SplashPrefs {
   edition: string;
   enabled: boolean;
+  /** Sade mod: yalnız TAZQ, üç sözcük ve titreşim yok. Mod depolanmadan önce okunabilsin diye burada kopyası var. */
+  plain: boolean;
+  setPlain: (v: boolean) => void;
   previewNonce: number;
   setEdition: (id: string) => void;
   setEnabled: (v: boolean) => void;
@@ -25,6 +28,8 @@ export const useSplashPrefs = create<SplashPrefs>()(
     set => ({
       edition: 'random',
       enabled: true,
+      plain: false,
+      setPlain: plain => set({ plain }),
       previewNonce: 0,
       setEdition: edition => set({ edition }),
       setEnabled: enabled => set({ enabled }),
@@ -33,7 +38,7 @@ export const useSplashPrefs = create<SplashPrefs>()(
     {
       name: 'tazq-splash-prefs',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: s => ({ edition: s.edition, enabled: s.enabled }),
+      partialize: s => ({ edition: s.edition, enabled: s.enabled, plain: s.plain }),
     },
   ),
 );

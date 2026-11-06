@@ -1,3 +1,4 @@
+import { appDayKey } from '@/shared/utils/appDay';
 import { ramadanStudyRelief } from '@/features/modes/utils/ramadanPreview';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { isPausedOn } from '@/features/modes/utils/planPause';
@@ -20,9 +21,7 @@ let bridgePaused = false;
 
 /** Gece çalışanın dünü bitmesin: görevlerle aynı 3 saatlik pay (bkz. usePlanAdaptations.getLocalDateString). */
 export function studyToday(now: Date = new Date()): string {
-  const d = new Date(now);
-  d.setHours(d.getHours() - 3);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return appDayKey(now);
 }
 
 export function studySlots(today: string = studyToday()): SlotInput[] {

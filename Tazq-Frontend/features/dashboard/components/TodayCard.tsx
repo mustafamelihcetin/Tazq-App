@@ -207,7 +207,7 @@ export const TodayCard = React.memo<TodayCardProps>(
                       onPress={onAddTask}
                       accessibilityRole="button"
                       accessibilityLabel={addLabel}
-                      style={[styles.addPill, { backgroundColor: theme.primary + '1F' }]}
+                      style={[styles.addPill, { backgroundColor: theme.primaryFill + '1F' }]}
                     >
                       <Text style={[styles.addPillText, { color: theme.primary }]}>{`+ ${addLabel}`}</Text>
                     </Touchable>

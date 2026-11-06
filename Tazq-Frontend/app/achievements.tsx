@@ -1,5 +1,7 @@
+import { useHabitStore } from '@/features/habits/store/useHabitStore';
+import { milestone } from '@/features/habits/utils/habitSchedule';
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, Modal, useWindowDimensions } from 'react-native';
+import { View, Text, Animated, StyleSheet, Modal, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,10 +15,11 @@ import { FocusService } from '@/shared/services/api';
 import { swallow } from '@/shared/utils/swallow';
 import type { Achievement } from '@/features/user/store/useAchievementStore';
 import { ACHIEVEMENT_ICONS, renderAchievementIcon } from '@/shared/utils/achievementIcons';
-import { BackButton } from '@/shared/components/BackButton';
+import { ScreenHeader } from '@/shared/components/ScreenHeader';
+import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
-import { S, R, F, W, B, ICON, MIN_TOUCH, RSPRING, SCRIM } from '@/shared/constants/tokens';
+import { S, R, F, W, B, ICON, MIN_TOUCH, RSPRING, SCRIM, topBarSpace } from '@/shared/constants/tokens';
 import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { haptic } from '@/shared/utils/haptics';
 import { upperFor } from '@/shared/utils/localeCase';
@@ -38,7 +41,8 @@ const CATEGORIES = [
   { key: 'streak', ids: ['streak_3', 'streak_7', 'streak_14', 'streak_30', 'streak_100'] },
   { key: 'momentum', ids: ['momentum_50', 'momentum_75', 'momentum_90', 'momentum_100'] },
   { key: 'focus', ids: ['focus_first', 'focus_5h', 'focus_25h'] },
-  { key: 'milestone', ids: ['first_task', 'daily_perfect'] },
+  { key: 'habit', ids: ['habit_7', 'habit_21', 'habit_66'] },
+  { key: 'milestone', ids: ['first_task', 'daily_perfect', 'route_first', 'goal_done'] },
 ] as const;
 
 type CatKey = typeof CATEGORIES[number]['key'];
@@ -48,7 +52,7 @@ const COPY = {
   tr: {
     locale: 'tr-TR',
     title: 'Başarılar',
-    cats: { streak: 'Seri', momentum: 'Momentum', focus: 'Odak', milestone: 'Kilometre taşları' } as Record<CatKey, string>,
+    cats: { streak: 'Seri', momentum: 'Momentum', focus: 'Odak', habit: 'Alışkanlık', milestone: 'Kilometre taşları' } as Record<CatKey, string>,
     nextUp: 'Sıradaki',
     locked: 'Kilitli',
     earnedBadge: '✓ Başarım açıldı',
@@ -67,6 +71,11 @@ const COPY = {
         focus_25h: 'Toplam 25 saat odaklan',
         first_task: 'İlk görevini tamamla',
         daily_perfect: 'Bir günün tüm görevlerini bitir',
+        habit_7: 'Bir alışkanlığı 7 kez yap',
+        habit_21: 'Bir alışkanlığı 21 kez yap',
+        habit_66: 'Bir alışkanlığı 66 kez yap',
+        route_first: 'Günün rotasını tamamla',
+        goal_done: 'Bir hedefi sonuna kadar götür',
       };
       return fixed[id] ?? '';
     },
@@ -74,7 +83,7 @@ const COPY = {
   en: {
     locale: 'en-US',
     title: 'Achievements',
-    cats: { streak: 'Streaks', momentum: 'Momentum', focus: 'Focus', milestone: 'Milestones' } as Record<CatKey, string>,
+    cats: { streak: 'Streaks', momentum: 'Momentum', focus: 'Focus', habit: 'Habits', milestone: 'Milestones' } as Record<CatKey, string>,
     nextUp: 'Next up',
     locked: 'Locked',
     earnedBadge: '✓ Achievement earned',
@@ -93,6 +102,11 @@ const COPY = {
         focus_25h: 'Focus for 25 hours total',
         first_task: 'Complete your first task',
         daily_perfect: "Complete all of a day's tasks",
+        habit_7: 'Do a habit 7 times',
+        habit_21: 'Do a habit 21 times',
+        habit_66: 'Do a habit 66 times',
+        route_first: "Finish the day's route",
+        goal_done: 'See a goal through to the end',
       };
       return fixed[id] ?? '';
     },
@@ -120,6 +134,12 @@ type Progress = { cur: number; target: number; unit?: string };
 const RING_W = 3;
 const RING_GAP = 4;
 
+/** "7/50%" okunmuyordu: yüzde iki tarafta da, dilin biçimiyle. */
+function progressText(p: { cur: number; target: number; unit?: string }, language: string): string {
+  if (p.unit !== '%') return `${p.cur}/${p.target}${p.unit ?? ''}`;
+  return language === 'en' ? `${p.cur}% / ${p.target}%` : `%${p.cur} / %${p.target}`;
+}
+
 export default function AchievementsScreen() {
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
@@ -130,6 +150,7 @@ export default function AchievementsScreen() {
   const contentW = useContentMaxWidth();
   const { width } = useWindowDimensions();
   const { unlocked, unlockedAt } = useAchievementStore();
+  const { scrollY, onScroll } = useCollapsibleHeader();
   const momentumHistory = useMomentumStore(s => s.history);
   const params = useLocalSearchParams<{ streak?: string; focusHours?: string }>();
 
@@ -149,6 +170,7 @@ export default function AchievementsScreen() {
 
   const [detail, setDetail] = useState<(Achievement & { earned: boolean }) | null>(null);
 
+  const bestHabit = useHabitStore(st => st.habits.reduce((m, h) => Math.max(m, milestone(h).total), 0));
   const allIds: string[] = CATEGORIES.flatMap(cat => [...cat.ids]);
   const total = allIds.length;
   const earnedCount = allIds.filter(id => unlocked.includes(id)).length;
@@ -158,6 +180,7 @@ export default function AchievementsScreen() {
   const progressOf = (id: string): Progress | null => {
     if (id.startsWith('streak_')) { const t = Number(id.split('_')[1]); return { cur: Math.min(streak, t), target: t }; }
     if (id.startsWith('momentum_')) { const t = Number(id.split('_')[1]); return { cur: Math.min(Math.round(momentum), t), target: t, unit: '%' }; }
+    if (id.startsWith('habit_')) { const t = Number(id.split('_')[1]); return { cur: Math.min(bestHabit, t), target: t }; }
     if (id === 'focus_5h') return { cur: Math.min(Math.round(focusHours), 5), target: 5 };
     if (id === 'focus_25h') return { cur: Math.min(Math.round(focusHours), 25), target: 25 };
     return null;
@@ -226,18 +249,17 @@ export default function AchievementsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <BackButton onPress={() => router.back()} style={{ position: 'absolute', top: insets.top + S.xs, left: S.md, zIndex: 20 }} />
+      <ScreenHeader onBack={() => router.back()} title={c.title} scrollY={scrollY} />
 
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <ScrollView
+      <SafeAreaView style={{ flex: 1 }} edges={[]}>
+        <Animated.ScrollView
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: S.lg, paddingTop: MIN_TOUCH + S.md, paddingBottom: insets.bottom + S.xxl, width: '100%', maxWidth: contentW, alignSelf: 'center' }}
+          contentContainerStyle={{ paddingHorizontal: S.lg, paddingTop: topBarSpace(insets.top) + S.sm, paddingBottom: insets.bottom + S.xxl, width: '100%', maxWidth: contentW, alignSelf: 'center' }}
         >
           {/* ── Kahraman: koleksiyon ilerlemesi ── */}
           <View style={{ alignItems: 'center', marginBottom: S.lg }}>
-            <Text accessibilityRole="header" style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: W.semibold, letterSpacing: 1.2 }}>
-              {upperFor(c.title, language)}
-            </Text>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: S.xs, marginTop: S.sm }}>
               <Text style={{ color: theme.onSurface, fontSize: F.hero, fontWeight: W.bold, letterSpacing: -1, fontVariant: ['tabular-nums'] }}>{earnedCount}</Text>
               <Text style={{ color: theme.onSurfaceMuted, fontSize: F.title, fontWeight: W.semibold }}>/ {total}</Text>
@@ -271,7 +293,7 @@ export default function AchievementsScreen() {
                 </Text>
               </View>
               <Text style={{ color: theme.onSurfaceVariant, fontSize: F.callout, fontWeight: W.semibold, fontVariant: ['tabular-nums'] }}>
-                {nearestIncomplete.p.cur}/{nearestIncomplete.p.target}{nearestIncomplete.p.unit ?? ''}
+                {progressText(nearestIncomplete.p, language)}
               </Text>
             </Touchable>
           )}
@@ -291,7 +313,7 @@ export default function AchievementsScreen() {
                   const title = language === 'tr' ? a.titleTr : a.titleEn;
                   const caption = earned
                     ? (unlockedAt[id] ? shortDate(unlockedAt[id]) : '')
-                    : p ? `${p.cur}/${p.target}${p.unit ?? ''}` : c.locked;
+                    : p ? progressText(p, language) : c.locked;
                   return (
                     <Touchable
                       key={id}
@@ -319,7 +341,7 @@ export default function AchievementsScreen() {
               </View>
             </View>
           ))}
-        </ScrollView>
+        </Animated.ScrollView>
       </SafeAreaView>
 
       {/*

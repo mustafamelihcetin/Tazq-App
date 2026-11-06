@@ -81,7 +81,7 @@ export default function ArchiveScreen() {
                             )}
                         </View>
                         <View style={{ flexDirection: 'row', gap: S.sm }}>
-                            <Touchable onPress={() => handleRestore(item)} style={[styles.actionBtn, { backgroundColor: theme.primary + '1A' }]} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Geri yükle' : 'Restore'}>
+                            <Touchable onPress={() => handleRestore(item)} style={[styles.actionBtn, { backgroundColor: theme.primaryFill + '1A' }]} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Geri yükle' : 'Restore'}>
                                 <RotateCcw size={ICON.md} color={theme.primary} />
                             </Touchable>
                             <Touchable onPress={() => handleDelete(item.id)} style={[styles.actionBtn, { backgroundColor: theme.error + '1A' }]} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kalıcı sil' : 'Delete permanently'}>

@@ -4,22 +4,14 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS, useSharedValue } from 'react-native-reanimated';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
-import { DisplayPanel, DisplayReadout, DisplayDivider, useDisplayColors } from '@/shared/components/DisplayPanel';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { haptic } from '@/shared/utils/haptics';
 import { S, R, F, W, ICON, MIN_TOUCH } from '@/shared/constants/tokens';
 
 /*
-  HAFTA EKRANI — Haftalık Geri Bakış'ın üstü (2026-10-30, dijital panel dili; bkz. DisplayPanel).
-
-  Eskiden beş ayrı parça: hafta okları, hikâye kutusu, dört küçük sayı kartı, iki çubuk. Göz
-  hangisinin özet olduğunu bilmiyordu. Şimdi tek ekran:
-   · ÜST ŞERİT: hafta okları + hafta etiketi. Paneli SAĞA kaydırmak önceki haftaya, SOLA sonraki
-     haftaya götürür (ana sayfadaki "günleri kaydır"la aynı yön ve aynı tik).
-   · HİKÂYE: haftanın cümlesi ve geçen haftayla farkı.
-   · OKUMALAR: odak · tamamlanan · alışkanlık · aktif gün — hafta değişince rakamlar SAYARAK akar.
-   · HEDEF/PLAN: çubuklar panelin içinde.
-  Dikey kaydırma her zaman sayfanındır (failOffsetY).
+  HAFTA ÖZETİ (2026-11-06, kullanıcı: "çok karmaşık"). Tomato ve goodtime'ın haftalık ekranlarındaki düzen: önce tek büyük sayı, sonra kıyas.
+  Kutu yok: sayfanın başlığı gibi durur. Hikâye cümlesi kalktı, aynı sayıları ikinci kez söylüyordu; yerine tek cümlelik kıyas.
+  Paneli sağa kaydırmak önceki haftaya, sola sonraki haftaya götürür. Dikey kaydırma her zaman sayfanındır.
 */
 
 export interface WeekDisplayProps {
@@ -30,25 +22,20 @@ export interface WeekDisplayProps {
   onNext: () => void;
   prevLabel: string;
   nextLabel: string;
-  story: string;
-  delta?: { text: string; up: boolean } | null;
-  readouts: Array<{ label: string; value: string; tone: 'primary' | 'success' | 'streak' | 'tertiary' }>;
-  bars: Array<{ text: string; pct: number; tone: 'primary' | 'tertiary'; highlight?: boolean }>;
+  /** Büyük sayı: haftanın odak süresi. */
+  value: string;
+  valueLabel: string;
+  /** Geçen haftayla kıyas ya da boş hafta cümlesi. */
+  note?: { text: string; up: boolean } | null;
+  stats: Array<{ label: string; value: string }>;
+  /** Yalnız içinde bulunulan hafta: günlük hedef × 7. */
+  goal?: { text: string; pct: number } | null;
 }
 
 const SWIPE = 56;
 
-export function WeekDisplay({ label, canPrev, canNext, onPrev, onNext, prevLabel, nextLabel, story, delta, readouts, bars }: WeekDisplayProps) {
-  return (
-    <DisplayPanel padding={S.md}>
-      <Body label={label} canPrev={canPrev} canNext={canNext} onPrev={onPrev} onNext={onNext} prevLabel={prevLabel} nextLabel={nextLabel} story={story} delta={delta} readouts={readouts} bars={bars} />
-    </DisplayPanel>
-  );
-}
-
-function Body({ label, canPrev, canNext, onPrev, onNext, prevLabel, nextLabel, story, delta, readouts, bars }: WeekDisplayProps) {
+export function WeekDisplay({ label, canPrev, canNext, onPrev, onNext, prevLabel, nextLabel, value, valueLabel, note, stats, goal }: WeekDisplayProps) {
   const { theme } = useAppTheme();
-  const dc = useDisplayColors();
   const prev = () => { if (canPrev) { haptic.select(); onPrev(); } };
   const next = () => { if (canNext) { haptic.select(); onNext(); } };
   /*
@@ -73,56 +60,60 @@ function Body({ label, canPrev, canNext, onPrev, onNext, prevLabel, nextLabel, s
       <Touchable onPress={dir === 'prev' ? prev : next} disabled={!enabled} accessibilityRole="button"
         accessibilityLabel={dir === 'prev' ? prevLabel : nextLabel} accessibilityState={{ disabled: !enabled }}
         style={[styles.arrow, { opacity: enabled ? 1 : 0.3 }]}>
-        <Ic size={ICON.sm} color={dc.ink} />
+        <Ic size={ICON.md} color={theme.onSurfaceVariant} />
       </Touchable>
     );
   };
 
   return (
     <GestureDetector gesture={pan}>
-      <View>
-        <View style={styles.status}>
+      <View style={{ gap: S.md }}>
+        <View style={styles.nav}>
           {arrow('prev')}
-          <Text style={[styles.week, { color: dc.label }]} numberOfLines={1}>{label}</Text>
+          <Text style={[styles.week, { color: theme.onSurface }]} numberOfLines={1}>{label}</Text>
           {arrow('next')}
         </View>
 
-        <Text style={[styles.story, { color: dc.ink }]}>{story}</Text>
-        {delta && <Text style={[styles.delta, { color: delta.up ? theme.success : dc.muted }]}>{delta.text}</Text>}
+        <View accessible accessibilityLabel={`${valueLabel}: ${value}. ${note?.text ?? ''}`} style={styles.hero}>
+          <Text style={[styles.valueLabel, { color: theme.onSurfaceVariant }]}>{valueLabel}</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.value, { color: theme.onSurface }]}>{value}</Text>
+          {note && <Text style={[styles.note, { color: note.up ? theme.success : theme.onSurfaceVariant }]}>{note.text}</Text>}
+        </View>
 
-        <DisplayDivider />
-        <View style={styles.grid}>
-          {readouts.map(r => (
-            <View key={r.label} style={styles.cell}>
-              <View style={[styles.dot, { backgroundColor: theme[r.tone] }]} />
-              <View style={{ flex: 1 }}><DisplayReadout label={r.label} value={r.value} /></View>
+        {goal && (
+          <View style={[styles.hero, { gap: S.xs }]}>
+            <View style={[styles.track, { backgroundColor: theme.outline }]}>
+              <View style={{ width: `${Math.round(Math.min(1, goal.pct) * 100)}%`, height: '100%', borderRadius: R.full, backgroundColor: theme.primaryFill }} />
+            </View>
+            <Text style={[styles.goal, { color: theme.onSurfaceVariant }]}>{goal.text}</Text>
+          </View>
+        )}
+
+        <View style={[styles.stats, { backgroundColor: theme.surfaceCard }]}>
+          {stats.map((s, i) => (
+            <View key={s.label} accessible accessibilityLabel={`${s.label}: ${s.value}`} style={[styles.stat, i > 0 && { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: theme.separator }]}>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.statValue, { color: theme.onSurface }]}>{s.value}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.statLabel, { color: theme.onSurfaceMuted }]}>{s.label}</Text>
             </View>
           ))}
         </View>
-
-        {bars.length > 0 && <DisplayDivider />}
-        {bars.map(b => (
-          <View key={b.text} style={{ gap: S.xs, marginBottom: S.sm }}>
-            <Text style={[styles.barText, { color: b.highlight ? theme[b.tone] : dc.muted }]}>{b.text}</Text>
-            <View style={[styles.track, { backgroundColor: dc.divider }]}>
-              <View style={{ width: `${Math.round(Math.min(1, b.pct) * 100)}%`, height: '100%', borderRadius: R.xs, backgroundColor: theme[b.tone] }} />
-            </View>
-          </View>
-        ))}
       </View>
     </GestureDetector>
   );
 }
 
 const styles = StyleSheet.create({
-  status: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: S.sm },
-  week: { flex: 1, textAlign: 'center', fontSize: F.caption, fontWeight: W.semibold, letterSpacing: 1.2 },
-  arrow: { width: MIN_TOUCH, height: MIN_TOUCH - 8, alignItems: 'center', justifyContent: 'center' },
-  story: { fontSize: F.subhead, fontWeight: W.semibold, lineHeight: 23 },
-  delta: { fontSize: F.caption, fontWeight: W.semibold, marginTop: S.xs },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: S.md },
-  cell: { width: '50%', flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingRight: S.sm },
-  dot: { width: 8, height: 8, borderRadius: R.full },
-  barText: { fontSize: F.caption, fontWeight: W.semibold },
-  track: { height: 6, borderRadius: R.xs, overflow: 'hidden' },
+  nav: { flexDirection: 'row', alignItems: 'center' },
+  week: { flex: 1, textAlign: 'center', fontSize: F.body, fontWeight: W.semibold },
+  arrow: { width: MIN_TOUCH, height: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' },
+  hero: { paddingHorizontal: S.md, gap: S.xxs },
+  valueLabel: { fontSize: F.footnote, fontWeight: W.medium },
+  value: { fontSize: F.hero, fontWeight: W.bold, letterSpacing: -0.8, fontVariant: ['tabular-nums'] },
+  note: { fontSize: F.footnote, fontWeight: W.medium },
+  track: { height: 4, borderRadius: R.full, overflow: 'hidden' },
+  goal: { fontSize: F.caption, fontVariant: ['tabular-nums'] },
+  stats: { flexDirection: 'row', borderRadius: R.lg, paddingVertical: S.md },
+  stat: { flex: 1, alignItems: 'center', gap: S.xxs, paddingHorizontal: S.xs },
+  statValue: { fontSize: F.title3, fontWeight: W.bold, fontVariant: ['tabular-nums'] },
+  statLabel: { fontSize: F.caption },
 });

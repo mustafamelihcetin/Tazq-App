@@ -73,6 +73,10 @@ namespace Tazq_App.Controllers
             });
         }
 
+        // Eski adres: telefonda henüz yenilenmemiş kod bu adresi çağırır. Asıl uç /api/admin/server-status.
+        [HttpGet("server")]
+        public IActionResult Server([FromServices] AbuseGuard guard) => Content(ServerStatus.ReadWithAbuse(guard, DateTime.UtcNow).ToJsonString(), "application/json");
+
         // Arka plan işleri: son çalışma, son hata, gecikme (bkz. JobHealth).
         [HttpGet("jobs")]
         public IActionResult Jobs([FromServices] JobHealth health) => Ok(health.All().Select(j => new

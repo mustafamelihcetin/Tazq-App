@@ -276,7 +276,7 @@ export const CelebrationOverlay: React.FC = () => {
           width: 160,
           height: 160,
           borderRadius: R.full,
-          backgroundColor: theme.primary + '40',
+          backgroundColor: theme.primaryFill + '40',
           opacity: ringOpacity,
           transform: [{ scale: ringScale }],
         }} />
@@ -316,7 +316,7 @@ export const CelebrationOverlay: React.FC = () => {
               overflow: 'hidden',
               borderWidth: B.medium,
               borderColor: (ACHIEVEMENT_ICONS[pending.id]?.color || theme.primary) + '30', // 19% opacity colored border
-              backgroundColor: ACHIEVEMENT_ICONS[pending.id]?.color || theme.primary,
+              backgroundColor: ACHIEVEMENT_ICONS[pending.id]?.color || theme.primaryFill,
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: S.lg,
@@ -344,7 +344,7 @@ export const CelebrationOverlay: React.FC = () => {
             <Text style={[styles.subtitle, { color: theme.onSurfaceMuted }]}>
               {tr ? pending.subtitleTr : pending.subtitleEn}
             </Text>
-            <View style={[styles.pill, { backgroundColor: theme.primary + '1C' }]}>
+            <View style={[styles.pill, { backgroundColor: theme.primaryFill + '1C' }]}>
               <Text style={[styles.pillText, { color: theme.primary }]}>
                 ✦ {tr ? 'Başarım Açıldı' : 'Achievement Unlocked'} ✦
               </Text>

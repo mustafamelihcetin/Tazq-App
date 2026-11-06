@@ -183,9 +183,9 @@ export const FocusTaskPicker: React.FC<FocusTaskPickerProps> = ({ visible, langu
                 accessibilityRole="button"
                 accessibilityLabel={c.useText}
                 onPress={() => onPick(text.trim(), null)}
-                style={{ paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: theme.primary }}
+                style={{ paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: theme.primaryFill }}
               >
-                <Check size={ICON.sm} color={theme.onPrimary} strokeWidth={2.4} />
+                <Check size={ICON.sm} color={theme.onPrimaryFill} strokeWidth={2.4} />
               </Touchable>
             )}
           </View>

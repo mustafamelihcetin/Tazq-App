@@ -1,3 +1,5 @@
+import { StudyAddRow, WeightPicker } from './StudyTopicAdd';
+import { subjectName } from '../utils/planBridge';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Reanimated, { FadeIn, FadeInDown, LinearTransition } from 'react-native-reanimated';
@@ -40,11 +42,15 @@ export function StudyTopics({ plan, c, lang, today, view, onChanged }: { plan: P
     return ids.map(sub => ({
       unitId: u.id,
       sub,
-      name: bp?.subjects.find(s => s.id === sub)?.[lang] ?? plan.courses?.find(k => k.id === sub)?.name ?? sub,
+      name: subjectName(plan, sub, lang),
       topics: u.topics.filter(t => t.subject === sub),
     }));
   });
-  const excludedNames = plan.excluded.map(id => ({ id, name: bp?.subjects.find(s => s.id === id)?.[lang] ?? topicName(plan, id, lang) }));
+  // Eklenmiş ama henüz konusu olmayan ders de görünür: ilk konusu buradan eklenir.
+  if (bp) for (const cs of plan.customSubjects ?? []) {
+    if (!plan.excluded.includes(cs.id) && !groups.some(g => g.sub === cs.id)) groups.push({ unitId: plan.key, sub: cs.id, name: cs.name, topics: [] });
+  }
+  const excludedNames = plan.excluded.map(id => ({ id, name: topicName(plan, id, lang) || subjectName(plan, id, lang) }));
 
   const IconOf = ({ s, color }: { s: Status; color: string }) => {
     const Comp = s === 'done' ? CheckCircle2 : s === 'review' ? RefreshCw : s === 'working' ? CircleDot : Circle;
@@ -120,14 +126,21 @@ export function StudyTopics({ plan, c, lang, today, view, onChanged }: { plan: P
                           <Text style={{ fontSize: F.footnote, color: theme.onSurfaceVariant }}>{c.resetTopic}</Text>
                         </Touchable>
                       )}
-                      <Touchable accessibilityRole="button" onPress={() => act(() => store.setExcluded(plan.key, t.id, true, today))} style={st.plain}>
-                        <Text style={{ fontSize: F.footnote, color: theme.onSurfaceVariant }}>{c.exclude}</Text>
+                      <Touchable accessibilityRole="button" onPress={() => act(() => (plan.customTopics?.some(x => x.id === t.id) ? store.removeTopic(plan.key, t.id, today) : store.setExcluded(plan.key, t.id, true, today)))} style={st.plain}>
+                        <Text style={{ fontSize: F.footnote, color: theme.onSurfaceVariant }}>{plan.customTopics?.some(x => x.id === t.id) ? c.removeCustom : c.exclude}</Text>
                       </Touchable>
+                      <View style={{ width: '100%', gap: S.xs, paddingTop: S.xs }}>
+                        <Text style={{ fontSize: F.footnote, color: theme.onSurfaceVariant }}>{c.weightTitle}</Text>
+                        <WeightPicker value={plan.weights?.[t.id] ?? 'mid'} onChange={w => { store.setWeight(plan.key, t.id, w, today); onChanged(); }} c={c} />
+                      </View>
                     </View>
                   )}
                 </Reanimated.View>
               );
             })}
+            {expanded && (
+              <StudyAddRow label={c.addTopic} placeholder={c.topicPlaceholder} c={c} withWeight onAdd={(name, weight) => { const ok = store.addTopic(plan.key, g.sub, name, weight, today); if (ok) onChanged(); return ok; }} />
+            )}
             {expanded && bp && groups.length > 1 && (
               <Touchable accessibilityRole="button" onPress={() => { store.setExcluded(plan.key, g.sub, true, today); setOpenSub(null); onChanged(); }} style={{ minHeight: MIN_TOUCH, justifyContent: 'center' }}>
                 <Text style={{ fontSize: F.footnote, color: theme.onSurfaceVariant }}>{c.excludeSubject}</Text>
@@ -136,6 +149,11 @@ export function StudyTopics({ plan, c, lang, today, view, onChanged }: { plan: P
           </Reanimated.View>
         );
       })}
+      {!!bp && (
+        <View style={[st.card, { backgroundColor: theme.surfaceCard }]}>
+          <StudyAddRow label={c.addSubject} placeholder={c.subjectPlaceholder} c={c} withWeight={false} onAdd={name => { const ok = store.addSubject(plan.key, name, today); if (ok) onChanged(); return ok; }} />
+        </View>
+      )}
       {excludedNames.length > 0 && (
         <View style={[st.card, { backgroundColor: theme.surfaceCard }]}>
           <Text style={{ fontSize: F.footnote, fontWeight: W.bold, color: theme.onSurfaceVariant, paddingVertical: S.xs }}>{c.excludedTitle}</Text>

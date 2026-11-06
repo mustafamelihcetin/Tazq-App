@@ -9,6 +9,7 @@
  * hem de AsyncStorage'da (son çalışma tarihi) kontrol edilir.
  */
 
+import { appDayKey, logicalNow } from '@/shared/utils/appDay';
 import { ramadanCloseAfter, ramadanFrameNow, ramadanRangesNow } from '@/features/modes/utils/ramadanPreview';
 import { overdueAction, PLAN_MODE_TAGS } from '@/features/modes/utils/goalRows';
 import { budgetFor } from '@/features/modes/utils/ramadanBrain';
@@ -60,6 +61,7 @@ import { getExtraPool, ensureExtraPool } from '@/features/modes/utils/planPoolSy
 import { parseDateKey, calendarDayOf } from '@/shared/utils/dateKey';
 import { isSlotPausedNow, markPausedHabitsSkipped } from '@/features/modes/utils/pauseOps';
 import { releaseStagedPlanItems } from '@/features/modes/utils/stagedRollout';
+import { repairStagedQueuesOnce } from '@/features/modes/utils/stagedRepair';
 import { isStudyManaged, runStudySync, startStudyPlanBridge, studyBlocksForSlot, studyToday } from '@/features/studyplan/sync';
 import { blocksToTasks, isStudyTask } from '@/features/studyplan/utils/planBridge';
 import { useStudyPlanStore } from '@/features/studyplan/store/useStudyPlanStore';
@@ -88,12 +90,7 @@ function whenHydrated(store: any): Promise<void> {
 // kumeyi kullansin diye oraya tasindi.
 
 function getLocalDateString(d: Date = new Date()): string {
-  const adjusted = new Date(d);
-  adjusted.setHours(adjusted.getHours() - 3); // 3-hour buffer for night owls
-  const y = adjusted.getFullYear();
-  const m = String(adjusted.getMonth() + 1).padStart(2, '0');
-  const day = String(adjusted.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return appDayKey(d);
 }
 
 async function shouldRunToday(): Promise<boolean> {
@@ -334,7 +331,14 @@ function selfHealActiveModes(tr: boolean) {
 /** Bkz. `run` sarmalayıcısındaki not — modül seviyesinde, TÜM hook örnekleri arasında paylaşılır. */
 let adaptationRunInFlight: Promise<void> | null = null;
 
-export function usePlanAdaptations() {
+/*
+  YAŞAM DÖNGÜSÜNÜN TEK SAHİBİ (2026-11-06, kök neden: KPSS'te 9 kopya görev). Bu kanca dokuz yerde çağrılabiliyor (kök düzen, Modlar,
+  Planım, plan penceresi, üç mod kartı, iki kilo penceresi) ve HER örnek kendi öne geliş dinleyicisini kuruyordu. Motor modül kilidiyle
+  birleşiyordu ama arkasından gelen kademeli açılım birleşmiyordu: uygulama her öne geldiğinde örnek sayısı kadar paralel görev açılıyordu.
+  Artık yalnız `lifecycle` veren kök düzen kendiliğinden çalışır; diğerleri yalnız `runAdaptations` alır.
+*/
+export function usePlanAdaptations({ lifecycle = false }: { lifecycle?: boolean } = {}) {
+  const lifecycleUserId = useAuthStore(s => s.user?.id);
   const {
     seasonal,
     sporPlanTaskIds, sporPlanHabitIds, setPlanIds,
@@ -481,6 +485,8 @@ export function usePlanAdaptations() {
   }, [addTask, setPlanIds]);
 
   const runImpl = useCallback(async (force = false) => {
+    // Sade modda hedefler duraklatıldıysa üretim ve süpürme yok: durum olduğu gibi kalır, dönüşte motor kaldığı yerden sürer.
+    { const p = usePrefsStore.getState(); if (p.uiMode === 'lite' && p.liteGoalsPaused) return; }
     // ── HİDRASYON GÜVENLİĞİ (HER ÇAĞRI İÇİN) ───────────────────────────────
     // run() aşağıda kapalı modlara ait plan/alışkanlık/config'i siler. Store'lar
     // AsyncStorage'dan yüklenmeden çalışırsa seasonal=VARSAYILAN (tüm modlar kapalı)
@@ -740,6 +746,10 @@ export function usePlanAdaptations() {
     // ── DEDUPE PLAN TASKS CREATED DURING OFFLINE / BLOCKED API PERIODS ─────
     const duplicates = duplicatePlanTasks(existing);
 
+    // Kopya artık oluşmamalı: oluşursa sessizce temizlenmez, hata kaydına düşer (başlık gitmez, yalnız sayı).
+    if (duplicates.length > 0) {
+      swallow('planAdaptations.duplicateRemoved', new Error(`plan duplicate removed: ${duplicates.length}`), { capture: true });
+    }
     duplicates.forEach(task => {
       retirePlanTask(task.id, task.tags?.find(tag => PLAN_TAGS.includes(tag)));
     });
@@ -770,8 +780,7 @@ export function usePlanAdaptations() {
     }
 
     // ── AUTO-CLEANUP OVERDUE INCOMPLETE PLAN TASKS ─────────────────────────
-    const logicalToday = new Date();
-    logicalToday.setHours(logicalToday.getHours() - 3);
+    const logicalToday = logicalNow();
     const todayStart = new Date(logicalToday);
     todayStart.setHours(0, 0, 0, 0);
 
@@ -1263,6 +1272,7 @@ export function usePlanAdaptations() {
   }, [runImpl]);
 
   useEffect(() => {
+    if (!lifecycle) return;
     // Kullanıcı giriş yapmış ve task'lar yüklenmişse çalıştır
     const { user } = useAuthStore.getState();
     if (user) {
@@ -1276,10 +1286,11 @@ export function usePlanAdaptations() {
         whenHydrated(usePrefsStore),
         whenHydrated(useHabitStore),
         whenHydrated(useTaskStore),
+        whenHydrated(useStagedPlanStore),
       ]).then(() => {
         // Önce tek seferlik migrasyon (eski gelecek-tarihli döküm görevlerini temizle),
         // sonra günlük üretimi çalıştır.
-        runPlanMigrationOnce().finally(() => run().finally(() => releaseStagedPlanItems()));
+        runPlanMigrationOnce().finally(() => run().finally(() => repairStagedQueuesOnce(user.id).finally(() => releaseStagedPlanItems())));
       });
     }
 
@@ -1296,7 +1307,7 @@ export function usePlanAdaptations() {
     return () => {
       subscription.remove();
     };
-  }, [run]);
+  }, [run, lifecycle, lifecycleUserId]);
 
   return { runAdaptations: run };
 }

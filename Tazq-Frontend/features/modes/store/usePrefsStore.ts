@@ -171,6 +171,9 @@ interface PrefsState {
   focusAmbientSound: string;
   setFocusAmbientSound: (v: string) => void;
   focusPreset: string;
+  /** Pomodoro çalışma süresi (kadrandan). null: eski hazır seçimden gelir. */
+  focusPomodoroMinutes: number | null;
+  setFocusPomodoroMinutes: (v: number) => void;
   setFocusPreset: (v: string) => void;
   /** Odak sahnesi — hareket + palet + vurgu (bkz. features/focus/utils/focusScenes.ts). */
   focusScene: string;
@@ -293,6 +296,9 @@ interface PrefsState {
    * hesap yenilemesinde buluttaki eski değer yerel seçimi eziyordu ("kapattım, kapatmıyor").
    */
   auraMark: AuraMark;
+  /** Hassas veri yedeği AÇIK RIZAYLA: true açık, false kullanıcı kapattı (buluttan silinir), yok: hiç sorulmadı (dokunulmaz). */
+  dataBackup: { budget?: boolean; quit?: boolean };
+  setDataBackup: (kind: 'budget' | 'quit', on: boolean) => void;
   setAuraMark: (v: AuraMark) => void;
   setProductivityHour: (v: 'morning' | 'afternoon' | 'evening' | 'night') => void;
   avatarBorderColor: string;
@@ -300,6 +306,9 @@ interface PrefsState {
   // ── Ürün katmanları (Faz 1) ───────────────────────────────────────────────
   // Lite: sade to-do görünümü (gamification gizli). Pro: tam deneyim.
   uiMode: 'lite' | 'pro';
+  /** Sade mod: hedeflerin görevleri dursun mu. Plan motoru çalışmaz, görevleri listede süzülür; hiçbir şey silinmez. */
+  liteGoalsPaused: boolean;
+  setLiteGoalsPaused: (v: boolean) => void;
   setUiMode: (v: 'lite' | 'pro') => void;
   // Kademeli özellik açımı (AI koç, sosyal vb.) — cloud-sync.
   featureFlags: Record<string, boolean>;
@@ -385,10 +394,11 @@ const CLOUD_PREF_KEYS = [
   'gender',
   'productivityHour',
   'auraMark',
+  'dataBackup',
   'weeklyNotification',
   'morningBrief',
   'eveningBrief',
-  'uiMode',
+  // uiMode ve liteGoalsPaused BİLEREK YOK (2026-11-06): Sade mod bu cihazın seçimi. Android'de bir kullanıcıda "açmadığı halde açıldı, kapatınca da gelmedi": eski bulut kopyası her açılışta yerel seçimin üstüne yazılabiliyordu.
   'featureFlags',
   'onboardingCompleted',
   'welcomeStatus',
@@ -596,6 +606,8 @@ export const usePrefsStore = create<PrefsState>()(
       focusAmbientSound: 'off',
       setFocusAmbientSound: (v) => set({ focusAmbientSound: v }),
       focusPreset: 'classic',
+      focusPomodoroMinutes: null,
+      setFocusPomodoroMinutes: (v) => set({ focusPomodoroMinutes: v }),
       setFocusPreset: (v) => set({ focusPreset: v }),
       focusScene: 'aurora',
       setFocusScene: (v) => set({ focusScene: v }),
@@ -663,6 +675,8 @@ export const usePrefsStore = create<PrefsState>()(
       setGender: (v) => set({ gender: v }),
       productivityHour: 'morning',
       setProductivityHour: (v) => set({ productivityHour: v }),
+      dataBackup: {},
+      setDataBackup: (kind, on) => { set(st => ({ dataBackup: { ...st.dataBackup, [kind]: on } })); void get().syncToCloud(); },
       auraMark: 'initial',
       setAuraMark: (v) => { set({ auraMark: v }); void get().syncToCloud(); },
       avatarBorderColor: 'transparent',
@@ -670,6 +684,8 @@ export const usePrefsStore = create<PrefsState>()(
       // Ürün katmanları — varsayılan 'pro' (mevcut kullanıcıların deneyimi değişmesin;
       // yeni kullanıcı onboarding'de seçer).
       uiMode: 'pro',
+      liteGoalsPaused: false,
+      setLiteGoalsPaused: (v) => set({ liteGoalsPaused: v }),
       setUiMode: (v) => set({ uiMode: v }),
       featureFlags: {},
       setFeatureFlag: (key, value) => set((s) => ({ featureFlags: { ...s.featureFlags, [key]: value } })),
@@ -751,6 +767,7 @@ export const usePrefsStore = create<PrefsState>()(
         notifPrimerSeen: false,
         completedTours: {},
         uiMode: 'pro',
+        liteGoalsPaused: false,
         onboardingCompleted: false,
         welcomeStatus: 'unknown',
         capturePending: false,
@@ -758,6 +775,7 @@ export const usePrefsStore = create<PrefsState>()(
         gender: '',
         productivityHour: 'morning',
         auraMark: 'initial',
+        dataBackup: {},
         avatarBorderColor: 'transparent',
         firstWinAt: null,
         firstCapture: null,
@@ -836,6 +854,14 @@ export const usePrefsStore = create<PrefsState>()(
         try {
           snapshot.__momentum = require('@/features/user/store/useMomentumStore').useMomentumStore.getState().history;
         } catch (e) { swallow('prefsStore.collectMomentumForSnapshot', e); }
+        // Bütçe ve bırakma yalnız kullanıcı onayladıysa gider. false: kapattı, null buluttan siler. Hiç sorulmadıysa anahtar hiç yazılmaz.
+        try {
+          const consent = state.dataBackup ?? {};
+          if (consent.budget === true) snapshot.__budget = require('@/shared/store/useBudgetStore').useBudgetStore.getState().cloudSnapshot();
+          else if (consent.budget === false) snapshot.__budget = null;
+          if (consent.quit === true) snapshot.__quit = require('@/shared/store/useQuitStore').useQuitStore.getState().cloudSnapshot();
+          else if (consent.quit === false) snapshot.__quit = null;
+        } catch (e) { swallow('prefsStore.collectBackup', e); }
         /*
           KİLO GEÇMİŞİ BİLEREK BURAYA EKLENMEDİ.
 
@@ -860,6 +886,8 @@ export const usePrefsStore = create<PrefsState>()(
         */
         try {
           const json = JSON.stringify(snapshot);
+          // Değişmeyen kopya gönderilmez: sunucuya boş istek ve yazma gitmesin (2026-11-06, kullanıcı: "sunucuyu doldurmamak lazım").
+          if (require('@/features/user/store/useAuthStore').useAuthStore.getState().user?.preferences === json) return true;
           await AuthService.updateProfile({ preferences: json });
           /*
             Bellekteki kullanıcının tercih kopyası da güncellenir (2026-11-01). Güncellenmezse bir sonraki
@@ -875,6 +903,8 @@ export const usePrefsStore = create<PrefsState>()(
         } catch (err) {
           // Çevrimdışı/başarısız: tercihler lokalde zaten kalıcı; çağıran taraf bayrağı
           // AÇIK bırakıp bir sonraki fırsatta (online/login geçişi) yeniden dener.
+          // 400 yeniden denemeyle düzelmez (ör. boyut sınırı): kayıt buluta hiç gitmiyor demektir, alarm verilir.
+          if ((err as { response?: { status?: number } })?.response?.status === 400) swallow('prefsStore.syncRejected', err, { capture: true });
           swallow('prefsStore.syncToCloud', err);
           return false;
         }
@@ -923,6 +953,12 @@ export const usePrefsStore = create<PrefsState>()(
           }
           if (parsed.__planAffinity) {
             try { require('@/features/modes/store/usePlanAffinityStore').usePlanAffinityStore.getState().applyCloud(parsed.__planAffinity); } catch (e) { swallow('prefsStore.applyPlanAffinity', e); }
+          }
+          if (parsed.__budget) {
+            try { require('@/shared/store/useBudgetStore').useBudgetStore.getState().applyCloud(parsed.__budget); } catch (e) { swallow('prefsStore.applyCloudBudget', e, { capture: true }); }
+          }
+          if (parsed.__quit) {
+            try { require('@/shared/store/useQuitStore').useQuitStore.getState().applyCloud(parsed.__quit); } catch (e) { swallow('prefsStore.applyCloudQuit', e, { capture: true }); }
           }
           if (parsed.__momentum) {
             try { require('@/features/user/store/useMomentumStore').useMomentumStore.getState().applyCloud(parsed.__momentum); } catch (e) { swallow('prefsStore.applyCloudMomentum', e); }

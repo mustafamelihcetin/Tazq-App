@@ -135,7 +135,7 @@ describe('içerik genişliği TEK kuraldan geliyor', () => {
   });
 
   it('üç ana ekran geniş ekranda gerçekten BÖLÜNÜYOR', () => {
-    expect(stripComments(read('app/index.tsx'))).toContain('<WideSplit>');
+    expect(stripComments((read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx')))).toContain('<WideSplit>');
     expect(stripComments(read('app/cockpit.tsx'))).toContain('<WideSplit>');
     expect(stripComments(read('app/tasks.tsx'))).toContain('const listCols = wide ? 3 : tablet ? 2 : 1;');
   });

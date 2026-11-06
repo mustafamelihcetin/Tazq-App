@@ -1,4 +1,4 @@
-import { advance, angleOf, isStop, snapMinutes, minutesFromPoint, DIAL_MAX, DIAL_MIN } from '@/features/focus/components/DurationDial';
+import { DIAL_HALO_MAX, DIAL_OVERSCAN, DIAL_RING_INSET, advance, angleOf, isStop, snapMinutes, minutesFromPoint, DIAL_MAX, DIAL_MIN } from '@/features/focus/components/DurationDial';
 
 /*
   SÜRE KADRANI (2026-11-01): süre halkadan, dakika dakika seçilir; tur atlayıp 120'den 1'e düşmez.
@@ -50,5 +50,11 @@ describe('adım', () => {
     expect(snapMinutes(26, false)).toBe(26);
     expect(isStop(25)).toBe(true);
     expect(isStop(26)).toBe(false);
+  });
+});
+
+describe('tutamağın halesi', () => {
+  it('tuvale sığar: en büyük halde de kesilmez', () => {
+    expect(DIAL_RING_INSET + DIAL_OVERSCAN).toBeGreaterThanOrEqual(DIAL_HALO_MAX);
   });
 });

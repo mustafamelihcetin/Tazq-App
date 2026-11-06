@@ -158,8 +158,8 @@ function clearLocalUserData() {
   safe(() => require('@/features/habits/store/useHabitStore').useHabitStore.setState({ habits: [] }));
   safe(() => require('@/features/modes/store/usePrefsStore').usePrefsStore.getState().resetUserData());
   safe(() => require('@/features/modes/store/useStagedPlanStore').useStagedPlanStore.getState().reset()); // kademeli açılım sırası
-  safe(() => require('@/shared/store/useBudgetStore').useBudgetStore.getState().reset());
-  safe(() => require('@/shared/store/useQuitStore').useQuitStore.getState().reset());
+  safe(() => require('@/shared/store/useBudgetStore').useBudgetStore.getState().clearLocal());
+  safe(() => require('@/shared/store/useQuitStore').useQuitStore.getState().clearLocal());
   // `clearAll` (resetInputs DEĞİL): çıkışta kilo geçmişi de cihazdan silinmeli.
   // Artık buluta eşitlendiği için tekrar girişte geri gelir; `resetInputs` ise plan
   // kaldırma yolunda kullanılıyor ve geçmişe kasten dokunmuyor.
@@ -279,6 +279,8 @@ export const useAuthStore = create<AuthState>()(
         });
       },
       startGuest: () => {
+        // Oturum açıkken misafirlik başlamaz: bayrak sekmeleri gizler ve sunucu isteklerini keser (bkz. useSessionStore: ikisi aynı anda ASLA).
+        if (get().isLoggedIn) return;
         // Zorla çıkıştan kalan hesap verisi misafire görünmesin.
         if (get().retainedData) { clearLocalUserData(); set({ retainedData: false }); }
         useSessionStore.getState().setGuest(true);
@@ -302,7 +304,8 @@ export const useAuthStore = create<AuthState>()(
       */
       endGuest: () => useSessionStore.getState().setGuest(false),
       setIsFirstLogin: (val) => set({ isFirstLogin: val }),
-      setUser: (user) => { hydrateProfilePrefs(user); set({ user }); },
+      // Sunucudan kullanıcı geldiyse misafir değildir: eski kurulumda takılı kalmış bayrak burada onarılır.
+      setUser: (user) => { if (user) useSessionStore.getState().setGuest(false); hydrateProfilePrefs(user); set({ user }); },
       logout: (opts) => {
         /*
           ZORLA ÇIKIŞ VERİ SİLMEZ (2026-11-05). Kullanıcının istemediği çıkış görevleri, alışkanlıkları ve BEKLEYEN

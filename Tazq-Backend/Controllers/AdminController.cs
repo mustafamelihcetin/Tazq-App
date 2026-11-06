@@ -47,6 +47,12 @@ namespace Tazq_App.Controllers
         [Authorize(Policy = StaffPolicy.Insights)]
         public async Task<IActionResult> GetStats() => Ok(await _admin.GetStatsAsync());
 
+        // Sunucu durumu: disk, bellek, yedekler, servisler (ölçüm host'ta, bkz. ServerStatus). Gözlemci de görür: yalnız okuma, kişisel veri yok.
+        // Müdahale uçları (yeniden başlatma, migration, önbellek) AdminSystemController'da ve yalnız süper admine açık.
+        [HttpGet("server-status")]
+        [Authorize(Policy = StaffPolicy.Insights)]
+        public IActionResult GetServerStatus([FromServices] AbuseGuard guard) => Content(ServerStatus.ReadWithAbuse(guard, DateTime.UtcNow).ToJsonString(), "application/json");
+
         // Kayıtlı kullanıcılar, anonim kurulumlar ve mağaza kanalları — "Kitle" kartı.
         [HttpGet("audience")]
         [Authorize(Policy = StaffPolicy.Insights)]

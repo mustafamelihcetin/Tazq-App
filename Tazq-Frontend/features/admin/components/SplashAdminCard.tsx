@@ -57,7 +57,7 @@ export function SplashAdminCard({ lang }: { lang: 'tr' | 'en' }) {
                 <Touchable key={o.id} accessibilityRole="radio" accessibilityState={{ selected: on, checked: on }} accessibilityLabel={o.label}
                   onPress={() => { if (!on) { haptic.select(); setEdition(o.id); } }}
                   style={{ paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full, borderWidth: B.thin,
-                    borderColor: on ? theme.primary : theme.outlineVariant, backgroundColor: on ? theme.primary + '1A' : 'transparent' }}>
+                    borderColor: on ? theme.primary : theme.outlineVariant, backgroundColor: on ? theme.primaryFill + '1A' : 'transparent' }}>
                   <Text style={{ fontSize: F.footnote, fontWeight: on ? W.semibold : W.regular, color: on ? theme.primary : theme.onSurfaceVariant }}>{o.label}</Text>
                 </Touchable>
               );

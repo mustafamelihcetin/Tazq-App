@@ -229,12 +229,12 @@ export function ReviewPromptModal({ visible, onClose, theme, tr }: Props) {
                     disabled={sending}
                     onPress={handleSubmit}
                     accessibilityRole="button"
-                    style={{ flex: 1, height: 48, borderRadius: R.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' }}
+                    style={{ flex: 1, height: 48, borderRadius: R.md, backgroundColor: theme.primaryFill, alignItems: 'center', justifyContent: 'center' }}
                   >
                     {sending ? (
-                      <ActivityIndicator size="small" color="#FFF" />
+                      <ActivityIndicator size="small" color={theme.onPrimaryFill} />
                     ) : (
-                      <Text style={{ color: '#FFF', fontWeight: '700', fontSize: F.body }}>
+                      <Text style={{ color: theme.onPrimaryFill, fontWeight: '700', fontSize: F.body }}>
                         {rating >= POSITIVE_RATING_THRESHOLD ? (tr ? 'Yorum Yap' : 'Rate App') : (tr ? 'Gönder' : 'Submit')}
                       </Text>
                     )}

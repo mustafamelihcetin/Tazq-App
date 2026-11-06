@@ -95,7 +95,7 @@ describe('kayıt — tek yol', () => {
 describe('ana sayfada sıra (C5)', () => {
   const fs = require('fs');
   const path = require('path');
-  const INDEX = fs.readFileSync(path.join(__dirname, '..', 'app/index.tsx'), 'utf8');
+  const INDEX = (fs.readFileSync(path.join(__dirname, '..', 'app/index.tsx'), 'utf8') + fs.readFileSync(path.join(__dirname, '..', 'features/dashboard/hooks/useHomeModel.tsx'), 'utf8'));
 
   it('ilk girişte bayrak kurulur, ekran hoş geldinden sonra açılır', () => {
     expect(INDEX).toMatch(/setWelcomeStatus\('pending'\);\s*\n\s*usePrefsStore\.getState\(\)\.setCapturePending\(true\);/);

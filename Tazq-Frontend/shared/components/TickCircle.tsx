@@ -6,7 +6,8 @@ import { R, B } from '@/shared/constants/tokens';
 import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
-const TICK_LENGTH = 16;
+// Yolun gerçek uzunluğu ~17.4.
+const TICK_LENGTH = 18;
 
 /*
   DAİRE DOLAR, TİK ÇİZİLİR (2026-11-06). Yalnız kullanıcı işaretleyince oynar ve durur. Süre Bluesky CountWheel ile aynı aile:
@@ -26,14 +27,17 @@ export function TickCircle({ checked, size, color, ringColor, tickColor }: { che
   }, [checked, reduce, fill, draw]);
 
   const fillStyle = useAnimatedStyle(() => ({ opacity: fill.value, transform: [{ scale: 0.6 + 0.4 * fill.value }] }));
-  const tickProps = useAnimatedProps(() => ({ strokeDashoffset: TICK_LENGTH * (1 - draw.value) }));
+  const tickProps = useAnimatedProps(() => ({ strokeDashoffset: TICK_LENGTH * (1 - draw.value), opacity: draw.value > 0.02 ? 1 : 0 }));
 
   return (
     <View style={{ width: size, height: size, borderRadius: R.full, borderWidth: B.medium, borderColor: checked ? color : ringColor, alignItems: 'center', justifyContent: 'center' }}>
       <Animated.View style={[{ position: 'absolute', top: -B.medium, left: -B.medium, width: size, height: size, borderRadius: R.full, backgroundColor: color }, fillStyle]} />
-      <Svg width={size * 0.6} height={size * 0.6} viewBox="0 0 24 24" fill="none">
-        <AnimatedPath d="M6 12.5l4.2 4.2L18 8.5" stroke={tickColor} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={TICK_LENGTH + 2} animatedProps={tickProps} />
-      </Svg>
+      {/* İşaretsizken tik hiç çizilmez: yuvarlak uçlu boş çizgi iOS'ta dairenin içinde nokta bırakıyordu (2026-11-06, cihazda). */}
+      {checked && (
+        <Svg width={size * 0.6} height={size * 0.6} viewBox="0 0 24 24" fill="none">
+          <AnimatedPath d="M6 12.5l4.2 4.2L18 8.5" stroke={tickColor} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={[TICK_LENGTH, TICK_LENGTH + 4]} animatedProps={tickProps} />
+        </Svg>
+      )}
     </View>
   );
 }

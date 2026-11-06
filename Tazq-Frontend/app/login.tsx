@@ -438,9 +438,9 @@ export default function LoginScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={c.signIn}
                   accessibilityState={{ disabled: isLoading, busy: isLoading }}
-                  style={[styles.loginButton, { backgroundColor: theme.primary, opacity: isLoading ? 0.75 : 1 }]}
+                  style={[styles.loginButton, { backgroundColor: theme.primaryFill, opacity: isLoading ? 0.75 : 1 }]}
                 >
-                  {isLoading ? <ActivityIndicator color={theme.onPrimary} /> : <Text style={[styles.buttonText, { color: theme.onPrimary }]}>{c.signIn}</Text>}
+                  {isLoading ? <ActivityIndicator color={theme.onPrimaryFill} /> : <Text style={[styles.buttonText, { color: theme.onPrimaryFill }]}>{c.signIn}</Text>}
                 </Touchable>
               </View>
 
@@ -506,7 +506,7 @@ export default function LoginScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={language === 'tr' ? 'Tamam, kapat' : 'OK, close'}
                     style={{ 
-                      backgroundColor: theme.primary, 
+                      backgroundColor: theme.primaryFill, 
                       width: '100%', 
                       marginTop: S.sm, 
                       height: 44, 
@@ -515,7 +515,7 @@ export default function LoginScreen() {
                       justifyContent: 'center'
                     }}
                   >
-                    <Text style={{ color: theme.onPrimary, fontWeight: '700', fontFamily: 'Jakarta-Bold' }}>
+                    <Text style={{ color: theme.onPrimaryFill, fontWeight: '700', fontFamily: 'Jakarta-Bold' }}>
                       {language === 'tr' ? 'Harika' : 'Got it'}
                     </Text>
                   </Touchable>
@@ -606,15 +606,15 @@ export default function LoginScreen() {
                         flex: 2, 
                         height: 44, 
                         borderRadius: R.md, 
-                        backgroundColor: theme.primary, 
+                        backgroundColor: theme.primaryFill, 
                         alignItems: 'center', 
                         justifyContent: 'center' 
                       }}
                     >
                       {forgotLoading ? (
-                        <ActivityIndicator color={theme.onPrimary} size="small" />
+                        <ActivityIndicator color={theme.onPrimaryFill} size="small" />
                       ) : (
-                        <Text style={{ color: theme.onPrimary, fontFamily: 'Jakarta-Bold', fontSize: F.body }}>{t.login.forgotSend}</Text>
+                        <Text style={{ color: theme.onPrimaryFill, fontFamily: 'Jakarta-Bold', fontSize: F.body }}>{t.login.forgotSend}</Text>
                       )}
                     </Touchable>
                   </View>

@@ -1,3 +1,4 @@
+import { DeviceOnlyNote } from '@/features/modes/components/DeviceOnlyNote';
 import { quitItemName } from '@/features/modes/utils/goalTitle';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
@@ -42,6 +43,7 @@ export function QuitTrack({ accent, lang }: { accent: string; lang: 'tr' | 'en' 
       </Touchable>
         )
         : <Text style={{ fontSize: F.footnote, color: theme.onSurfaceMuted, textAlign: 'center' }}>{PLAN_COPY[lang].goals.quitFull}</Text>}
+      <DeviceOnlyNote kind="health" backup="quit" />
     </View>
   );
 }

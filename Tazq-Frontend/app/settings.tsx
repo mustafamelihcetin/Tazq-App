@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { PRODUCTIVITY_HOURS } from '@/shared/utils/productivityHour';
 import { settingsText } from '@/shared/constants/settingsCopy';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
@@ -6,6 +7,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowD
 import { CustomAlert as Alert, AlertHost } from '@/shared/components/CustomAlert';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { track } from '@/shared/utils/analytics';
+import { confirmUiMode } from '@/features/modes/utils/uiModeSwitch';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DeviceOnlyNote } from '@/shared/components/DeviceOnlyNote';
@@ -164,10 +166,9 @@ export default function SettingsScreen() {
     Sabah özetinin GERÇEK saati — verimlilik saatinden türer, sabit değil. Tek yerde
     hesaplanıyor ki etiketle davranış bir daha ayrışmasın (bkz. PRODUCTIVITY_HOUR).
   */
-  const BRIEF_HOUR: Record<string, string> = { morning: '07:00', afternoon: '12:00', evening: '17:00', night: '21:00' };
   const briefHourLabel = (() => {
-    const hh = BRIEF_HOUR[productivityHour] ?? '08:00';
-    return language === 'tr' ? `Her gün ${hh} — bugünkü görevler` : `Daily at ${hh} — today's tasks`;
+    const h = PRODUCTIVITY_HOURS[productivityHour as keyof typeof PRODUCTIVITY_HOURS]?.brief ?? 8;
+    return settingsText(language).dailyPlanAt(`${String(h).padStart(2, '0')}:00`);
   })();
 
   /*
@@ -366,7 +367,7 @@ export default function SettingsScreen() {
             */}
             {show('notify') && (<>
             {/* ── BİLDİRİMLER ── */}
-            <SectionHeader onLayout={e => markSection('notify', e.nativeEvent.layout.y)} title={settingsText(language).notifications2} theme={theme} tr={language === 'tr'} />
+            <View onLayout={e => markSection('notify', e.nativeEvent.layout.y)} />
             <SettingsCard theme={theme} isDark={isDark}>
                 <SettingItem
                     icon={<Bell size={ICON.md} color="#FFFFFF" />}
@@ -378,6 +379,8 @@ export default function SettingsScreen() {
                     theme={theme}
                 />
                 <RowDivider theme={theme} />
+                {/* Sade modda özet gelmez: işe yaramayan anahtar gösterilmez. */}
+                {uiMode !== 'lite' && <>
                 <ToggleRow
                     icon={<Sunrise size={ICON.md} color="#FFFFFF" />}
                     bg={A.notify}
@@ -417,6 +420,7 @@ export default function SettingsScreen() {
                     theme={theme} isDark={isDark}
                 />
                 <RowDivider theme={theme} />
+                </>}
                 <ToggleRow
                     icon={<CalendarDays size={ICON.md} color="#FFFFFF" />}
                     bg={A.notify}
@@ -454,7 +458,7 @@ export default function SettingsScreen() {
             {/* ── GÖRÜNÜM & DİL (2026-10-31 düzeni): GÖRÜNÜM = ekran nasıl görünür (tema, renk, dil);
                  DENEYİM = uygulama nasıl davranır (ses, titreşim, sade mod). Bildirim gizliliği
                  Bildirimler'e, odak puanı/seri kalkanı (ayar değil, ödül) Profil'e taşındı. ── */}
-            <SectionHeader onLayout={e => markSection('system', e.nativeEvent.layout.y)} title={settingsText(language).appearance} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
+            <SectionHeader onLayout={e => markSection('system', e.nativeEvent.layout.y)} title={settingsText(language).appearance} theme={theme} tr={language === 'tr'}  />
             <SettingsCard theme={theme} isDark={isDark}>
                 <ChoiceRow
                     icon={<SunMoon size={ICON.md} color="#FFFFFF" />}
@@ -518,7 +522,7 @@ export default function SettingsScreen() {
                        kaybolması sürpriz oluyordu. */
                     subtitle={settingsText(language).hidesMomentumCelebrationsGoalsWeekTabs}
                     value={uiMode === 'lite'}
-                    onValueChange={(v: boolean) => { haptic.select(); setUiMode(v ? 'lite' : 'pro'); track('ui_mode_changed', { mode: v ? 'lite' : 'pro' }); }}
+                    onValueChange={(v: boolean) => { haptic.select(); confirmUiMode(v ? 'lite' : 'pro', language === 'en' ? 'en' : 'tr'); }}
                     theme={theme} isDark={isDark}
                 />
             </SettingsCard>
@@ -528,7 +532,7 @@ export default function SettingsScreen() {
             {/* ── UYKU (Apple Sağlık) — yalnız desteklenen cihazda ── */}
             {sleepSupported && (
               <>
-                <SectionHeader onLayout={e => markSection('health', e.nativeEvent.layout.y)} title={settingsText(language).health} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
+                <View onLayout={e => markSection('health', e.nativeEvent.layout.y)} />
                 <SettingsCard theme={theme} isDark={isDark}>
                     <ToggleRow
                         icon={<Moon size={ICON.md} color="#FFFFFF" />}
@@ -580,37 +584,11 @@ export default function SettingsScreen() {
               </>
             )}
 
-            {/*
-              MERKEZ — YALNIZCA Sade modda.
-
-              /cockpit zaten alt navigasyonda bir sekme, yani Pro modda bu satır bir
-              dokunuş uzaktaki şeyi ikinci kez sunuyordu: koca bir bölüm başlığı + satır,
-              sıfır yeni yetenek. Ayarlar sayfasının "kalabalık" hissinin bir parçası buydu.
-
-              Ama körlemesine silinemez: Sade mod sekmeleri home/tasks/focus ile sınırlıyor
-              (bkz. BottomNavBar.LITE_TAB_IDS), yani orada bu satır cockpit'e TEK erişim yolu.
-              Koşullu olunca ikisi de doğru: Pro'da yok, Sade'de var.
-            */}
-            {uiMode === 'lite' && (
-              <>
-              <SectionHeader title={settingsText(language).hub} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
-              <SettingsCard theme={theme} isDark={isDark}>
-                  <SettingItem
-                      icon={<CalendarDays size={ICON.md} color="#FFFFFF" />}
-                      label={settingsText(language).thisWeek}
-                      sub={settingsText(language).momentumStreakWeeklyView}
-                      bg={A.core}
-                      onPress={() => router.push('/cockpit')}
-                      theme={theme}
-                  />
-              </SettingsCard>
-              </>
-            )}
-
+            
             </>)}
             {show('legal') && (<>
             {/* ── YASAL & GİZLİLİK ── */}
-            <SectionHeader onLayout={e => markSection('legal', e.nativeEvent.layout.y)} title={t.legalAndPrivacy || (settingsText(language).legalPrivacy)} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
+            <SectionHeader onLayout={e => markSection('legal', e.nativeEvent.layout.y)} title={t.legalAndPrivacy || (settingsText(language).legalPrivacy)} theme={theme} tr={language === 'tr'}  />
             <SettingsCard theme={theme} isDark={isDark}>
                 <SettingItem
                     icon={<FileText size={ICON.md} color="#FFFFFF" />}
@@ -756,10 +734,10 @@ export default function SettingsScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={t.guest.keepMyData}
                 accessibilityHint={t.guest.settingsSub}
-                style={[styles.logoutBtn, { backgroundColor: theme.primary, marginTop: S.lg, paddingVertical: S.md, paddingHorizontal: S.md }]}
+                style={[styles.logoutBtn, { backgroundColor: theme.primaryFill, marginTop: S.lg, paddingVertical: S.md, paddingHorizontal: S.md }]}
               >
-                <UserPlus size={ICON.md} color={theme.onPrimary} />
-                <Text style={[styles.logoutText, { color: theme.onPrimary, fontSize: F.body }]}>{t.guest.keepMyData}</Text>
+                <UserPlus size={ICON.md} color={theme.onPrimaryFill} />
+                <Text style={[styles.logoutText, { color: theme.onPrimaryFill, fontSize: F.body }]}>{t.guest.keepMyData}</Text>
               </Touchable>
             ) : (
               <SettingsCard theme={theme} isDark={isDark} style={{ marginTop: S.lg }}>
@@ -846,8 +824,8 @@ export default function SettingsScreen() {
               <Touchable onPress={() => { if (!changingPw) { Keyboard.dismiss(); setPwModalVisible(false); } }} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', alignItems: 'center' }}>
                 <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{settingsText(language).cancel}</Text>
               </Touchable>
-              <Touchable onPress={performChangePassword} disabled={changingPw} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', opacity: changingPw ? 0.6 : 1 }}>
-                {changingPw ? <ActivityIndicator size="small" color={theme.onPrimary} /> : <Text style={{ color: theme.onPrimary, fontWeight: '700', fontSize: F.body }}>{settingsText(language).save}</Text>}
+              <Touchable onPress={performChangePassword} disabled={changingPw} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: theme.primaryFill, alignItems: 'center', justifyContent: 'center', opacity: changingPw ? 0.6 : 1 }}>
+                {changingPw ? <ActivityIndicator size="small" color={theme.onPrimaryFill} /> : <Text style={{ color: theme.onPrimaryFill, fontWeight: '700', fontSize: F.body }}>{settingsText(language).save}</Text>}
               </Touchable>
             </View>
           </MotiView>

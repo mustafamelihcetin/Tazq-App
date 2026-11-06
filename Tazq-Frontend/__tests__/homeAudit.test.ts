@@ -20,13 +20,13 @@ describe('MagneticFAB — ekran okuyucu', () => {
   });
 
   it('iki kullanım yeri de ad veriyor', () => {
-    expect(read('app/index.tsx')).toContain('accessibilityLabel={t.quickAdd.title}');
+    expect((read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'))).toContain('accessibilityLabel={t.quickAdd.title}');
     expect(read('app/tasks.tsx')).toContain('accessibilityLabel={t.addTask}');
   });
 });
 
 describe('Ana sayfa — dokunma alanı ve punto', () => {
-  const SRC = read('app/index.tsx');
+  const SRC = (read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'));
   const block = (from: string, to: string) => SRC.slice(SRC.indexOf(from), SRC.indexOf(to, SRC.indexOf(from)));
 
   it('gecikmiş satırı 44 pt ve okunur puntoda (eskiden ~14 pt yükseklik, 11 pt yazı)', () => {

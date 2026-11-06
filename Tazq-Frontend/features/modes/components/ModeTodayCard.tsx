@@ -8,6 +8,7 @@ import { Touchable } from '@/shared/components/Touchable';
 import { S, R, F, ICON } from '@/shared/constants/tokens';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
+import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { renderModeEmojiIcon } from '@/features/modes/utils/modeIcons';
 import { useActiveModeSummary, type ModeSummaryEntry } from '@/features/modes/hooks/useActiveModeSummary';
 import { ModeDeck } from '@/features/modes/components/ModeDeck';
@@ -196,8 +197,11 @@ function PanelLines({ entries, t, onOpen, a11yLabel }: { entries: ModeSummaryEnt
 export function ModeTodayCard({ onOpen, bare }: { onOpen: () => void; bare?: boolean }) {
   const t = useLanguageStore(s => s.t).modeToday;
   const { entries, activeCount } = useActiveModeSummary();
+  const lite = usePrefsStore(s => s.uiMode === 'lite');
 
+  // Sade mod Hedefler'i gizliyor: panelde hedef satırı kalırsa gizli bir özelliğe götürür.
   if (activeCount === 0) return null;
+  if (bare && lite) return null;
   const deck = (
     <ModeDeck
       pages={entries.map(e => <ModePage key={e.key} mode={e} t={t} onOpen={onOpen} />)}

@@ -3,6 +3,7 @@
  * modlar.tsx'ten çıkarıldı ki her mod bileşeni (Tez, Mülakat, Spor, Sınav...)
  * aynı offline-first silme + tarih formatlama mantığını tek kaynaktan kullansın.
  */
+import { logicalNow } from '@/shared/utils/appDay';
 import { useTaskStore } from '@/features/tasks/store/useTaskStore';
 import { PLAN_TAGS, hasPlanDescription } from '@/shared/utils/planKey';
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
@@ -118,7 +119,7 @@ export function planDedupeKey(task: { title: string; tags?: string[] | null }): 
 }
 
 /** Aynı gün aynı plan görevinin fazlalıkları. Tamamlanan, sonra sunucu kimlikli olan kalır. */
-export function duplicatePlanTasks<T extends { id: number; title: string; isCompleted?: boolean; dueDate?: string | null; tags?: string[] | null; description?: string | null }>(tasks: T[]): T[] {
+export function duplicatePlanTasks<T extends { id: number; title: string; isCompleted?: boolean; dueDate?: string | null; tags?: string[] | null; description?: string | null }>(tasks: T[], now: Date = new Date()): T[] {
   const sorted = [...tasks].sort((a, b) => {
     if (!!a.isCompleted !== !!b.isCompleted) return a.isCompleted ? -1 : 1;
     return b.id - a.id;
@@ -133,6 +134,18 @@ export function duplicatePlanTasks<T extends { id: number; title: string; isComp
     const key = `${task.title.trim().toLocaleLowerCase('tr')}|${tagged}|${day}`;
     if (seen.has(key)) extra.push(task);
     else seen.add(key);
+  }
+  /*
+    SÜRESİ GEÇMİŞ ESKİ ÖRNEK (2026-11-06, cihazda: "Bu hafta ne tamamladın?" hem "Süresi geçti" hem "Bugün"). Haftalık iş yeni tarihiyle
+    üretilince eskisi yerinde kalıyordu. Aynı açık görevin güncel örneği varken geçmiş tarihli olan fazlalıktır. Yalnız plan görevleri.
+  */
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const open = sorted.filter(t => !t.isCompleted && t.dueDate && isGeneratedPlanTask(t) && !extra.includes(t));
+  const sameJob = (t: T) => t.title.trim().toLocaleLowerCase('tr');
+  const current = new Set(open.filter(t => new Date(t.dueDate as string) >= todayStart).map(sameJob));
+  for (const t of open) {
+    if (new Date(t.dueDate as string) < todayStart && current.has(sameJob(t))) extra.push(t);
   }
   return extra;
 }
@@ -268,8 +281,7 @@ export function formatPlanDate(iso: string | null | undefined, tr: boolean): str
 /** Tarih geçmiş mi (gün sonu bazlı, 3 saatlik gece toleransı dahil). */
 export function isDatePast(iso: string | null | undefined): boolean {
   if (!iso) return false;
-  const adjustedNow = new Date();
-  adjustedNow.setHours(adjustedNow.getHours() - 3);
+  const adjustedNow = logicalNow();
   const targetStr = iso.split('T')[0];
   const adjustedNowStr = `${adjustedNow.getFullYear()}-${String(adjustedNow.getMonth() + 1).padStart(2, '0')}-${String(adjustedNow.getDate()).padStart(2, '0')}`;
   return targetStr < adjustedNowStr;
@@ -278,8 +290,7 @@ export function isDatePast(iso: string | null | undefined): boolean {
 /** Bugünden hedef tarihe kalan gün (3 saatlik gece toleransı dahil, geçmiş/boşsa 0). */
 export function daysLeftOf(iso: string | null | undefined): number {
   if (!iso || isDatePast(iso)) return 0;
-  const adjustedNow = new Date();
-  adjustedNow.setHours(adjustedNow.getHours() - 3);
+  const adjustedNow = logicalNow();
   adjustedNow.setHours(0, 0, 0, 0);
   
   // Anahtar YEREL gece yarisi olarak cozulur; `new Date(iso)` UTC sayip negatif

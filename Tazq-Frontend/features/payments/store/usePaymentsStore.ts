@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { CurrencyCode } from '@/shared/utils/currency';
 import { isCommitPending } from '@/shared/utils/deferredCommit';
 
-export type PaymentRecurrence = 'Once' | 'Monthly' | 'Yearly';
+export type PaymentRecurrence = 'Once' | 'Monthly' | 'Quarterly' | 'SemiAnnual' | 'Yearly';
 
 /**
  * Ödeme takibi — GÖREVLERDEN TAMAMEN AYRI bir yüzey (bkz. plan Bölüm 2).

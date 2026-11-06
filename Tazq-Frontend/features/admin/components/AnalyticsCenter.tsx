@@ -1,3 +1,4 @@
+import { ServerStatusCard } from './ServerStatusCard';
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -22,13 +23,13 @@ import { AdminService, type AnalyticsReport, type AdminStats, type AdminProductI
 */
 
 type Lang = 'tr' | 'en';
-type Tab = 'overview' | 'funnel' | 'features' | 'focus';
+type Tab = 'overview' | 'funnel' | 'features' | 'focus' | 'server';
 type Seg = string | { em: string };
 
 const COPY = {
   tr: {
     locale: 'tr-TR', a11yTabs: 'Analiz bölümleri',
-    tabs: { overview: 'Genel', funnel: 'Huni', features: 'Özellikler', focus: 'Odak' },
+    tabs: { overview: 'Genel', funnel: 'Huni', features: 'Özellikler', focus: 'Odak', server: 'Sunucu' },
     loadFail: 'Analiz yüklenemedi.', retry: 'Tekrar dene', min: 'dk', hours: 'sa',
     pulse: 'NABIZ · SON 30 GÜN',
     active: 'Aktif', stickiness: 'Yapışkanlık', day7: '7. gün dönüş', newUsers: 'Yeni kayıt', focus: 'Odak', crashFree: 'Çökmesiz',
@@ -62,7 +63,7 @@ const COPY = {
   },
   en: {
     locale: 'en-US', a11yTabs: 'Analytics sections',
-    tabs: { overview: 'Overview', funnel: 'Funnel', features: 'Features', focus: 'Focus' },
+    tabs: { overview: 'Overview', funnel: 'Funnel', features: 'Features', focus: 'Focus', server: 'Server' },
     loadFail: 'Could not load analytics.', retry: 'Retry', min: 'min', hours: 'h',
     pulse: 'PULSE · LAST 30 DAYS',
     active: 'Active', stickiness: 'Stickiness', day7: 'Day-7 return', newUsers: 'Sign-ups', focus: 'Focus', crashFree: 'Crash-free',
@@ -100,7 +101,9 @@ const pct = (n: number, base: number) => (base > 0 ? Math.round((n / base) * 100
 /** Birincil renge 0..1 yoğunluk → hex alfa (ısı haritası, kohort hücresi). */
 const alpha = (t: number, min = 0.18) => Math.round((min + (1 - min) * Math.max(0, Math.min(1, t))) * 255).toString(16).padStart(2, '0');
 
-export function AnalyticsCenter({ lang, stats, insights }: {
+export function AnalyticsCenter({ lang, stats, insights, showServer }: {
+  /** Veri ve Sistem Uzmanı: sistem sekmesi yok, sunucu durumunu buradan salt okunur görür. */
+  showServer?: boolean;
   lang: Lang; stats: AdminStats | null; insights: AdminProductInsights | null;
 }) {
   const { theme, colorScheme } = useAppTheme();
@@ -151,7 +154,7 @@ export function AnalyticsCenter({ lang, stats, insights }: {
         <Text style={{ minWidth: S.xl, textAlign: 'right', fontSize: F.body, fontWeight: '700', color: em ? theme.primary : theme.onSurface }}>{value}</Text>
       </View>
       <View style={{ height: S.xxs, backgroundColor: faint, borderRadius: R.full, overflow: 'hidden' }}>
-        <View style={{ width: `${Math.min(100, Math.max(0, ratio * 100))}%`, height: '100%', backgroundColor: em ? theme.primary : neutral, borderRadius: R.full }} />
+        <View style={{ width: `${Math.min(100, Math.max(0, ratio * 100))}%`, height: '100%', backgroundColor: em ? theme.primaryFill : neutral, borderRadius: R.full }} />
       </View>
     </View>
   );
@@ -249,7 +252,7 @@ export function AnalyticsCenter({ lang, stats, insights }: {
                 const label = d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString(c.locale, { day: 'numeric', month: 'short' }) : k.weekLabel;
                 return (
                   <View key={k.weekLabel} style={{ flex: 1, alignItems: 'center', gap: S.xs }}>
-                    <View style={{ width: '100%', aspectRatio: 1, borderRadius: R.sm, backgroundColor: p > 0 ? theme.primary + alpha(p / 100) : faint, alignItems: 'center', justifyContent: 'center' }}>
+                    <View style={{ width: '100%', aspectRatio: 1, borderRadius: R.sm, backgroundColor: p > 0 ? theme.primaryFill + alpha(p / 100) : faint, alignItems: 'center', justifyContent: 'center' }}>
                       <Text style={{ fontSize: F.caption, fontWeight: '700', color: p >= 50 ? theme.onPrimary : theme.onSurface }}>{`%${p}`}</Text>
                     </View>
                     <Text numberOfLines={1} style={muted}>{label}</Text>
@@ -336,7 +339,7 @@ export function AnalyticsCenter({ lang, stats, insights }: {
                   <Text style={[muted, { width: S.lg }]}>{wd}</Text>
                   <View style={{ flex: 1, flexDirection: 'row', gap: S.xxs / 2 }}>
                     {heat.slice(d * 24, d * 24 + 24).map((v, h) => (
-                      <View key={h} style={{ flex: 1, aspectRatio: 0.7, borderRadius: R.xs / 2, backgroundColor: v > 0 ? theme.primary + alpha(v / maxHeat) : faint }} />
+                      <View key={h} style={{ flex: 1, aspectRatio: 0.7, borderRadius: R.xs / 2, backgroundColor: v > 0 ? theme.primaryFill + alpha(v / maxHeat) : faint }} />
                     ))}
                   </View>
                 </View>
@@ -351,7 +354,7 @@ export function AnalyticsCenter({ lang, stats, insights }: {
         {hasData && (
           <Surface title={c.length}>
             <View style={{ flexDirection: 'row', height: S.smd, borderRadius: R.full, overflow: 'hidden', gap: S.xxs }}>
-              {f.lengthBuckets.map((n, i) => (n > 0 ? <View key={i} style={{ flex: n, backgroundColor: theme.primary + ['FF', 'B3', '73', '40'][i] }} /> : null))}
+              {f.lengthBuckets.map((n, i) => (n > 0 ? <View key={i} style={{ flex: n, backgroundColor: theme.primaryFill + ['FF', 'B3', '73', '40'][i] }} /> : null))}
             </View>
             <View style={{ flexDirection: 'row' }}>
               {f.lengthBuckets.map((n, i) => (
@@ -367,7 +370,7 @@ export function AnalyticsCenter({ lang, stats, insights }: {
           <Surface title={c.last30}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: S.xxs / 2, height: S.xl }}>
               {f.daily.map(d => (
-                <View key={d.date} style={{ flex: 1, height: Math.max(2, (d.minutes / maxDay) * S.xl), borderRadius: R.xs / 2, backgroundColor: d.minutes > 0 ? theme.primary : faint }} />
+                <View key={d.date} style={{ flex: 1, height: Math.max(2, (d.minutes / maxDay) * S.xl), borderRadius: R.xs / 2, backgroundColor: d.minutes > 0 ? theme.primaryFill : faint }} />
               ))}
             </View>
           </Surface>
@@ -379,10 +382,10 @@ export function AnalyticsCenter({ lang, stats, insights }: {
   return (
     <View style={{ gap: S.md }}>
       <SegmentedControl<Tab>
-        options={(['overview', 'funnel', 'features', 'focus'] as Tab[]).map(k => ({ key: k, label: c.tabs[k] }))}
+        options={((showServer ? ['overview', 'funnel', 'features', 'focus', 'server'] : ['overview', 'funnel', 'features', 'focus']) as Tab[]).map(k => ({ key: k, label: c.tabs[k] }))}
         value={tab} onChange={setTab} theme={theme} isDark={isDark} accessibilityLabel={c.a11yTabs}
       />
-      {failed ? (
+      {tab === 'server' ? <ServerStatusCard lang={lang} /> : failed ? (
         <Surface>
           <Text style={{ fontSize: F.body, color: theme.onSurfaceVariant }}>{c.loadFail}</Text>
           <Touchable onPress={load} accessibilityRole="button" style={{ alignSelf: 'flex-start', paddingVertical: S.xs }}>

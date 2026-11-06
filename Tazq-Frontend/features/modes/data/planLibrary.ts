@@ -1,3 +1,5 @@
+import { useBudgetStore } from '@/shared/store/useBudgetStore';
+
 /*
   GÖREV KÜTÜPHANESİ (2026-11-05, kullanıcı: "çeşitlilik ve yönetim çok zayıf"). Ölçüm: Tez ve Mülakat'ta 30 günde 2 farklı görev, Spor'da
   3-4; Tasarruf ve Bırakma'da günlük görev yoktu. Elle yazıldı, LLM yok. Her görev tek başına anlaşılır, somut ve küçüktür.
@@ -10,6 +12,8 @@ export type PlanStage = 'early' | 'mid' | 'late' | 'eve';
 export interface LibraryTask { tr: string; en: string; area?: string; when?: PlanStage[] }
 
 const T = (tr: string, en: string, area?: string, when?: PlanStage[]): LibraryTask => ({ tr, en, area, when });
+/** Yalnız borç kapatma hedefine: birikim hedefine "kredi kartı borcun" önermek plana özgü değil, yanlış (2026-11-06, cihazda). */
+const DEBT_AREA = 'debt';
 const EARLY: PlanStage[] = ['early'];
 const MID: PlanStage[] = ['mid'];
 const LATE: PlanStage[] = ['late', 'eve'];
@@ -201,8 +205,8 @@ export const TASARRUF_LIBRARY: LibraryTask[] = [
   T('Sepetteki bir ürünü çıkar', 'Remove one item from your cart'),
   T('Bir faturayı karşılaştır: daha ucuz seçenek var mı', 'Compare one bill: is there a cheaper option'),
   T('Kullanmadığın bir şeyi satışa koy', 'List something you don’t use for sale'),
-  T('Kredi kartı borcunu kontrol et, asgariye bırakma', 'Check your card balance; don’t leave it at the minimum'),
-  T('En yüksek faizli borcunu belirle', 'Find your highest-interest debt'),
+  T('Kredi kartı borcunu kontrol et, asgariye bırakma', 'Check your card balance; don’t leave it at the minimum', DEBT_AREA),
+  T('En yüksek faizli borcunu belirle', 'Find your highest-interest debt', DEBT_AREA),
   T('Bu ayın bütçesini 3 kalemde yaz', 'Write this month’s budget in 3 lines'),
   T('Acil durum için kaç ay yeter, hesapla', 'Work out how many months your emergency fund covers'),
   T('Para harcadığın bir duyguyu not et', 'Note a feeling that makes you spend'),
@@ -295,6 +299,7 @@ export function libraryPool(kind: string, daysLeft: number, weak?: string[] | nu
   const out: LibraryTask[] = [];
   for (const t of LIBRARY_BY_KIND[kind] ?? []) {
     if (hide.has(t.tr)) continue;
+    if (t.area === DEBT_AREA && useBudgetStore.getState().budgetType !== 'borc') continue;
     if (t.when && !t.when.includes(stage)) continue;
     out.push(t);
     if (t.area && weakSet.has(t.area)) out.push(t);

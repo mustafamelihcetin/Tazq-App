@@ -141,6 +141,27 @@ export function consistency(h: HabitLike, today: string, window = 30): number | 
   return expected > 0 ? Math.round((got / expected) * 100) : null;
 }
 
+export type DayMark = 'done' | 'rest' | 'missed' | 'off' | 'open';
+
+/**
+ * Son 7 günün izi, eskiden bugüne. Haftalık planda boş gün kaçırma değildir (haftanın hedefi başka gün tutulabilir).
+ * Oluşturulmadan önceki ve plansız günler 'off'; bugün henüz yapılmadıysa 'open': kaçırma sayılmaz.
+ */
+export function lastSevenDays(h: HabitLike, today: string): DayMark[] {
+  const s = scheduleOf(h);
+  const done = doneSet(h);
+  const skipped = skipSet(h);
+  const born = h.createdAt ? keyOf(new Date(h.createdAt)) : null;
+  return Array.from({ length: 7 }, (_, i) => {
+    const k = addDays(today, i - 6);
+    if (done.has(k)) return 'done' as const;
+    if (skipped.has(k)) return 'rest' as const;
+    if (k === today) return 'open' as const;
+    if ((born && k < born) || s.kind === 'weekly' || !isPlannedDay(h, k)) return 'off' as const;
+    return 'missed' as const;
+  });
+}
+
 /**
  * "İKİ KEZ KAÇIRMA" durumu — son iki planlı günün (bugün hariç; haftalıkta son iki hafta) kaydı.
  *  'ok'     — son planlı gün yapıldı/mola ya da henüz geçmiş yok

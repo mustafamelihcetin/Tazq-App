@@ -41,7 +41,7 @@ const LOGIN = stripComments(read('app/login.tsx'));
 
 /** Örnek veri ve tur taşıyan her ekran. Yeni bir ekran eklenirse buraya da eklenmeli. */
 const FIRST_RUN_SCREENS: [string, string][] = [
-  ['app/index.tsx', stripComments(read('app/index.tsx'))],
+  ['app/index.tsx', stripComments((read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx')))],
   ['app/tasks.tsx', stripComments(read('app/tasks.tsx'))],
   ['app/cockpit.tsx', stripComments(read('app/cockpit.tsx'))],
 ];
@@ -68,7 +68,8 @@ describe('kural TEK yerde', () => {
   it('turu olan HER ekran ortak tur kapısından geçer — odak ekranı dahil', () => {
     // Odak turunda hiç kapı yoktu: ekran arka plandayken de açılabiliyordu.
     for (const f of ['app/index.tsx', 'app/tasks.tsx', 'app/cockpit.tsx', 'app/modlar.tsx', 'app/focus.tsx']) {
-      const src = stripComments(read(f));
+      // Ana sayfanın kancaları modelde, çizimi ekranda.
+      const src = stripComments(read(f) + (f === 'app/index.tsx' ? read('features/dashboard/hooks/useHomeModel.tsx') : ''));
       expect(`${f}: ${/useTourGate\('\w+'/.test(src)}`).toBe(`${f}: true`);
       expect(`${f}: ${/\{tourOn && \(?\s*<HelpTourModal/.test(src)}`).toBe(`${f}: true`);
     }
@@ -166,7 +167,7 @@ describe('tur kullanıcının eylemine tepki olarak açılmaz', () => {
 });
 
 describe('hoş geldin ile tur SENKRON', () => {
-  const INDEX = stripComments(read('app/index.tsx'));
+  const INDEX = stripComments((read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx')));
   const LAYOUT = stripComments(read('app/_layout.tsx'));
 
   it('ana sayfa turu hoş geldin görünür ya da beklemedeyken AÇILMAZ', () => {
@@ -215,7 +216,7 @@ describe('hoş geldin ekranı: oturuma değil DİSKE yazılı', () => {
   });
 
   it('ilk giriş bayrağı ekranı AÇMIYOR, yalnız kalıcı durumu kuruyor', () => {
-    const INDEX = stripComments(read('app/index.tsx'));
+    const INDEX = stripComments((read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx')));
     expect(INDEX).toMatch(/if \(isFirstLogin && welcomeStatus === 'unknown'\)/);
     expect(INDEX).toMatch(/if \(welcomeStatus === 'pending'/);
     // Slaytların yazdığı bayrak artık kapıda DEĞİL.
@@ -223,7 +224,7 @@ describe('hoş geldin ekranı: oturuma değil DİSKE yazılı', () => {
   });
 
   it('bayrak yalnız ekran tamamlanınca kapanıyor', () => {
-    const INDEX = stripComments(read('app/index.tsx'));
+    const INDEX = stripComments((read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx')));
     expect(INDEX).toContain("setWelcomeStatus('done')");
   });
 

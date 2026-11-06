@@ -15,11 +15,11 @@ import { fmtDateKey } from '@/features/habits';
 */
 const COPY = { tr: { close: 'Kapat' }, en: { close: 'Close' } };
 
-export function WeekSkySheet({ visible, language, onClose }: { visible: boolean; language: 'tr' | 'en'; onClose: () => void }) {
+export function WeekSkySheet({ visible, language, onClose, days }: { visible: boolean; language: 'tr' | 'en'; onClose: () => void; /** Bakılan hafta; verilmezse bu hafta. */ days?: string[] }) {
   const insets = useSafeAreaInsets();
   const sessions = useFocusHistoryStore(s => s.sessions);
   const legacy = useFocusHistoryStore(s => s.usingLegacyFallback);
-  const dayKeys = useMemo(() => weekRange(new Date()).days, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dayKeys = useMemo(() => days ?? weekRange(new Date()).days, [visible, days]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (visible) void useFocusHistoryStore.getState().refresh(); }, [visible]);
 

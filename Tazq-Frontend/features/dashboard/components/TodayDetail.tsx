@@ -55,9 +55,9 @@ export function TodayDetail({ kind, tasks, habits, focusMin, focusGoal, onFocusT
 
   const cta = (label: string, onPress: () => void, icon?: React.ReactNode) => (
     <Touchable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}
-      style={[styles.cta, { backgroundColor: theme.primary }]}>
+      style={[styles.cta, { backgroundColor: theme.primaryFill }]}>
       {icon}
-      <Text style={{ fontSize: F.footnote, fontWeight: W.semibold, color: theme.onPrimary }}>{label}</Text>
+      <Text style={{ fontSize: F.footnote, fontWeight: W.semibold, color: theme.onPrimaryFill }}>{label}</Text>
     </Touchable>
   );
   const link = (label: string, onPress: () => void) => (
@@ -81,7 +81,7 @@ export function TodayDetail({ kind, tasks, habits, focusMin, focusGoal, onFocusT
               </View>
             );
           })}
-          <View style={styles.actions}>{cta(c.focus, () => onFocusTask(), <Play size={ICON.xs} color={theme.onPrimary} fill={theme.onPrimary} />)}</View>
+          <View style={styles.actions}>{cta(c.focus, () => onFocusTask(), <Play size={ICON.xs} color={theme.onPrimaryFill} fill={theme.onPrimaryFill} />)}</View>
         </>
       )}
 
@@ -91,7 +91,7 @@ export function TodayDetail({ kind, tasks, habits, focusMin, focusGoal, onFocusT
             <View key={t.id} style={styles.row}>
               <Text style={[styles.item, { color: dc.ink }]} numberOfLines={1}>{t.title}</Text>
               {i === 0 && isFocusWorthy(t) && (
-                <Touchable onPress={() => onFocusTask(t)} accessibilityRole="button" accessibilityLabel={`${c.focus}: ${t.title}`} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={[styles.mini, { backgroundColor: theme.primary + '1F' }]}>
+                <Touchable onPress={() => onFocusTask(t)} accessibilityRole="button" accessibilityLabel={`${c.focus}: ${t.title}`} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={[styles.mini, { backgroundColor: theme.primaryFill + '1F' }]}>
                   <Play size={ICON.xs} color={theme.primary} fill={theme.primary} />
                 </Touchable>
               )}

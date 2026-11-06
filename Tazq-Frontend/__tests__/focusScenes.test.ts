@@ -12,7 +12,7 @@ describe('focusScenes', () => {
 
   it('Aurora tema renklerini kullanır (eski görünüm birebir)', () => {
     expect(sceneLights(sceneOf('aurora'), theme)).toEqual(sceneOf('aurora').lights);
-    expect(sceneAccent(sceneOf('aurora'), theme.primary)).toBe(theme.primary);
+    expect(sceneAccent(sceneOf('aurora'), theme.primary)).toBe(sceneOf('aurora').accent);
   });
 
   it('diğer sahnelerin paleti birbirinden ve Aurora\'dan farklı', () => {
@@ -25,10 +25,11 @@ describe('focusScenes', () => {
     expect(sceneOf(undefined).id).toBe('aurora');
   });
 
-  it('sahne vurgusu ekranın ana rengi olur; Aurora paleti değiştirmez', () => {
+  it('sahne vurgusu ekranın ana rengi olur; her sahnenin kendi rengi var, kullanıcının vurgusu geçmez', () => {
     const base = { primary: '#0A84FF', onPrimary: '#FFFFFF', background: '#000000' };
-    expect(sceneTheme(sceneOf('aurora'), base)).toBe(base);
-    expect(sceneTheme(sceneOf('ember'), base)).toEqual({ ...base, primary: '#F59E0B', onPrimary: '#0B0B0F', background: '#1E130B' });
+    for (const id of ['aurora', 'tide', 'ember', 'mist']) expect(sceneOf(id).accent).toBeTruthy();
+    expect(sceneTheme(sceneOf('aurora'), base).primary).toBe(sceneOf('aurora').accent);
+    expect(sceneTheme(sceneOf('ember'), base)).toEqual({ ...base, primary: '#D6A878', primaryFill: '#D6A878', onPrimary: '#0B0B0F', onPrimaryFill: '#0B0B0F', background: '#1E130B' });
   });
 });
 
@@ -45,7 +46,7 @@ describe('sceneSheetTheme — seans sonu ve odak pencereleri sahneyi izler', () 
   const dark = { ...light, primary: '#0A84FF', surface: '#09090B' };
 
   it('Aurora uygulama temasını değiştirmez', () => {
-    expect(sceneSheetTheme(sceneOf('aurora'), light, false)).toBe(light);
+    expect(sceneSheetTheme(sceneOf('aurora'), light, false).primary).not.toBe(light.primary);
   });
 
   it.each(['tide', 'ember', 'mist'])('%s: açık zeminde vurgu metin olarak okunur, düğme yazısı okunur', (id) => {

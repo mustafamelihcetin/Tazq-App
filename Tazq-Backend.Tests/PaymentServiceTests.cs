@@ -161,5 +161,31 @@ namespace Tazq_Backend.Tests
             var once = await _service.CreatePaymentAsync(1, "Y", 1m, 10, PaymentRecurrence.Once, null, null, null, installmentCount: 6, installmentStart: "2026-11");
             Assert.Null(once!.InstallmentCount); // tek seferlikte taksit anlamsız
         }
+
+        [Fact]
+        public async Task PeriodicRecurrence_KeepsAnchor_AcceptsMonthlyInstallmentKey_AndMarksCycle()
+        {
+            var anchor = new DateTime(2027, 1, 15, 9, 0, 0, DateTimeKind.Utc);
+            var mtv = await _service.CreatePaymentAsync(1, "MTV", 3000m, 15, PaymentRecurrence.SemiAnnual, anchor, null, "TRY", false, 4, "2027-01");
+            Assert.Equal(PaymentRecurrence.SemiAnnual, mtv!.Recurrence);
+            Assert.Equal(4, mtv.InstallmentCount); // dönem anahtarı aylıkla aynı biçimde
+
+            var paid = await _service.MarkPaidAsync(1, mtv.Id, "2027-01");
+            Assert.Equal("2027-01", paid!.LastPaidCycleKey);
+            Assert.Equal(anchor, paid.NextDueDate); // vade çapası ödemeyle kaymaz, sıradaki dönem istemcide hesaplanır
+
+            var q = await _service.CreatePaymentAsync(1, "Sigorta", 900m, 3, PaymentRecurrence.Quarterly, anchor, null);
+            Assert.Equal(PaymentRecurrence.Quarterly, q!.Recurrence);
+        }
+
+        [Fact]
+        public void PeriodicValues_DoNotShiftStoredIntegers()
+        {
+            Assert.Equal(0, (int)PaymentRecurrence.Once);
+            Assert.Equal(1, (int)PaymentRecurrence.Monthly);
+            Assert.Equal(2, (int)PaymentRecurrence.Yearly);
+            Assert.Equal(3, (int)PaymentRecurrence.Quarterly);
+            Assert.Equal(4, (int)PaymentRecurrence.SemiAnnual);
+        }
     }
 }

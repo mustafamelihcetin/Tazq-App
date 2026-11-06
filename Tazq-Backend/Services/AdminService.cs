@@ -119,8 +119,8 @@ namespace Tazq_App.Services
                     : q.OrderByDescending(u => _context.FocusSessions.Where(f => f.UserId == u.Id).Sum(f => (int?)f.DurationMinutes) ?? 0),
                 // recent — gerçek son görülme (LastActiveAt), yalnız odak oturumu değil
                 _ => asc
-                    ? q.OrderBy(u => u.LastActiveAt)
-                    : q.OrderByDescending(u => u.LastActiveAt),
+                    ? q.OrderBy(u => u.LastActiveAt ?? _context.RefreshTokens.Where(r => r.UserId == u.Id).Max(r => (DateTime?)r.CreatedAt))
+                    : q.OrderByDescending(u => u.LastActiveAt ?? _context.RefreshTokens.Where(r => r.UserId == u.Id).Max(r => (DateTime?)r.CreatedAt)),
             };
             q = ordered.ThenBy(u => u.Id);
 
@@ -141,7 +141,8 @@ namespace Tazq_App.Services
                     _context.Tasks.Count(t => t.UserId == u.Id),
                     _context.Tasks.Count(t => t.UserId == u.Id && t.IsCompleted),
                     _context.FocusSessions.Where(f => f.UserId == u.Id).Sum(f => (int?)f.DurationMinutes) ?? 0,
-                    u.LastActiveAt,
+                    // Alan sonradan eklendi: o günden beri gelmeyenlerde son oturum açışı en doğru iz (15 kişi, 2026-11-06).
+                    u.LastActiveAt ?? _context.RefreshTokens.Where(r => r.UserId == u.Id).Max(r => (DateTime?)r.CreatedAt),
                     u.AnalyticsInclude,
                     u.AnalyticsInclude == true || (u.AnalyticsInclude == null && u.Role == "User")))
                 .ToListAsync();

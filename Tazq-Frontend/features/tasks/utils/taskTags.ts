@@ -20,6 +20,8 @@ const SYSTEM_TAGS = new Set<string>([
   'kilo', 'maraton', 'guc', 'genel', 'daily',
   // taslak/yer tutucu
   'draft',
+  // ertelendi işareti, kullanıcı etiketi değil
+  'postponed',
   // arşiv bayrağı (bkz. ARCHIVED_TAG) — etiket değil, durum
   'archived',
 ]);

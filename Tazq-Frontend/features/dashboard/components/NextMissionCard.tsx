@@ -162,7 +162,7 @@ export const NextMissionCard = React.memo<NextMissionCardProps>(
                 accessibilityLabel={primaryLabel}
                 style={[
                   styles.primaryBtn,
-                  { backgroundColor: task ? theme.primary : theme.surfaceContainerHigh },
+                  { backgroundColor: task ? theme.primaryFill : theme.surfaceContainerHigh },
                 ]}
               >
                 {/*
@@ -170,7 +170,7 @@ export const NextMissionCard = React.memo<NextMissionCardProps>(
                   çünkü ortada henüz bir eylem yok — davet var. Renk = anlam.
                 */}
                 {!task && <Plus size={ICON.md} color={theme.onSurface} />}
-                <Text style={[styles.primaryText, { color: task ? theme.onPrimary : theme.onSurface }]}>
+                <Text style={[styles.primaryText, { color: task ? theme.onPrimaryFill : theme.onSurface }]}>
                   {primaryLabel}
                 </Text>
                 {/*
@@ -179,8 +179,8 @@ export const NextMissionCard = React.memo<NextMissionCardProps>(
                   gösterdiği yer etiketin kendisi olur ve anlamı kaybolur.
                 */}
                 {task && (onFocus
-                  ? <Play size={ICON.sm} color={theme.onPrimary} fill={theme.onPrimary} />
-                  : <ChevronRight size={ICON.md} color={theme.onPrimary} />)}
+                  ? <Play size={ICON.sm} color={theme.onPrimaryFill} fill={theme.onPrimaryFill} />
+                  : <ChevronRight size={ICON.md} color={theme.onPrimaryFill} />)}
               </Touchable>
 
               <Touchable

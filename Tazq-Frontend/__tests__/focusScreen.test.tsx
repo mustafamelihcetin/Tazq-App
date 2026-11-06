@@ -132,7 +132,7 @@ describe('odak ekranı kuralları', () => {
   const read = (rel: string) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
   const FOCUS = read('app/focus.tsx');
   const LAYOUT = read('app/_layout.tsx');
-  const INDEX = read('app/index.tsx');
+  const INDEX = (read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'));
 
   it('seans sürerken ekran AÇIK kalır; katı modda tercih dinlenmez', () => {
     // Ekran kendiliğinden kararıp kilitleniyordu; katı modda bu "ayrıldın" sayılıyordu.

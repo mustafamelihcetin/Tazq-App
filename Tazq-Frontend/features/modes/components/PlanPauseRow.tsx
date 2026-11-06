@@ -25,6 +25,7 @@ import type { PlanLifecycle } from '@/features/modes/hooks/usePlanLifecycle';
 const COPY = {
   tr: {
     arc: (elapsed: number, effort: number) => `${elapsed} gündür sürüyor · ${effort} gününde çalıştın`,
+    arcOnly: (elapsed: number) => `${elapsed} gündür sürüyor`,
     arcFirstDay: 'Bugün başladın',
     pause: 'Ara ver',
     pauseTitle: 'Plana ara ver',
@@ -39,6 +40,7 @@ const COPY = {
   },
   en: {
     arc: (elapsed: number, effort: number) => `${elapsed} days in · worked on ${effort}`,
+    arcOnly: (elapsed: number) => `${elapsed} days in`,
     arcFirstDay: 'Started today',
     pause: 'Pause',
     pauseTitle: 'Pause this plan',
@@ -100,7 +102,7 @@ export const PlanArcRow: React.FC<Common> = ({ tr, lifecycle }) => {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
       <Text numberOfLines={1} style={{ flex: 1, color: theme.onSurfaceMuted, fontSize: F.caption }}>
-        {arc ? (arc.elapsedDays <= 1 ? c.arcFirstDay : c.arc(arc.elapsedDays, arc.effortDays)) : ''}
+        {arc ? (arc.elapsedDays <= 1 ? c.arcFirstDay : arc.effortDays > 0 ? c.arc(arc.elapsedDays, arc.effortDays) : c.arcOnly(arc.elapsedDays)) : ''}
       </Text>
       <Touchable
         onPress={() => {

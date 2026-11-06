@@ -84,7 +84,7 @@ describe('useAwayLine', () => {
 });
 
 it('ana sayfada satır selamın YERİNE geçer (üst üste binmez)', () => {
-  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'app/index.tsx'), 'utf8');
+  const src = (require('fs').readFileSync(require('path').join(__dirname, '..', 'app/index.tsx'), 'utf8') + require('fs').readFileSync(require('path').join(__dirname, '..', 'features/dashboard/hooks/useHomeModel.tsx'), 'utf8'));
   expect(src).toContain('const awayLine = useAwayLine(');
   expect(src).toMatch(/greeting=\{awayLine \?\? /);
 });

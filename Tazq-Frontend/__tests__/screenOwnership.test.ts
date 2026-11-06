@@ -163,7 +163,7 @@ describe('ana sayfa → Gün ekranı (E-1)', () => {
 
   it('panel kaydırılan günü iletir, ana sayfa Gün ekranını o tarihle açar', () => {
     expect(read('features/dashboard/components/TodayRings.tsx')).toContain('onOpenDay');
-    const INDEX = read('app/index.tsx');
+    const INDEX = (read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'));
     expect(INDEX).toContain("pathname: '/gun'");
     expect(INDEX).toContain('onOpenDay={openDay}');
   });
@@ -184,7 +184,7 @@ describe('Rapor bağlantıları (E-2, K-4)', () => {
     expect(REPORT).toMatch(/hasModes && \(/);
   });
 
-  it("içinde bulunulan haftada Bu Hafta'ya döner", () => {
-    expect(REPORT).toContain("router.dismissTo('/cockpit')");
+  it('Bu Hafta bağlantısı yok: buraya oradan gelinir, geri düğmesi yeter (2026-11-06)', () => {
+    expect(REPORT).not.toContain("router.dismissTo('/cockpit')");
   });
 });

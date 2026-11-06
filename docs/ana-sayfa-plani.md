@@ -1,6 +1,6 @@
 # Ana Sayfa ve Bağlı Sayfalar Kalite Planı
 
-Tarih: 2026-11-06. Kaynak: [ana-sayfa-analizi.md](ana-sayfa-analizi.md). Faz 1-5 uygulandı (cihazda denenmedi). Gün sınırı ayrı tura kaldı (Karar 2). `index.tsx` bölünmesi cihaz denemesinden sonraya kaldı.
+Tarih: 2026-11-06. Kaynak: [ana-sayfa-analizi.md](ana-sayfa-analizi.md). Tüm fazlar uygulandı (cihazda denenmedi). `index.tsx` 790 satırın altında, durum `useHomeModel`de; model hâlâ 1730 satır, `HomeSheets` yapılmadı.
 
 ## Hedef
 
@@ -105,12 +105,16 @@ Ayrıca titreşim sayısı tavanı aşılmaz; önce gereksiz titreşim bulunup k
 - **Başlık:** Profil ve Ayarlar aynı adı kullanır (tek sözlük anahtarı).
 - **Dil:** `settings.tsx` ve `profile.tsx` satır içi dil koşulları sözlüğe taşınır, `i18nRatchet` sınırı düşürülür. Görünüm değişmez.
 - **Geri yükleme:** "Verilerimi indir"in yanına "Yedeği geri yükle". Dosya seçilir, "12 görev, 3 alışkanlık" önizlemesi, onay. Üstüne yazmaz, ekler. Kimliği aynı kayıt tekrar eklenmez. Dosya seçici yüklü `expo-file-system` içinde (`File.pickFileAsync`), yeni paket gerekmedi.
-- **Gün sınırı:** Tek anahtar "Yeni gün 03:00'te başlasın" (Loop). **En riskli madde:** bugün yalnız odak 3 saat tamponlu, kalan 48 dosya `toDateKey` ile takvim günü. Önce odak ile görev ve alışkanlık arasındaki tutarsızlık ölçülür, tek `appDayKey` yardımcısına geçilir. Ayrı PR gibi ele alınır; alışkanlık serisi testleri olmadan başlanmaz.
+- **Gün sınırı (düzeltildi):** Plandaki varsayım yanlıştı: alışkanlık, odak, spor, momentum, plan ve sınav sayaçları zaten 03:00'te gün değiştiriyordu, kural 14 yerde elle yazılıydı. Anahtar eklenmedi: varsayılan zaten oydu. Kural `shared/utils/appDay.ts`te toplandı, gece yarısı ile 03:00 arasında Kado'daki gibi tek satır not (`RolloverCaption`). Görev vadesi takvim günü kalır (`toDateKey`): "hangi gün olacak" ayrı soru.
 
 ## Faz 6: Bakım (#9)
 
 - `app/index.tsx`: durum `useHomeModel` kancasına, açılır yüzeyler `HomeSheets` bileşenine (Pomodoist'in ince ekran ve view model ayrımı). Hedef 1.200 satırın altı, `fileSize` sınırı düşer.
 - `docs/ekran-envanteri.md` güncellenir: silinen `FocusWeekStrip` hâlâ yazıyor.
+
+## Ek: Bugün'ün alışkanlıkları (2026-11-06)
+
+Yatay şerit yerine tamamı görünen ızgara ve son 7 gün izi (`HabitTile`). Okunan repolar: scastiel/kado `21bad65` (MIT, `HabitRowView`, `TodayRow`), FriesI23/mhabit `8adc337` (Apache-2.0, `page_today`), ofalvai/HabitBuilder `38ad6b2` (Apache-2.0, `compact/HabitItem`), InlitX/streak `2182edf` (GPL-3.0, `express_habit_card`), xpavle00/Habo `1ddf4c4` (GPL-3.0, `one_day_button`), iSoron/uhabits (GPL-3.0). Kod kopyalanmadı, yalnız fikir alındı.
 
 ## Bilerek yapılmayanlar
 

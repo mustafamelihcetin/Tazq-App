@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 //  TAZQ – Yasal Metinler / Legal Texts
-//  Son güncelleme / Last updated: 2026-06-29
+//  Son güncelleme / Last updated: 2026-11-06
 // ─────────────────────────────────────────────────────────────────────────────
 export type LegalDocKey = 'terms' | 'privacy' | 'kvkk' | 'consent';
 
@@ -313,6 +313,12 @@ Bu özellik varsayılan olarak KAPALIDIR ve yalnızca sizin açık izninizle, uy
    – Bu sağlık verisi YALNIZCA CİHAZINIZDA işlenir; sunucularımıza gönderilmez, tarafımızca saklanmaz, üçüncü kişilerle paylaşılmaz ve hiçbir şekilde pazarlama veya reklam amacıyla kullanılmaz.
    – İzni istediğiniz zaman uygulama ayarlarından veya cihazınızın Sağlık/Health Connect ayarlarından geri çekebilirsiniz. Özellik kapatıldığında hiçbir sağlık verisi okunmaz.
 
+2.5.1 İsteğe Bağlı Yedek (Birikim, Borç, Bırakma)
+Birikim, borç ve bırakma kayıtları varsayılan olarak yalnızca cihazınızda tutulur. Uygulamadaki "Hesabıma yedekle" onayını verirseniz bu kayıtlar hesabınızla birlikte sunucularımızda saklanır:
+   – Birikim/borç: tutarlar, hedef, tarih ve hareket kayıtları
+   – Bırakma: bıraktığınız şey, temiz gün başlangıcı, en uzun seri ve kayma tarihleri (sağlık verisi sayılabilir; açık rızanıza dayanır)
+Bu veriler yalnızca size geri yüklemek için kullanılır, pazarlamada kullanılmaz ve üçüncü kişilerle paylaşılmaz. Onayı istediğiniz an uygulamadan geri alabilirsiniz; bu durumda sunucudaki kopya silinir. Kilo kayıtları bu kapsamda değildir ve sunucuya gönderilmez.
+
 2.6 Toplamadığımız Veriler
    – Konum bilgisi
    – Kamera veya mikrofon erişimi (açıkça izin verilmediği sürece)
@@ -480,6 +486,12 @@ This feature is OFF by default and is enabled only with your explicit permission
    – Each permission is granted separately: you may share sleep but not activity (or the other way round). Data you do not grant is never read and the related feature simply stays off.
    – This health data is processed ON YOUR DEVICE ONLY; it is not transmitted to our servers, not stored by us, not shared with any third party, and never used for marketing or advertising.
    – You can revoke access at any time from the app settings or your device's Health/Health Connect settings. When the feature is disabled, no health data is read.
+
+2.5.1 Optional Backup (Savings, Debt, Quit)
+Savings, debt and quit records stay only on your device by default. If you agree to "Back up to my account" in the app, these records are stored on our servers with your account:
+   – Savings/debt: amounts, goal, dates and transaction entries
+   – Quit: what you are quitting, clean-streak start, longest streak and slip dates (may count as health data; based on your explicit consent)
+This data is used only to restore it to you, is never used for marketing and is not shared with third parties. You can withdraw consent anytime in the app; the server copy is then deleted. Weight records are not included and are not sent to our servers.
 
 2.6 Data We Do Not Collect
    – Location data

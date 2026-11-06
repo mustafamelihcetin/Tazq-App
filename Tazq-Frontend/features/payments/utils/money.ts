@@ -100,3 +100,22 @@ export function monthlyPaid(
   }
   return buckets;
 }
+
+/**
+ * KULLANICININ YAZDIĞI TUTAR (2026-11-06). parseFloat("12.000") 12 veriyordu: on iki bin liralık kira 12 ₺ kaydediliyordu.
+ * Son ayırıcı ondalıktır; ama tek ayırıcının ardında tam üç hane varsa binliktir ("12.000", "12,000"). Geçersizse 0.
+ */
+export function parseAmount(text: string): number {
+  const clean = text.replace(/[\s\u00A0]/g, '').replace(/[^\d.,]/g, '');
+  if (!clean) return 0;
+  const seps = clean.match(/[.,]/g) ?? [];
+  const last = Math.max(clean.lastIndexOf('.'), clean.lastIndexOf(','));
+  const tail = last >= 0 ? clean.slice(last + 1) : '';
+  const grouped = seps.length === 1 ? tail.length === 3 : seps.length > 1 && new Set(seps).size === 1;
+  const whole = last >= 0 ? clean.slice(0, last).replace(/[.,]/g, '') : clean;
+  const n = Number(last < 0 ? clean : grouped ? whole + tail : `${whole}.${tail}`);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Düzenleme alanı: yerel ayıraçla, gruplamalı (parseAmount geri okur). */
+export const amountField = (n: number, locale: string): string => n.toLocaleString(locale, { maximumFractionDigits: 2 });

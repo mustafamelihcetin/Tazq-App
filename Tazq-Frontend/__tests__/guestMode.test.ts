@@ -213,8 +213,9 @@ describe('"kaydedildi" mesajı sebebine göre doğru', () => {
 
   it('11 kopya kalmadı — tek yerden geliyor', () => {
     for (const f of ['app/index.tsx', 'app/tasks.tsx']) {
-      expect(read(f)).not.toContain("'Çevrimdışı kaydedildi'");
-      expect(read(f)).toContain('savedLocallyMessage()');
+      const src = read(f) + (f === 'app/index.tsx' ? read('features/dashboard/hooks/useHomeModel.tsx') : '');
+      expect(src).not.toContain("'Çevrimdışı kaydedildi'");
+      expect(src).toContain('savedLocallyMessage()');
     }
   });
 });
@@ -278,7 +279,10 @@ describe('misafir profili — uydurma kimlik YOK', () => {
   });
 
   it('misafirin profil düğmesi "hesap oluştur" — kaydedemeyecek düzenleme değil', () => {
-    expect(stripComments(read('app/profile.tsx'))).toContain("onPress={isGuest ? () => router.push('/register') : openEditModal}");
+    const src = stripComments(read('app/profile.tsx'));
+    // Düzenle yalnız hesapta; misafirin tam genişlik eylemi kayıt olmak.
+    expect(src).toMatch(/\{!isGuest && \(\s*<Touchable\s*onPress=\{openEditModal\}/);
+    expect(src).toMatch(/\{isGuest && \(\s*<Touchable onPress=\{\(\) => router\.push\('\/register'\)\}/);
   });
 
   it('misafire "Hesabımı Sil" değil "bu cihazdaki verileri sil" — silinecek hesap yok', () => {
@@ -367,7 +371,7 @@ describe('misafir hoş geldin — yalnız YENİ misafir girişinde, bir kez (202
   });
 
   it('ana sayfa misafirde de hoş geldini açar ve sunucuya yazmadan kaydeder', () => {
-    const src = stripComments(read('app/index.tsx'));
+    const src = stripComments((read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx')));
     expect(src).toMatch(/if \(!user && !isGuest\)/);
     expect(src).toContain('setGuestProfile(');
     // Selamlama ve avatar misafir profilini kullanır.

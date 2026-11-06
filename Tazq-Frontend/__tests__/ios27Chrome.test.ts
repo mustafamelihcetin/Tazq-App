@@ -120,7 +120,7 @@ describe('kaydırmada küçülme', () => {
   it('sinyal sekmeli DÖRT ekranın hepsine bağlı', () => {
     // Üçü ortak kaydırma hook\'undan, ana sayfa kendi değerinden.
     expect(read('shared/hooks/useCollapsibleHeader.ts')).toContain('useChromeMinimizeOnScroll(scrollY)');
-    expect(read('app/index.tsx')).toContain('useChromeMinimizeOnScroll(scrollY)');
+    expect((read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'))).toContain('useChromeMinimizeOnScroll(scrollY)');
     for (const f of ['app/tasks.tsx', 'app/cockpit.tsx', 'app/modlar.tsx']) {
       expect(read(f)).toContain('useCollapsibleHeader');
     }
@@ -243,10 +243,12 @@ describe('Android: M3 yüzen çubuk — cam yalnız iOS\'ta', () => {
     expect(TOKENS).toMatch(/NAV_BAR_HEIGHT = Platform\.OS === 'ios' \? 49 : 64/);
   });
 
-  it('Android çubuğu OPAK tonal yüzey — cam yalnız iOS\'ta', () => {
+  it('Android çubuğu: cam yalnız NavGlass üstünden, yoksa OPAK tonal yüzey', () => {
+    // 2026-11-06 kullanıcı kararı: Android 12+ gerçek cam; bulanıksız saydamlık yok (arkadan yazı geçer).
     // 2026-10-25: Android kapsülü ayrı bileşende (AndroidNavCapsule — PillNav + M3 yatay öğe).
     const CAP = read('shared/components/AndroidNavCapsule.tsx');
-    expect(CAP).toMatch(/backgroundColor: theme\.surfaceCard/);
+    expect(CAP).toContain("backgroundColor: glass ? 'transparent' : theme.surfaceCard");
+    expect(read('shared/components/NavGlass.tsx')).toContain("Number(Platform.Version) >= 31 && !isLowPowerGraphicsDevice()");
     expect(CAP).not.toContain("from '@/shared/components/AppBlur'");
     expect(NAV).toMatch(/\{IS_IOS && <AppBlur material="chrome"/);
   });
@@ -493,7 +495,7 @@ describe('ikon kısayolları', () => {
   });
 
   it('kök düzende DEĞİL ana ekranda bağlı — gezinme ağacı hazır olmalı', () => {
-    expect(read('app/index.tsx')).toContain('useAppShortcuts()');
+    expect((read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'))).toContain('useAppShortcuts()');
     expect(read('app/_layout.tsx')).not.toContain('useAppShortcuts');
   });
 });

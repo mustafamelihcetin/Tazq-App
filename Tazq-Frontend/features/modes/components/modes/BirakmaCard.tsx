@@ -270,7 +270,7 @@ export function BirakmaCard() {
         </FormReveal>
       )}
       {/* Sağlık/finans verisi sunucuya gitmez — kullanıcı bunu veriyi girerken bilsin (bkz. DeviceOnlyNote). */}
-      {seasonal.birakmaMode && <DeviceOnlyNote kind="health" />}
+      {seasonal.birakmaMode && <DeviceOnlyNote kind="health" backup="quit" />}
       {seasonal.birakmaMode && (
         <ModeCardClose
           mode="birakma"

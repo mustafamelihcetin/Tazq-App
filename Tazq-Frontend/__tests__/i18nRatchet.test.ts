@@ -101,7 +101,8 @@ const BASELINE: Record<string, number> = {
   'app/archive.tsx': 8,
   'app/cockpit.tsx': 57, // 63 → 57: bu turun metinleri DAY_COPY sözlüğünde
   'app/focus.tsx': 38, // 57 → 38 (ölçülen)
-  'app/index.tsx': 45, // 63 → 46: komut paleti ve Zen/Core metin nesnelerine geçti; 46 → 45: selamlamadaki yer tutucu ad ("sen") kalktı
+  'app/index.tsx': 17, // 45 → 17 (2026-11-06): 23'ü useHomeModel'e taşındı, toplam düştü
+  'features/dashboard/hooks/useHomeModel.tsx': 23,
   'app/login.tsx': 47,
   // 27 → 22: mod adları ve özet hesabı ortak hook'a taşındı (useActiveModeSummary),
   // adlar orada sözlükten geliyor.
@@ -117,7 +118,7 @@ const BASELINE: Record<string, number> = {
   'app/settings.tsx': 8, // 84 → 8 (2026-11-06): sözlüğe taşındı (settingsCopy)
   'app/tasks.tsx': 58, // 85 → 58: satır bileşeni TaskListItem'a taşındı (11), ölü tarih/tekrar yardımcıları silindi
   'app/verify-email.tsx': 11,
-  'features/dashboard/components/MyDayHabits.tsx': 5,
+  'features/dashboard/components/MyDayHabits.tsx': 1, // 5 → 1 (2026-11-06): sözlükte
   // 3 → 1: yedi ayrı dallanma tek `copy(tr)` sözlüğüne toplandı. Satıra tamamlama
   // halkası eklenirken dört metin daha gerekiyordu; her birini ayrı dallandırmak
   // aynı soruyu on bir kez sormak olurdu.

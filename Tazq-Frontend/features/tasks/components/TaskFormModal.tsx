@@ -135,7 +135,7 @@ function getNextOccurrenceLabel(dueDateStr: string | null | undefined, recurrenc
 const VoiceWave = ({ active, theme }: { active: boolean; theme: AppTheme }) => (
   <View style={styles.voiceWave}>
     <RNAnimated.View
-      style={[styles.voiceHalo, { backgroundColor: theme.primary, opacity: active ? 0.35 : 0, transform: [{ scale: active ? 1.4 : 1 }] }]}
+      style={[styles.voiceHalo, { backgroundColor: theme.primaryFill, opacity: active ? 0.35 : 0, transform: [{ scale: active ? 1.4 : 1 }] }]}
     />
     <Mic size={ICON.md} color={active ? theme.primary : theme.onSurfaceVariant} />
   </View>
@@ -537,12 +537,12 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     accessibilityRole="button"
                     accessibilityLabel={task ? c.save : c.add}
                     accessibilityState={{ disabled: !canSave, busy: saving }}
-                    style={[styles.saveBtn, { backgroundColor: canSave || saving ? theme.primary : theme.surfaceField }]}
+                    style={[styles.saveBtn, { backgroundColor: canSave || saving ? theme.primaryFill : theme.surfaceField }]}
                   >
                     {saving ? (
-                      <ActivityIndicator size="small" color={theme.onPrimary} />
+                      <ActivityIndicator size="small" color={theme.onPrimaryFill} />
                     ) : (
-                      <Text style={[styles.saveText, { color: canSave ? theme.onPrimary : theme.onSurfaceMuted }]}>{task ? c.save : c.add}</Text>
+                      <Text style={[styles.saveText, { color: canSave ? theme.onPrimaryFill : theme.onSurfaceMuted }]}>{task ? c.save : c.add}</Text>
                     )}
                   </Touchable>
                 </View>
@@ -766,8 +766,8 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                       accessibilityLabel={c.addSubtask}
                     />
                     {newSubtaskText.trim() ? (
-                      <Touchable accessibilityRole="button" accessibilityLabel={c.addSubtask} onPress={addSubtask} style={[styles.addSubtaskBtn, { backgroundColor: theme.primary }]}>
-                        <Check size={ICON.xs} color={theme.onPrimary} strokeWidth={2.6} />
+                      <Touchable accessibilityRole="button" accessibilityLabel={c.addSubtask} onPress={addSubtask} style={[styles.addSubtaskBtn, { backgroundColor: theme.primaryFill }]}>
+                        <Check size={ICON.xs} color={theme.onPrimaryFill} strokeWidth={2.6} />
                       </Touchable>
                     ) : null}
                   </Pressable>
@@ -785,7 +785,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                         accessibilityRole="button"
                         accessibilityLabel={c.removeTag(tag)}
                         onPress={() => toggleTag(tag, true)}
-                        style={[styles.tagChip, { backgroundColor: theme.primary + '1F' }]}
+                        style={[styles.tagChip, { backgroundColor: theme.primaryFill + '1F' }]}
                       >
                         <Text style={[styles.tagText, { color: theme.primary, fontWeight: '600' }]}>{translateTag(tag, language as 'tr' | 'en')}</Text>
                         <X size={ICON.xs} color={theme.primary} />
@@ -803,7 +803,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                         accessibilityLabel={translateTag(tagOption, language as 'tr' | 'en')}
                         accessibilityState={{ selected: hasTag }}
                         onPress={() => toggleTag(tagOption, hasTag)}
-                        style={[styles.tagChip, { backgroundColor: hasTag ? theme.primary + '1F' : theme.surfaceField }]}
+                        style={[styles.tagChip, { backgroundColor: hasTag ? theme.primaryFill + '1F' : theme.surfaceField }]}
                       >
                         {hasTag ? <Check size={ICON.xs} color={theme.primary} strokeWidth={2.4} /> : null}
                         <Text style={[styles.tagText, { color: hasTag ? theme.primary : theme.onSurfaceVariant, fontWeight: hasTag ? '600' : '500' }]}>

@@ -22,6 +22,8 @@ export interface TourStepDef {
    * logodan selamlamaya geçiyor; logo adımı "İyi Geceler"i vurguluyordu (cihazda görüldü).
    */
   scrollTop?: boolean;
+  /** İlk açılıştaki kısa turda yok; Yardım'dan baştan oynatınca gelir (fikir: Super Productivity'nin kısa turu + "daha fazla"). */
+  extra?: boolean;
   title: { tr: string; en: string };
   body: { tr: string; en: string };
 }
@@ -31,16 +33,18 @@ export const TOUR_STEPS: Record<FirstRunPage, TourStepDef[]> = {
     {
       // Yalnız aktif modu olana: kart yoksa hedef ölçülemez, adım atlanır.
       target: 'activePlan',
+      extra: true,
       title: { tr: 'Aktif planın', en: 'Your active plan' },
       body: { tr: 'Hedeflerinin geri sayımı burada; birden fazlaysa yana kaydırarak geç.', en: 'Your goals count down here; swipe sideways if you have more than one.' },
     },
     {
       target: 'today',
       title: { tr: 'Günün özeti', en: 'Your day' },
-      body: { tr: 'Halkalar görev, odak ve alışkanlık hedefine ne kadar yaklaştığını gösterir.', en: 'The rings show how close you are to your task, focus and habit goals.' },
+      body: { tr: 'Halkalar bugünün görev, odak ve alışkanlığını; Momentum son 7 gününü gösterir.', en: 'The rings show today’s tasks, focus and habits; Momentum shows your last 7 days.' },
     },
     {
       target: 'habits',
+      extra: true,
       title: { tr: 'Alışkanlıklar', en: 'Habits' },
       body: { tr: 'Yaptığına dokun; dinlenme günü için basılı tut, serin bozulmaz.', en: 'Tap the ones you did; press and hold for a rest day — your streak stays.' },
     },
@@ -53,14 +57,14 @@ export const TOUR_STEPS: Record<FirstRunPage, TourStepDef[]> = {
       target: 'core',
       scrollTop: true,
       title: { tr: 'TAZQ Core', en: 'TAZQ Core' },
-      body: { tr: 'Logoya dokun: ara, tek cümleyle görev ekle ya da kalabalık günü toparla.', en: 'Tap the logo to search, add a task in one sentence or tidy up a busy day.' },
+      body: { tr: 'Logoya dokun: ara, tek cümleyle görev ekle; gün kalabalıksa toparlamayı önerir.', en: 'Tap the logo to search or add a task in a sentence; busy days get a tidy-up offer.' },
     },
   ],
   tasks: [
     {
       target: 'list',
       title: { tr: 'Görev listen', en: 'Your task list' },
-      body: { tr: 'Halkaya dokununca biter, satıra dokununca açılır; silmek için sola kaydır.', en: 'Tap the ring to finish, tap the row to open it; swipe left to delete.' },
+      body: { tr: 'İşler güne göre gruplu: halkaya dokununca biter, sola kaydırınca silinir.', en: 'Work is grouped by day: tap the ring to finish, swipe left to delete.' },
     },
     {
       target: 'quickAdd',
@@ -119,6 +123,12 @@ export const TOUR_STEPS: Record<FirstRunPage, TourStepDef[]> = {
       body: { tr: 'Odak, alışkanlık ve geçen haftayla farkı buradan aç.', en: 'Open your focus, habits and change from last week here.' },
     },
   ],
+};
+
+/** Kendiliğinden açılan tur kısadır; kullanıcı isteyince hepsi. */
+export const tourStepsFor = (page: FirstRunPage, brief: boolean): TourStepDef[] => {
+  const all = TOUR_STEPS[page] ?? [];
+  return brief ? all.filter(s => !s.extra) : all;
 };
 
 /** Ana sayfa turu kendiliğinden açılır; diğerleri isteğe bağlı (kullanıcı kararı, 2026-10-25). */

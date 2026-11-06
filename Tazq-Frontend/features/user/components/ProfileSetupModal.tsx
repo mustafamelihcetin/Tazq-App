@@ -278,9 +278,9 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
             accessibilityRole="button"
             accessibilityLabel={c.start}
             accessibilityState={{ busy: loading }}
-            style={[styles.btn, { backgroundColor: theme.primary }]}
+            style={[styles.btn, { backgroundColor: theme.primaryFill }]}
           >
-            {loading ? <ActivityIndicator color={theme.onPrimary} size="small" /> : <Text style={[styles.btnText, { color: theme.onPrimary }]}>{c.start}</Text>}
+            {loading ? <ActivityIndicator color={theme.onPrimaryFill} size="small" /> : <Text style={[styles.btnText, { color: theme.onPrimaryFill }]}>{c.start}</Text>}
           </Touchable>
         </View>
       </KeyboardAvoidingView>

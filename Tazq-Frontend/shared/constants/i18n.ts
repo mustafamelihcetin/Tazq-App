@@ -61,12 +61,6 @@ export const translations = {
      * TANITIMIN SONUNDAKİ TEK SORU — oyunlaştırma açık mı kapalı mı?
      * (bkz. app/onboarding.tsx; Sade mod ivme skorunu ve seriyi gizler)
      */
-    onboardingModeAsk: 'One last thing',
-    onboardingModeAskSub: 'Some people work better with a score and a streak; others find them noisy. You can change this any time in settings.',
-    onboardingModeFull: 'Score and streak on',
-    onboardingModeFullSub: 'One number for your day, plus streaks and achievements',
-    onboardingModeLite: 'Keep it plain',
-    onboardingModeLiteSub: 'Just tasks, habits and focus — no scoring',
     // Tanıtım slaytları (2026-10-25): abartılı pazarlama dili yerine uygulamanın gerçekte ne
     // yaptığı. Kullanılmayan slayt metinleri silindi — "cihazda AES-GCM, sıfır-bilgi" doğru
     // DEĞİLDİ (şifreleme sunucuda, kullanıcı anahtarıyla).
@@ -416,7 +410,7 @@ export const translations = {
       summaryEmpty: 'Track bills separately from your tasks',
       summaryFilled: (count: number, left: number) => `${count} payments this month · ${left} left`,
       addPayment: 'Add payment',
-      namePlaceholder: 'Payment name (e.g. Rent, Netflix...)',
+      namePlaceholder: 'What is it for?',
       amountPlaceholder: 'Amount',
       recurrenceMonthly: 'Monthly',
       recurrenceYearly: 'Yearly',
@@ -570,12 +564,6 @@ export const translations = {
      * TANITIMIN SONUNDAKİ TEK SORU — oyunlaştırma açık mı kapalı mı?
      * (bkz. app/onboarding.tsx; Sade mod ivme skorunu ve seriyi gizler)
      */
-    onboardingModeAsk: 'Son bir soru',
-    onboardingModeAskSub: 'Kimi insan skor ve seriyle daha iyi çalışır, kimi onları gürültü bulur. İstediğin zaman ayarlardan değiştirebilirsin.',
-    onboardingModeFull: 'Skor ve seri açık olsun',
-    onboardingModeFullSub: 'Günün tek sayıda, üstüne seri ve başarımlar',
-    onboardingModeLite: 'Sade tutalım',
-    onboardingModeLiteSub: 'Sadece görev, alışkanlık ve odak — puanlama yok',
     registerSub: 'Görevlerin ve alışkanlıkların her cihazda seninle.',
     onboardingTitle1: 'Günün, tek yerde',
     onboardingBody1: 'Görevlerin, alışkanlıkların ve odak seansların aynı sakin akışta. Plan yapmaya daha az, yapmaya daha çok zaman.',
@@ -609,7 +597,7 @@ export const translations = {
     dailyGoal: 'GÜNLÜK HEDEF',
     start: 'Başlat',
     focusQuote: 'Mükemmellik bir eylem değil, bir alışkanlıktır.',
-    logout: 'Çıkış Yap',
+    logout: 'Çıkış yap',
     confirmLogout: 'Görevlerin, alışkanlıkların (serileriyle birlikte), planların ve başarımların hesabında kayıtlı — tekrar giriş yapınca geri gelir.\n\nKilo geçmişin, bırakma kaydın ve bütçe kayıtların ise yalnız bu cihazda tutuluyor. Çıkış yapınca silinir ve geri alınamaz.\n\nİstersen önce yedek al: Ayarlar → Verilerimi indir.',
     cancel: 'İptal',
     yes: 'Evet, Çıkış Yap',
@@ -617,14 +605,14 @@ export const translations = {
     streak: 'GÜN SERİSİ',
     settings: 'Ayarlar',
     notifications: 'Bildirimler',
-    appearance: 'Görünüm Modu',
-    language: 'Sistem Dili',
-    deleteAccount: 'Hesabımı Sil',
+    appearance: 'Tema',
+    language: 'Dil',
+    deleteAccount: 'Hesabımı sil',
     confirmDeleteAccount: 'Hesabınızı ve tüm verilerinizi kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz.',
     yesDelete: 'Evet, Hesabımı Sil',
     legalAndPrivacy: 'Yasal ve Gizlilik',
-    termsOfService: 'Kullanım Koşulları',
-    privacyPolicy: 'Gizlilik Politikası',
+    termsOfService: 'Kullanım koşulları',
+    privacyPolicy: 'Gizlilik politikası',
     chooseAvatar: 'Kimlik Seçin',
     actionCenter: 'Görevler', // sekmeyle aynı ad (eskiden "Aksiyon Merkezi": aynı yer için iki isim)
     allTasksReady: 'Her şey hazır! Yeni bir görev ekle.',
@@ -889,7 +877,7 @@ export const translations = {
       summaryEmpty: 'Faturalarını görevlerden ayrı takip et',
       summaryFilled: (count: number, left: number) => `Bu ay ${count} ödeme · ${left} kaldı`,
       addPayment: 'Ödeme ekle',
-      namePlaceholder: 'Ödeme adı (örn: Kira, Netflix...)',
+      namePlaceholder: 'Ne için ödüyorsun?',
       amountPlaceholder: 'Tutar',
       recurrenceMonthly: 'Her ay',
       recurrenceYearly: 'Her yıl',

@@ -39,6 +39,11 @@ export const ACHIEVEMENT_ICONS: Record<string, IconMapping> = {
   focus_5h: { Icon: Lucide.Brain, color: '#10B981' },       // Zümrüt
   focus_25h: { Icon: Lucide.Award, color: '#059669' },      // Koyu zümrüt — ustalık
 
+  habit_7: { Icon: Lucide.Sprout, color: '#84CC16' },   // Filiz → orman: alışkanlık büyür
+  habit_21: { Icon: Lucide.Leaf, color: '#22C55E' },
+  habit_66: { Icon: Lucide.TreePine, color: '#15803D' },
+  route_first: { Icon: Lucide.Compass, color: '#0EA5E9' },
+  goal_done: { Icon: Lucide.Flag, color: '#F97316' },
   daily_perfect: { Icon: Lucide.CheckCircle2, color: '#EAB308' }, // Altın — mükemmel gün
   first_task: { Icon: Lucide.PartyPopper, color: '#EC4899' },     // Pembe — ilk kutlama
 };

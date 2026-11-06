@@ -158,7 +158,7 @@ export function ScheduleSection({
                 accessibilityLabel={`${c.time}: ${timeText}`}
                 accessibilityState={{ expanded: open === 'time' }}
                 onPress={openTime}
-                style={[styles.valuePill, { backgroundColor: open === 'time' ? theme.primary + '1F' : theme.surfaceCard }]}
+                style={[styles.valuePill, { backgroundColor: open === 'time' ? theme.primaryFill + '1F' : theme.surfaceCard }]}
               >
                 <Text style={[styles.valueText, { color: open === 'time' ? theme.primary : theme.onSurface }]}>{timeText}</Text>
               </Touchable>
@@ -231,7 +231,7 @@ function DateChip({ label, selected, onPress, icon, hint, theme }: {
       accessibilityState={{ selected }}
       activeOpacity={0.7}
       onPress={onPress}
-      style={[styles.chip, { backgroundColor: selected ? theme.primary + '1F' : theme.surfaceField }]}
+      style={[styles.chip, { backgroundColor: selected ? theme.primaryFill + '1F' : theme.surfaceField }]}
     >
       {icon ?? (selected ? <Check size={ICON.xs} color={theme.primary} strokeWidth={2.4} /> : null)}
       <Text numberOfLines={1} style={[styles.chipText, { color: selected ? theme.primary : theme.onSurfaceVariant, fontWeight: selected ? '600' : '500' }]}>

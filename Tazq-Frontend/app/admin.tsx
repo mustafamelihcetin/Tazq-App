@@ -30,6 +30,9 @@ import { SupportThread } from '@/shared/components/SupportThread';
 import { RolePicker } from '@/features/admin/components/RolePicker';
 import { AnalyticsCenter } from '@/features/admin/components/AnalyticsCenter';
 import { JobHealthCard } from '@/features/admin/components/JobHealthCard';
+import { ServerStatusCard } from '@/features/admin/components/ServerStatusCard';
+import { lastSeenLabel } from '@/features/admin/utils/lastSeen';
+import { SegmentedControl } from '@/shared/components/SegmentedControl';
 import { UserFilterChips, type UserFilter } from '@/features/admin/components/UserFilterChips';
 import { useSupportTemplates, TemplateChips, TemplatesHeader, TemplateEditor, fillTemplate, templateFallback } from '@/features/admin/components/SupportTemplates';
 
@@ -87,7 +90,7 @@ export default function AdminScreen() {
   const canUsers = canStaff(myRole, 'users');
   const canInsights = canStaff(myRole, 'insights');
   const canSupport = canStaff(myRole, 'support');
-  const analystOnly = isAnalystOnly(myRole);        // Ürün Analisti: kendi ekranı (Analiz Merkezi)
+  const analystOnly = isAnalystOnly(myRole);        // Veri ve Sistem Uzmanı: kendi ekranı (Analiz Merkezi + sunucu durumu)
   const tpl = useSupportTemplates(canSupport);
 
   const [activeTab, setActiveTab] = useState<'users' | 'stats' | 'support' | 'system'>(() => (canModerate ? 'users' : canInsights ? 'stats' : 'support'));
@@ -114,6 +117,7 @@ export default function AdminScreen() {
   const [aiTest, setAiTest] = useState<AiTestResult | null>(null);
   const [aiTesting, setAiTesting] = useState(false);
   const [sysLoading, setSysLoading] = useState(false);
+  const [sysSection, setSysSection] = useState<'status' | 'errors' | 'logs' | 'tools'>('status');
   const [sysBusy, setSysBusy] = useState<string | null>(null);
   const [messages, setMessages] = useState<SupportMessageItem[]>([]);
   const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
@@ -452,16 +456,6 @@ export default function AdminScreen() {
     haptic.select();
   };
 
-  const formatLastSeen = (iso?: string) => {
-    if (!iso) return tr ? 'Hiç giriş yok' : 'Never';
-    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-    if (diff < 60)     return tr ? 'Az önce' : 'Just now';
-    if (diff < 3600)   return `${Math.floor(diff / 60)}${tr ? ' dk önce' : 'm ago'}`;
-    if (diff < 86400)  return `${Math.floor(diff / 3600)}${tr ? ' sa önce' : 'h ago'}`;
-    if (diff < 604800) return `${Math.floor(diff / 86400)}${tr ? ' gün önce' : 'd ago'}`;
-    return new Date(iso).toLocaleDateString(tr ? 'tr-TR' : 'en-US', { month: 'short', day: 'numeric' });
-  };
-
   const cardBg     = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)';
   const cardBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
 
@@ -470,7 +464,7 @@ export default function AdminScreen() {
     return (
       <Touchable
         onPress={() => cycleSort(k)}
-        style={{ flexDirection: 'row', alignItems: 'center', gap: S.xxs, paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: active ? theme.primary + '20' : cardBg, borderWidth: B.thin, borderColor: active ? theme.primary + '40' : cardBorder }}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: S.xxs, paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: active ? theme.primaryFill + '20' : cardBg, borderWidth: B.thin, borderColor: active ? theme.primary + '40' : cardBorder }}
       >
         <Text style={{ fontSize: F.caption, fontWeight: '700', color: active ? theme.primary : theme.onSurfaceVariant }}>{label}</Text>
         {active && (sortAsc ? <ChevronUp size={ICON.xs} color={theme.primary} /> : <ChevronDown size={ICON.xs} color={theme.primary} />)}
@@ -512,7 +506,7 @@ export default function AdminScreen() {
           <Text style={{ color: theme.error, fontWeight: '700', fontSize: F.subhead }}>
             {tr ? 'Yüklenemedi' : 'Failed to load'}
           </Text>
-          <Touchable onPress={() => load()} style={{ backgroundColor: theme.primary + '15', paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full }}>
+          <Touchable onPress={() => load()} style={{ backgroundColor: theme.primaryFill + '15', paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full }}>
             <Text style={{ color: theme.primary, fontWeight: '700' }}>{tr ? 'Tekrar Dene' : 'Retry'}</Text>
           </Touchable>
         </View>
@@ -543,7 +537,7 @@ export default function AdminScreen() {
               const Icon = tb.icon;
               return (
                 <Touchable key={tb.key} onPress={() => { haptic.select(); setActiveTab(tb.key as any); }}
-                  style={{ flex: 1, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: active ? theme.primary : 'transparent', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: S.xs }}>
+                  style={{ flex: 1, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: active ? theme.primaryFill : 'transparent', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: S.xs }}>
                   <Icon size={14} color={active ? '#FFF' : theme.onSurfaceVariant} />
                   <Text numberOfLines={1} style={{ color: active ? '#FFF' : theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{tb.label}</Text>
                   {'badge' in tb && (tb as any).badge > 0 && (
@@ -560,7 +554,7 @@ export default function AdminScreen() {
 
           {/* ── ANALİZ sekmesi: bkz. AnalyticsCenter ── */}
           {activeTab === 'stats' && stats && (
-            <AnalyticsCenter lang={language === 'tr' ? 'tr' : 'en'} stats={stats} insights={insights} />
+            <AnalyticsCenter lang={language === 'tr' ? 'tr' : 'en'} stats={stats} insights={insights} showServer={analystOnly} />
           )}
 
           {activeTab === 'users' ? (
@@ -651,7 +645,7 @@ export default function AdminScreen() {
                         {user.taskCount} {tr ? 'görev' : 'tasks'} · {focusHrs}h
                       </Text>
                       <Text style={{ fontSize: 10, color: theme.onSurfaceMuted }}>
-                        {formatLastSeen(user.lastActivityAt)}
+                        {lastSeenLabel(user.lastActivityAt, tr ? 'tr' : 'en')}
                       </Text>
                     </View>
                   </View>
@@ -703,7 +697,7 @@ export default function AdminScreen() {
                           {tr ? 'KULLANICI DETAYI' : 'USER DETAIL'}
                         </Text>
                         {isSuper && (
-                        <Touchable onPress={() => handleExport(user)} disabled={exportingFor === user.id} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: theme.primary + '15', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
+                        <Touchable onPress={() => handleExport(user)} disabled={exportingFor === user.id} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: theme.primaryFill + '15', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
                           {exportingFor === user.id ? <ActivityIndicator size="small" color={theme.primary} /> : <Download size={ICON.xs} color={theme.primary} />}
                           <Text style={{ color: theme.primary, fontSize: 10, fontWeight: '700' }}>{tr ? 'Verisini Dışa Aktar' : 'Export Data'}</Text>
                         </Touchable>
@@ -848,7 +842,7 @@ export default function AdminScreen() {
                                   <Touchable
                                     key={opt}
                                     onPress={() => { haptic.select(); setBanReason(opt); }}
-                                    style={{ paddingHorizontal: S.sm, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: active ? theme.primary + '22' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'), borderWidth: B.thin, borderColor: active ? theme.primary + '55' : cardBorder }}
+                                    style={{ paddingHorizontal: S.sm, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: active ? theme.primaryFill + '22' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'), borderWidth: B.thin, borderColor: active ? theme.primary + '55' : cardBorder }}
                                   >
                                     <Text style={{ fontSize: F.caption, fontWeight: '700', color: active ? theme.primary : theme.onSurfaceVariant }}>{opt}</Text>
                                   </Touchable>
@@ -941,7 +935,7 @@ export default function AdminScreen() {
             <Touchable
               onPress={() => loadUsers(false)}
               disabled={loadingMore}
-              style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: theme.primary + '15', paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, marginTop: S.xs }}
+              style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: theme.primaryFill + '15', paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, marginTop: S.xs }}
             >
               {loadingMore ? <ActivityIndicator size="small" color={theme.primary} /> : <ChevronDown size={ICON.sm} color={theme.primary} />}
               <Text style={{ color: theme.primary, fontWeight: '700', fontSize: F.caption }}>
@@ -1050,17 +1044,243 @@ export default function AdminScreen() {
           ) : activeTab === 'system' ? (
             /* ── SİSTEM KONSOLU ── */
             <View style={{ gap: S.md }}>
+              {/*
+                DÖRT BÖLÜM (2026-11-06, kullanıcı: "sistem kısmını baştan elden geçir"). Dokuz kart alt alta diziliyordu: önemli olan loglarla aynı ağırlıktaydı, altta kalan okunmuyordu.
+                Fikir Uptime Kuma'nın durum sayfasından: önce tek cevap ("her şey yolunda mı"), altında servis listesi ve son saatlerin izi; ayrıntı ayrı bölümde.
+              */}
+              <SegmentedControl
+                options={[
+                  { key: 'status', label: tr ? 'Durum' : 'Status' },
+                  { key: 'errors', label: tr ? 'Hatalar' : 'Errors' },
+                  { key: 'logs', label: tr ? 'Kayıtlar' : 'Logs' },
+                  { key: 'tools', label: tr ? 'Araçlar' : 'Tools' },
+                ]}
+                value={sysSection}
+                onChange={setSysSection}
+                theme={theme}
+                isDark={isDark}
+                accessibilityLabel={tr ? 'Sistem bölümleri' : 'System sections'}
+              />
+              {sysSection === 'status' && (
+                <>
+              <ServerStatusCard lang={tr ? 'tr' : 'en'} />
+              {/* Sağlık kartı */}
+              <View style={{ backgroundColor: cardBg, borderRadius: R.lg, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+                    <View style={{ width: 9, height: 9, borderRadius: R.full, backgroundColor: sysHealth ? (sysHealth.dbOk ? theme.success : theme.error) : theme.onSurfaceVariant }} />
+                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{tr ? 'Uygulama' : 'Application'}</Text>
+                  </View>
+                  <Touchable onPress={loadSystem} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+                    {sysLoading ? <ActivityIndicator size="small" color={theme.primary} /> : <RefreshCw size={ICON.sm} color={theme.primary} />}
+                    <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>{tr ? 'Yenile' : 'Refresh'}</Text>
+                  </Touchable>
+                </View>
+                {sysHealth ? (
+                  <View style={{ gap: S.xs }}>
+                    {[
+                      [tr ? 'Veritabanı' : 'Database', sysHealth.dbOk ? 'OK' : 'Hata'],
+                      [tr ? 'Redis' : 'Redis', sysHealth.redisOk == null ? '—' : (sysHealth.redisOk ? 'OK' : 'Hata')],
+                      [tr ? 'Çalışma süresi' : 'Uptime', `${Math.floor(sysHealth.uptimeSeconds / 3600)}s ${Math.floor((sysHealth.uptimeSeconds % 3600) / 60)}d`],
+                      [tr ? 'Ortam' : 'Env', sysHealth.environment],
+                      [tr ? 'Son migration' : 'Latest migration', (sysHealth.latestMigration || '—').replace(/^\d+_/, '')],
+                      [tr ? 'Bekleyen migration' : 'Pending migrations', String(sysHealth.pendingMigrations)],
+                      [tr ? 'Uyarı / Hata' : 'Warnings / Errors', `${sysHealth.warnings} / ${sysHealth.errors}`],
+                    ].map(([k, v], i) => (
+                      <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{k}</Text>
+                        <Text style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '700' }}>{v}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : sysLoading ? <ActivityIndicator color={theme.primary} /> : <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{tr ? 'Veri yok' : 'No data'}</Text>}
+              </View>
+
               <JobHealthCard lang={tr ? 'tr' : 'en'} />
+                </>
+              )}
+              {sysSection === 'errors' && (
+                <>
+              {/* Sentry — son 24s çözülmemiş konular */}
+              <View style={{ backgroundColor: cardBg, borderRadius: R.lg, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+                    <View style={{ width: 28, height: 28, borderRadius: R.sm, backgroundColor: theme.surfaceContainerHigh, alignItems: 'center', justifyContent: 'center' }}>
+                      <AlertTriangle size={ICON.sm} color={theme.onSurfaceVariant} />
+                    </View>
+                    <View>
+                      <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>Sentry</Text>
+                      <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{tr ? 'son 24 saat' : 'last 24h'}</Text>
+                    </View>
+                  </View>
+                  {sysSentry?.dashboard && (
+                    <Touchable onPress={() => Linking.openURL(sysSentry.dashboard!)} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: theme.primaryFill + '15', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
+                      <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>{tr ? 'Panele git' : 'Open'}</Text>
+                      <ExternalLink size={ICON.xs} color={theme.primary} />
+                    </Touchable>
+                  )}
+                </View>
+                {!sysSentry ? (
+                  <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{tr ? 'Yükleniyor…' : 'Loading…'}</Text>
+                ) : !sysSentry.configured ? (
+                  <View style={{ backgroundColor: theme.surfaceContainerHigh, borderRadius: R.md, padding: S.sm }}>
+                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, lineHeight: 17 }}>{sysSentry.message || (tr ? 'Sentry yapılandırılmamış.' : 'Sentry not configured.')}</Text>
+                  </View>
+                ) : sysSentry.ok === false ? (
+                  <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Sentry’ye ulaşılamadı.' : 'Could not reach Sentry.'} {sysSentry.status ? `(HTTP ${sysSentry.status})` : ''}</Text>
+                ) : (sysSentry.issues && sysSentry.issues.length > 0) ? (
+                  <>
+                    {(() => {
+                      const fatals = sysSentry.issues!.filter(x => (x.level || '').toLowerCase() === 'fatal').length;
+                      const errs = sysSentry.issues!.filter(x => (x.level || '').toLowerCase() === 'error').length;
+                      return (
+                        <View style={{ flexDirection: 'row', gap: S.xs }}>
+                          {fatals > 0 && <View style={{ backgroundColor: theme.error + '15', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xs }}><Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '700' }}>{fatals} FATAL</Text></View>}
+                          {errs > 0 && <View style={{ backgroundColor: theme.error + '15', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xs }}><Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '700' }}>{errs} ERROR</Text></View>}
+                          <View style={{ backgroundColor: theme.surfaceContainerHigh, borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xs }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700' }}>{sysSentry.issues!.length} {tr ? 'konu' : 'issues'}</Text></View>
+                        </View>
+                      );
+                    })()}
+                    <View>
+                      {sysSentry.issues!.slice(0, 6).map((iss, i) => {
+                        const st = sentryLevelStyle(iss.level);
+                        return (
+                          <Touchable key={i} onPress={() => iss.permalink && Linking.openURL(iss.permalink)}
+                            style={{ flexDirection: 'row', gap: S.sm, paddingVertical: S.sm, borderTopWidth: i > 0 ? B.thin : 0, borderTopColor: cardBorder }}>
+                            <View style={{ backgroundColor: st.color + '1A', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs, alignSelf: 'flex-start', marginTop: S.xxs }}>
+                              <Text style={{ color: st.color, fontSize: F.caption, fontWeight: '700' }}>{st.label}</Text>
+                            </View>
+                            <View style={{ flex: 1, gap: S.xs }}>
+                              <Text numberOfLines={2} style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '700', lineHeight: 16 }}>{iss.title}</Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+                                <Text style={{ color: st.color, fontSize: F.caption, fontWeight: '700' }}>×{iss.count || '1'}</Text>
+                                {iss.lastSeen && <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>· {timeAgo(iss.lastSeen, tr)}</Text>}
+                              </View>
+                            </View>
+                            <ExternalLink size={ICON.xs} color={theme.onSurfaceVariant} style={{ opacity: 0.35, marginTop: S.xxs }} />
+                          </Touchable>
+                        );
+                      })}
+                    </View>
+                  </>
+                ) : (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: theme.success + '12', borderRadius: R.md, padding: S.sm }}>
+                    <Check size={ICON.sm} color={theme.success} />
+                    <Text style={{ color: theme.success, fontSize: F.caption, fontWeight: '700' }}>{tr ? 'Son 24 saatte çözülmemiş hata yok' : 'No unresolved issues (24h)'}</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Çökmeler — hata başına tek satır + saklama süresi (bkz. CrashGroupsCard, sunucu CrashLog). */}
+              <CrashGroupsCard lang={tr ? 'tr' : 'en'} />
+
+                </>
+              )}
+              {sysSection === 'logs' && (
+                <>
+              {/* Loglar */}
+              <View style={{ backgroundColor: cardBg, borderRadius: R.lg, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+                    <View style={{ width: 28, height: 28, borderRadius: R.sm, backgroundColor: theme.surfaceContainerHigh, alignItems: 'center', justifyContent: 'center' }}>
+                      <FileText size={ICON.sm} color={theme.onSurfaceVariant} />
+                    </View>
+                    <View>
+                      <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{tr ? 'Loglar' : 'Logs'}</Text>
+                      {/* Toplam değil CANLI sayaç: geliştirme gürültüsü rozeti sürekli
+                          kırmızı tutuyordu ve sürekli kırmızı olan gösterge okunmaz. */}
+                      {sysHealth && (
+                        <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>
+                          {sysLogMeta.total} {tr ? 'kayıt' : 'records'}
+                          {sysLogSource === 'Production' ? (tr ? ' · canlı' : ' · live') : ''}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: S.xs }}>
+                    {[null, 'Warning', 'Error'].map((lv) => (
+                      <Touchable key={lv || 'all'} onPress={() => setSysLogLevel(lv)}
+                        style={{ paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: sysLogLevel === lv ? theme.primaryFill : theme.surfaceContainerHigh }}>
+                        <Text style={{ color: sysLogLevel === lv ? theme.onPrimaryFill : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700' }}>{lv ? (lv === 'Warning' ? (tr ? 'Uyarı' : 'Warn') : (tr ? 'Hata' : 'Err')) : (tr ? 'Hepsi' : 'All')}</Text>
+                      </Touchable>
+                    ))}
+                  </View>
+                </View>
+
+                {/*
+                  KAYNAK FİLTRESİ. Geliştirme sürümü de canlı API'ye bağlandığı için kod
+                  yazarken çıkan hatalar aynı havuza düşüyor. Varsayılan "Canlı": panelin
+                  cevaplaması gereken ilk soru "gerçek kullanıcıda ne kırıldı?".
+                  Kayıtlar silinmiyor — tek dokunuşla geri geliyor.
+                */}
+                <View style={{ flexDirection: 'row', gap: S.xs, flexWrap: 'wrap' }}>
+                  {([['Production', tr ? 'Canlı' : 'Live'], ['Development', tr ? 'Geliştirme' : 'Dev'], [null, tr ? 'Tümü' : 'All']] as const).map(([src, label]) => {
+                    const active = sysLogSource === src;
+                    const n = src ? (sysLogMeta.counts[src as LogSource] ?? 0) : Object.values(sysLogMeta.counts).reduce((a, b) => a + (b ?? 0), 0);
+                    return (
+                      <Touchable key={label} onPress={() => setSysLogSource(src as LogSource | null)}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: S.xxs, paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: active ? theme.primaryFill : theme.surfaceContainerHigh }}>
+                        <Text style={{ color: active ? theme.onPrimaryFill : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700' }}>{label}</Text>
+                        {/* Sayı filtreye BASMADAN "burada ne var?" sorusunu cevaplıyor. */}
+                        <Text style={{ color: active ? theme.onPrimaryFill : theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600' }}>{n}</Text>
+                      </Touchable>
+                    );
+                  })}
+                </View>
+
+                {sysLogs.length === 0 ? (
+                  <View style={{ alignItems: 'center', paddingVertical: S.md }}>
+                    <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{tr ? 'Kayıt yok' : 'No logs'}</Text>
+                  </View>
+                ) : (
+                  <View>
+                    {/* `.slice(0, 60)` KALDIRILDI: sunucu artık sayfalıyor, istemcinin
+                        ikinci kez kırpması kayıtları görünmez yapıyordu. */}
+                    {sysLogs.map((lg, i) => {
+                      const st = logLevelStyle(lg.level);
+                      return (
+                        <View key={i} style={{ gap: S.xs, borderTopWidth: i > 0 ? B.thin : 0, borderTopColor: cardBorder, paddingVertical: S.sm }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+                            <View style={{ backgroundColor: st.color + '1A', borderRadius: R.xs, paddingHorizontal: S.xs, paddingVertical: S.xxs }}>
+                              <Text style={{ color: st.color, fontSize: F.caption, fontWeight: '700' }}>{st.label}</Text>
+                            </View>
+                            <Text numberOfLines={1} style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', flex: 1 }}>{lg.category}</Text>
+                            {/* Kaynak rozeti YALNIZ karışık listede: tek kaynağa
+                                filtrelenmişken her satıra aynı etiketi basmak gürültü. */}
+                            {!sysLogSource && lg.source === 'Development' && (
+                              <View style={{ backgroundColor: theme.onSurfaceMuted + '1A', borderRadius: R.xs, paddingHorizontal: S.xs }}>
+                                <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '700' }}>{tr ? 'DEV' : 'DEV'}</Text>
+                              </View>
+                            )}
+                            <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{new Date(lg.timestamp).toLocaleTimeString(tr ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</Text>
+                          </View>
+                          <Text numberOfLines={3} style={{ color: theme.onSurface, fontSize: F.caption, lineHeight: 16 }}>{lg.message}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+
+                <Pager
+                  page={sysLogPage}
+                  pageSize={LOG_PAGE_SIZE}
+                  total={sysLogMeta.total}
+                  hasMore={sysLogMeta.hasMore}
+                  onChange={setSysLogPage}
+                  tr={tr}
+                />
+              </View>
+
               {/* Denetim günlüğü (audit log) */}
               <View style={{ backgroundColor: cardBg, borderRadius: R.lg, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
-                    <View style={{ width: 28, height: 28, borderRadius: R.sm, backgroundColor: '#6366F120', alignItems: 'center', justifyContent: 'center' }}>
-                      <ScrollText size={ICON.sm} color="#6366F1" />
+                    <View style={{ width: 28, height: 28, borderRadius: R.sm, backgroundColor: theme.surfaceContainerHigh, alignItems: 'center', justifyContent: 'center' }}>
+                      <ScrollText size={ICON.sm} color={theme.onSurfaceVariant} />
                     </View>
                     <View>
                       <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{tr ? 'Denetim Günlüğü' : 'Audit Log'}</Text>
-                      <Text style={{ color: theme.onSurfaceMuted, fontSize: 10 }}>{tr ? 'admin aksiyonları' : 'admin actions'}</Text>
+                      <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{tr ? 'admin aksiyonları' : 'admin actions'}</Text>
                     </View>
                   </View>
                   <Touchable accessibilityRole="button" accessibilityLabel={tr ? 'Denetim kaydını yenile' : 'Refresh audit log'} accessibilityState={{ busy: auditLoading }} onPress={loadAudit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
@@ -1076,11 +1296,11 @@ export default function AdminScreen() {
                     {auditLogs.map((a, i) => {
                       const actionMeta: Record<string, { c: string; l: string }> = {
                         ban: { c: theme.error, l: 'BAN' },
-                        unban: { c: '#10B981', l: tr ? 'KALDIR' : 'UNBAN' },
+                        unban: { c: theme.success, l: tr ? 'KALDIR' : 'UNBAN' },
                         delete_user: { c: theme.error, l: tr ? 'SİL' : 'DELETE' },
-                        role_change: { c: '#6366F1', l: tr ? 'ROL' : 'ROLE' },
-                        maintenance: { c: '#F59E0B', l: tr ? 'BAKIM' : 'MAINT' },
-                        export: { c: '#06B6D4', l: 'EXPORT' },
+                        role_change: { c: theme.primary, l: tr ? 'ROL' : 'ROLE' },
+                        maintenance: { c: theme.warning, l: tr ? 'BAKIM' : 'MAINT' },
+                        export: { c: theme.primary, l: 'EXPORT' },
                       };
                       const meta = actionMeta[a.action] || { c: theme.onSurfaceVariant, l: a.action.toUpperCase() };
                       return (
@@ -1112,223 +1332,32 @@ export default function AdminScreen() {
                 />
               </View>
 
-              {/* Sağlık kartı */}
-              <View style={{ backgroundColor: cardBg, borderRadius: R.lg, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
-                    <View style={{ width: 9, height: 9, borderRadius: R.full, backgroundColor: sysHealth ? (sysHealth.dbOk ? '#10B981' : '#EF4444') : theme.onSurfaceVariant }} />
-                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{tr ? 'Sistem Sağlığı' : 'System Health'}</Text>
-                  </View>
-                  <Touchable onPress={loadSystem} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
-                    {sysLoading ? <ActivityIndicator size="small" color={theme.primary} /> : <RefreshCw size={ICON.sm} color={theme.primary} />}
-                    <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>{tr ? 'Yenile' : 'Refresh'}</Text>
-                  </Touchable>
-                </View>
-                {sysHealth ? (
-                  <View style={{ gap: S.xs }}>
-                    {[
-                      [tr ? 'Veritabanı' : 'Database', sysHealth.dbOk ? 'OK' : 'Hata'],
-                      [tr ? 'Redis' : 'Redis', sysHealth.redisOk == null ? '—' : (sysHealth.redisOk ? 'OK' : 'Hata')],
-                      [tr ? 'Çalışma süresi' : 'Uptime', `${Math.floor(sysHealth.uptimeSeconds / 3600)}s ${Math.floor((sysHealth.uptimeSeconds % 3600) / 60)}d`],
-                      [tr ? 'Ortam' : 'Env', sysHealth.environment],
-                      [tr ? 'Son migration' : 'Latest migration', (sysHealth.latestMigration || '—').replace(/^\d+_/, '')],
-                      [tr ? 'Bekleyen migration' : 'Pending migrations', String(sysHealth.pendingMigrations)],
-                      [tr ? 'Uyarı / Hata' : 'Warnings / Errors', `${sysHealth.warnings} / ${sysHealth.errors}`],
-                    ].map(([k, v], i) => (
-                      <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{k}</Text>
-                        <Text style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '700' }}>{v}</Text>
-                      </View>
-                    ))}
-                  </View>
-                ) : sysLoading ? <ActivityIndicator color={theme.primary} /> : <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{tr ? 'Veri yok' : 'No data'}</Text>}
-              </View>
-
+                </>
+              )}
+              {sysSection === 'tools' && (
+                <>
               {/* Bakım aksiyonları */}
               <View style={{ backgroundColor: cardBg, borderRadius: R.lg, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
                 <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{tr ? 'Bakım' : 'Maintenance'}</Text>
-                <View style={{ flexDirection: 'row', gap: S.sm }}>
+                <View>
                   {[
-                    { key: 'migrate', icon: <Database size={ICON.sm} color="#3B82F6" />, label: tr ? 'Migration' : 'Migrate', color: '#3B82F6',
+                    { key: 'migrate', icon: <Database size={ICON.sm} color={theme.onSurfaceVariant} />, label: tr ? 'Veritabanını güncelle' : 'Update database', desc: tr ? 'Bekleyen şema değişikliklerini uygular' : 'Applies pending schema changes', color: theme.onSurface,
                       run: () => runMaintenance('migrate', AdminSystemService.migrate, tr ? 'Migration uygula?' : 'Apply migrations?', tr ? 'Bekleyen veritabanı migration’ları uygulanacak.' : 'Pending DB migrations will be applied.') },
-                    { key: 'cache', icon: <Trash2 size={ICON.sm} color="#F59E0B" />, label: tr ? 'Cache' : 'Cache', color: '#F59E0B',
+                    { key: 'cache', icon: <Trash2 size={ICON.sm} color={theme.onSurfaceVariant} />, label: tr ? 'Önbelleği temizle' : 'Clear cache', desc: tr ? 'Redis önbelleğini sıfırlar, veri silinmez' : 'Resets the Redis cache; no data is lost', color: theme.onSurface,
                       run: () => runMaintenance('cache', AdminSystemService.clearCache, tr ? 'Cache temizle?' : 'Clear cache?', tr ? 'Redis önbelleği temizlenecek.' : 'Redis cache will be cleared.') },
-                    { key: 'restart', icon: <Power size={ICON.sm} color="#EF4444" />, label: tr ? 'Restart' : 'Restart', color: '#EF4444',
+                    { key: 'restart', icon: <Power size={ICON.sm} color={theme.error} />, label: tr ? 'Sunucuyu yeniden başlat' : 'Restart server', desc: tr ? 'Birkaç saniye kesinti olur' : 'Causes a few seconds of downtime', color: theme.error,
                       run: () => runMaintenance('restart', AdminSystemService.restart, tr ? 'Backend yeniden başlatılsın mı?' : 'Restart backend?', tr ? 'Birkaç saniyelik kesinti olur.' : 'Brief downtime (a few seconds).') },
                   ].map((a) => (
-                    <Touchable key={a.key} onPress={a.run} disabled={!!sysBusy}
-                      style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: a.color + '15', borderWidth: B.thin, borderColor: a.color + '40', borderRadius: R.md, paddingVertical: S.sm }}>
-                      {sysBusy === a.key ? <ActivityIndicator size="small" color={a.color} /> : a.icon}
-                      <Text style={{ color: a.color, fontSize: F.caption, fontWeight: '700' }}>{a.label}</Text>
+                    <Touchable key={a.key} onPress={a.run} disabled={!!sysBusy} accessibilityRole="button" accessibilityLabel={a.label} accessibilityHint={a.desc} accessibilityState={{ busy: sysBusy === a.key }}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: S.smd, minHeight: 52, opacity: sysBusy && sysBusy !== a.key ? 0.5 : 1, borderTopWidth: a.key === 'migrate' ? 0 : B.thin, borderTopColor: cardBorder }}>
+                      {sysBusy === a.key ? <ActivityIndicator size="small" color={theme.onSurfaceVariant} /> : a.icon}
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: a.color, fontSize: F.body, fontWeight: '600' }}>{a.label}</Text>
+                        <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{a.desc}</Text>
+                      </View>
                     </Touchable>
                   ))}
                 </View>
-              </View>
-
-              {/* Sentry — son 24s çözülmemiş konular */}
-              <View style={{ backgroundColor: cardBg, borderRadius: R.lg, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
-                    <View style={{ width: 28, height: 28, borderRadius: R.sm, backgroundColor: '#8B5CF620', alignItems: 'center', justifyContent: 'center' }}>
-                      <AlertTriangle size={ICON.sm} color="#8B5CF6" />
-                    </View>
-                    <View>
-                      <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>Sentry</Text>
-                      <Text style={{ color: theme.onSurfaceMuted, fontSize: 10 }}>{tr ? 'son 24 saat' : 'last 24h'}</Text>
-                    </View>
-                  </View>
-                  {sysSentry?.dashboard && (
-                    <Touchable onPress={() => Linking.openURL(sysSentry.dashboard!)} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: theme.primary + '15', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
-                      <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>{tr ? 'Panele git' : 'Open'}</Text>
-                      <ExternalLink size={ICON.xs} color={theme.primary} />
-                    </Touchable>
-                  )}
-                </View>
-                {!sysSentry ? (
-                  <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{tr ? 'Yükleniyor…' : 'Loading…'}</Text>
-                ) : !sysSentry.configured ? (
-                  <View style={{ backgroundColor: theme.surfaceContainerHigh, borderRadius: R.md, padding: S.sm }}>
-                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, lineHeight: 17 }}>{sysSentry.message || (tr ? 'Sentry yapılandırılmamış.' : 'Sentry not configured.')}</Text>
-                  </View>
-                ) : sysSentry.ok === false ? (
-                  <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Sentry’ye ulaşılamadı.' : 'Could not reach Sentry.'} {sysSentry.status ? `(HTTP ${sysSentry.status})` : ''}</Text>
-                ) : (sysSentry.issues && sysSentry.issues.length > 0) ? (
-                  <>
-                    {(() => {
-                      const fatals = sysSentry.issues!.filter(x => (x.level || '').toLowerCase() === 'fatal').length;
-                      const errs = sysSentry.issues!.filter(x => (x.level || '').toLowerCase() === 'error').length;
-                      return (
-                        <View style={{ flexDirection: 'row', gap: S.xs }}>
-                          {fatals > 0 && <View style={{ backgroundColor: '#DC262615', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xs }}><Text style={{ color: '#DC2626', fontSize: 10, fontWeight: '700' }}>{fatals} FATAL</Text></View>}
-                          {errs > 0 && <View style={{ backgroundColor: '#EF444415', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xs }}><Text style={{ color: '#EF4444', fontSize: 10, fontWeight: '700' }}>{errs} ERROR</Text></View>}
-                          <View style={{ backgroundColor: theme.surfaceContainerHigh, borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xs }}><Text style={{ color: theme.onSurfaceVariant, fontSize: 10, fontWeight: '700' }}>{sysSentry.issues!.length} {tr ? 'konu' : 'issues'}</Text></View>
-                        </View>
-                      );
-                    })()}
-                    <View>
-                      {sysSentry.issues!.slice(0, 6).map((iss, i) => {
-                        const st = sentryLevelStyle(iss.level);
-                        return (
-                          <Touchable key={i} onPress={() => iss.permalink && Linking.openURL(iss.permalink)}
-                            style={{ flexDirection: 'row', gap: S.sm, paddingVertical: S.sm, borderTopWidth: i > 0 ? B.thin : 0, borderTopColor: cardBorder }}>
-                            <View style={{ backgroundColor: st.color + '1A', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs, alignSelf: 'flex-start', marginTop: S.xxs }}>
-                              <Text style={{ color: st.color, fontSize: F.caption, fontWeight: '700' }}>{st.label}</Text>
-                            </View>
-                            <View style={{ flex: 1, gap: S.xs }}>
-                              <Text numberOfLines={2} style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '700', lineHeight: 16 }}>{iss.title}</Text>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                                <Text style={{ color: st.color, fontSize: 10, fontWeight: '700' }}>×{iss.count || '1'}</Text>
-                                {iss.lastSeen && <Text style={{ color: theme.onSurfaceMuted, fontSize: 10 }}>· {timeAgo(iss.lastSeen, tr)}</Text>}
-                              </View>
-                            </View>
-                            <ExternalLink size={ICON.xs} color={theme.onSurfaceVariant} style={{ opacity: 0.35, marginTop: S.xxs }} />
-                          </Touchable>
-                        );
-                      })}
-                    </View>
-                  </>
-                ) : (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: '#10B98112', borderRadius: R.md, padding: S.sm }}>
-                    <Check size={ICON.sm} color="#10B981" />
-                    <Text style={{ color: '#10B981', fontSize: F.caption, fontWeight: '700' }}>{tr ? 'Son 24 saatte çözülmemiş hata yok' : 'No unresolved issues (24h)'}</Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Çökmeler — hata başına tek satır + saklama süresi (bkz. CrashGroupsCard, sunucu CrashLog). */}
-              <CrashGroupsCard lang={tr ? 'tr' : 'en'} />
-
-              {/* Loglar */}
-              <View style={{ backgroundColor: cardBg, borderRadius: R.lg, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
-                    <View style={{ width: 28, height: 28, borderRadius: R.sm, backgroundColor: theme.surfaceContainerHigh, alignItems: 'center', justifyContent: 'center' }}>
-                      <FileText size={ICON.sm} color={theme.onSurfaceVariant} />
-                    </View>
-                    <View>
-                      <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{tr ? 'Loglar' : 'Logs'}</Text>
-                      {/* Toplam değil CANLI sayaç: geliştirme gürültüsü rozeti sürekli
-                          kırmızı tutuyordu ve sürekli kırmızı olan gösterge okunmaz. */}
-                      {sysHealth && (
-                        <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>
-                          {sysLogMeta.total} {tr ? 'kayıt' : 'records'}
-                          {sysLogSource === 'Production' ? (tr ? ' · canlı' : ' · live') : ''}
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-                  <View style={{ flexDirection: 'row', gap: S.xs }}>
-                    {[null, 'Warning', 'Error'].map((lv) => (
-                      <Touchable key={lv || 'all'} onPress={() => setSysLogLevel(lv)}
-                        style={{ paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: sysLogLevel === lv ? theme.primary : theme.surfaceContainerHigh }}>
-                        <Text style={{ color: sysLogLevel === lv ? '#FFF' : theme.onSurfaceVariant, fontSize: 10, fontWeight: '700' }}>{lv ? (lv === 'Warning' ? (tr ? 'Uyarı' : 'Warn') : (tr ? 'Hata' : 'Err')) : (tr ? 'Hepsi' : 'All')}</Text>
-                      </Touchable>
-                    ))}
-                  </View>
-                </View>
-
-                {/*
-                  KAYNAK FİLTRESİ. Geliştirme sürümü de canlı API'ye bağlandığı için kod
-                  yazarken çıkan hatalar aynı havuza düşüyor. Varsayılan "Canlı": panelin
-                  cevaplaması gereken ilk soru "gerçek kullanıcıda ne kırıldı?".
-                  Kayıtlar silinmiyor — tek dokunuşla geri geliyor.
-                */}
-                <View style={{ flexDirection: 'row', gap: S.xs, flexWrap: 'wrap' }}>
-                  {([['Production', tr ? 'Canlı' : 'Live'], ['Development', tr ? 'Geliştirme' : 'Dev'], [null, tr ? 'Tümü' : 'All']] as const).map(([src, label]) => {
-                    const active = sysLogSource === src;
-                    const n = src ? (sysLogMeta.counts[src as LogSource] ?? 0) : Object.values(sysLogMeta.counts).reduce((a, b) => a + (b ?? 0), 0);
-                    return (
-                      <Touchable key={label} onPress={() => setSysLogSource(src as LogSource | null)}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: S.xxs, paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: active ? theme.primary : theme.surfaceContainerHigh }}>
-                        <Text style={{ color: active ? '#FFF' : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700' }}>{label}</Text>
-                        {/* Sayı filtreye BASMADAN "burada ne var?" sorusunu cevaplıyor. */}
-                        <Text style={{ color: active ? '#FFF' : theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600' }}>{n}</Text>
-                      </Touchable>
-                    );
-                  })}
-                </View>
-
-                {sysLogs.length === 0 ? (
-                  <View style={{ alignItems: 'center', paddingVertical: S.md }}>
-                    <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{tr ? 'Kayıt yok' : 'No logs'}</Text>
-                  </View>
-                ) : (
-                  <View>
-                    {/* `.slice(0, 60)` KALDIRILDI: sunucu artık sayfalıyor, istemcinin
-                        ikinci kez kırpması kayıtları görünmez yapıyordu. */}
-                    {sysLogs.map((lg, i) => {
-                      const st = logLevelStyle(lg.level);
-                      return (
-                        <View key={i} style={{ gap: S.xs, borderTopWidth: i > 0 ? B.thin : 0, borderTopColor: cardBorder, paddingVertical: S.sm }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                            <View style={{ backgroundColor: st.color + '1A', borderRadius: R.xs, paddingHorizontal: S.xs, paddingVertical: S.xxs }}>
-                              <Text style={{ color: st.color, fontSize: F.caption, fontWeight: '700' }}>{st.label}</Text>
-                            </View>
-                            <Text numberOfLines={1} style={{ color: theme.onSurfaceVariant, fontSize: 10, fontWeight: '700', flex: 1 }}>{lg.category}</Text>
-                            {/* Kaynak rozeti YALNIZ karışık listede: tek kaynağa
-                                filtrelenmişken her satıra aynı etiketi basmak gürültü. */}
-                            {!sysLogSource && lg.source === 'Development' && (
-                              <View style={{ backgroundColor: theme.onSurfaceMuted + '1A', borderRadius: R.xs, paddingHorizontal: S.xs }}>
-                                <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '700' }}>{tr ? 'DEV' : 'DEV'}</Text>
-                              </View>
-                            )}
-                            <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{new Date(lg.timestamp).toLocaleTimeString(tr ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</Text>
-                          </View>
-                          <Text numberOfLines={3} style={{ color: theme.onSurface, fontSize: F.caption, lineHeight: 16 }}>{lg.message}</Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                )}
-
-                <Pager
-                  page={sysLogPage}
-                  pageSize={LOG_PAGE_SIZE}
-                  total={sysLogMeta.total}
-                  hasMore={sysLogMeta.hasMore}
-                  onChange={setSysLogPage}
-                  tr={tr}
-                />
               </View>
 
               {/*
@@ -1347,13 +1376,13 @@ export default function AdminScreen() {
                     <Sparkles size={ICON.sm} color={aiStatus?.configured ? theme.primary : theme.onSurfaceVariant} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{tr ? 'Yapay Zeka' : 'AI'}</Text>
+                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{tr ? 'Yapay zekâ' : 'AI'}</Text>
                     <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>
                       {aiStatus
                         ? (aiStatus.configured
                             ? aiStatus.keyMasked + ' - ' + aiStatus.keyLength + (tr ? ' karakter' : ' chars')
-                            : (tr ? 'Anahtar tanimli degil' : 'No API key'))
-                        : (tr ? 'Yukleniyor...' : 'Loading...')}
+                            : (tr ? 'Anahtar tanımlı değil' : 'No API key'))
+                        : (tr ? 'Yükleniyor…' : 'Loading...')}
                     </Text>
                   </View>
                 </View>
@@ -1367,7 +1396,7 @@ export default function AdminScreen() {
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{tr ? 'Kaynak' : 'Source'}</Text>
                       <Text style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '600' }}>
-                        {aiStatus.modelFromEnv ? 'GROQ_MODEL' : (tr ? 'varsayilan' : 'default')}
+                        {aiStatus.modelFromEnv ? 'GROQ_MODEL' : (tr ? 'varsayılan' : 'default')}
                       </Text>
                     </View>
                   </View>
@@ -1386,18 +1415,18 @@ export default function AdminScreen() {
                       setAiTest(r);
                       if (r.ok) { haptic.success(); } else { haptic.error(); }
                     } catch {
-                      setAiTest({ ok: false, stage: 'network', message: tr ? 'Istek basarisiz' : 'Request failed' });
+                      setAiTest({ ok: false, stage: 'network', message: tr ? 'İstek başarısız' : 'Request failed' });
                       haptic.error();
                     } finally {
                       setAiTesting(false);
                     }
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel={tr ? 'Yapay zeka baglantisini test et' : 'Test AI connection'}
+                  accessibilityLabel={tr ? 'Yapay zekâ bağlantısını test et' : 'Test AI connection'}
                   style={{ alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, backgroundColor: theme.surfaceContainerHigh, opacity: aiTesting ? 0.6 : 1 }}
                 >
                   <Text style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '700' }}>
-                    {aiTesting ? (tr ? 'Deneniyor...' : 'Testing...') : (tr ? 'Baglantiyi Test Et' : 'Test Connection')}
+                    {aiTesting ? (tr ? 'Deneniyor...' : 'Testing...') : (tr ? 'Bağlantıyı test et' : 'Test Connection')}
                   </Text>
                 </Touchable>
 
@@ -1419,6 +1448,8 @@ export default function AdminScreen() {
                   </View>
                 )}
               </View>
+                </>
+              )}
             </View>
           ) : null}
         </ScrollView>

@@ -272,7 +272,7 @@ export default function GunScreen() {
           },
         ]}
       >
-        <View style={[styles.dot, { backgroundColor: done ? theme.success : theme.primary }]} />
+        <View style={[styles.dot, { backgroundColor: done ? theme.success : theme.primaryFill }]} />
         <Text
           numberOfLines={1}
           style={[
@@ -356,7 +356,7 @@ export default function GunScreen() {
           Şerit artık hangi işi aldıysan onu söylüyor ve vazgeçme yolu hep görünür.
         */}
         {placingId != null && (
-          <View style={[styles.placingBar, { backgroundColor: theme.primary + '14', borderColor: theme.primary + '40' }]}>
+          <View style={[styles.placingBar, { backgroundColor: theme.primaryFill + '14', borderColor: theme.primary + '40' }]}>
             <Text numberOfLines={1} style={{ flex: 1, color: theme.onSurface, fontSize: F.caption + 1, fontWeight: '700' }}>
               {d.placingHint}
             </Text>
@@ -436,7 +436,7 @@ export default function GunScreen() {
                   {
                     borderTopColor: isNow ? theme.primary : theme.outlineVariant,
                     borderTopWidth: isNow ? B.medium : HAIRLINE,
-                    backgroundColor: placing ? theme.primary + '08' : 'transparent',
+                    backgroundColor: placing ? theme.primaryFill + '08' : 'transparent',
                   },
                 ]}
               >
@@ -492,9 +492,9 @@ export default function GunScreen() {
               onPress={() => moveToTomorrow(unfinished.map(task => task.id))}
               accessibilityRole="button"
               accessibilityLabel={d.moveAllTomorrow}
-              style={[styles.primaryBtn, { backgroundColor: theme.primary }]}
+              style={[styles.primaryBtn, { backgroundColor: theme.primaryFill }]}
             >
-              <Text style={{ color: theme.onPrimary, fontWeight: '700', fontSize: F.body }}>{d.moveAllTomorrow}</Text>
+              <Text style={{ color: theme.onPrimaryFill, fontWeight: '700', fontSize: F.body }}>{d.moveAllTomorrow}</Text>
             </Touchable>
 
             <View style={{ gap: S.xs }}>

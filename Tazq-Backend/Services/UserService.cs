@@ -19,8 +19,11 @@ namespace Tazq_App.Services
         private readonly IAppleTokenValidator _appleTokenValidator;
         private readonly IBackgroundTaskQueue _emailQueue;
 
-        public UserService(AppDbContext context, ICustomEmailService emailService, IJwtService jwtService, ILogger<UserService> logger, IGoogleTokenValidator googleTokenValidator, IAppleTokenValidator appleTokenValidator, IBackgroundTaskQueue emailQueue)
+        private readonly ICryptoService? _crypto;
+
+        public UserService(AppDbContext context, ICustomEmailService emailService, IJwtService jwtService, ILogger<UserService> logger, IGoogleTokenValidator googleTokenValidator, IAppleTokenValidator appleTokenValidator, IBackgroundTaskQueue emailQueue, ICryptoService? crypto = null)
         {
+            _crypto = crypto;
             _context = context;
             _emailService = emailService;
             _jwtService = jwtService;
@@ -662,6 +665,8 @@ namespace Tazq_App.Services
             return 0;
         }
 
+        private string SealIfPossible(string json, int userId) => _crypto is null ? json : SensitivePrefs.Seal(json, _crypto, userId);
+
         public async Task<bool> UpdateProfileAsync(int userId, string? name, string? avatar, string? motto, string? avatarBorderColor, string? preferences)
         {
             var user = await _context.Users.FindAsync(userId);
@@ -682,10 +687,12 @@ namespace Tazq_App.Services
 
             // null = değiştirme; boş string = temizle. JSON içeriği frontend tarafından üretilir/doğrulanır.
             if (preferences != null)
-                user.Preferences = preferences.Length > 0 ? preferences : null;
+                user.Preferences = preferences.Length > 0 ? SealIfPossible(PreferencesGuard.Merge(user.Preferences, preferences), userId) : null;
 
-            _context.Users.Update(user);
-            return await _context.SaveChangesAsync() > 0;
+            // Update() çağrılmaz: izlenen varlıkta EF yalnız değişen kolonu yazar; kullanıcının 200 KB'lık satırı her istekte baştan yazılmaz.
+            // Değişiklik yoksa 0 satır normaldir, hata değil: aynı tercih yeniden gönderilebilir.
+            await _context.SaveChangesAsync();
+            return true;
         }
     }
 }

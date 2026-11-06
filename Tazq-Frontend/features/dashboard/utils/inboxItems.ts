@@ -26,6 +26,8 @@ export interface InboxItem {
   title?: string;
   sub?: string;
   tone?: 'error' | 'warning' | 'muted';
+  /** payment: görünen tutar; ödeme kararı bunsuz verilemez (Cashew, Wallos). */
+  amount?: string;
   /** payment: tutar her ay değişiyor; ödemeden önce sorulur. */
   variable?: boolean;
   /** payment: ödeme kimliği · support: mesaj kimliği · badge: başarım kimliği. */
@@ -43,6 +45,7 @@ export interface InboxInput {
   unlockedAt: Record<string, number>;
   achievementTitle: (id: string) => string | null;
   tomorrowCount: number;
+  money?: (p: Payment) => string;
   copy: {
     paymentOverdue: (days: number) => string;
     paymentToday: string;
@@ -71,6 +74,9 @@ const lastStaffReplyAt = (m: MySupportMessage): number => {
 export const AUTO_CLEAR_ON_SEEN: InboxKind[] = ['badge', 'tomorrow'];
 export const clearsOnOpen = (k: InboxKind) => k !== 'payment';
 
+/** Eylem isteyenler üstte; bilgi kalemleri kendi grubunda ve yalnız onlar topluca temizlenir: gecikmiş ödeme yanlışlıkla silinmesin. */
+export const isInfoKind = (k: InboxKind) => k === 'badge' || k === 'tomorrow';
+
 export function buildInbox(i: InboxInput): InboxItem[] {
   const out: InboxItem[] = [];
   if (i.zen.visible) out.push({ id: `zen:${i.zen.overload ? 'load' : 'debt'}:${i.dayKey}`, kind: 'zen', rank: 0 });
@@ -80,7 +86,7 @@ export function buildInbox(i: InboxInput): InboxItem[] {
     if (!v || v.status === 'paid') continue;
     if (v.status !== 'overdue' && v.days > 3) continue;
     const sub = v.status === 'overdue' ? i.copy.paymentOverdue(-v.days) : v.days === 0 ? i.copy.paymentToday : i.copy.paymentIn(v.days);
-    out.push({ id: `pay:${p.id}:${v.date.toISOString().slice(0, 10)}`, kind: 'payment', variable: !!p.isVariable, rank: v.status === 'overdue' ? 1 : 2, title: p.title, sub, tone: v.status === 'overdue' ? 'error' : v.days <= 1 ? 'warning' : 'muted', ref: p.id });
+    out.push({ id: `pay:${p.id}:${v.date.toISOString().slice(0, 10)}`, kind: 'payment', amount: i.money?.(p), variable: !!p.isVariable, rank: v.status === 'overdue' ? 1 : 2, title: p.title, sub, tone: v.status === 'overdue' ? 'error' : v.days <= 1 ? 'warning' : 'muted', ref: p.id });
   }
 
   for (const m of i.support) {

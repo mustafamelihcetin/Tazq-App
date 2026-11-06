@@ -30,7 +30,7 @@ describe('Görevler — sıralama menüsü ekran okuyucuya durumunu söylüyor',
 describe('Görevler — dokunma alanı 44 pt', () => {
   it('üst çubuktaki 40 pt düğmeler dokunma alanını tamamlar', () => {
     const SRC = read('app/tasks.tsx');
-    expect((SRC.match(/hitSlop=\{HEADER_SLOP\}/g) ?? []).length).toBe(3);
+    expect((SRC.match(/hitSlop=\{HEADER_SLOP\}/g) ?? []).length).toBe(2);
   });
 
   it('açılan satırdaki 32 pt düğmeler dokunma alanını tamamlar', () => {
@@ -73,7 +73,7 @@ describe('Görevler — terim ve ton (2026-10-31)', () => {
   });
   it('sayı nötr: "N görevin var" (eskiden "seni bekliyor")', () => {
     expect(I18N).toContain("tasksPending: '{n} görevin var'");
-    expect(read('app/index.tsx')).not.toContain('görevin seni bekliyor');
+    expect((read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'))).not.toContain('görevin seni bekliyor');
   });
   it('kullanıcının gördüğü yerde eski ad kalmadı', () => {
     expect(read('features/modes/components/modes/BirakmaCard.tsx')).not.toMatch(/'[^']*Aksiyon[^']*'/);

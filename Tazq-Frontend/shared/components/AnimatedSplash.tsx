@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
-import { StyleSheet, Text, useColorScheme, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
+import { Platform, StyleSheet, Text, useColorScheme, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
+import { initialWindowMetrics } from 'react-native-safe-area-context';
 import { Canvas } from '@shopify/react-native-skia';
 import Animated, {
   Easing, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, type SharedValue,
@@ -163,11 +164,14 @@ function WordRow({ word, kind, fontSize, glyph, ink, brand, track, enter, draw }
 export const AnimatedSplash = ({
   onFinish,
   onReady,
+  onExitStart,
   ready = true,
   canStart = true,
 }: {
   onFinish: () => void;
   onReady: () => void;
+  /** Çıkış başlıyor: alttaki ekran hâlâ örtülüyken sistem çubuğu geri gelsin (bkz. _layout). */
+  onExitStart?: () => void;
   /** Uygulama gerçekten hazır mı (font + varlık)? Giriş bitse de hazır değilse açılış durur. */
   ready?: boolean;
   /**
@@ -188,7 +192,7 @@ export const AnimatedSplash = ({
   const langReady = useLanguageHydrated();
   const prefsReady = useSplashPrefsHydrated();
   const forced = useSplashPrefs(s => s.edition);
-  const enabled = useSplashPrefs(s => s.enabled);
+  const enabled = useSplashPrefs(s => s.enabled && !s.plain);
   const language = useLanguageStore(s => s.language);
   const lang: 'tr' | 'en' = language in GREET ? (language as 'tr' | 'en') : 'en';
   const c = GREET[lang];
@@ -243,7 +247,9 @@ export const AnimatedSplash = ({
   const signInkH = NATIVE_LOGO * NATIVE_INK_H * signScale;
   // Mürekkep merkezinin resim merkezinden aşağı kayması (ölçek merkezden uygulanır, kayma da ölçeklenir).
   const inkOffset = ((NATIVE_INK_TOP - NATIVE_INK_BOTTOM) / 2) * NATIVE_LOGO;
-  const signY = Math.round(boxH - boxH * 0.045 - signInkH / 2 - boxH / 2 - inkOffset * signScale);
+  // Android tuş çubuğu gizlenemezse (eski kurulum, üretici) imza tuşların altında kalmasın (Samsung M31s, 2026-11-06).
+  const signBottom = Math.max(boxH * 0.045, Platform.OS === 'android' ? (initialWindowMetrics?.insets.bottom ?? 0) + 8 : 0);
+  const signY = Math.round(boxH - signBottom - signInkH / 2 - boxH / 2 - inkOffset * signScale);
   const rgbA = rgbOf(brand);
   const rgbB = rgbOf(ink);
 
@@ -257,6 +263,8 @@ export const AnimatedSplash = ({
   const introStart = React.useRef(0);
   const outroStarted = React.useRef(false);
   const bridge = useSharedValue(needsBridge ? 0 : 1);
+  /** 0 sistem logosu, 1 uygulamanın logosu. Kapanıma bağlı değil: tema geç okununca stil eski değerle kalıyor, koyu temada siyah logo görünüyordu (iPad, 2026-11-06). */
+  const logoMix = useSharedValue(0);
   const headA = useSharedValue(reduceMotion ? 1 : 0);
   const headB = useSharedValue(reduceMotion ? 1 : 0);
   const tailA = useSharedValue(0);
@@ -275,6 +283,7 @@ export const AnimatedSplash = ({
   const glide = useSharedValue(0);
   // Nokta dokusu sistem splash'inde yok: bir anda belirmesin, logo kayarken gelsin.
   const dots = useSharedValue(0);
+  const exitCue = useSharedValue(0);
 
   const shown = themeReady && langReady && prefsReady && canStart;
 
@@ -287,6 +296,7 @@ export const AnimatedSplash = ({
   */
   useEffect(() => {
     if (!themeReady) return;
+    logoMix.value = needsBridge && !reduceMotion ? withTiming(1, { duration: BG_BRIDGE, easing: Easing.inOut(Easing.quad) }) : 1;
     if (!needsBridge || reduceMotion) { bridge.value = 1; return; }
     bridge.value = withTiming(1, { duration: BG_BRIDGE, easing: Easing.inOut(Easing.quad) });
     const t = setTimeout(() => { bridge.value = 1; }, BG_BRIDGE + 80);
@@ -298,6 +308,7 @@ export const AnimatedSplash = ({
     if (outroStarted.current) return;
     outroStarted.current = true;
     const accel = Easing.in(Easing.cubic);
+    if (onExitStart) exitCue.value = withDelay(delay, withTiming(1, { duration: 1 }, done => { if (done) runOnJS(onExitStart)(); }));
     if (!reduceMotion) {
       // Kuşaklar kendi yolunda akıp gider (kuyruk ucu kovalar).
       tailA.value = withDelay(delay, withTiming(1, { duration: OUTRO, easing: accel }));
@@ -363,8 +374,8 @@ export const AnimatedSplash = ({
     transform: [{ translateY: glide.value * signY }, { scale: 1 + glide.value * (signScale - 1) }],
   }));
   // Sistem logosu (sistem temasının rengi) uygulamanın temasına zemin köprüsüyle birlikte geçer.
-  const systemLogoStyle = useAnimatedStyle(() => ({ opacity: needsBridge ? 1 - bridge.value : 1 }));
-  const appLogoStyle = useAnimatedStyle(() => ({ opacity: needsBridge ? bridge.value : 0 }));
+  const systemLogoStyle = useAnimatedStyle(() => ({ opacity: 1 - logoMix.value }));
+  const appLogoStyle = useAnimatedStyle(() => ({ opacity: logoMix.value }));
   const dotsStyle = useAnimatedStyle(() => ({ opacity: dots.value }));
   const systemLogo = systemScheme === 'dark' ? NATIVE_LOGO_WHITE : NATIVE_LOGO_DARK;
   const appLogo = isDark ? NATIVE_LOGO_WHITE : NATIVE_LOGO_DARK;

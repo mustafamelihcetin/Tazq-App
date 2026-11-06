@@ -16,6 +16,7 @@ interface InboxState {
    */
   dismissed: string[];
   dismiss: (ids: string[]) => void;
+  undismiss: (ids: string[]) => void;
   /** Yalnız admin önizlemesi: kutu her türden ÖRNEK kalemle dolar (bkz. AdminPreviewCard). */
   demo: boolean;
   setDemo: (on: boolean) => void;
@@ -27,6 +28,7 @@ export const useInboxStore = create<InboxState>()(
       seen: [],
       dismissed: [],
       dismiss: (ids) => set({ dismissed: Array.from(new Set([...get().dismissed, ...ids])).slice(-300) }),
+      undismiss: (ids) => set({ dismissed: get().dismissed.filter(id => !ids.includes(id)) }),
       demo: false,
       setDemo: (demo) => set({ demo }),
       markSeen: (ids) => {

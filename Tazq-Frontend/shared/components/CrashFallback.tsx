@@ -50,12 +50,12 @@ export function CrashFallback({ error, onRetry, onHome }: Props) {
 
         <Touchable
           onPress={onHome}
-          style={[styles.primaryBtn, { backgroundColor: theme.primary }]}
+          style={[styles.primaryBtn, { backgroundColor: theme.primaryFill }]}
           accessibilityRole="button"
           accessibilityLabel={t.home}
         >
-          <Home size={ICON.sm} color={theme.onPrimary} />
-          <Text style={[styles.primaryText, { color: theme.onPrimary }]}>{t.home}</Text>
+          <Home size={ICON.sm} color={theme.onPrimaryFill} />
+          <Text style={[styles.primaryText, { color: theme.onPrimaryFill }]}>{t.home}</Text>
         </Touchable>
         <Touchable
           onPress={onRetry}

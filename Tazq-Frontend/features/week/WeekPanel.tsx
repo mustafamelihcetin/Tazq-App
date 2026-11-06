@@ -61,8 +61,8 @@ function DayColumn({ day, selected, onPress, delay }: { day: WeekDay; selected: 
         borderWidth: selected ? 2 : noWork ? 1 : 0,
         borderStyle: noWork && !selected ? 'dashed' : 'solid',
       }, popStyle]}>
-        <Animated.View style={[styles.fill, { backgroundColor: full ? theme.success : theme.primary }, fillStyle]} />
-        {full && <View style={styles.tick}><Check size={ICON.xs} color={theme.onPrimary} strokeWidth={3} /></View>}
+        <Animated.View style={[styles.fill, { backgroundColor: full ? theme.success : theme.primaryFill }, fillStyle]} />
+        {full && <View style={styles.tick}><Check size={ICON.xs} color={theme.onPrimaryFill} strokeWidth={3} /></View>}
       </Animated.View>
       <Text style={[styles.num, { color: day.isToday || selected ? theme.primary : day.isFuture ? dc.muted : dc.ink }]}>{day.num}</Text>
     </Touchable>

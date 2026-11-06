@@ -31,7 +31,7 @@ describe('useMomentumStore', () => {
     expect(useMomentumStore.getState().momentumShieldActive).toBe(false);
   });
 
-  it('freezes/locks score to at least 75 when shield is active', () => {
+  it('kalkan son gerçek skoru dondurur', () => {
     // Pre-populate history with a high active score
     useMomentumStore.setState({
       history: [{ date: '2026-07-02', score: 85 }],
@@ -48,7 +48,7 @@ describe('useMomentumStore', () => {
     expect(todayScore?.score).toBe(85);
   });
 
-  it('locks score to 75 minimum when shield is active and no active history exists', () => {
+  it('geçmiş yoksa kalkan skoru yükseltmez (eskiden en az 75 yapıyordu)', () => {
     useMomentumStore.setState({
       history: [],
       momentumShieldActive: true,
@@ -59,7 +59,7 @@ describe('useMomentumStore', () => {
 
     const updated = useMomentumStore.getState();
     const todayScore = updated.history[0];
-    expect(todayScore.score).toBe(75);
+    expect(todayScore.score).toBe(20);
   });
 
   it('accumulates shield charges and caps at 3', () => {
@@ -112,5 +112,13 @@ describe('useMomentumStore', () => {
     for (const k of ['engineHeat', 'isOverheated', 'isBatchConfirming', 'showRocketFeedback', 'triggerRocketFeedback', 'decayEngineHeat']) {
       expect({ k, present: k in st }).toEqual({ k, present: false });
     }
+  });
+
+  it('geçmiş yeni hesapla yazılır, boş gün uydurulmaz, sürüm işlenir', () => {
+    useMomentumStore.setState({ scoreVersion: 1, history: [{ date: '2026-11-04', score: 50 }, { date: '2026-11-05', score: 60 }] });
+    useMomentumStore.getState().replaceScores({ '2026-11-04': 12, '2026-11-01': 99 }, 2);
+    const st = useMomentumStore.getState();
+    expect(st.scoreVersion).toBe(2);
+    expect(st.history).toEqual([{ date: '2026-11-04', score: 12 }, { date: '2026-11-05', score: 60 }]);
   });
 });

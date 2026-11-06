@@ -1,7 +1,7 @@
 import { occurrenceInMonth } from '@/features/payments/utils/paymentDates';
 import { monthGrid } from '@/shared/components/MonthCalendar';
 import { paymentLook, reminderDaysOf } from '@/features/payments/utils/paymentLook';
-import { compactAmount } from '@/features/payments/components/PaymentsCalendar';
+import { initialDay } from '@/features/payments/components/PaymentsCalendar';
 import type { Payment } from '@/features/payments/store/usePaymentsStore';
 
 const base: Payment = { id: 1, title: 'Kira', amount: 100, dueDay: 31, recurrence: 'Monthly' };
@@ -49,9 +49,11 @@ describe('ödeme takvimi', () => {
   });
 });
 
-it('hücre için kısa tutar', () => {
-  expect(compactAmount(1500, 'tr')).toBe('1,5B');
-  expect(compactAmount(1500, 'en')).toBe('1.5K');
-  expect(compactAmount(850, 'tr')).toBe('850');
-  expect(compactAmount(2000000, 'tr')).toBe('2M');
+it('takvim boş günle açılmaz: bugün yoksa sıradaki ödeme günü', () => {
+  const now = new Date(2026, 10, 6);
+  const on = (d: number) => ({ date: new Date(2026, 10, d) });
+  expect(initialDay([on(6), on(9)], 2026, 10, now)).toBe('2026-11-06');
+  expect(initialDay([on(3), on(9)], 2026, 10, now)).toBe('2026-11-09');
+  expect(initialDay([on(3)], 2026, 10, now)).toBe('2026-11-06');
+  expect(initialDay([{ date: new Date(2026, 11, 21) }], 2026, 11, now)).toBe('2026-12-21');
 });

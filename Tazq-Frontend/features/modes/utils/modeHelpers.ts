@@ -14,6 +14,8 @@
  * her zaman aynı rengi gösterir. Eski hâlde theme.primary/secondary/... kullanıldığı
  * için spor yeşil, mülakat mor görünüp kartlarla çelişiyordu.
  */
+import { getCleanDays } from '@/shared/store/useQuitStore'; // Tek kaynak: görev satırı "Temiz: 1 gün", hedef satırı "2 temiz gün" diyordu (2026-11-06).
+import { logicalNow } from '@/shared/utils/appDay';
 import { ramadanGoalDate } from '@/features/modes/utils/ramadanPreview';
 import { localizeSporGoal } from './turkishModes';
 import { swallow } from '@/shared/utils/swallow';
@@ -89,19 +91,12 @@ const MODE_COLORS = {
  */
 function getDaysLeft(isoDate: string | null | undefined): number | undefined {
   if (!isoDate) return undefined;
-  const now = new Date();
-  now.setHours(now.getHours() - 3); // 3-hour buffer
+  const now = logicalNow();
   now.setHours(0, 0, 0, 0);
   const target = parseDateKey(isoDate);
   target.setHours(0, 0, 0, 0);
   const diffMs = target.getTime() - now.getTime();
   return Math.max(0, Math.ceil(diffMs / 86400000));
-}
-
-function getCleanDays(start: string | null): number {
-  if (!start) return 0;
-  const s = new Date(start + 'T00:00:00').getTime();
-  return Math.max(0, Math.floor((Date.now() - s) / 86400000));
 }
 
 export function getTaskRemainingTime(dueDate: string | null | undefined, dueTime: string | null | undefined, isCompleted: boolean, tr: boolean): string | null {

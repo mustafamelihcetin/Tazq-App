@@ -58,7 +58,7 @@ export function SupportThread({ entries, viewer, otherName, lang, closedBy, canR
         return (
           <View key={`${e.at}-${i}`} style={{ alignItems: me ? 'flex-end' : 'flex-start', gap: S.xxs }}>
             <View style={[styles.bubble, me
-              ? { backgroundColor: theme.primary + (isDark ? '2E' : '1A'), borderBottomRightRadius: R.xs }
+              ? { backgroundColor: theme.primaryFill + (isDark ? '2E' : '1A'), borderBottomRightRadius: R.xs }
               : { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderBottomLeftRadius: R.xs }]}>
               <Text style={{ fontSize: F.footnote, lineHeight: 19, color: theme.onSurface }}>{e.body}</Text>
             </View>
@@ -85,8 +85,8 @@ export function SupportThread({ entries, viewer, otherName, lang, closedBy, canR
               style={[styles.input, { color: theme.onSurface, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow }]}
             />
             <Touchable onPress={onSend} disabled={!canSend} accessibilityRole="button" accessibilityLabel={c.send} accessibilityState={{ disabled: !canSend, busy: sending }}
-              style={[styles.send, { backgroundColor: canSend ? theme.primary : theme.surfaceContainerHigh }]}>
-              {sending ? <ActivityIndicator size="small" color={theme.onPrimary} /> : <Send size={ICON.sm} color={canSend ? theme.onPrimary : theme.onSurfaceMuted} />}
+              style={[styles.send, { backgroundColor: canSend ? theme.primaryFill : theme.surfaceContainerHigh }]}>
+              {sending ? <ActivityIndicator size="small" color={theme.onPrimaryFill} /> : <Send size={ICON.sm} color={canSend ? theme.onPrimaryFill : theme.onSurfaceMuted} />}
             </Touchable>
           </View>
         </View>

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { F, S, ICON, R, B, trackingFor, SCRIM } from '@/shared/constants/tokens';
+import { F, S, ICON, R, trackingFor } from '@/shared/constants/tokens';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   Animated,
-  Modal,
   NativeSyntheticEvent,
   NativeScrollEvent,
   Platform
@@ -17,10 +16,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
-import { ChevronRight, Flame, ListChecks } from 'lucide-react-native';
+import { ChevronRight } from 'lucide-react-native';
 import { OnboardingVisual } from '@/features/onboarding/components/OnboardingVisuals';
 import { Touchable } from '@/shared/components/Touchable';
-import { GlassSheet } from '@/shared/components/GlassSheet';
 import { track } from '@/shared/utils/analytics';
 import { usePrefsStore } from '@/features/modes';
 import { useAuthStore } from '@/features/user';
@@ -82,14 +80,9 @@ export default function OnboardingScreen() {
   const { width, height } = useWindowDimensions();
   const [currentIndex, setCurrentIndex] = useState(0);
   /*
-    TEK SORU — tanıtımın sonunda, çıkıştan hemen önce.
-
-    Sade mod sözünü tutuyor (ivme skorunu ve seriyi gerçekten gizliyor) ama kimse
-    açmıyordu: Ayarlar'ın içinde, kimsenin aramadığı bir yerde duruyor. Oysa bu bir
-    ZEVK meselesi ve cevabı kullanıcıdan başkası bilemez. Yeni bir slayt eklemeden,
-    çıkışın önünde tek soruyla soruluyor; cevap Ayarlar'dan değiştirilebiliyor.
+    MOD SORUSU KALKTI (2026-11-06): uygulamayı hiç görmemiş birine "skor mu sade mi" sorduruyordu, cevabı bilinemez. Herkes tam
+    modla başlar; Sade Ayarlar'dan açılır. Fikir Super Productivity ve Bluesky'den: seçenek değil önce deneyim, ayrıntı bağlamında.
   */
-  const [modeAsk, setModeAsk] = useState<null | 'continue' | 'guest'>(null);
   const scrollViewRef = useRef<any>(null);
   // Kaydırma konumu yerel sürücüde: görsel paralaksı, metin ve sayfa göstergesi parmağı izler.
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -112,10 +105,8 @@ export default function OnboardingScreen() {
    * İki çıkış da (hesapla devam / hesapsız dene) buradan geçiyor: eskiden aynı beş
    * satır iki yerde kopyalanmıştı ve biri güncellendiğinde diğeri geride kalıyordu.
    */
-  const completeOnboarding = async (mode: 'lite' | 'pro', exit: 'continue' | 'guest') => {
+  const completeOnboarding = async (exit: 'continue' | 'guest') => {
     haptic.commit();
-    // Kullanıcının cevabı: skor/seri görünecek mi? (Sade mod ivmeyi gizler.)
-    usePrefsStore.getState().setUiMode(mode);
     if (exit === 'guest') useAuthStore.getState().startGuest(); // misafir oturumu çıkıştan ÖNCE: ana sayfadaki hoş geldin + "Aklındakileri yaz" misafiri tanısın (bkz. guestMode.test)
     try {
       await AsyncStorage.setItem('tazq-onboarding-done', 'true');
@@ -123,7 +114,7 @@ export default function OnboardingScreen() {
       swallow('onboarding.persistCompletedFlag', e, { capture: true });
     }
     usePrefsStore.getState().setOnboardingCompleted(true);
-    track('onboarding_completed', { skipped: false, lastStep: currentIndex, guest: exit === 'guest', uiMode: mode });
+    track('onboarding_completed', { skipped: false, lastStep: currentIndex, guest: exit === 'guest' });
 
     if (exit === 'guest') {
       goHome(router);
@@ -137,9 +128,7 @@ export default function OnboardingScreen() {
     if (currentIndex < SLIDES.length - 1) {
       scrollViewRef.current?.scrollTo({ x: (currentIndex + 1) * width, animated: true });
     } else {
-      // Son slayt: çıkmadan önce yalnız mod sorusu. "Neyle uğraşıyorsun" kalktı (2026-10-31): işini girişten sonraki "Aklındakileri yaz" ekranının mod önerisi yapıyor — üstelik tarihi de yakalıyor (bkz. captureFlow).
-      haptic.surface();
-      setModeAsk('continue');
+      void completeOnboarding('continue');
     }
   };
 
@@ -251,7 +240,7 @@ export default function OnboardingScreen() {
             <Animated.View
               style={[
                 styles.indicatorPill,
-                { backgroundColor: theme.primary, transform: [{ translateX: scrollX.interpolate({ inputRange: [0, width], outputRange: [0, DOT_STEP] }) }] },
+                { backgroundColor: theme.primaryFill, transform: [{ translateX: scrollX.interpolate({ inputRange: [0, width], outputRange: [0, DOT_STEP] }) }] },
               ]}
             />
           </View>
@@ -265,7 +254,7 @@ export default function OnboardingScreen() {
           */}
           {currentIndex === SLIDES.length - 1 && (
             <Touchable
-              onPress={() => { haptic.surface(); setModeAsk('guest'); }}
+              onPress={() => { void completeOnboarding('guest'); }}
               accessibilityRole="button"
               accessibilityLabel={t.guest.tryWithoutAccount}
               accessibilityHint={t.guest.tryHint}
@@ -283,53 +272,16 @@ export default function OnboardingScreen() {
             accessibilityRole="button"
             accessibilityLabel={currentIndex === SLIDES.length - 1 ? t.welcome.getStarted : t.next}
             accessibilityHint={language === 'tr' ? `${currentIndex + 1} / ${SLIDES.length}. adım` : `Step ${currentIndex + 1} of ${SLIDES.length}`}
-            style={[styles.nextBtn, { backgroundColor: theme.primary, height: isSmallDevice ? 56 : 64 }, !isDark && styles.clayShadow]}
+            style={[styles.nextBtn, { backgroundColor: theme.primaryFill, height: isSmallDevice ? 56 : 64 }, !isDark && styles.clayShadow]}
           >
-             <Text style={[styles.nextBtnText, { color: theme.onPrimary, fontSize: isSmallDevice ? 16 : 18 }]}>
+             <Text style={[styles.nextBtnText, { color: theme.onPrimaryFill, fontSize: isSmallDevice ? 16 : 18 }]}>
                 {currentIndex === SLIDES.length - 1 ? t.welcome.getStarted : t.next}
              </Text>
-             <ChevronRight size={ICON.md} color={theme.onPrimary} strokeWidth={3} />
+             <ChevronRight size={ICON.md} color={theme.onPrimaryFill} strokeWidth={3} />
           </Touchable>
         </View>
       </SafeAreaView>
 
-      {/*
-        MOD SORUSU — tanıtımın sonunda, çıkıştan hemen önce. Yeni bir slayt DEĞİL:
-        slayt olsaydı "Geç"le atlanır ve cevap alınamazdı; burada çıkışın üstünde
-        duruyor ama iki seçenekten biri tek dokunuşla geçiliyor.
-      */}
-      <Modal supportedOrientations={['portrait', 'landscape']} visible={modeAsk !== null} transparent animationType="fade" onRequestClose={() => setModeAsk(null)}>
-        <View style={styles.askBackdrop}>
-          <GlassSheet>
-            <Text style={[styles.askTitle, { color: theme.onSurface }]}>{t.onboardingModeAsk}</Text>
-            <Text style={[styles.askSub, { color: theme.onSurfaceVariant }]}>{t.onboardingModeAskSub}</Text>
-
-            {[
-              { key: 'pro' as const, Icon: Flame, title: t.onboardingModeFull, sub: t.onboardingModeFullSub, color: theme.primary },
-              { key: 'lite' as const, Icon: ListChecks, title: t.onboardingModeLite, sub: t.onboardingModeLiteSub, color: theme.onSurfaceVariant },
-            ].map(({ key, Icon, title, sub, color }) => (
-              <Touchable
-                key={key}
-                onPress={() => {
-                  const exit = modeAsk ?? 'continue';
-                  setModeAsk(null);
-                  completeOnboarding(key, exit);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={title}
-                accessibilityHint={sub}
-                style={[styles.askOption, { borderColor: color + '55', backgroundColor: color + '12' }]}
-              >
-                <Icon size={ICON.md} color={color} strokeWidth={2.2} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.askOptionTitle, { color: theme.onSurface }]}>{title}</Text>
-                  <Text style={[styles.askOptionSub, { color: theme.onSurfaceMuted }]}>{sub}</Text>
-                </View>
-              </Touchable>
-            ))}
-          </GlassSheet>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -361,12 +313,6 @@ const styles = StyleSheet.create({
   nextBtn: { borderRadius: R.xl, width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm },
   clayShadow: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 15 },
   nextBtnText: { fontWeight: '700' },
-  askBackdrop: { flex: 1, backgroundColor: SCRIM, alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.lg },
-  askTitle: { fontSize: F.title3, fontWeight: '700', textAlign: 'center', letterSpacing: -0.3 },
-  askSub: { fontSize: F.body, textAlign: 'center', lineHeight: 20 },
-  askOption: { flexDirection: 'row', alignItems: 'center', gap: S.smd, borderRadius: R.md, borderWidth: B.thin, paddingVertical: S.md, paddingHorizontal: S.md },
-  askOptionTitle: { fontSize: F.body, fontWeight: '700' },
-  askOptionSub: { fontSize: F.caption, fontWeight: '500', marginTop: S.xxs },
 });
 
 export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer

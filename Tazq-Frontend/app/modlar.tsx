@@ -1,8 +1,10 @@
+import { NavGlassArea } from '@/shared/components/NavGlass';
 import { finishSetup, GoalSetupHost, startFromSetup, useGoalSetupStore, type SetupResult } from '@/features/modes/components/setup/GoalSetupHost';
 import { useQuitStore } from '@/shared/store/useQuitStore';
 import { PLAN_COPY } from '@/features/modes/components/plan/planCopy';
 import { useAuthStore } from '@/features/user/store/useAuthStore';
-import { goalAddRows, GoalRows, GoalSummary } from '@/features/modes/components/GoalRows';
+import { GoalIconTile, goalAddRows, GoalRows, GoalSummary } from '@/features/modes/components/GoalRows';
+import { DiscoverToggle } from '@/features/modes/components/DiscoverToggle';
 import { useCompactGoals } from '@/features/modes/utils/goalRows';
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, TextInput, Keyboard, Switch, Dimensions, KeyboardAvoidingView, FlatList, Animated, useWindowDimensions } from 'react-native';
@@ -11,12 +13,12 @@ import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { MotiView, AnimatePresence } from 'moti';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Moon, BookOpen, GraduationCap, ChevronRight, CalendarDays, X, BarChart3, Flame, Zap, Sparkles, Target, CheckCircle2, Dumbbell, Activity, FileText, Briefcase, PiggyBank, Ban, Trophy } from 'lucide-react-native';
-import { AppIcon } from '@/shared/components/AppIcon';
+import { Moon, BookOpen, GraduationCap, ChevronRight, CalendarDays, X, BarChart3, Flame, Zap, Sparkles, Target, CheckCircle2, Dumbbell, Activity, FileText, Briefcase, Coins, Ban, Trophy } from 'lucide-react-native';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
+import { useSessionStore } from '@/shared/store/useSessionStore';
 import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
@@ -145,7 +147,7 @@ import { roadProgress } from '@/features/modes/utils/roadProgress';
 import type { PlanMode } from '@/features/modes/store/usePrefsStore';
 import { Touchable } from '@/shared/components/Touchable';
 import { ChromeShell } from '@/shared/components/ChromeShell';
-import { modeAccent as resolveModeAccent, modeAccentText as resolveModeAccentText, ModeAccents, modeTile } from '@/shared/constants/Colors';
+import { modeAccent as resolveModeAccent, modeAccentText as resolveModeAccentText, ModeAccents } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
 import { dateKeyFromNow, parseDateKey } from '@/shared/utils/dateKey';
 import { upperFor } from '@/shared/utils/localeCase';
@@ -170,22 +172,6 @@ const VenusIcon = ({ size = 16, color = 'currentColor', strokeWidth = 2.5 }: { s
 );
 
 /*
-  ÖLÜ KOD KALDIRILDI — spor hedefi ve sınav çakışması artık BU dosyada değil.
-
-  Bu ekran mod kartlarını kendi bileşenlerine devretti (<SporCard/>, <ExamCard/>).
-  Devir sırasında işaretleme taşındı ama YARDIMCILAR geride kaldı ve hiçbir şey
-  onları çağırmıyordu: stripEmojiPrefix, getEmojiFromLabel, SPOR_GOALS,
-  sporGoalsForSlot, TARGET_EVENTS, yksAutoActive/kpssAutoActive, examNameConflict.
-
-  Zararsız değildi: emoji temizliği turunda bu ÖLÜ kopyanın iki dalı da düzeltildi,
-  CANLI kopya (ExamCard) ise yarım kaldı — İngilizce dalında '⚠️' duruyordu. Yani ölü
-  ikiz, düzeltmenin yanlış dosyaya gitmesine sebep oldu.
-
-  Canlı hâlleri: features/modes/components/modes/SporCard.tsx ve ExamCard.tsx
-*/
-
-
-/*
   SAYFA AKAR, SIÇRAMAZ (2026-10-31). Bir mod açılınca keşif satırı katlanıp kaybolur, kart
   yukarıdaki bölümde belirir; kapatınca tersi. Eskiden her şey tek karede yer değiştiriyordu:
   göz kartın nereye gittiğini kaybediyordu. Komşular yaylı bir geçişle yerine kayar (gerçek
@@ -196,10 +182,12 @@ const LEAVE = FadeOut.duration(160);
 const ARRIVE = FadeIn.duration(220);
 
 export default function ModlarScreen() {
+  const isGuest = useSessionStore(st => st.isGuest);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { theme, colorScheme } = useAppTheme();
   const modeSummary = useActiveModeSummary();
+  const [discoverOpen, setDiscoverOpen] = useState(false);
   const [roadmapVisible, setRoadmapVisible] = useState(false);
   const isDark = colorScheme === 'dark';
   /*
@@ -988,6 +976,7 @@ export default function ModlarScreen() {
   return (
     <PlanRefreshContext.Provider value={refreshPlans}>
     <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <NavGlassArea nav={<BottomNavBar />}>
         {/*
           BAŞLIK DÜZENİ — ÖZET SAĞDA, TANITIM SOLDA.
 
@@ -1000,6 +989,7 @@ export default function ModlarScreen() {
           noktayı işaret ederdi.
         */}
         <ScreenHeader
+          onBack={isGuest ? () => (router.canGoBack() ? router.back() : goHome(router)) : undefined}
           /*
             Sol üst eskiden tur modalı açıyordu (Ayarlar'da zaten var). Yerine aktif
             hedeflerin bugünkü durumu; dokununca yol haritası (madde 7, bkz. ModeRoadmap).
@@ -1193,7 +1183,7 @@ export default function ModlarScreen() {
                   title: language === 'tr' ? 'Tasarruf / Bütçe' : 'Savings / Budget',
                   desc: language === 'tr' ? 'Para hedefine ulaşma planı' : 'Steps to reach money goal',
                   icon: '💰',
-                  Icon: PiggyBank,
+                  Icon: Coins,
                   color: resolveModeAccent('tasarruf', isDark),
                   textColor: resolveModeAccentText('tasarruf', isDark),
                   load: language === 'tr' ? '2 rutin · para hareketi takibi' : '2 routines · money tracking',
@@ -1230,7 +1220,9 @@ export default function ModlarScreen() {
               */
               return (
                 <Reanimated.View layout={FLOW} style={{ gap: S.sm, marginTop: statusActiveCount > 0 ? S.lg : 0 }}>
-                  <SectionHeader title={language === 'tr' ? 'Yeni hedef keşfet' : 'Discover new goals'} theme={theme} tr={language === 'tr'} />
+                  {statusActiveCount > 0 && !tourOn && <DiscoverToggle open={discoverOpen} onToggle={() => setDiscoverOpen(o => !o)} language={language === 'en' ? 'en' : 'tr'} theme={theme} />}
+                  {(statusActiveCount === 0 || tourOn || discoverOpen) && (<>
+                  {(statusActiveCount === 0 || tourOn) && <SectionHeader title={language === 'tr' ? 'Yeni hedef keşfet' : 'Discover new goals'} theme={theme} tr={language === 'tr'} />}
                   <View style={{ backgroundColor: theme.surfaceCard, borderRadius: R.lg, overflow: 'hidden', borderWidth: isDark ? B.thin : 0, borderColor: theme.outline }}>
                     {discoveryItems.map((item, idx) => (
                       /*
@@ -1252,9 +1244,7 @@ export default function ModlarScreen() {
                         activeOpacity={0.6}
                       >
                         <View style={{ paddingTop: S.smd }}>
-                          {/* İkon kutusu iki temada da DOYGUN ton: koyu temanın pastel vurgusu (ör. #FDBA74)
-                              beyaz glifi ~1.6:1'e düşürüyordu. Apple'ın Ayarlar ikonları da koyuda doygun kalır. */}
-                          <AppIcon Icon={item.Icon} color={item.key in ModeAccents ? modeTile(item.key, isDark) : item.color} size={34} radius={R.sm} iconSize={ICON.sm} />
+                          <GoalIconTile Icon={item.Icon} accent={item.key in ModeAccents ? resolveModeAccent(item.key, isDark) : item.color} isDark={isDark} />
                         </View>
                         {/* Ayırıcı ikonun sağından başlar (bkz. MyDayTaskRow). */}
                         <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: S.md, paddingVertical: S.smd, paddingRight: S.md, borderBottomWidth: idx < discoveryItems.length - 1 ? HAIRLINE : 0, borderBottomColor: theme.separator }}>
@@ -1275,6 +1265,7 @@ export default function ModlarScreen() {
                       </Reanimated.View>
                     ))}
                   </View>
+                  </>)}
                 </Reanimated.View>
               );
             })()}
@@ -1345,7 +1336,7 @@ export default function ModlarScreen() {
 
       <ModeRoadmapSheet visible={roadmapVisible} summary={modeSummary} onClose={() => setRoadmapVisible(false)} />
       {tourOn && <HelpTourModal pageId="modlar" scrollRef={scrollViewRef} />}
-      <BottomNavBar />
+      </NavGlassArea>
 
       <GoalSetupHost onDone={startSetup} />
       {modePreview && (

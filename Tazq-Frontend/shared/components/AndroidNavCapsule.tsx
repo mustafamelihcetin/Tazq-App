@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
+import { NavGlassLayer, useNavGlassOn } from '@/shared/components/NavGlass';
 import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { S, R, HAIRLINE, NAV_BAR_HEIGHT, NAV_ICON_SIZE, NAV_LABEL_SIZE, NAV_CAPSULE_PAD } from '@/shared/constants/tokens';
@@ -44,6 +45,7 @@ const PILL_H = 32;
 
 export function AndroidNavCapsule({ tabs, theme, isDark, showLabels }: { tabs: NavCapsuleTab[]; theme: AppTheme; isDark: boolean; showLabels: boolean }) {
   const reduceMotion = useReduceMotion();
+  const glass = useNavGlassOn();
   const [innerW, setInnerW] = useState(0);
   const tabW = innerW > 0 ? innerW / Math.max(tabs.length, 1) : 0;
   const activeIndex = Math.max(0, tabs.findIndex((t) => t.isActive));
@@ -75,7 +77,8 @@ export function AndroidNavCapsule({ tabs, theme, isDark, showLabels }: { tabs: N
       style={[
         styles.capsule,
         {
-          backgroundColor: theme.surfaceCard,
+          // Cam varsa zemin katmanda (bkz. NavGlass); yoksa opak: bulanıksız saydamlıkta arkadan yazı geçer.
+          backgroundColor: glass ? 'transparent' : theme.surfaceCard,
           borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)',
           /*
             YUMUŞAK, KATMANLI GÖLGE — `boxShadow` (RN 0.76+ Yeni Mimari, Android'de de).
@@ -88,6 +91,7 @@ export function AndroidNavCapsule({ tabs, theme, isDark, showLabels }: { tabs: N
       ]}
       accessibilityRole="tablist"
     >
+      <NavGlassLayer />
       <View style={styles.row} onLayout={(e) => setInnerW(e.nativeEvent.layout.width)}>
         {/* Seçim vurgusu — yalnız ikonun arkasında, TONAL (dolu mavi reddedildi); renk ikon ve adda. */}
         {tabW > 0 && pillTop != null && (
@@ -95,7 +99,7 @@ export function AndroidNavCapsule({ tabs, theme, isDark, showLabels }: { tabs: N
             pointerEvents="none"
             style={[
               styles.pill,
-              { top: NAV_CAPSULE_PAD + pillTop, width: pillW, backgroundColor: theme.primary + (isDark ? '2E' : '1A') },
+              { top: NAV_CAPSULE_PAD + pillTop, width: pillW, backgroundColor: theme.primaryFill + (isDark ? '2E' : '1A') },
               pillStyle,
             ]}
           />

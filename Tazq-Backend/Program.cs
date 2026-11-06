@@ -343,6 +343,7 @@ builder.Services.AddSingleton<IJwtService, JwtService>();
 // Grace süresi dolmuş silinmiş hesapları kalıcı temizleyen arka plan servisi
 // Arka plan işlerinin son çalışma/hata durumu (admin → Sistem → Arka plan işleri).
 builder.Services.AddSingleton<Tazq_App.Services.JobHealth>();
+builder.Services.AddSingleton<Tazq_App.Services.AbuseGuard>();
 builder.Services.AddHostedService<Tazq_App.Services.AccountPurgeService>();
 // Çökme kayıtları: çözülmüş 30 gün, hepsi en çok 90 gün (bkz. CrashLog).
 builder.Services.AddHostedService<Tazq_App.Services.CrashRetentionService>();
@@ -437,6 +438,7 @@ builder.Services.AddScoped<IGroqService, GroqService>();
 // builder.Services.AddHostedService<ScheduledEmailService>();
 // Günlük admin kayıt özeti (ADMIN_EMAIL / ADMIN_EMAILS boşsa kendini devre dışı bırakır)
 builder.Services.AddHostedService<Tazq_App.Services.AdminSignupDigestService>();
+builder.Services.AddHostedService<Tazq_App.Services.ServerWatchService>();
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5201";
 builder.WebHost.UseUrls($"http://*:{port}");
@@ -650,11 +652,45 @@ app.Use(async (context, next) =>
     await next();
 });
 
+// KÖTÜYE KULLANIM (bkz. AbuseGuard). Engelli IP'nin isteği sınır sayacına bile uğramaz; sınıra takılanın reddi sayılır.
+static Task RejectTooMany(HttpContext context, int retryAfter)
+{
+    context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+    context.Response.Headers.RetryAfter = retryAfter.ToString();
+    return context.Response.WriteAsJsonAsync(new { message = "Çok fazla istek. Lütfen biraz sonra tekrar deneyin." });
+}
+app.Use(async (context, next) =>
+{
+    var ip = context.Connection.RemoteIpAddress?.ToString();
+    if (ip is null || !context.Request.Path.StartsWithSegments("/api")) { await next(); return; }
+    var guard = context.RequestServices.GetRequiredService<Tazq_App.Services.AbuseGuard>();
+    if (guard.IsBlocked($"ip:{ip}", out var retry)) { await RejectTooMany(context, retry); return; }
+    await next();
+    if (context.Response.StatusCode == StatusCodes.Status429TooManyRequests && !context.Items.ContainsKey("AccountLimited")) guard.Strike($"ip:{ip}");
+});
+
 app.UseIpRateLimiting();
 app.MapHealthChecks("/health");
 app.UseCors("TazqCorsPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Hesap sınırı: IP değiştirerek aşılamaz. Görevden önce çalışır: reddedilen istek veritabanına inmez.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api") && context.User?.Identity?.IsAuthenticated == true &&
+        int.TryParse(context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var accountId))
+    {
+        var guard = context.RequestServices.GetRequiredService<Tazq_App.Services.AbuseGuard>();
+        if (guard.IsBlocked($"u:{accountId}", out var blockedFor) || !guard.AllowAccount(accountId, out blockedFor))
+        {
+            context.Items["AccountLimited"] = true;
+            await RejectTooMany(context, blockedFor);
+            return;
+        }
+    }
+    await next();
+});
 
 // "Son görülme" damgası — WhatsApp'taki gibi gerçek kullanım anını yansıtsın diye
 // kimlikli her istekte güncellenir. DB'ye istek başına yazmamak için bellekte

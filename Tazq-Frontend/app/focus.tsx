@@ -45,7 +45,7 @@ import {
 import { SessionSummary } from '@/features/focus/components/SessionSummary';
 import { WeekSkySheet } from '@/features/focus/components/WeekSkySheet';
 import { FocusTaskPicker } from '@/features/focus/components/FocusTaskPicker';
-import { FocusModesSheet, PomodoroInfoSheet } from '@/features/focus/components/FocusModeSheets';
+import { FocusModesSheet } from '@/features/focus/components/FocusModeSheets';
 import { sceneOf, sceneLights, sceneAccent, sceneTheme, sparseProgress, SCENE_SOUND, withSceneSoundFirst } from '@/features/focus/utils/focusScenes';
 import { FocusLights } from '@/features/focus/components/FocusLights';
 import { getNotificationPermissionStatus } from '@/shared/utils/notifications';
@@ -62,7 +62,7 @@ import { haptic } from '@/shared/utils/haptics';
 import { AMBIENT_FPS, Nebula } from '@/features/focus/components/FocusBackdrop';
 import { ReturnBreath } from '@/features/focus/components/ReturnBreath';
 import { CountdownText, ProgressDriver } from '@/features/focus/components/FocusClock';
-import { FOCUS_COPY, PRESETS, SOUND_LABELS, type AmbientSound, type PresetKey } from '@/features/focus/utils/focusScreenData';
+import { FOCUS_COPY, PRESETS, SOUND_LABELS, type AmbientSound } from '@/features/focus/utils/focusScreenData';
 import { SessionNote } from '@/features/focus/components/SessionNote';
 import { idleAddMinutes, updateLastSession } from '@/features/focus/session';
 import { useIdleDim } from '@/features/focus/hooks/useIdleDim';
@@ -76,6 +76,8 @@ import { ambientAction, shouldResumeOnFocus } from '@/features/focus/utils/ambie
 import { BreathPreview } from '@/features/breath/components/BreathOrb';
 import { focusTitle } from '@/features/focus/utils/focusTitle';
 import { AmbientStatus } from '@/features/focus/components/AmbientStatus';
+import { ScreenAwakeChip, useLongSessionOffer } from '@/features/focus/components/ScreenAwakeChip';
+import { pomodoroBreaks, pomodoroHint } from '@/features/focus/utils/pomodoroRhythm';
 import { SoundIcon, type SoundKind } from '@/features/focus/components/SoundIcon';
 
 
@@ -123,7 +125,7 @@ interface PomodoroIndicatorProps {
 
 const PomodoroIndicator = React.memo(({ pomodoroPhase, pomodoroRound, theme, language, isDark }: PomodoroIndicatorProps) => (
   <View style={styles.pomodoroRow}>
-    <View style={[styles.phaseBadge, { backgroundColor: pomodoroPhase === 'work' ? theme.primary + '20' : theme.tertiary + '20' }]}>
+    <View style={[styles.phaseBadge, { backgroundColor: pomodoroPhase === 'work' ? theme.primaryFill + '20' : theme.tertiary + '20' }]}>
       <Text style={[styles.phaseLabel, { color: pomodoroPhase === 'work' ? theme.primary : theme.tertiary }]}>
         {pomodoroPhase === 'work'
           ? (language === 'tr' ? 'ÇALIŞMA' : 'WORK')
@@ -168,7 +170,7 @@ export default function FocusScreen() {
   */
   // Odak ekranından açılan pencereler seçili sahnenin vurgusunu taşır (bkz. useFocusSheetTheme).
   const { theme: sheetTheme, isDark: sheetDark } = useFocusSheetTheme();
-  // Sahnenin vurgusu ekranın ana rengi (bkz. focusScenes.sceneTheme); Aurora → eski palet.
+  // Sahnenin vurgusu ekranın ana rengi (bkz. focusScenes.sceneTheme); kullanıcının vurgusu burada geçmez.
   const focusSceneId = usePrefsStore(s => s.focusScene);
   const theme = React.useMemo(() => sceneTheme(sceneOf(focusSceneId), Colors.dark), [focusSceneId]);
   const isDark = true;
@@ -251,7 +253,7 @@ export default function FocusScreen() {
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { trigger: triggerAchievement } = useAchievementStore();
   // Derin odak tercihleri artık prefs store'da (cihazda kalıcı) — her seansda sıfırlanmaz.
-  const { focusAmbientSound, setFocusAmbientSound, focusPreset, setFocusPreset, focusKeepAwake, setFocusKeepAwake, focusAutoZen, setFocusAutoZen, focusScene, setFocusScene, uiMode } = usePrefsStore();
+  const { focusAmbientSound, setFocusAmbientSound, focusPreset, focusKeepAwake, setFocusKeepAwake, focusAutoZen, setFocusAutoZen, focusScene, setFocusScene, uiMode } = usePrefsStore();
   // Sahne: hareket + palet + vurgu birlikte (bkz. focusScenes.ts).
   const scene = sceneOf(focusScene);
   const [sc1, sc2, sc3] = sceneLights(scene, theme);
@@ -285,7 +287,7 @@ export default function FocusScreen() {
   const quote = useMemo(() => pickFocusLine({
     phase: linePhase, task: currentTask, sound: ambientSound as SoundId, hour: new Date().getHours(),
     todayMin: dailyFocusToday, goalMin: dailyGoalMinutes, streak: recent.streak, sessionsToday,
-    goal: nearestGoal(language === 'en' ? 'en' : 'tr'), sessionMin: Math.round(totalSeconds / 60),
+    goal: isLiteMode ? undefined : nearestGoal(language === 'en' ? 'en' : 'tr'), sessionMin: Math.round(totalSeconds / 60),
   }, language === 'en' ? 'en' : 'tr', lineSeed),
   // Cümle aşama/tohum değişince seçilir; ses ya da görev değişince de güncellenir.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -307,9 +309,11 @@ export default function FocusScreen() {
   // (Aurora reanimated animasyonları timerSize tanımından sonra kuruldu — aşağıya bakınız.)
 
   // Named preset selection — kalıcı (store)
-  const selectedPreset = focusPreset as PresetKey;
-  const setSelectedPreset = setFocusPreset as (v: PresetKey) => void;
-  const activePreset = PRESETS.find(p => p.key === selectedPreset) ?? PRESETS[1];
+  const activePreset = PRESETS.find(p => p.key === focusPreset) ?? PRESETS[1];
+  // Pomodoro süresi kadrandan; eski hazır seçimi olan kullanıcı aynı süreyle devam eder.
+  const pomodoroMinutes = usePrefsStore(s => s.focusPomodoroMinutes) ?? activePreset.workMins;
+  const setPomodoroMinutes = usePrefsStore(s => s.setFocusPomodoroMinutes);
+  const rhythm = pomodoroBreaks(pomodoroMinutes);
 
 
 
@@ -320,7 +324,6 @@ export default function FocusScreen() {
 
   // Pomodoro transition overlay
   const [pomodoroTransition, setPomodoroTransition] = useState<{ visible: boolean; type: 'break' | 'work'; isLong?: boolean }>({ visible: false, type: 'break' });
-  const [pomodoroInfoVisible, setPomodoroInfoVisible] = useState(false);
 
   // Session summary
   const [summaryVisible, setSummaryVisible] = useState(false);
@@ -332,7 +335,7 @@ export default function FocusScreen() {
   const [finishHold, setFinishHold] = useState(false);
   const [summaryIdle, setSummaryIdle] = useState(0);
   const [summaryWorld, setSummaryWorld] = useState<{ minutes: number; plannedMinutes: number } | null>(null);
-  const [summaryBreakMins, setSummaryBreakMins] = useState<number>(activePreset.shortBreak);
+  const [summaryBreakMins, setSummaryBreakMins] = useState<number>(rhythm.short);
   // Katı modda uzun ayrılıktan dönüş: saat durdu, bir nefes sonra kendiliğinden sürer (bkz. session.ts).
   const strictReturnAt = useFocusStore(s => s.strictReturnAt);
   const pomodoroCycleDone = useFocusStore(s => s.pomodoroCycleDone);
@@ -358,7 +361,6 @@ export default function FocusScreen() {
     const handleBackPress = () => {
       if (modesSheetVisible) { setModesSheetVisible(false); return true; }
       if (taskPickerVisible) { setTaskPickerVisible(false); return true; }
-      if (pomodoroInfoVisible) { setPomodoroInfoVisible(false); return true; }
       if (summaryVisible) { 
         setSummaryVisible(false); 
         if (summaryCompleted && !completionRitual) setCompletionRitual(true);
@@ -369,7 +371,7 @@ export default function FocusScreen() {
 
     const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
     return () => backHandler.remove();
-  }, [modesSheetVisible, taskPickerVisible, pomodoroInfoVisible, summaryVisible, summaryCompleted, completionRitual]);
+  }, [modesSheetVisible, taskPickerVisible, summaryVisible, summaryCompleted, completionRitual]);
 
 
   /*
@@ -712,6 +714,7 @@ export default function FocusScreen() {
 
   const zenSceneOn = (zenMode && isActive) || finishHold;
   const keepScreenOn = isActive && (focusKeepAwake || strictMode);
+  useLongSessionOffer({ sessionStarted, totalSeconds, keepAwake: focusKeepAwake, strict: strictMode, notifBlocked, language: language === 'en' ? 'en' : 'tr', onScreenOff: () => setFocusKeepAwake(false) });
   // Reef ve Pomodoist'teki gibi katı modda duraklatma yok; mola sayacı bu kuralın dışında.
   const strictLocked = strictMode && isActive && !inBreak;
   useEffect(() => {
@@ -796,7 +799,7 @@ export default function FocusScreen() {
 
           const isLongBreak = round >= 4;
           nextPomodoroPhase();
-          const breakMins = isLongBreak ? activePreset.longBreak : activePreset.shortBreak;
+          const breakMins = isLongBreak ? rhythm.long : rhythm.short;
           setZenMode(false); // Reset Zen Mode on break transition
           // Tur aralarında özet yok, akış bölünmez. Dört tur bitince koşunun tek özeti; mola oradan seçilir.
           if (isLongBreak) {
@@ -819,7 +822,7 @@ export default function FocusScreen() {
           // Pomodoro molası bitti → sıradaki çalışma turu (mola kaydedilmez)
           nextPomodoroPhase();
           setZenMode(false); // Reset Zen Mode on work transition
-          setTimeout(() => { setDuration(activePreset.workMins); }, 400);
+          setTimeout(() => { setDuration(pomodoroMinutes); }, 400);
           setPomodoroTransition({ visible: true, type: 'work' });
           setTimeout(() => setPomodoroTransition(p => ({ ...p, visible: false })), 3500);
         }
@@ -833,7 +836,7 @@ export default function FocusScreen() {
         captureSummaryTask();
         setSummaryMinutes(minutes);
         setSummaryWorld(runTotals(minutes));
-        setSummaryBreakMins(activePreset.shortBreak);
+        setSummaryBreakMins(rhythm.short);
         const wasOpen = useFocusStore.getState().openSession;
         setSummaryOpen(wasOpen);
         if (wasOpen) settleOpenBreak(totalSeconds);
@@ -951,7 +954,7 @@ export default function FocusScreen() {
   // Mola bitince ya da atlanınca: serbest seçiliyse serbest, değilse çalışma süresi.
   const backToWork = () => {
     if (useFocusStore.getState().openSession) setOpenDuration();
-    else setDuration(activePreset.workMins);
+    else setDuration(pomodoroMinutes);
   };
 
   // Odak süresi bütçeye yazılır; özetteki mola önerisi birikmiş bütçenin tamamıdır (en az 1 dk).
@@ -1019,7 +1022,7 @@ export default function FocusScreen() {
   const leaveFinishedCycle = () => {
     if (!useFocusStore.getState().pomodoroCycleDone) return;
     nextPomodoroPhase();
-    setDuration(activePreset.workMins);
+    setDuration(pomodoroMinutes);
   };
 
   const startBreakSession = (mins: number) => {
@@ -1174,8 +1177,9 @@ export default function FocusScreen() {
 
           {/* Başlık — MUTLAK ekran-merkezinde: X ve pill genişliğinden bağımsız, hep tam ortada. */}
           <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: insets.top, bottom: S.md, alignItems: 'center', justifyContent: 'center' }}>
-            <View style={[styles.badge, { backgroundColor: theme.primary + '15', maxWidth: '44%' }]}>
-              <Sparkles size={ICON.xs} color={theme.primary} />
+            {/* Durum tek başlıkta: üst barın sağına etiket konmaz. Katı mod sözle değil simgeyle söylenir (ortadaki düğme de kalkan). */}
+            <View accessible accessibilityLabel={isActive && strictMode ? `${focusTitle({ inBreak, pomodoroMode, language })}, ${language === 'tr' ? 'katı odak' : 'strict focus'}` : undefined} style={[styles.badge, { backgroundColor: theme.primaryFill + '15', maxWidth: '44%' }]}>
+              {isActive && strictMode ? <Shield size={ICON.xs} color={theme.primary} /> : <Sparkles size={ICON.xs} color={theme.primary} />}
               <Text style={[styles.badgeText, { color: theme.primary, fontSize: F.caption, letterSpacing: 1 }]} numberOfLines={1}>
                 {focusTitle({ inBreak, pomodoroMode, language })}
               </Text>
@@ -1185,33 +1189,11 @@ export default function FocusScreen() {
           {/* Pomodoro & Breath Toggles - Unified Premium Pill */}
           <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
             {/* Soldaki X'in simetrisi: seans yokken haftanın gökyüzü, seans sırasında boş yuva (seans sade kalır). */}
-            {sessionStarted ? <View style={styles.closeBtn} /> : (
+            {sessionStarted || isLiteMode ? <View style={styles.closeBtn} /> : (
               <Touchable onPress={() => setSkyOpen(true)} style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}
                 accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Haftanın gökyüzü' : 'Your week’s sky'}>
                 <Star size={ICON.md} color={theme.onSurface} />
               </Touchable>
-            )}
-
-            {/* Seans sırasında aktif modlar yazı ile belirtilir (pill gizliyken) */}
-            {isActive && (strictMode || pomodoroMode) && (
-              <MotiView
-                key="active-mode-tags"
-                from={{ opacity: 0, translateY: -4 }}
-                animate={{ opacity: 1, translateY: 0 }}
-                transition={{ type: 'timing', duration: 260 }}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, flexWrap: 'wrap', justifyContent: 'flex-end' }}
-              >
-                {pomodoroMode && (
-                  <View style={{ paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: theme.primary + '18' }}>
-                    <Text style={{ fontSize: F.caption2, fontWeight: '700', color: theme.primary }}>Pomodoro</Text>
-                  </View>
-                )}
-                {strictMode && (
-                  <View style={{ paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: theme.primary }}>
-                    <Text style={{ fontSize: F.caption2, fontWeight: '700', color: theme.onPrimary, letterSpacing: 0.3 }}>{language === 'tr' ? 'Katı Mod' : 'Strict Mode'}</Text>
-                  </View>
-                )}
-              </MotiView>
             )}
           </View>
         </MotiView>
@@ -1239,7 +1221,7 @@ export default function FocusScreen() {
               Düz bir satır yerine ince bir ölçek: ekranın dilinde (halka, aurora) bir
               ilerleme ifadesi, sayıyı okumadan da "ne kadar yol aldım" görünüyor.
             */}
-            {!sessionStarted && !pomodoroMode && dailyGoalMinutes > 0 && (
+            {!isLiteMode && !sessionStarted && !pomodoroMode && dailyGoalMinutes > 0 && (
               // Sadeleşti: çubuklar ve seri gökyüzünde; burada tek satır, dokununca gökyüzü açılır.
               <Touchable
                 accessibilityRole="button"
@@ -1297,14 +1279,20 @@ export default function FocusScreen() {
             })()}
 
             {/* SÜRE KADRANI — seans başlamadan halka çevrilerek süre seçilir (bkz. DurationDial). */}
-            {!sessionStarted && !pomodoroMode && (
+            {!sessionStarted && !(pomodoroMode && pomodoroPhase === 'break') && (
               <TourTarget id="duration" style={{ position: 'absolute', width: timerSize, height: timerSize, zIndex: 13 }} spotRadius={R.full}>
                 <DurationDial
                   size={timerSize}
                   minutes={openSession ? DIAL_OPEN : Math.max(1, Math.round(totalSeconds / 60))}
                   color={workAccent}
                   track="rgba(255,255,255,0.28)"
-                  onCommit={(m) => { setDialLearned(); if (m === DIAL_OPEN) setOpenDuration(); else setDuration(m); }}
+                  allowOpen={!pomodoroMode}
+                  hint={pomodoroMode ? (m) => pomodoroHint(m, language === 'en' ? 'en' : 'tr') : undefined}
+                  onCommit={(m) => {
+                    setDialLearned();
+                    if (pomodoroMode) { setPomodoroMinutes(m); setDuration(m); return; }
+                    if (m === DIAL_OPEN) setOpenDuration(); else setDuration(m);
+                  }}
                   onDragging={setDialDragging}
                   language={language === 'en' ? 'en' : 'tr'}
                   a11yLabel={language === 'tr' ? 'Odak süresi, dakika' : 'Focus length, minutes'}
@@ -1586,6 +1574,11 @@ export default function FocusScreen() {
                           {L.paused}
                         </Text>
                       )}
+                      {!sessionStarted && pomodoroMode && pomodoroPhase === 'work' && (
+                        <Text style={{ fontSize: F.caption, fontWeight: '600', color: 'rgba(255,255,255,0.72)', ...HINT_SHADOW }}>
+                          {pomodoroHint(Math.max(1, Math.round(totalSeconds / 60)), language === 'en' ? 'en' : 'tr')}
+                        </Text>
+                      )}
                       {!sessionStarted && !pomodoroMode && (openSession || !dialLearned) && (
                         <Text style={{ fontSize: F.caption, fontWeight: '600', color: 'rgba(255,255,255,0.72)', ...HINT_SHADOW }}>
                           {openSession ? L.openIdle : (language === 'tr' ? 'Süre için halkayı çevir' : 'Turn the ring to set the time')}
@@ -1726,21 +1719,21 @@ export default function FocusScreen() {
                 borderRadius: R.full,
                 backgroundColor: isActive 
                   ? (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)') 
-                  : (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary),
+                  : (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primaryFill),
                 alignItems: 'center',
                 justifyContent: 'center',
                 shadowColor: isActive ? 'transparent' : (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary),
                 shadowOffset: { width: 0, height: 6 },
-                shadowOpacity: isActive ? 0 : 0.35,
+                shadowOpacity: isActive ? 0 : 0.14,
                 shadowRadius: 12,
-                elevation: isActive ? 0 : 8,
+                elevation: isActive ? 0 : 3,
               }}
             >
               {strictLocked
                 ? <Shield size={ICON.lg} color={theme.onSurfaceMuted} />
                 : isActive
                 ? <Pause size={ICON.xl} color={theme.onSurface} fill={theme.onSurface} style={{ opacity: 0.8 }} />
-                : <Play size={ICON.xl} color={theme.onPrimary} fill={theme.onPrimary} style={{ marginLeft: S.xs }} />}
+                : <Play size={ICON.xl} color={theme.onPrimaryFill} fill={theme.onPrimaryFill} style={{ marginLeft: S.xs }} />}
             </Touchable>
             </TourTarget>
 
@@ -1754,7 +1747,7 @@ export default function FocusScreen() {
                     accessibilityLabel={language === 'tr' ? 'Odak modları' : 'Focus modes'}
                     accessibilityState={{ expanded: modesSheetVisible }}
                     onPress={() => { haptic.select(); setModesSheetVisible(true); }}
-                    style={[styles.secondaryBtn, styles.sideBtn, { borderColor: (pomodoroMode || strictMode) ? theme.primary + '66' : theme.primary + '33', backgroundColor: (pomodoroMode || strictMode) ? theme.primary + '20' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') }]}
+                    style={[styles.secondaryBtn, styles.sideBtn, { borderColor: (pomodoroMode || strictMode) ? theme.primary + '66' : theme.primary + '33', backgroundColor: (pomodoroMode || strictMode) ? theme.primaryFill + '20' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') }]}
                   >
                     <SlidersHorizontal size={ICON.md} color={(pomodoroMode || strictMode) ? theme.primary : theme.onSurfaceVariant} strokeWidth={2.2} />
                   </Touchable>
@@ -1802,6 +1795,7 @@ export default function FocusScreen() {
           >
             {/* Sadeleşti: tek çip; dokununca yerinde açılır, seçince kapanır. Sahnenin doğal sesi ilk sırada. */}
             {!soundsOpen && (
+              <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', gap: S.sm }}>
               <Touchable
                 accessibilityRole="button"
                 accessibilityState={{ expanded: false }}
@@ -1818,6 +1812,10 @@ export default function FocusScreen() {
                   {ambientSound === 'off' ? L.soundOff : (language === 'tr' ? SOUND_LABELS[ambientSound]?.labelTr : SOUND_LABELS[ambientSound]?.labelEn)}
                 </Text>
               </Touchable>
+              {sessionStarted && !strictMode && (
+                <ScreenAwakeChip on={focusKeepAwake} onToggle={() => setFocusKeepAwake(!focusKeepAwake)} language={language === 'en' ? 'en' : 'tr'} color={theme.onSurfaceVariant} />
+              )}
+              </View>
             )}
             {soundsOpen && (
             <ScrollView
@@ -1864,7 +1862,7 @@ export default function FocusScreen() {
                     style={[
                       styles.ambientBtn,
                       active
-                        ? { backgroundColor: isDark ? theme.primary + '28' : theme.primary + '14', borderColor: theme.primary + '55' }
+                        ? { backgroundColor: isDark ? theme.primaryFill + '28' : theme.primary + '14', borderColor: theme.primary + '55' }
                         : { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', borderColor: 'transparent' },
                     ]}
                   >
@@ -1897,7 +1895,7 @@ export default function FocusScreen() {
                   style={{ width: 34, height: 24, justifyContent: 'center', alignItems: 'center' }}
                   accessibilityLabel={`Ses seviyesi ${v * 100}`}
                 >
-                  <View style={{ width: '100%', height: 4, borderRadius: R.xs, backgroundColor: ambientVolume >= v ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)') }} />
+                  <View style={{ width: '100%', height: 4, borderRadius: R.xs, backgroundColor: ambientVolume >= v ? theme.primaryFill : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)') }} />
                 </Touchable>
               ))}
             </MotiView>
@@ -2008,8 +2006,8 @@ export default function FocusScreen() {
             <Text style={[styles.transitionSub, { color: theme.onSurfaceMuted }]}>
               {pomodoroTransition.type === 'break'
                 ? (pomodoroTransition.isLong
-                  ? (language === 'tr' ? `${activePreset.longBreak} dakika dinlen, hak ettin.` : `${activePreset.longBreak} min rest — you earned it.`)
-                  : (language === 'tr' ? `${activePreset.shortBreak} dakika nefes al.` : `${activePreset.shortBreak} min — breathe.`))
+                  ? (language === 'tr' ? `${rhythm.long} dakika dinlen, hak ettin.` : `${rhythm.long} min rest — you earned it.`)
+                  : (language === 'tr' ? `${rhythm.short} dakika nefes al.` : `${rhythm.short} min — breathe.`))
                 : (language === 'tr' ? 'Hazır olduğunda başla.' : 'Start when ready.')}
             </Text>
           </MotiView>
@@ -2028,7 +2026,7 @@ export default function FocusScreen() {
         strictOn={strictMode}
         keepAwakeOn={focusKeepAwake || strictMode}
         autoZenOn={focusAutoZen}
-        onPomodoro={() => { haptic.select(); togglePomodoroMode(); if (!pomodoroMode) setDuration(activePreset.workMins); }}
+        onPomodoro={() => { haptic.select(); togglePomodoroMode(); if (!pomodoroMode) setDuration(pomodoroMinutes); }}
         onStrict={() => { haptic.select(); setStrictMode(!strictMode); }}
         onKeepAwake={() => { haptic.select(); setFocusKeepAwake(!focusKeepAwake); }}
         onAutoZen={() => { haptic.select(); setFocusAutoZen(!focusAutoZen); }}
@@ -2070,6 +2068,7 @@ export default function FocusScreen() {
         taskTitle={summaryTask?.title ?? null}
         dailyMinutes={dailyFocusToday}
         dailyGoal={dailyGoalMinutes}
+        lite={isLiteMode}
         breakMinutes={summaryBreakMins}
         showBreak={summaryCompleted && (!pomodoroMode || pomodoroCycleDone)}
         world={summaryWorld}
@@ -2080,7 +2079,7 @@ export default function FocusScreen() {
         t={t}
         onClose={() => { setSummaryVisible(false); leaveFinishedCycle(); }}
         // iOS kapanan modalın üstüne yenisini açmaz: özet kapandıktan sonra.
-        onOpenSky={() => { setSummaryVisible(false); setTimeout(() => setSkyOpen(true), 350); }}
+        onOpenSky={isLiteMode ? undefined : () => { setSummaryVisible(false); setTimeout(() => setSkyOpen(true), 350); }}
         onStartBreak={() => startBreakSession(summaryBreakMins)}
         onBreathe={() => { setSummaryVisible(false); router.push('/nefes?p=sigh&m=1'); }}
         // "Biraz daha": aynı koşu; görev ve dünya korunur. Pomodoro döngüsü bittiyse sıradaki şey moladır.
@@ -2124,16 +2123,6 @@ export default function FocusScreen() {
           onDone={() => { clearStrictReturn(); setIsActive(true); }}
         />
       )}
-
-      <PomodoroInfoSheet
-        visible={pomodoroInfoVisible}
-        onClose={() => setPomodoroInfoVisible(false)}
-        language={language === 'en' ? 'en' : 'tr'}
-        presets={PRESETS}
-        activePreset={activePreset}
-        selectedPreset={selectedPreset}
-        onSelectPreset={(key, workMins) => { setSelectedPreset(key as PresetKey); setDuration(workMins); }}
-      />
 
       {tourOn && (
         <HelpTourModal

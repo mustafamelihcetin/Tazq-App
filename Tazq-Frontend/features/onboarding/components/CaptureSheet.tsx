@@ -251,8 +251,8 @@ export function CaptureSheet({ visible, onDone, demo = false }: { visible: boole
                 }]}
               />
               <Touchable onPress={toggleVoice} accessibilityRole="button" accessibilityLabel={listening ? c.voiceStop : c.voice}
-                accessibilityState={{ selected: listening }} style={[styles.mic, { backgroundColor: listening ? theme.primary : theme.surfaceField }]}>
-                <Mic size={ICON.md} color={listening ? theme.onPrimary : theme.onSurfaceVariant} />
+                accessibilityState={{ selected: listening }} style={[styles.mic, { backgroundColor: listening ? theme.primaryFill : theme.surfaceField }]}>
+                <Mic size={ICON.md} color={listening ? theme.onPrimaryFill : theme.onSurfaceVariant} />
               </Touchable>
               </View>
               {/* Sayaç yalnız sınıra yaklaşınca (%80) — boşken ekranı kalabalıklaştırmaz. */}
@@ -349,8 +349,8 @@ export function CaptureSheet({ visible, onDone, demo = false }: { visible: boole
                     accessibilityLabel={`${c.modeHint[mode.mode]}. ${c.modeAsk(c.modeName[mode.mode], modeDate)}`}
                     style={[styles.modeBtn, acceptMode
                       ? { backgroundColor: theme.tertiary + '1A', borderColor: theme.tertiary }
-                      : { backgroundColor: theme.primary, borderColor: theme.primary }]}>
-                    <Text style={[styles.modeBtnText, { color: acceptMode ? theme.tertiary : theme.onPrimary }]}>{acceptMode ? c.modeOn : c.modeOff}</Text>
+                      : { backgroundColor: theme.primaryFill, borderColor: theme.primary }]}>
+                    <Text style={[styles.modeBtnText, { color: acceptMode ? theme.tertiary : theme.onPrimaryFill }]}>{acceptMode ? c.modeOn : c.modeOff}</Text>
                   </Touchable>
                 </View>
               )}
@@ -369,9 +369,9 @@ export function CaptureSheet({ visible, onDone, demo = false }: { visible: boole
             accessibilityRole="button"
             accessibilityState={{ disabled: blocked }}
             accessibilityLabel={step === 'review' ? c.add(count) : c.next(live)}
-            style={[styles.primary, { backgroundColor: theme.primary, opacity: blocked ? 0.4 : 1 }]}
+            style={[styles.primary, { backgroundColor: theme.primaryFill, opacity: blocked ? 0.4 : 1 }]}
           >
-            <Text style={[styles.primaryText, { color: theme.onPrimary }]}>{step === 'review' ? c.add(count) : c.next(live)}</Text>
+            <Text style={[styles.primaryText, { color: theme.onPrimaryFill }]}>{step === 'review' ? c.add(count) : c.next(live)}</Text>
           </Touchable>
         </View>
       </KeyboardAvoidingView>

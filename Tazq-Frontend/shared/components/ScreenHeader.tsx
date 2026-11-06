@@ -332,8 +332,8 @@ export const ScreenHeader = ({
         {Platform.OS === 'android' && (
           <LinearGradient
             pointerEvents="none"
-            colors={[theme.surfaceFloating + 'F2', theme.surfaceFloating + 'E6', theme.surfaceFloating + '00']}
-            locations={[0, 0.62, 1]}
+            colors={[theme.surfaceFloating + 'FA', theme.surfaceFloating + 'F5', theme.surfaceFloating + '00']}
+            locations={[0, 0.74, 1]}
             style={styles.androidFade}
           />
         )}

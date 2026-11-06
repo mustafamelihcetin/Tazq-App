@@ -26,7 +26,7 @@ const stripComments = (src: string) =>
     .filter((l) => !l.trim().startsWith('//'))
     .join('\n');
 
-const INDEX = stripComments(read('app/index.tsx'));
+const INDEX = stripComments((read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx')));
 // Gün tanımı ana ekrandan ortak modüle taşındı (Günüm de aynısını okuyor).
 const DAYSCOPE = stripComments(read('features/dashboard/utils/dayScope.ts'));
 const PORTAL = stripComments(read('features/dashboard/components/CommandPortal.tsx'));
@@ -273,7 +273,7 @@ describe('bildirim eylemleri gerçekten iş yapıyor', () => {
       `{ type: 'date', date }` kullanıyor. Yani "15 dakika ertele" ya hiç kurulmuyor
       ya anında geri geliyordu — alttaki sessiz `catch` de hatayı yutuyordu.
     */
-    expect(LAYOUT).toContain("trigger: { type: 'date', date: snoozeTime },");
+    expect(LAYOUT).toContain("trigger: { type: 'date', date: snoozeTime, channelId: TONE.reminder.channel },");
     expect(LAYOUT).toMatch(/swallow\('layout\.notifActionSnoozeSchedule'/);
   });
 
@@ -533,7 +533,8 @@ describe('dönemsel bant ana sayfada yok (A3 · K-2, 2026-10-31)', () => {
 
   it('günün değerlendirmesi momentuma yine ulaşıyor — anahtar yazanla aynı', () => {
     expect(INDEX).toContain('dayRatingKey(activeMode.type, fmtDateKey())');
-    expect(INDEX).toContain('if (!todayRating) return rawMomentum;');
+    // Günün puanı skoru artık oynatmaz: skor yalnız ölçüleni söyler (2026-11-06). Puan değerlendirme isteminde kullanılır.
+    expect(INDEX).not.toContain('rawMomentum + modifier');
   });
 });
 
@@ -554,7 +555,7 @@ describe('hiçbir görev SESSİZCE kaybolmuyor', () => {
 describe('boş ekran tek cümle söylüyor', () => {
   it('örnek veri varken "hiçbir şeyin yok" kartı çıkmıyor', () => {
     // Üç sahte görev dururken altında "nereden başlayalım?" yazıyordu.
-    expect(INDEX).toMatch(/tasks\.length === 0 && habits\.length === 0 && !demoGate\(tasks\.length\)/);
+    expect(INDEX).toMatch(/tasks\.length === 0 && \(isLite \|\| habits\.length === 0\) && !demoGate\(tasks\.length\)/);
   });
 });
 

@@ -69,8 +69,8 @@ function CourseEditor({ c, today, initial, onSave, onCancel }: { c: StudyCopy; t
         <Touchable accessibilityRole="button" onPress={onCancel} style={[st.btn, { flex: 1, backgroundColor: theme.surfaceContainerHigh }]}>
           <Text style={{ fontSize: F.body, fontWeight: W.semibold, color: theme.onSurface }}>{c.cancel}</Text>
         </Touchable>
-        <Touchable accessibilityRole="button" onPress={save} style={[st.btn, { flex: 2, backgroundColor: theme.primary }]}>
-          <Text style={{ fontSize: F.body, fontWeight: W.semibold, color: theme.onPrimary }}>{c.saveCourse}</Text>
+        <Touchable accessibilityRole="button" onPress={save} style={[st.btn, { flex: 2, backgroundColor: theme.primaryFill }]}>
+          <Text style={{ fontSize: F.body, fontWeight: W.semibold, color: theme.onPrimaryFill }}>{c.saveCourse}</Text>
         </Touchable>
       </View>
     </View>
@@ -169,8 +169,8 @@ export function StudySettings({ plan, c, lang, today, onChanged }: { plan: PlanR
             <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
               {tracksFor(bp.examId).map(t => (
                 <Touchable key={t.id} accessibilityRole="radio" accessibilityState={{ selected: on === t.id }} onPress={() => { trackChanges(t, ids, plan.excluded).forEach(x => store.setExcluded(plan.key, x.id, x.excluded, today)); onChanged(); }}
-                  style={{ minHeight: MIN_TOUCH, paddingHorizontal: S.md, borderRadius: R.full, alignItems: 'center', justifyContent: 'center', backgroundColor: on === t.id ? theme.primary : theme.surfaceContainerHigh }}>
-                  <Text style={{ fontSize: F.footnote, fontWeight: W.semibold, color: on === t.id ? theme.onPrimary : theme.onSurface }}>{t[lang]}</Text>
+                  style={{ minHeight: MIN_TOUCH, paddingHorizontal: S.md, borderRadius: R.full, alignItems: 'center', justifyContent: 'center', backgroundColor: on === t.id ? theme.primaryFill : theme.surfaceContainerHigh }}>
+                  <Text style={{ fontSize: F.footnote, fontWeight: W.semibold, color: on === t.id ? theme.onPrimaryFill : theme.onSurface }}>{t[lang]}</Text>
                 </Touchable>
               ))}
             </View>
@@ -189,8 +189,8 @@ export function StudySettings({ plan, c, lang, today, onChanged }: { plan: PlanR
                 {LEVELS.map(l => {
                   const on = (plan.levels[s.id] ?? 'yok') === l;
                   return (
-                    <Touchable key={l} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={`${s[lang]}: ${c.levels[l]}`} onPress={() => { store.setLevel(plan.key, s.id, l, today); onChanged(); }} style={[st.chip, { backgroundColor: on ? theme.primary : theme.surfaceContainerHigh }]}>
-                      <Text style={{ fontSize: F.footnote, fontWeight: W.semibold, color: on ? theme.onPrimary : theme.onSurface }}>{c.levels[l]}</Text>
+                    <Touchable key={l} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={`${s[lang]}: ${c.levels[l]}`} onPress={() => { store.setLevel(plan.key, s.id, l, today); onChanged(); }} style={[st.chip, { backgroundColor: on ? theme.primaryFill : theme.surfaceContainerHigh }]}>
+                      <Text style={{ fontSize: F.footnote, fontWeight: W.semibold, color: on ? theme.onPrimaryFill : theme.onSurface }}>{c.levels[l]}</Text>
                     </Touchable>
                   );
                 })}

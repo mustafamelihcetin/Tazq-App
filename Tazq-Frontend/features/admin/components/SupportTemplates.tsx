@@ -48,7 +48,7 @@ export function TemplateChips({ templates, onPick }: { templates: SupportTemplat
     <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: S.xs }}>
       {templates.map(t => (
         <Touchable key={t.id} onPress={() => onPick(t)} accessibilityRole="button" accessibilityLabel={t.title}
-          style={{ paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full, borderWidth: B.thin, borderColor: theme.outline, backgroundColor: theme.primary + '0F' }}>
+          style={{ paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full, borderWidth: B.thin, borderColor: theme.outline, backgroundColor: theme.primaryFill + '0F' }}>
           <Text numberOfLines={1} style={{ fontSize: F.caption, fontWeight: '600', color: theme.primary }}>{t.title}</Text>
         </Touchable>
       ))}

@@ -1,12 +1,17 @@
+import { appDayKey } from '@/shared/utils/appDay';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { swallow } from '@/shared/utils/swallow';
+import { frozenScore } from '@/shared/utils/momentum';
 
 interface DayScore { date: string; score: number }
 
 interface MomentumState {
   history: DayScore[];
+  /** Skor hesabının sürümü: 2'den küçükse geçmiş yeniden hesaplanacak (bkz. useMomentumMigration). */
+  scoreVersion: number;
+  replaceScores: (scores: Record<string, number>, version: number) => void;
   momentumShieldActive: boolean;
   shieldCharges: number;
   focusMinutesForNextCharge: number;
@@ -23,12 +28,7 @@ interface MomentumState {
 }
 
 function getLocalDateString(d: Date = new Date()): string {
-  const adjusted = new Date(d);
-  adjusted.setHours(adjusted.getHours() - 3); // 3-hour buffer for night owls
-  const y = adjusted.getFullYear();
-  const m = String(adjusted.getMonth() + 1).padStart(2, '0');
-  const day = String(adjusted.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return appDayKey(d);
 }
 
 const todayISO = () => getLocalDateString();
@@ -43,6 +43,11 @@ export const useMomentumStore = create<MomentumState>()(
   persist(
     (set, get) => ({
       history: [],
+      scoreVersion: 1,
+      replaceScores: (scores, version) => {
+        set({ scoreVersion: version, history: get().history.map(h => (h.date in scores ? { date: h.date, score: scores[h.date] } : h)) });
+        try { require('@/features/modes/store/usePrefsStore').usePrefsStore.getState().syncToCloud(); } catch (e) { swallow('useMomentumStore.replaceScores', e); }
+      },
       momentumShieldActive: false,
       shieldCharges: 2,
       focusMinutesForNextCharge: 0,
@@ -69,8 +74,8 @@ export const useMomentumStore = create<MomentumState>()(
 
         let finalScore = score;
         if (activeShield) {
-          const lastActive = prev.find(h => h.score >= 0);
-          finalScore = lastActive ? Math.max(75, lastActive.score) : 75;
+          // Dondurmak yükseltmek değildir: son gerçek skor aynen kalır (eskiden en az 75'e çıkarıyordu).
+          finalScore = frozenScore(prev, today) ?? score;
         }
 
         const updated = idx >= 0
@@ -200,6 +205,7 @@ export const useMomentumStore = create<MomentumState>()(
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         history: state.history,
+        scoreVersion: state.scoreVersion,
         momentumShieldActive: state.momentumShieldActive,
         shieldCharges: state.shieldCharges,
       }),

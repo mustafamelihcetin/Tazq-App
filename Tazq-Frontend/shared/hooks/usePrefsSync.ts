@@ -55,8 +55,14 @@ export function usePrefsSync() {
     const studyStamp = (st: { plans: Record<string, { at?: number; mocks?: unknown[] }> }) => Object.values(st.plans).map(p => `${p.at ?? 0}:${p.mocks?.length ?? 0}`).join();
     const unsubStudy = useStudyPlanStore.subscribe((st: never, prev: never) => { if (studyStamp(st) !== studyStamp(prev)) schedule(); });
     const unsubAffinity = usePlanAffinityStore.subscribe((st: { bySlot: unknown }, prev: { bySlot: unknown }) => { if (st.bySlot !== prev.bySlot) schedule(); });
+    // Onaylı yedek: tutar ya da sayaç değişince de gider. Boş istek yok: onay yoksa syncToCloud aynı kopyayı görüp göndermez.
+    const { useBudgetStore } = require('@/shared/store/useBudgetStore');
+    const { useQuitStore } = require('@/shared/store/useQuitStore');
+    const backedUp = (kind: 'budget' | 'quit') => usePrefsStore.getState().dataBackup?.[kind] === true;
+    const unsubBudget = useBudgetStore.subscribe((st: { at: number }, prev: { at: number }) => { if (st.at !== prev.at && backedUp('budget')) schedule(); });
+    const unsubQuit = useQuitStore.subscribe((st: { at: number }, prev: { at: number }) => { if (st.at !== prev.at && backedUp('quit')) schedule(); });
     return () => {
-      unsub(); unsubAch(); unsubMom(); unsubStudy(); unsubAffinity();
+      unsub(); unsubAch(); unsubMom(); unsubStudy(); unsubAffinity(); unsubBudget(); unsubQuit();
       if (timer.current) clearTimeout(timer.current);
     };
   }, []);

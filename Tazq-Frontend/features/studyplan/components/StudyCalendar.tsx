@@ -110,7 +110,7 @@ export function StudyCalendar({ plan, c, lang, today, view, onChanged }: { plan:
         {!stat && selected >= today && sel.length === 0 && !isClosed && !examDays.has(selected) && <Text style={{ fontSize: F.footnote, color: theme.onSurfaceMuted }}>{c.calendarSelectedEmpty}</Text>}
         {sel.map((b, i) => (
           <View key={i} style={st.row}>
-            <View style={[st.dot, { backgroundColor: b.subject ? colorOf[b.subject] ?? theme.primary : theme.primary }]} />
+            <View style={[st.dot, { backgroundColor: b.subject ? colorOf[b.subject] ?? theme.primaryFill : theme.primaryFill }]} />
             <Text style={{ flex: 1, fontSize: F.body, color: theme.onSurface }}>{blockTitle(b, plan, lang).split(' · ').slice(1).join(' · ')}</Text>
           </View>
         ))}

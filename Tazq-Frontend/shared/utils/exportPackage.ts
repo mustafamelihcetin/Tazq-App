@@ -52,7 +52,7 @@ export interface ExportDeps {
 }
 
 /** Tercihlerden YALNIZ bunlar — kullanıcının kendi seçtiği, anlamı açık ayarlar. */
-const PREFERENCE_ALLOWLIST = ['soundEffects', 'hapticFeedback', 'focusBreathMode', 'focusAmbientSound', 'focusPreset', 'focusKeepAwake', 'focusAutoZen', 'uiMode'] as const;
+const PREFERENCE_ALLOWLIST = ['soundEffects', 'hapticFeedback', 'focusBreathMode', 'focusAmbientSound', 'focusPreset', 'focusPomodoroMinutes', 'focusKeepAwake', 'focusAutoZen', 'uiMode'] as const;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 /** Yerel gün 'YYYY-MM-DD' (ISO saat damgası UTC'de bir önceki güne kayabilir). */

@@ -1,3 +1,4 @@
+import { ACHIEVEMENTS, useAchievementStore } from '@/features/user';
 import React, { useEffect, useState } from 'react';
 import { Animated, View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -61,6 +62,7 @@ export default function RouteScreen() {
     useDayRouteStore.getState().markCelebrated(today);
     haptic.success();
     celebrate({ kind: 'route-done', isLite: usePrefsStore.getState().uiMode === 'lite', tr: lang === 'tr' });
+    useAchievementStore.getState().trigger(ACHIEVEMENTS.route_first);
   }, [route.complete, celebrated, today]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const complete = (s: RouteItem) => {
@@ -103,7 +105,7 @@ export default function RouteScreen() {
           {route.total === 0 && <Text style={{ fontSize: F.footnote, color: theme.onSurfaceVariant }}>{c.emptyBody}</Text>}
           {route.total > 0 && (
             <View accessibilityRole="progressbar" accessibilityValue={{ now: route.done, min: 0, max: route.total }} style={[st.track, { backgroundColor: theme.surfaceContainerHigh }]}>
-              <MotiView animate={{ width: `${pct}%` }} transition={{ type: 'timing', duration: 500 }} style={{ height: '100%', borderRadius: R.full, backgroundColor: theme.primary }} />
+              <MotiView animate={{ width: `${pct}%` }} transition={{ type: 'timing', duration: 500 }} style={{ height: '100%', borderRadius: R.full, backgroundColor: theme.primaryFill }} />
             </View>
           )}
           {route.yesterday && route.yesterday.planned > 0 && route.done === 0 && <Text style={{ fontSize: F.footnote, color: theme.onSurfaceMuted }}>{c.yesterday(route.yesterday.done, route.yesterday.planned)}</Text>}

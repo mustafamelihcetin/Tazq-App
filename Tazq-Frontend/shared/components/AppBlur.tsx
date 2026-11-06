@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { type RefObject } from 'react';
 import { StyleSheet, StyleProp, ViewStyle, View, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { BlurView, BlurTargetView } from 'expo-blur';
 import type { BlurTint } from 'expo-blur';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useReduceTransparency } from '@/shared/hooks/useReduceTransparency';
@@ -117,10 +117,15 @@ export interface AppBlurProps {
    *    ile sayfa arasında kesecek bir sınır kalmıyor.
    */
   fadeBottom?: boolean;
+  /** Android gerçek blur'u: bulanacak içeriği saran BlurTargetView (bkz. NavGlass). Verilmezse Android'de blur yok. */
+  blurTarget?: RefObject<View | null>;
   /** Varsayılan: kapsayıcıyı tamamen doldurur. */
   style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
 }
+
+/** Hedefli Android blur'u: Android 12 altında kütüphane kendisi saydam örtüye düşer. */
+const ANDROID_TARGET_BLUR = 'dimezisBlurViewSdk31Plus' as const;
 
 /** Cam yokken renk tonunun opaklığı — malzeme taklidi değil, durum işareti. */
 const TINT_FALLBACK_OPACITY = 0.14;
@@ -166,7 +171,7 @@ const GLASS_STYLE: Record<BlurMaterial, 'clear' | 'regular'> = {
   chrome: 'regular',
 };
 
-export const AppBlur = ({ material = 'regular', tint, radius, glassTint, fadeBottom, style, children }: AppBlurProps) => {
+export const AppBlur = ({ material = 'regular', tint, radius, glassTint, fadeBottom, blurTarget, style, children }: AppBlurProps) => {
   const { colorScheme, theme } = useAppTheme();
   const reduceTransparency = useReduceTransparency();
   const level = INTENSITY[material][colorScheme === 'dark' ? 'dark' : 'light'];
@@ -263,12 +268,26 @@ export const AppBlur = ({ material = 'regular', tint, radius, glassTint, fadeBot
     );
   }
 
+  if (blurTarget && Platform.OS === 'android') {
+    return (
+      <BlurView
+        intensity={level}
+        tint={tint ?? colorScheme}
+        blurTarget={blurTarget}
+        blurMethod={ANDROID_TARGET_BLUR}
+        style={[style ?? StyleSheet.absoluteFill, radius != null && { borderRadius: radius }]}
+      >
+        {children}
+      </BlurView>
+    );
+  }
+
   return (
     <BlurView
       intensity={level}
       tint={tint ?? colorScheme}
       /*
-        ANDROID'DE BLUR YOK — ölçüldü (2026-10-24). expo-blur 56'da gerçek blur
+        HEDEFSİZ ANDROID'DE BLUR YOK — ölçüldü (2026-10-24). expo-blur 56'da gerçek blur
         (dimezis) bir `blurTarget` (BlurTargetView) ister; verilmezse native taraf
         'none'a DÜŞER ve her çizimde konsola uyarı basar. Burada dimezis istenip hiç
         çizilmiyordu: görüntü zaten 'none' idi, yalnız uyarı üretiyordu. 'none' vermek
@@ -284,3 +303,5 @@ export const AppBlur = ({ material = 'regular', tint, radius, glassTint, fadeBot
     </BlurView>
   );
 };
+
+export { BlurTargetView };

@@ -19,7 +19,7 @@ const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
  * diye geri alınabilecek, ayrı ayrı masum görünen kararlar.
  */
 describe('dashboard sırası', () => {
-  const src = read('app/index.tsx');
+  const src = (read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'));
 
   /**
    * SIRA DENENDİ VE GERİ ALINDI. Gün açılmamışken eylem çağrısı sayfanın en üstüne,
@@ -74,7 +74,7 @@ describe('dashboard sırası', () => {
 
 describe('kırmızı yalnız gerçekten bozulan şeyler için', () => {
   it('gecikmiş görev bandı uyarı tonunda — sayfanın ilk rengi kırmızı olmasın', () => {
-    const src = read('app/index.tsx');
+    const src = (read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'));
     const start = src.indexOf('{overdueCount > 0 && (');
     const end = src.indexOf("'overdue tasks'}", start);
     expect(start).toBeGreaterThan(-1);
@@ -166,7 +166,7 @@ describe('bugün kartı — sıfırken susar', () => {
  */
 describe('günü tamamlama kutlaması', () => {
   const store = read('features/user/store/useAchievementStore.ts');
-  const src = read('app/index.tsx');
+  const src = (read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'));
 
   it('geçici kutlama hiçbir şeyi kalıcı yapmaz', () => {
     // `trigger` id başına tek seferlik ve doğrusu bu. Tekrarlanan anlar için ayrı yol

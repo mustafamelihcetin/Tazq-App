@@ -28,7 +28,7 @@ describe('dayRatingKey', () => {
 
   it('yazan da okuyan da aynı fonksiyonu kullanır', () => {
     expect(read('features/modes/components/plan/PlanToday.tsx')).toContain('dayRatingKey(');
-    expect(read('app/index.tsx')).toContain('dayRatingKey(');
-    expect(read('app/index.tsx')).not.toContain('`tazq_eval_');
+    expect((read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'))).toContain('dayRatingKey(');
+    expect((read('app/index.tsx') + read('features/dashboard/hooks/useHomeModel.tsx'))).not.toContain('`tazq_eval_');
   });
 });

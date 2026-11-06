@@ -28,6 +28,7 @@ const STEP = 100;
 export const ENTRANCE_FALLBACK_MS = 5000;
 const DURATION = 300;
 const RISE = 12;
+const ENTRANCE_DONE = { opacity: 1, transform: [{ translateY: 0 }] };
 
 export function EntranceStage({ order = 0, enabled = true, style, children }: {
   order?: number; enabled?: boolean; style?: StyleProp<ViewStyle>; children: React.ReactNode;
@@ -37,18 +38,24 @@ export function EntranceStage({ order = 0, enabled = true, style, children }: {
   // Mount anında açılış hâlâ ekrandaysa giriş OYNAYACAK; değilse sayfa olduğu gibi durur.
   const plays = useRef(!useBootStore.getState().splashDone).current;
   const t = useSharedValue(plays ? 0 : 1);
+  /*
+    GÖRÜNÜRLÜK ANİMASYONA EMANET DEĞİL (2026-11-06, Android 9'da cihazda: panelin altı bomboş, öğeler ağaçta görünmüyor, sayfa kayıyor).
+    Paylaşılan değer güncellendi diye görünüm güncellenmiş olmuyor: JS yavaşken değer görünüm kurulmadan değişirse opaklık 0'da takılabiliyor.
+    Süre dolunca React de opak yazar: UI iş parçacığından bağımsız son söz.
+  */
+  const [settled, setSettled] = useState(!plays);
 
   useEffect(() => {
     if (!plays || t.value === 1) return;
     // Tur açık ya da uygulama önde değil (kare çizilmiyor): giriş yok, içerik doğrudan görünür.
-    if (!enabled || AppState.currentState !== 'active') { t.value = 1; return; }
+    if (!enabled || AppState.currentState !== 'active') { t.value = 1; setSettled(true); return; }
     if (!ready) return;
     t.value = withDelay(order * STEP, withTiming(1, { duration: DURATION, easing: Easing.out(Easing.cubic) }));
     /*
       GARANTİ: içerik bir animasyonun BİTMESİNE bağlı kalmaz. Animasyon herhangi bir sebeple
       ilerlemezse (UI iş parçacığı takıldı, kare atlandı) süre + pay dolunca doğrudan görünür.
     */
-    const guard = setTimeout(() => { t.value = 1; }, order * STEP + DURATION + 400);
+    const guard = setTimeout(() => { t.value = 1; setSettled(true); }, order * STEP + DURATION + 400);
     return () => clearTimeout(guard);
   }, [plays, enabled, ready, order, t]);
 
@@ -57,7 +64,7 @@ export function EntranceStage({ order = 0, enabled = true, style, children }: {
     transform: [{ translateY: reduce ? 0 : (1 - t.value) * RISE }],
   }));
 
-  return <Animated.View style={[style, anim]}>{children}</Animated.View>;
+  return <Animated.View style={settled ? [style, ENTRANCE_DONE] : [style, anim]}>{children}</Animated.View>;
 }
 
 /*

@@ -424,7 +424,7 @@ export function TasarrufCard({ onInputFocus }: { onInputFocus?: (target: number)
         </FormReveal>
       )}
       {/* Sağlık/finans verisi sunucuya gitmez — kullanıcı bunu veriyi girerken bilsin (bkz. DeviceOnlyNote). */}
-      {seasonal.tasarrufMode && <DeviceOnlyNote kind="budget" />}
+      {seasonal.tasarrufMode && <DeviceOnlyNote kind="budget" backup="budget" />}
       {seasonal.tasarrufMode && (
         <ModeCardClose
           mode="tasarruf"

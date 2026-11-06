@@ -59,6 +59,9 @@ services:
       - REDIS_URL=tazq-redis:6379
     expose:
       - "80"
+    volumes:
+      # Bakım betiğinin ölçümü (ops/tazq-maint.py). Salt okunur: kapsayıcı sunucuya yazamaz.
+      - /root/tazq-status:/app/status:ro
     depends_on:
       tazq-db:
         condition: service_healthy

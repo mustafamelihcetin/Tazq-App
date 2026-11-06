@@ -95,9 +95,9 @@ export function NewHabitForm({
             accessibilityRole="button"
             accessibilityLabel={c.add}
             accessibilityState={{ disabled: !canAdd }}
-            style={[styles.addBtn, { backgroundColor: canAdd ? theme.primary : theme.surfaceField }]}
+            style={[styles.addBtn, { backgroundColor: canAdd ? theme.primaryFill : theme.surfaceField }]}
           >
-            <Text style={[styles.addText, { color: canAdd ? theme.onPrimary : theme.onSurfaceMuted }]}>{c.add}</Text>
+            <Text style={[styles.addText, { color: canAdd ? theme.onPrimaryFill : theme.onSurfaceMuted }]}>{c.add}</Text>
           </Touchable>
         </View>
       </View>

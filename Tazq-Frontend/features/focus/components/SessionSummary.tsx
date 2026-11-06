@@ -107,6 +107,8 @@ export interface SessionSummaryProps {
   onExtend?: () => void;
   /** Koşunun toplamı (+5 dk, Pomodoro turları). Verilmezse bu seans. */
   world?: { minutes: number; plannedMinutes: number } | null;
+  /** Sade mod: yalnız süre ve görevin sonucu; gün hedefi ve gökyüzü yok. */
+  lite?: boolean;
   /** Görevsiz seansa ad. Verilmezse sorulmaz. */
   onName?: (name: string) => void;
   /** Alarmın üstünden geçen dakika; 0 ise seçenek görünmez. */
@@ -122,7 +124,7 @@ export interface SessionSummaryProps {
 
 export const SessionSummary: React.FC<SessionSummaryProps> = ({
   visible, minutes, completed, taskTitle, dailyMinutes, dailyGoal, breakMinutes,
-  showBreak, language, t, onClose, onStartBreak, onExtend, onNewSession, onHome, onCompleteTask, onBreathe, onOpenSky, world, onName, idleMinutes = 0, onAddIdle,
+  showBreak, language, t, onClose, onStartBreak, onExtend, onNewSession, onHome, onCompleteTask, onBreathe, onOpenSky, world, lite, onName, idleMinutes = 0, onAddIdle,
 }) => {
   // Zemin (GlassSurface) uygulama temasından gelir; renkler de oradan alınmalı.
   // Sahneyi izler: Kor'da biten seansın kapanışı da kor renginde (bkz. sceneSheetTheme).
@@ -188,14 +190,14 @@ export const SessionSummary: React.FC<SessionSummaryProps> = ({
                     <AnimatedNumber key={visible ? 'on' : 'off'} value={totalMinutes} from={0} duration={reduceMotion ? 0 : 900} style={[HERO_SHADOW, { fontSize: 56, fontWeight: '700', color: HERO_INK, letterSpacing: -2, lineHeight: 62 }]} />
                     <Text style={[HERO_SHADOW, { fontSize: F.subhead, fontWeight: '600', color: HERO_INK }]}>{t.summaryMinFocused}</Text>
                   </View>
-                  <Text numberOfLines={1} adjustsFontSizeToFit style={[HERO_SHADOW, { fontSize: F.footnote, color: HERO_INK }]}>{WORLD_RESULT[language][scene.id](pct)}</Text>
+                  {!lite && <Text numberOfLines={1} adjustsFontSizeToFit style={[HERO_SHADOW, { fontSize: F.footnote, color: HERO_INK }]}>{WORLD_RESULT[language][scene.id](pct)}</Text>}
                 </View>
               </WorldHero>
             )}
 
             <View style={{ padding: S.lg, gap: S.md }}>
               {/* Bugün + bu seansın topladıkları: tek blok, kutusuz. */}
-              <View style={{ gap: S.xs }}>
+              {!lite && <View style={{ gap: S.xs }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant }}>{c.todayLabel}</Text>
                   <Text style={{ fontSize: F.caption, fontWeight: '600', color: goalPct >= 1 ? theme.primary : theme.onSurfaceVariant }}>
@@ -209,7 +211,7 @@ export const SessionSummary: React.FC<SessionSummaryProps> = ({
                     from={{ width: `${Math.round(prevPct * 100)}%` }}
                     animate={{ width: `${Math.round(goalPct * 100)}%` }}
                     transition={reduceMotion ? { type: 'timing', duration: 0 } : { type: 'timing', duration: 700, delay: 250 }}
-                    style={{ height: '100%', borderRadius: R.xs, backgroundColor: goalPct >= 1 ? theme.tertiary : theme.primary }}
+                    style={{ height: '100%', borderRadius: R.xs, backgroundColor: goalPct >= 1 ? theme.tertiary : theme.primaryFill }}
                   />
                 </View>
                 {collected > 0 && (
@@ -220,7 +222,7 @@ export const SessionSummary: React.FC<SessionSummaryProps> = ({
                     </Touchable>
                   ) : <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant, paddingTop: S.xxs }}>{c.lights(collected, LIGHT_NAMES[scene.id])}</Text>
                 )}
-              </View>
+              </View>}
 
               {/* Bağlı görev: seansın sonucu göreve de işlensin. */}
               {taskTitle ? (
@@ -281,12 +283,12 @@ export const SessionSummary: React.FC<SessionSummaryProps> = ({
               {/* Tek ana eylem: öneri mola; mola yoksa ana sayfa. */}
               <View style={{ flexDirection: 'row', gap: S.sm }}>
                 {showBreak && (
-                  <Touchable accessibilityRole="button" accessibilityLabel={c.breakBtn(breakMinutes)} onPress={onStartBreak} style={{ flex: 1, minHeight: PRIMARY_H, borderRadius: R.full, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onPrimary }}>{c.breakBtn(breakMinutes)}</Text>
+                  <Touchable accessibilityRole="button" accessibilityLabel={c.breakBtn(breakMinutes)} onPress={onStartBreak} style={{ flex: 1, minHeight: PRIMARY_H, borderRadius: R.full, backgroundColor: theme.primaryFill, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onPrimaryFill }}>{c.breakBtn(breakMinutes)}</Text>
                   </Touchable>
                 )}
-                <Touchable accessibilityRole="button" accessibilityLabel={t.summaryBackHome} onPress={onHome} style={{ flex: 1, minHeight: PRIMARY_H, borderRadius: R.full, backgroundColor: showBreak ? theme.onSurface + '14' : theme.primary, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: F.subhead, fontWeight: showBreak ? '600' : '700', color: showBreak ? theme.onSurface : theme.onPrimary }}>{t.summaryBackHome}</Text>
+                <Touchable accessibilityRole="button" accessibilityLabel={t.summaryBackHome} onPress={onHome} style={{ flex: 1, minHeight: PRIMARY_H, borderRadius: R.full, backgroundColor: showBreak ? theme.onSurface + '14' : theme.primaryFill, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: F.subhead, fontWeight: showBreak ? '600' : '700', color: showBreak ? theme.onSurface : theme.onPrimaryFill }}>{t.summaryBackHome}</Text>
                 </Touchable>
               </View>
 

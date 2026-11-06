@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { AppState, Text, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import type { ReactTestRendererJSON } from 'react-test-renderer';
 import { render, act } from '@testing-library/react-native';
 import { EntranceStage } from '@/shared/components/EntranceStage';
@@ -10,6 +10,8 @@ import { useBootStore } from '@/shared/store/useBootStore';
  * tur açıkken hiç beklemeden. Ağaç üretimde olduğu gibi katmanın ALTINDA mount ediliyor.
  */
 // Kök = sahnenin Animated.View'u.
+// Uygulama önde: arka planda giriş oynamaz, içerik doğrudan görünür.
+Object.defineProperty(AppState, 'currentState', { value: 'active', configurable: true });
 const opacityOf = (r: ReturnType<typeof render>) => {
   const root = r.toJSON() as ReactTestRendererJSON;
   return StyleSheet.flatten(root.props.style as StyleProp<ViewStyle>)?.opacity;

@@ -14,6 +14,9 @@ import { TickCircle } from '@/shared/components/TickCircle';
 import { Separator } from '@/shared/components/Separator';
 import { describeTask, rowHint, bulkSelectHint } from '@/shared/utils/a11y';
 import type { Task } from '@/features/tasks/store/useTaskStore';
+import type { TaskGroupId } from '@/features/tasks/utils/taskGroups';
+import { whenLabel } from '@/features/tasks/utils/horizon';
+import { langOf } from '@/shared/utils/lang';
 import { titleWithoutLabel } from '@/features/tasks/utils/displayTitle';
 import type { getModeInfoForTask } from '@/features/modes';
 import type { AppTheme } from '@/shared/constants/Colors';
@@ -56,6 +59,8 @@ export interface TaskListItemProps {
      * (tablet/geniş ekran ızgarası). Bkz. aşağıdaki "GRUPLU LİSTE" notu.
      */
     position?: 'only' | 'first' | 'middle' | 'last';
+    /** Satırın bölümü: başlığın zaten söylediği günü satır tekrar etmez. */
+    group?: TaskGroupId;
     /** Tur hedefi — görünen satır KARTINI sarar (dış kabın alt boşluğu deliğe girmez). */
     tourId?: string;
 }
@@ -84,7 +89,7 @@ const copy = (tr: boolean) => tr
 
 /** Görev listesindeki tek satır: kaydırma, çoklu seçim, genişleyen ayrıntı. */
 export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
-    const { task, i, theme, isDark, highlightedId, isBulkMode, isSelected, language, t, showSwipePeek, priorityColor, handleDelete, handleToggleExpand, handleLongPress, handleBulkSelect, handleToggle, toggleSubtask, completingIds, expandedId, sortBy, onMoveUp, onMoveDown, onEdit, modeInfo, position, tourId } = props;
+    const { task, i, theme, isDark, highlightedId, isBulkMode, isSelected, language, t, showSwipePeek, priorityColor, handleDelete, handleToggleExpand, handleLongPress, handleBulkSelect, handleToggle, toggleSubtask, completingIds, expandedId, sortBy, onMoveUp, onMoveDown, onEdit, modeInfo, position, group, tourId } = props;
 
     /*
       MOD BİLGİSİ ARTIK PROP — kart artık HİÇBİR store'a abone değil.
@@ -107,7 +112,8 @@ export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
     const tr = language === 'tr';
     const c = copy(tr);
     const done = task.isCompleted || completingIds.has(task.id);
-    const accent = modeInfo?.color || priorityColor(task.priority);
+    // TEK RENK DİLİ: her önceliğe ve hedefe ayrı halka listeyi gökkuşağı yapıyordu, hiçbiri öne çıkmıyordu. Yalnız kullanıcının seçtiği Yüksek öncelik renklidir: plan görevlerinin önceliği motordan gelir, liste kırmızıya boyanıyordu (cihazda). Hedefin adı kendi renginde yazar.
+    const ringColor = task.priority === 'High' && !modeInfo ? priorityColor('High') : theme.onSurfaceMuted;
     const title = getLocalizedTaskTitle(task, tr);
     const grouped = !!position;
     const isTop = position === 'first' || position === 'only' || !grouped;
@@ -124,12 +130,15 @@ export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
     const countdown = isQuit
         ? (modeInfo!.daysLeft === 0 ? c.dayOne : c.clean(modeInfo!.daysLeft!))
         : getTaskRemainingTime(task.dueDate, task.dueTime, task.isCompleted, tr);
-    const isOverdue = countdown === 'Süresi geçti' || countdown === 'Overdue';
+    // "Gecikmiş" bölümünde gecikme başlıkta yazıyor: satır tarihini söyler.
+    const isOverdue = (countdown === 'Süresi geçti' || countdown === 'Overdue') && group !== 'overdue';
+    const dayWord = countdown === 'Bugün' || countdown === 'Today' || countdown === 'Yarın' || countdown === 'Tomorrow';
+    const farLabel = !isQuit && (group === 'soon' || group === 'later') ? whenLabel(task.dueDate, langOf(language)) : null;
     const timeLabel = task.dueTime ? (() => {
         const d = new Date(task.dueTime);
         return isNaN(d.getTime()) ? task.dueTime : d.toLocaleTimeString(tr ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
     })() : null;
-    const dateLabel = task.dueDate && !countdown
+    const dateLabel = task.dueDate && (!countdown || group === 'overdue')
         ? new Date(task.dueDate).toLocaleDateString(tr ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short' })
         : null;
     const subDone = task.subtasks?.filter((s: { done?: boolean }) => s.done).length ?? 0;
@@ -137,10 +146,12 @@ export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
     const meta = [
         !isQuit && modeInfo?.daysLeft !== undefined ? c.goal(modeInfo.daysLeft) : null,
         timeLabel,
-        countdown && !isOverdue && countdown !== timeLabel ? countdown : null,
+        farLabel,
+        !farLabel && group !== 'overdue' && countdown && !isOverdue && countdown !== timeLabel && !(group && dayWord) ? countdown : null,
         dateLabel,
         task.subtasks?.length ? `${subDone}/${task.subtasks.length} ${c.steps}` : null,
-        ...visibleTextTags(task.tags).map(tag => translateTag(tag, language as 'tr' | 'en')),
+        // Plan görevinde mod adı zaten yazıyor; "sınav · eğitim · postponed" gürültü (2026-11-06, cihazda). Etiket yalnız kullanıcının kendi görevinde.
+        ...(modeInfo ? [] : visibleTextTags(task.tags).map(tag => translateTag(tag, language as 'tr' | 'en'))),
     ].filter(Boolean) as string[];
     const modeLabel = modeInfo ? (tr ? modeInfo.labelTr : modeInfo.labelEn) : null;
     const lead = [modeLabel, isOverdue ? countdown : null].filter(Boolean).length;
@@ -204,8 +215,8 @@ export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
                 >
                     <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: S.md }}>
                         {isBulkMode ? (
-                            <View style={[styles.ring, { borderWidth: B.medium, borderColor: isSelected ? theme.primary : theme.onSurfaceMuted, backgroundColor: isSelected ? theme.primary : 'transparent' }]}>
-                                {isSelected && <Check size={ICON.xs} color={theme.onPrimary} strokeWidth={3} />}
+                            <View style={[styles.ring, { borderWidth: B.medium, borderColor: isSelected ? theme.primary : theme.onSurfaceMuted, backgroundColor: isSelected ? theme.primaryFill : 'transparent' }]}>
+                                {isSelected && <Check size={ICON.xs} color={theme.onPrimaryFill} strokeWidth={3} />}
                             </View>
                         ) : (
                             <Touchable
@@ -216,7 +227,7 @@ export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
                                 hitSlop={touchSlop(SIZE)}
                                 style={styles.ring}
                             >
-                                <TickCircle checked={done} size={SIZE} color={theme.success} ringColor={accent} tickColor={theme.onPrimary} />
+                                <TickCircle checked={done} size={SIZE} color={theme.success} ringColor={ringColor} tickColor={theme.onPrimary} />
                             </Touchable>
                         )}
 
@@ -313,7 +324,7 @@ export const MemoizedTaskItem = React.memo((props: TaskListItemProps) => {
                                                 accessibilityRole="button"
                                                 accessibilityLabel={c.edit}
                                                 hitSlop={touchSlop(ACTION_H)}
-                                                style={[styles.moveBtn, { backgroundColor: theme.primary + '1A' }]}
+                                                style={[styles.moveBtn, { backgroundColor: theme.primaryFill + '1A' }]}
                                             >
                                                 <Pencil size={ICON.sm} color={theme.primary} />
                                                 <Text style={{ fontSize: F.footnote, fontWeight: '600', color: theme.primary }}>{c.edit}</Text>

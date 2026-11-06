@@ -63,7 +63,7 @@ export function PaymentsHistoryCard({ theme, isDark, lang, records, main, fx }: 
   const sum = months.reduce((a, m) => a + m.amount, 0);
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.surfaceCard, borderColor: theme.outline }]}>
+    <View style={[styles.card, { backgroundColor: theme.surfaceCard }]}>
       <Touchable
         onPress={() => setOpen(!open)}
         accessibilityRole="button"
@@ -79,7 +79,7 @@ export function PaymentsHistoryCard({ theme, isDark, lang, records, main, fx }: 
         {!open && (
           <View style={styles.spark} importantForAccessibility="no-hide-descendants">
             {months.slice(-6).map(m => (
-              <View key={m.key} style={[styles.sparkBar, { height: m.amount > 0 ? Math.max(3, (m.amount / max) * 20) : 2, backgroundColor: m.amount > 0 ? theme.primary : theme.outlineVariant }]} />
+              <View key={m.key} style={[styles.sparkBar, { height: m.amount > 0 ? Math.max(3, (m.amount / max) * 20) : 2, backgroundColor: m.amount > 0 ? theme.primaryFill : theme.outlineVariant }]} />
             ))}
           </View>
         )}
@@ -110,7 +110,7 @@ export function PaymentsHistoryCard({ theme, isDark, lang, records, main, fx }: 
               accessibilityState={{ selected: active }}
               style={styles.col}
             >
-              <View style={[styles.bar, { height: h, backgroundColor: m.amount > 0 ? theme.primary : theme.outlineVariant, opacity: active ? 1 : 0.55, borderStyle: m.partial ? 'dashed' : 'solid', borderWidth: m.partial ? B.thin : 0, borderColor: theme.onSurfaceMuted }]} />
+              <View style={[styles.bar, { height: h, backgroundColor: m.amount > 0 ? theme.primaryFill : theme.outlineVariant, opacity: active ? 1 : 0.55, borderStyle: m.partial ? 'dashed' : 'solid', borderWidth: m.partial ? B.thin : 0, borderColor: theme.onSurfaceMuted }]} />
               <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[styles.axis, { color: active ? theme.onSurface : theme.onSurfaceMuted }]}>{axis(m.key)}</Text>
             </Touchable>
           );
@@ -136,7 +136,7 @@ export function PaymentsHistoryCard({ theme, isDark, lang, records, main, fx }: 
 }
 
 const styles = StyleSheet.create({
-  card: { padding: S.md, borderRadius: R.lg, borderWidth: B.thin, gap: S.sm },
+  card: { padding: S.md, borderRadius: R.lg, gap: S.sm },
   title: { fontSize: F.body, fontWeight: W.semibold },
   head: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
   spark: { flexDirection: 'row', alignItems: 'flex-end', gap: S.xxs, height: 20 },

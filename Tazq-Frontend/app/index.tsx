@@ -1,1672 +1,159 @@
-import { useBootStore } from '@/shared/store/useBootStore';
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet, useWindowDimensions, Platform, KeyboardAvoidingView, Animated, AppState } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
-import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTaskStore, parseTaskHint, getLocalizedTaskTitle, getLocalizedTaskDescription } from '@/features/tasks';
-import { useShallow } from 'zustand/react/shallow';
-import { useAuthStore, useAchievementStore, useMomentumStore, checkStreakAchievement, checkMomentumAchievement, ACHIEVEMENTS, AVATAR_CONFIGS } from '@/features/user';
-import { useLanguageStore } from '@/shared/store/useLanguageStore';
+import { NavGlassArea } from '@/shared/components/NavGlass';
+import { View, Text, RefreshControl, StyleSheet, Animated } from 'react-native';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { TriageModal } from '@/features/dashboard/components/TriageModal';
 import { TazqZenCard } from '@/features/dashboard/components/TazqZenCard';
 import { TodayBelow } from '@/features/dashboard/components/TodayBelow';
-import { parseChecklist } from '@/features/tasks/nlp/checklist';
 import { InboxButton, InboxSheet } from '@/features/dashboard/components/InboxSheet';
-import { buildInbox, AUTO_CLEAR_ON_SEEN, clearsOnOpen, type InboxItem } from '@/features/dashboard/utils/inboxItems';
 import { useInboxStore } from '@/shared/store/useInboxStore';
-import { usePaymentsStore } from '@/features/payments/store/usePaymentsStore';
-import { scopeOtherDay } from '@/features/dashboard/utils/dayScope';
-import { SupportService, type MySupportMessage } from '@/shared/services/api';
-import { INBOX_COPY } from '@/features/dashboard/utils/inboxCopy';
 import { CommandPortal } from '@/features/dashboard/components/CommandPortal';
 import { SomedayNudge } from '@/features/dashboard/components/SomedayNudge';
-import { useZen } from '@/features/dashboard/hooks/useZen';
-import { isSomeday } from '@/features/tasks/utils/taskTags';
-import { whenLabel, horizonCopy } from '@/features/tasks/utils/horizon';
 import { UserAvatar } from '@/features/user/components/UserAvatar';
-import { newTaskKey } from '@/features/tasks/utils/clientKey';
-import { langOf } from '@/shared/utils/lang';
 import { TazqLogo } from '@/shared/components/TazqLogo';
 import { SectionHeader } from '@/shared/components/SectionHeader';
 import { MyDayHabits } from '@/features/dashboard/components/MyDayHabits';
-import { MotiView, MotiText, AnimatePresence } from 'moti';
-import { ArrowLeft, BarChart3, BrainCircuit, CalendarDays, Check, CheckCircle2, ChevronRight, Coffee, Flame, Plus, Rocket, Trash2, TrendingUp, Zap } from 'lucide-react-native';
-import { useHighlight, HighlightHeader } from '@/features/dashboard/components/HighlightHeader';
-import { TaskService, AuthService } from '@/shared/services/api';
-// Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
-// shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
-import { useRouter, useFocusEffect } from 'expo-router';
-import { useAppTheme } from '@/shared/hooks/useAppTheme';
-import { PremiumStatChip } from '@/shared/components/PremiumStatChip';
-import { useFocusStore } from '@/features/focus';
-import { useSporStore } from '@/features/modes/store/useSporStore';
-import { useSessionStore } from '@/shared/store/useSessionStore';
-import { LinearGradient } from 'expo-linear-gradient';
-import { understand, titleOf } from '@/features/tasks/nlp/understand';
-import { computeMomentum } from '@/shared/utils/momentum';
-import { ICON, S, R, F, B, MIN_TOUCH, TRACKING, MAX_W, contentMaxWidth, sideInset, HAIRLINE, navBarSpace, fabSafeBottom, topBarSpace, TOP_BAR_HEIGHT, TOP_BAR_LIFT, TOP_ITEM_SIZE, TOP_AVATAR_SIZE, touchSlop } from '@/shared/constants/tokens';
-import { useToastStore } from '@/shared/store/useToastStore';
-import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
-import { useHabitStore, fmtDateKey, useSleepHealthSync, useActiveHabitList } from '@/features/habits';
-import { isDueToday, orderForNow, weekProgress, countOn, targetOf, missState } from '@/features/habits/utils/habitSchedule';
-import { celebrateMilestone } from '@/features/habits/utils/autoMark';
-import { todayKey, daysBetween, wasActiveOn, decideStreak, wasCompletedOn, legacyDayString, weekdayIndex } from '@/features/dashboard/utils/streakDay';
-import { buildWeekStrip } from '@/features/dashboard/utils/weekStrip';
-import { useActivityHealthSync } from '@/features/modes/hooks/useActivityHealthSync';
-import { completeWithUndoToast } from '@/features/tasks/utils/taskActions';
-import { isWeightEntryTask, weightTaskAction, completeTaskOfflineFirst } from '@/features/modes/utils/weightCheckin';
-import { useUiDepth } from '@/shared/hooks/useUiDepth';
-import { MomentumPulse } from '@/features/user/components/MomentumPulse';
+import { MotiView } from 'moti';
+import { ChevronRight, Flame, Plus, Rocket, Zap } from 'lucide-react-native';
+import { HighlightHeader } from '@/features/dashboard/components/HighlightHeader';
+import { ICON, S, R, F, B, MIN_TOUCH, contentMaxWidth, HAIRLINE, fabSafeBottom, topBarSpace, TOP_AVATAR_SIZE, touchSlop } from '@/shared/constants/tokens';
 import { WeightEntryModal } from '@/features/modes/components/WeightEntryModal';
 import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
-import { useDemoGate, useTourGate } from '@/features/onboarding/utils/firstRun';
 import { TourTarget } from '@/shared/components/TourContext';
-import { scheduleWeeklySummary } from '@/shared/utils/notifications';
 import { Touchable } from '@/shared/components/Touchable';
-import { QuickAddSheet, type DayChoice } from '@/features/tasks/components/QuickAddSheet';
-import { dateKeyFromNow } from '@/shared/utils/dateKey';
-import { ModeTodayCard } from '@/features/modes/components/ModeTodayCard';
+import { QuickAddSheet } from '@/features/tasks/components/QuickAddSheet';
 import { PaymentsSummaryCard } from '@/features/payments/components/PaymentsSummaryCard';
-import { markPaidUndoable, refreshPayments } from '@/features/payments/utils/paymentActions';
-import { activeCycleKeyOf } from '@/features/payments/utils/paymentDates';
-import { useAppShortcuts } from '@/shared/hooks/useAppShortcuts';
 import { ProfileSetupModal } from '@/features/user/components/ProfileSetupModal';
 import { CaptureSheet } from '@/features/onboarding/components/CaptureSheet';
-import { shouldOfferCapture } from '@/features/onboarding/utils/captureFlow';
 import { DottedBackground } from '@/shared/components/DottedBackground';
-import { useNetworkStore } from '@/shared/store/useNetworkStore';
-import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
-import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { MagneticFAB } from '@/shared/components/MagneticFAB';
 import { WideSplit, WideCol } from '@/shared/components/ResponsiveColumns';
-import { HabitBubble } from '@/features/habits/components/HabitBubble';
-import { swallow } from '@/shared/utils/swallow';
-import { playSoundEffect } from '@/shared/utils/soundEffects';
-import { evaluateReviewPrompt } from '@/features/user/utils/reviewPrompt';
-import { useDoubleTapHighlight } from '@/features/user/hooks/useDoubleTapHighlight';
-import { useWeeklyStats } from '@/features/user/hooks/useWeeklyStats';
-import { useFocusHistoryStore } from '@/features/report/useFocusHistoryStore';
-import { weekRange, summarizeWeek } from '@/features/report/weeklyReport';
-import { lastDays } from '@/features/dashboard/utils/dayHistory';
 import { ReviewPromptModal } from '@/features/user/components/ReviewPromptModal';
-import { httpStatusOf, isNetworkError } from '@/shared/utils/errors';
 import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { EntranceStage } from '@/shared/components/EntranceStage';
-import { useLatestCallback } from '@/shared/hooks/useLatestCallback';
-import { useWakeSignal } from '@/features/dashboard/hooks/useWakeSignal';
-import { useAwayLine } from '@/features/dashboard/hooks/useAwayLine';
-import { MyDayItem, isDemoId, type MyDayTaskItem } from '@/features/dashboard/components/MyDayItem';
-import type { MyDayHabitsProps } from '@/features/dashboard/components/MyDayHabits';
 import { haptic } from '@/shared/utils/haptics';
-import { useChromeMinimizeOnScroll } from '@/shared/hooks/useChromeMinimizeOnScroll';
-import { savedLocallyMessage } from '@/shared/utils/saveFeedback';
-import { celebrate } from '@/features/user/utils/celebrate';
-import { scopeDay } from '@/features/dashboard/utils/dayScope';
-import { TodayRings, type TodayRingsProps } from '@/features/dashboard/components/TodayRings';
-import { habitColor } from '@/features/habits/utils/habitColor';
-import { isFocusWorthy } from '@/features/focus/focusWorthy';
-import { dayRatingKey } from '@/features/modes/utils/dayRating';
+import { TodayRings } from '@/features/dashboard/components/TodayRings';
+import { useHomeModel, RINGS_COPY } from '@/features/dashboard/hooks/useHomeModel';
 
 
-// Hoş geldin (profil kurulumu) oturum başına yalnızca bir kez — remount'ta sıfırlanmasın diye
-// component ref yerine modül seviyesinde tutulur; kullanıcı çıkışında sıfırlanır.
-let welcomeSetupShown = false;
 
-/** Bugün özeti + Sıradaki satırı metinleri — iki dil yan yana (i18nRatchet). */
-const RINGS_COPY = {
-  tr: { tasks: 'Görevler', focus: 'Odak', habits: 'Alışkanlıklar', min: 'dk', empty: 'Bugün için planın boş', undatedOnly: (n: number) => `Bugüne tarihli görev yok · ${n} tarihsiz iş listende`, allDone: 'Bugünkü görevlerin tamam', focusCta: 'Odaklan' },
-  en: { tasks: 'Tasks', focus: 'Focus', habits: 'Habits', min: 'min', empty: 'Nothing planned today', undatedOnly: (n: number) => `Nothing dated today · ${n} undated ${n === 1 ? 'task' : 'tasks'} in your list`, allDone: "Today's tasks are done", focusCta: 'Focus' },
-} as const;
+const styles = StyleSheet.create({
+  // Başlık çubuğu öğesi: SABİT 30pt (bkz. TOP_ITEM_SIZE). scale(34) hem 44pt'lik
+  // çubukta kenara 1.8pt bırakıyordu hem de tablette 42.5'e çıkıyordu — chrome ölçeklenmez.
+  // borderWidth/borderColor BURADA YOK: ikisi de kullanım yerinde temaya ve
+  // kişiselleştirme rengine göre veriliyor. Burada da yazılıydı ve değeri
+  // `rgba(255,255,255,0.1)` idi — açık temada görünmeyen bir renk. Hiç etkisi yoktu
+  // (satır içi hep eziyordu) ama kopyalanmayı bekleyen yanlış bir örnekti.
+  // Zemin rengi BURADA YOK, kullanım yerinde temadan: sabit beyazdı ve koyu temada yuvarlak
+  // kırpmanın kenarlarından (üst/alt/sol/sağ) ince beyaz çizgiler olarak sızıyordu.
+  avatarContainer: { width: TOP_AVATAR_SIZE, height: TOP_AVATAR_SIZE, borderRadius: R.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  scrollContent: { flexGrow: 1 },
+});
+// Sade mod başlıkları: tek sözlük (bkz. i18nRatchet).
+const LITE_COPY = {
+  tr: { today: () => `Bugün, ${new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}`, empty: 'Listen boş' },
+  en: { today: () => `Today, ${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long' })}`, empty: 'Your list is empty' },
+};
 
-let tasksFetchedInSession = false; // yalnız momentum iskeleti: sekme dönüşünde (router.replace) iskelete dönmesin; kalkan kararı mount'ta TAZE cevabı bekler
 export default function HomeScreen() {
-  const { width, height } = useWindowDimensions();
-  // Küçük ekranlarda kart içi boşlukları bir kademe sık → dikey kaydırma azalır.
-  /*
-    TEK İÇ DOLGU (2026-10-25): ana sayfanın kartları 8 / 16 / 24 karışık dolguyla çiziliyordu;
-    alt alta duran kartlarda yazının sol kenarı karttan karta kayıyordu. Hepsi 16 (iOS gruplu
-    liste standardı) — küçük ekranda da: daralmak hizayı bozmamalı.
-  */
-  const bentoPad = S.md;
-  const { tasks: allTasks, isLoading, setTasks, setLoading, addTask, toggleTaskCompletion } = useTaskStore(useShallow(state => ({
-    tasks: state.tasks,
-    isLoading: state.isLoading,
-    setTasks: state.setTasks,
-    setLoading: state.setLoading,
-    addTask: state.addTask,
-    toggleTaskCompletion: state.toggleTaskCompletion
-  })));
+  const {
+    width,
+    bentoPad,
+    tasks,
+    user,
+    t,
+    language,
+    theme,
+    isDark,
+    zen,
+    insets,
+    router,
+    isLite,
+    avatarBorderColor,
+    profileSetupVisible,
+    guestProfile,
+    isNamePlaceholder,
+    scrollViewRef,
+    handleProfileSetupSave,
+    habits,
+    weightModalTaskId,
+    setWeightModalTaskId,
+    quickDraftVisible,
+    setQuickDraftVisible,
+    headerScale,
+    headerTap,
+    todayTap,
+    headerHighlight,
+    todayHighlight,
+    focusSessions,
+    showAllIncomplete,
+    setShowAllIncomplete,
+    showCompletedSection,
+    setShowCompletedSection,
+    logoTick,
+    scrollY,
+    titleCollapseAt,
+    commandPortalVisible,
+    setCommandPortalVisible,
+    portalSearch,
+    setPortalSearch,
+    reviewModalVisible,
+    setReviewModalVisible,
+    captureOn,
+    tourOn,
+    demoGate,
+    demoActive,
+    todayTasksIncomplete,
+    undatedTasksIncomplete,
+    todayCompleted,
+    dailyGoal,
+    overdueCount,
+    awayLine,
+    pullRefreshing,
+    wakeKey,
+    onCaptureDone,
+    onPullRefresh,
+    handleQuickSave,
+    savePortalTask,
+    tr,
+    dayHistory,
+    myDayTasks,
+    highlight,
+    myDayHabits,
+    startQuickFocus,
+    handleLogoPress,
+    todaySurprise,
+    getGreeting,
+    getSubGreeting,
+    renderMyDayItem,
+    priorityColor,
+    todayDetail,
+    todayMetrics,
+    openDay,
+    inboxOpen,
+    setInboxOpen,
+    visibleInbox,
+    inboxFresh,
+    inboxUnread,
+    inboxEmpty,
+    openInbox,
+    closeInbox,
+    onInboxItem,
+    onInboxPay,
+    todayTopSlot,
+    todayFooter,
+    openQuickAdd,
+    onAddHabit,
+    onHabitSkip,
+    onHabitToggle,
+  } = useHomeModel();
 
-  /**
-   * ARŞİVLENMİŞ GÖREVLER TEK NOKTADA SÜZÜLÜYOR.
-   *
-   * Bu ekran `tasks` üzerinde sekiz ayrı filtre kuruyor (bugünkü, tarihsiz, gelecek,
-   * tamamlanan, gecikmiş...). Arşiv kontrolünü her birine tek tek eklemek, sekiz ayrı
-   * unutma fırsatı yaratırdı — ve bir tanesi atlandığında arşivlenmiş görev yalnız o
-   * görünümde geri belirir, yani hata en zor fark edilen biçimde ortaya çıkardı.
-   *
-   * Kaynakta bir kez süzmek, aşağıdaki her türev listeyi otomatik doğru kılıyor.
-   */
-  const tasks = React.useMemo(() => allTasks.filter(t => t && !t.isArchived), [allTasks]);
-
-  const { user, setUser, token, isFirstLogin, setIsFirstLogin } = useAuthStore();
-  const { t, language } = useLanguageStore();
-  const { theme, colorScheme } = useAppTheme();
-  const isDark = colorScheme === 'dark';
-  // TAZQZen: kart, menünün "Günü Kurtar"ı ve triage AYNI motoru kullanıyor (bkz. useZen).
-  const zen = useZen(language);
-  const insets = useSafeAreaInsets();
-  const router = useRouter();
-  const { show: showToast } = useToastStore();
-  const { recordScore, getLastNDays, momentumShieldActive } = useMomentumStore();
-  const { trigger: triggerAchievement, baseline: baselineAchievements } = useAchievementStore();
-  const achHydrated = useAchievementStore(s => s._hasHydrated);
-  const uiMode = usePrefsStore(s => s.uiMode);
-
-  /**
-   * SADE MOD — ayarın sözünü TUTAN yüklem.
-   *
-   * ÖLÇÜLEN SORUN: `uiMode` bu ekranda yalnız iki başarım kapısında kullanılıyordu;
-   * en tepedeki İVME SKORU Sade modda da duruyordu (MomentumPulse'ın kendi `isLite`
-   * kontrolü sadece sayma animasyonunu kapatıyordu). Skorlanmaktan kaçmak için
-   * düğmeyi açan kullanıcı skorlanmaya devam ediyordu.
-   *
-   * GİZLENİR: ivme skoru · durum merkezi düğmesi · kutlama/konfeti · tezahürat metni.
-   * KALIR: günlük ilerleme (işin durumu oyun değil) ve tüm VERİ yazımı — mod bir
-   * görünüm tercihidir, geçmişi budamaz. Bkz. __tests__/liteMode.test.ts
-   */
-  const isLite = uiMode === 'lite';
-
-  /*
-    İKON KISAYOLLARI — ikona basılı tutunca "Görev ekle" ve "Odak".
-    Kök düzende değil BURADA: kısayol bir gezinme başlatıyor ve kök düzen çalışırken
-    gezinme ağacı henüz hazır olmuyor (bkz. useAppShortcuts).
-  */
-  useAppShortcuts();
-  const { seasonal, weeklyNotification, avatarBorderColor, soundEffects, completedTours, setOnboardingCompleted, welcomeStatus, capturePending, firstCapture, _hasHydrated: prefsHydrated } = usePrefsStore();
-
-  const [profileSetupVisible, setProfileSetupVisible] = useState(false);
-  const isGuest = useSessionStore(s => s.isGuest);
-  const guestProfile = useSessionStore(s => s.guestProfile);
-  const splashDone = useBootStore(s => s.splashDone);
-  const setGuestProfile = useSessionStore(s => s.setGuestProfile);
-  const isNamePlaceholder = user?.name === 'TAZQ Kullanıcısı' || !!(user?.email && user?.name && user?.name === user?.email.split('@')[0]);
-
-  const scrollViewRef = useRef<ScrollView>(null);
-  // Odaktan seans sürerken dönülünce sayfa EN ÜSTTEN açılır (kullanıcı: "en aşağıya attı"); seans altta yüzen kapsülde.
-  useFocusEffect(useCallback(() => {
-    const f = useFocusStore.getState();
-    if (f.isActive || f.totalSeconds - f.seconds > 0) scrollViewRef.current?.scrollTo({ y: 0, animated: false });
-  }, []));
-
-  useEffect(() => {
-    if (!profileSetupVisible && completedTours?.dashboard !== true) {
-      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
-    }
-  }, [profileSetupVisible, completedTours]);
-
-  useEffect(() => {
-    // Kullanıcı çıkışında bayrağı sıfırla (yeni/başka ilk-giriş kullanıcısı için tekrar gösterilebilsin)
-    // Misafir de hoş geldini görür (bkz. useAuthStore.startGuest — yalnız YENİ girişte).
-    if (!user && !isGuest) {
-      welcomeSetupShown = false;
-      return;
-    }
-    if (!prefsHydrated) return;
-
-    /*
-      ── HOŞ GELDİN EKRANI: OTURUMA DEĞİL DİSKE YAZILI ──────────────────────────
-      Kapı eskiden `onboardingCompleted === false && isFirstLogin` idi; ikisi de
-      yanlıştı (gerekçe usePrefsStore → welcomeStatus notunda). Kısaca: tanıtım
-      slaytları `onboardingCompleted`i kayıttan ÖNCE true yapıyordu, `isFirstLogin` ise
-      uygulama kapanınca kayboluyordu.
-
-      Artık ilk giriş yalnız bayrağı KURUYOR; ekranı açan şey bayrağın kendisi. Böylece
-      kullanıcı hoş geldin ekranındayken uygulamayı kapatsa bile sıradaki açılışta
-      kaldığı yerden devam ediyor.
-    */
-    if (isFirstLogin && welcomeStatus === 'unknown') {
-      usePrefsStore.getState().setWelcomeStatus('pending');
-      usePrefsStore.getState().setCapturePending(true); // hoş geldinden sonra "Aklındakileri yaz" (bkz. captureFlow)
-    }
-
-    if (welcomeStatus === 'pending' && !welcomeSetupShown && splashDone) { // açılış bitmeden değil: Modal açılışın ÜSTÜNE biniyordu
-      welcomeSetupShown = true;
-      setProfileSetupVisible(true);
-      /*
-        Turlar burada SIFIRLANMIYOR (eskiden ana sayfa turu zorla sıfırlanıyordu): hesap
-        değişiminde ve çıkışta turlar zaten sıfırlanır (resetUserData). Zorla sıfırlama,
-        misafirken turu görüp sonra kayıt olan kullanıcıya AYNI turu ikinci kez gösteriyordu.
-        Tur, hoş geldin kapanınca kendiliğinden açılır (bkz. useTourGate → blocked).
-      */
-    }
-  }, [user, isGuest, prefsHydrated, welcomeStatus, isFirstLogin, splashDone]);
-
-  /*
-    MİSAFİRDEN HESABA — hoş geldinde seçilen avatar/çerçeve/motto hesaba yazılır.
-    Ad kayıt formunda zaten soruldu (form misafirin adıyla dolu açılır); burada
-    yalnız formda olmayanlar taşınır. Başarılıysa yerel kopya silinir; başarısızsa
-    bir sonraki açılışta yeniden denenir (veri kaybolmaz).
-  */
-  useEffect(() => {
-    if (!user || !token || !guestProfile) return;
-    const { avatar, borderColor, motto } = guestProfile;
-    AuthService.updateProfile({ name: user.name, avatar, avatarBorderColor: borderColor, motto })
-      .then(() => AuthService.getCurrentUser(token))
-      .then((u) => { setUser(u); setGuestProfile(null); })
-      .catch((e) => swallow('dashboard.guestProfileMigrate', e));
-  }, [user?.id, token, guestProfile]);
-
-  const handleProfileSetupSave = async (name: string, avatar: string, borderColor: string, motto: string, productivityHour: string, gender: 'male' | 'female' | '') => {
-    // MİSAFİR: sunucu yok — profil cihazda saklanır, tercihler yerelde (bkz. GuestProfile).
-    if (!user && isGuest) {
-      setGuestProfile({ name, avatar, borderColor, motto });
-      usePrefsStore.getState().setMotto(motto);
-      usePrefsStore.getState().setAvatarBorderColor(borderColor);
-      usePrefsStore.getState().setProductivityHour(productivityHour as 'morning' | 'afternoon' | 'evening' | 'night');
-      usePrefsStore.getState().setGender(gender);
-      useSporStore.getState().setGender(gender);
-      setOnboardingCompleted(true);
-      usePrefsStore.getState().setWelcomeStatus('done');
-      setProfileSetupVisible(false);
-      return;
-    }
-    try {
-      await AuthService.updateProfile({
-        name,
-        avatar,
-        avatarBorderColor: borderColor,
-        motto
-      });
-      usePrefsStore.getState().setProductivityHour(productivityHour as any);
-      usePrefsStore.getState().setGender(gender);
-      useSporStore.getState().setGender(gender);
-      setOnboardingCompleted(true);
-      // Kalıcı bayrak KAPANIR: ekran yalnız kaydedilerek bitirilebiliyor (başka çıkış yolu yok).
-      usePrefsStore.getState().setWelcomeStatus('done');
-      await usePrefsStore.getState().syncToCloud();
-      // Hoş geldin kapanınca ana sayfa turu kendiliğinden açılır (bkz. useTourGate: blocked
-      // yalnız hoş geldin görünür/beklemedeyken). Turlar isFirstLogin'e BAĞLI DEĞİL: her
-      // sayfanın turu completedTours ile, o sayfaya ilk girişte bir kez.
-      if (token) {
-        const updatedUser = await AuthService.getCurrentUser(token);
-        setUser(updatedUser);
-      }
-      setProfileSetupVisible(false);
-      showToast(
-        language === 'tr' ? 'Profiliniz başarıyla oluşturuldu!' : 'Profile created successfully!',
-        'success'
-      );
-    } catch (err) {
-      swallow('dashboard.profileSetupSave', err, { capture: true });
-      throw err;
-    }
-  };
-
-  // Turkish mode (only if user opted in)
-  const detectedMode = detectTurkishMode();
-  const activeMode = (() => {
-    if (seasonal.examMode && seasonal.examName && seasonal.examDate) {
-      return getCustomExamMode(seasonal.examName, seasonal.examDate);
-    }
-    if (!detectedMode) return null;
-    if (detectedMode.type === 'ramazan' && seasonal.ramazan) return detectedMode;
-    if ((detectedMode.type === 'yks' || detectedMode.type === 'kpss') && seasonal.examMode) return detectedMode;
-    return null;
-  })();
-
-  // Alışkanlıklar (dashboard hızlı giriş şeridi) — tek dokunuşla bugünü işaretle.
-  const habits = useActiveHabitList(); // dinlenenler bugünün listesinde yok (madde 6)
-  // Uyku sağlık senkronu — onaylı asistan (iOS HealthKit; desteklenmeyen yerde sessiz no-op).
-  useSleepHealthSync();
-  // Hareket görevleri (yürüyüş/koşu/antrenman) — uyku senkronuyla aynı sözleşme:
-  // kullanıcı açıkça bağlamadıkça hiçbir şey okunmaz, işaretlenen her şey geri alınabilir.
-  useActivityHealthSync();
-  const tapHabit = useHabitStore(s => s.tapHabit); // miktarlıda +1, değilse yapıldı/geri al (bkz. habitSchedule)
-  const toggleHabitSkipDate = useHabitStore(s => s.toggleSkipDate);
-  const getHabitStreak = useHabitStore(s => s.getStreak);
-  const habitTodayKey = fmtDateKey();
-  const habitsDoneToday = habits.filter(h => (h.completedDates ?? []).includes(habitTodayKey)).length;
-
-  // Focus Store
-  const isActive = useFocusStore(s => s.isActive);
-  const setCurrentTask = useFocusStore(s => s.setCurrentTask);
-  const dailyFocusMinutes = useFocusStore(s => s.dailyFocusMinutes);
-  const dailyFocusDate = useFocusStore(s => s.dailyFocusDate);
-  const dailyGoalMinutes = useFocusStore(s => s.dailyGoalMinutes);
-  /*
-    BUGÜNÜN odak dakikası — başka bir günün dakikası bugünmüş gibi gösterilmesin.
-
-    Mağazadaki sayaç yalnızca `rehydrateTimer` çalışırken sıfırlanıyor, yani uygulama
-    açık kalıp gece yarısını geçtiğinde dünün dakikaları ertesi gün ekranda duruyordu:
-    halka dolu, haftalık grafikte bugünün sütunu şişkin. Sayaç doğruydu, ANLATTIĞI gün
-    yanlıştı. Kapı burada çünkü mağazayı sıfırlamak açık bir seansı bozabilir.
-  */
-  const todayFocusMinutes = dailyFocusDate === todayKey() ? dailyFocusMinutes : 0;
-
-  // State
-  const [weightModalTaskId, setWeightModalTaskId] = useState<number | null>(null);
-  const [quickDraftVisible, setQuickDraftVisible] = useState(false);
-  useUiDepth(quickDraftVisible);
-  const headerScale = useRef(new Animated.Value(1)).current;
-
-  // Çift dokunma vurguları: durum + söndürme zamanlayıcısı useDoubleTapHighlight'ta
-  // (zamanlayıcı unmount'ta iptal edilir; eskiden edilmiyordu).
-  const headerTap = useDoubleTapHighlight(1800, useCallback(() => {
-    haptic.commit();
-    Animated.sequence([
-      Animated.spring(headerScale, { toValue: 1.06, useNativeDriver: true, damping: 5, stiffness: 200 }),
-      Animated.spring(headerScale, { toValue: 1, useNativeDriver: true, damping: 10, stiffness: 200 }),
-    ]).start();
-  }, [headerScale]));
-
-  const todayTap = useDoubleTapHighlight(1600, useCallback(() => {
-    haptic.success();
-  }, []));
-
-  const headerHighlight = headerTap.active;
-  const todayHighlight = todayTap.active;
-  const todayBurstKey = todayTap.burstKey;
-  // Haftalık istatistik durumu + fetch useWeeklyStats'ta (streak eşitlemesi dahil).
-  const { loading: statsLoading, refresh: fetchStats } = useWeeklyStats();
-  /*
-    HAFTANIN ODAK KIRILIMI ORTAK MOTORDAN (bkz. features/report/weeklyReport.ts).
-
-    Sunucunun kırılımı UTC'ye göreydi: gece 00:30'daki seans bir önceki güne yazılıyor,
-    ana ekranın şeridi ve ivme puanı yanlış günden besleniyordu. Üstelik Kokpit ve
-    Geri Bakış artık yerel güne göre sayıyor; üç ekranın aynı haftayı farklı anlatması
-    kullanıcının güvenini kırar. Geçen haftanın toplamı da (durum merkezindeki kıyas)
-    aynı motordan geliyor.
-  */
-  const focusSessions = useFocusHistoryStore(s => s.sessions);
-  const refreshFocusHistory = useFocusHistoryStore(s => s.refresh);
-  const [showAllIncomplete, setShowAllIncomplete] = useState(false);
-  const [showCompletedSection, setShowCompletedSection] = useState(false);
-  /** Logoya her dokunuşta artar — nabız/halka animasyonunu tetikler. */
-  const [logoTick, setLogoTick] = useState(0);
-
-
-  /**
-   * Kaydırma konumu — başlığın belirmesini süren tek kaynak.
-   * `useNativeDriver` ile UI thread'de çalışıyor: saniyede 60 kare React render'ı
-   * tetiklemez (dashboard'un render'ı ağır — bkz. momentum/istatistik hesapları).
-   */
-  const scrollY = useRef(new Animated.Value(0)).current;
-  // Sekme çubuğu aşağı kaydırınca ikon-only'ye iner (iOS). Ana sayfa kendi
-  // kaydırma değerini yönettiği için bağlantı burada; diğer sekmeli ekranlar
-  // ortak `useCollapsibleHeader` üzerinden bağlanıyor.
-  useChromeMinimizeOnScroll(scrollY);
-
-  /**
-   * Başlığın devralacağı kaydırma mesafesi. Eskiden ayrı selamlama bloğunun ölçülen
-   * yüksekliğiydi; selam artık dijital panelin durum şeridinde (2026-10-30), yani üst çubuk
-   * kısa bir kaydırmada ("ekran çubuğun altına girmeye başladı") başlığı devralır.
-   */
-  const titleCollapseAt = S.lg;
-  const [commandPortalVisible, setCommandPortalVisible] = useState(false);
-  const [portalSearch, setPortalSearch] = useState('');
-  const localStreak = useFocusStore(s => s.localStreak);
-  const streak = localStreak;
-  const [currentHour, setCurrentHour] = useState(new Date().getHours());
-
-  // App Review Prompt & Performance Rating state
-  const [todayRating, setTodayRating] = useState<number | null>(null);
-  const [reviewModalVisible, setReviewModalVisible] = useState(false);
-
-  /*
-    Günün değerlendirmesi artık Hedefler ekranındaki mod bandında veriliyor (bant ana
-    sayfadan 2026-10-31'de kalktı) → ekrana her DÖNÜŞTE yeniden okunur. Anahtar yazanla
-    aynı fonksiyondan (dayRatingKey): YKS/KPSS'de band `exam` yuvasına yazıyor.
-    Eskiden bağımlılık `activeMode` nesnesiydi; her render'da yeni nesne olduğu için okuma
-    her render'da tekrarlanıyordu.
-  */
-  const ratingKey = activeMode ? dayRatingKey(activeMode.type, fmtDateKey()) : null;
-  useFocusEffect(useCallback(() => {
-    if (!ratingKey) { setTodayRating(null); return; }
-    AsyncStorage.getItem(ratingKey).then(val => {
-      setTodayRating(val ? parseInt(val, 10) : null);
-    }).catch(e => swallow('index.readTodayRating', e));
-  }, [ratingKey]));
-
-  const initialCompletedCountRef = useRef<number | null>(null);
-  const initialStreakRef = useRef<number | null>(null);
-  const initialMomentumRef = useRef<number | null>(null);
-  const initialTodayCompletedRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (tasks.length > 0 && initialCompletedCountRef.current === null) {
-      initialCompletedCountRef.current = tasks.filter(t => t && t.isCompleted).length;
-    }
-  }, [tasks]);
-  /*
-    İlk çekim TAMAMLANDI mı (başarılı ya da başarısız)? Seri kalkanı kararı buna
-    bakıyor: eksik bir listeyle "dün hiçbir şey yapılmamış" diye hüküm vermek geri
-    alınamaz bir yazma üretiyordu. Çevrimdışıda da bayrak kalkar — o zaman diskteki
-    görevler elimizdeki en iyi gerçektir.
-  */
-  const [tasksFetched, setTasksFetched] = useState(false);
-
-  /*
-    ── SERİ KALKANI: KAÇIRILAN GÜNLERİN HESABI ─────────────────────────────────
-    Kural değişmedi; YANLIŞ olan üç şey düzeldi (gerekçeler streakDay.ts'te):
-
-     1. GÜN TANIMI. Karşılaştırmalar `toDateString()` ("Mon Sep 15 2026") ile
-        yapılıyordu, oysa hem alışkanlıklar hem odak mağazası ürünün tamponlu
-        anahtarını ("2026-09-15") yazıyor. `dailyFocusDate === yesterdayStr` koşulu
-        bu yüzden HİÇ doğru olmuyordu: dün yalnız odaklanan kullanıcı "hiçbir şey
-        yapmamış" sayılıp kalkanını kaybediyordu.
-
-     2. EKSİK VERİYLE KARAR. Bağımlılık yalnız `isLoading` idi ama gövde `tasks`ı
-        okuyor. Görevler henüz gelmemişken çalışıp dünü boş görebiliyor, sonra
-        `lastCheckedDate`i yazdığı için bir daha da bakmıyordu — geri alınamaz bir
-        yazma, eksik veriyle. Artık SUNUCU CEVABI beklenip bir kez çalışıyor.
-
-     3. YAZ SAATİ. Gün farkı `Math.floor` ile alınıyordu; geçiş gününde 23 saat
-        0 güne yuvarlanıp kontrol sessizce atlanıyordu.
-  */
-  const shieldCheckedRef = useRef(false);
-  useEffect(() => {
-    // Sunucu cevabı gelmeden dünü yargılama. Çevrimdışıysa da bu bayrak kalkar:
-    // o zaman diskteki görevler elimizdeki en iyi gerçektir.
-    // Açılış bitmeden kalkan uyarısı açılmaz (uyarı açılışın üstünde belirirdi; bkz. useBootStore).
-    if (!tasksFetched || !splashDone || shieldCheckedRef.current) return;
-    if (habits.length === 0 && tasks.length === 0) return;
-    shieldCheckedRef.current = true;
-
-    const checkStreakShield = () => {
-      const today = todayKey();
-      const store = useFocusStore.getState();
-      const lastChecked = store.lastCheckedDate;
-
-      if (lastChecked && lastChecked !== today) {
-        const daysMissed = daysBetween(lastChecked, today);
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-
-        const verdict = decideStreak({
-          daysMissed,
-          metGoalOnMissedDay: wasActiveOn({
-            dayKey: todayKey(yesterday),
-            tasks,
-            habits,
-            focusDate: store.dailyFocusDate,
-            focusMinutes: store.dailyFocusMinutes,
-            focusGoalMinutes: store.dailyGoalMinutes,
-          }),
-          currentStreak: store.localStreak,
-          shields: store.streakShields,
-        });
-
-        if (verdict.action === 'protect') {
-          useFocusStore.setState({
-            streakShields: verdict.shieldsLeft,
-            streakFreezeAvailable: verdict.shieldsLeft > 0,
-          });
-
-          haptic.success();
-
-          if (usePrefsStore.getState().soundEffects) {
-            playSoundEffect(require('../assets/sounds/freeze.mp3'), {
-              context: 'index.streakFreezeSound',
-              volume: 0.75,
-              releaseAfterMs: 3000,
-            });
-          }
-
-          Alert.alert(
-            // "Sen" dili ve suçlamayan ton (2026-11-01): ara bir olgu, kusur değil (bkz. streakCopy.test).
-            language === 'tr' ? 'Serin korundu' : 'Streak protected',
-            language === 'tr'
-              ? `${verdict.daysMissed} gün ara verdin; ${verdict.daysMissed} kalkan serini korudu.`
-              : `You took ${verdict.daysMissed} ${verdict.daysMissed === 1 ? 'day' : 'days'} off; ${verdict.daysMissed} ${verdict.daysMissed === 1 ? 'shield' : 'shields'} kept your streak.`
-          );
-        } else if (verdict.action === 'reset') {
-          useFocusStore.setState({
-            localStreak: 0,
-            streakShields: 0,
-            streakFreezeAvailable: false,
-          });
-
-          Alert.alert(
-            language === 'tr' ? 'Yeni bir seri başlıyor' : 'A fresh streak starts',
-            language === 'tr'
-              ? `${verdict.daysMissed} gün ara verdin; seri baştan başlıyor. Bugün tek bir iş yeter.`
-              : `You took ${verdict.daysMissed} ${verdict.daysMissed === 1 ? 'day' : 'days'} off, so your streak starts over. One thing today is enough.`
-          );
-        }
-      }
-
-      useFocusStore.setState({ lastCheckedDate: today });
-    };
-
-    checkStreakShield();
-  }, [tasksFetched, splashDone, tasks, habits, language]);
-
-  /*
-    ── GÜNÜN İLK İLERLEMESİ SERİYİ ARTIRIR ─────────────────────────────────────
-    Üç kusur birden düzeldi (gerekçeler streakDay.ts'te):
-
-     · Alışkanlık anahtarı tamponlu, gün karşılaştırması tamponsuzdu: saat 00:01'de
-       DÜNÜN alışkanlıkları yeni günün serisini artırıyordu. Geceyi uygulamada
-       geçiren herkes her gece bedava bir seri günü kazanıyordu.
-     · Odak dakikası hiç sayılmıyordu (biçimleri tutmayan bir eşitlik).
-     · "Bugün tamamlanan" görev, `dueDate`e bakılarak sayılıyordu — üç gün önce
-       bitirilmiş ama vadesi bugün olan bir görev bugünü aktif gösteriyordu.
-
-    Diskteki bayrak ESKİ biçimde yazılmış olabilir; ikisi de kabul ediliyor, yoksa
-    güncellemeden sonraki ilk açılış herkese fazladan bir seri günü verirdi.
-  */
-  /*
-    BAYRAK GÜNE BAĞLI, "oldu/olmadı"ya değil.
-
-    Boolean bir bayraktı ve bir kez `true` olunca oturum boyunca öyle kalıyordu:
-    uygulama açık kalıp gece yarısını geçen kullanıcıda efekt bir daha çalışmıyor,
-    YENİ GÜNÜN serisi hiç artmıyordu. Gün anahtarını tutunca bayrak gün değişince
-    kendiliğinden geçersizleşiyor.
-
-    `currentHour` bağımlılıklarda çünkü gün, kullanıcı hiçbir şeye dokunmadan da
-    değişebiliyor: yalnız odak seansı yapan biri `tasks`/`habits`i değiştirmez.
-    O sayaç zaten saat başı tikliyor (bkz. selamlama), yani ek bir maliyet yok.
-  */
-  const [streakDayDone, setStreakDayDone] = useState<string | null>(null);
-  useEffect(() => {
-    if (isLoading || (tasks.length === 0 && habits.length === 0)) return;
-    if (streakDayDone === todayKey()) return;
-    const store = useFocusStore.getState();
-    const today = todayKey();
-
-    const activeProgress = wasActiveOn({
-      dayKey: today,
-      tasks,
-      habits,
-      focusDate: store.dailyFocusDate,
-      focusMinutes: store.dailyFocusMinutes,
-      focusGoalMinutes: store.dailyGoalMinutes,
-    });
-    if (!activeProgress) return;
-
-    // Eski bayrak, ÜRÜNÜN gününün eski biçimdeki karşılığıyla karşılaştırılıyor —
-    // `new Date().toDateString()` ile değil. O tamponsuz olduğu için gece 01:00'de
-    // düzeltmeye çalıştığımız çift sayımı aynen üretirdi.
-    const legacyToday = legacyDayString(today);
-    AsyncStorage.getItem('tazq_last_streak_increment_date')
-      .then(val => {
-        // Bugün zaten artırılmışsa bayrağı KUR: yoksa her görev/alışkanlık
-        // değişikliğinde bu efekt yeniden diske gidiyordu.
-        if (val === today || val === legacyToday) {
-          setStreakDayDone(today);
-          return;
-        }
-        store.incrementLocalStreak();
-        setStreakDayDone(today);
-        return AsyncStorage.setItem('tazq_last_streak_increment_date', today);
-      })
-      .catch(e => swallow('index.streakIncrement', e));
-  }, [tasks, habits, isLoading, streakDayDone, currentHour]);
-  /**
-   * ── GÜNÜN KÜMESİ — TEK TANIM ────────────────────────────────────────────────
-   * Ekran aynı günü İKİ ayrı şekilde tanımlıyordu ve ikisi farklı listeler veriyordu:
-   *
-   *   · Halka/sayaç  : `dueDate` TAM BUGÜN olanlar
-   *   · Görünen liste: bugüne kadar vadesi gelmiş (GECİKMİŞLER dahil) + tarihsizler
-   *
-   * Sonuç kullanıcıya doğrudan yalan söylüyordu: listede altı görev dururken halka
-   * "0/2" yazabiliyordu. Sayı ile liste artık AYNI kümeden türüyor.
-   *
-   * `|| 1` YAZILIYDI ve o da yalandı: hiç görev yokken hedefi 1'e çekip "0/1" diyordu.
-   * Sıfıra bölme korkusuyla konmuş bir hileydi — koruma verinin değil, HESABIN işi
-   * (bkz. TodayCard: Math.max(goal, 1)). "Görev yok" ayrı bir durumdur, "1 görev var" değil.
-   */
-  /*
-    İKİ FARKLI "GÜN" BİLEREK KULLANILIYOR — ve bu yüzden yazılı.
-
-     · VADE takvim gününe göre okunuyor (`todayStart` / `todayEndMs`). Kullanıcı bir
-       görevi "16 Eylül" diye işaretledi; 16 Eylül gece yarısı başlar.
-     · TAMAMLAMA ise ürünün gününe göre (`todayKey`, 3 saat tamponlu). "Bugün ne
-       yaptım" sorusunun cevabı kişinin UYANIK gününe aittir; gece 00:30'da
-       bitirilen iş hâlâ o akşamın işidir. Alışkanlıklar ve seri de böyle sayıyor.
-
-    Bu ayrımın yazılı olması şart: kusurların çoğu tam olarak iki gün tanımının
-    farkında olmadan karıştırılmasından çıkmıştı.
-  */
-  // Ana sayfa turu HOŞ GELDİN (profil kurulumu) bitene kadar BEKLER — ikisi üst üste binmez.
-  /*
-    "AKLINDAKİLERİ YAZ" (C2–C5): yeni hesapta hoş geldinden SONRA, turdan ÖNCE bir kez. Tur ekran açıkken
-    ve varış (panel bir kez uyanır) sürerken bekler — tur açıkken giriş animasyonu kapalı (%0 kayma).
-  */
-  const captureOn = shouldOfferCapture({ capturePending, welcomeStatus, firstCapture }) && !profileSetupVisible;
-  const [arriving, setArriving] = useState(false);
-  const tourOn = useTourGate('dashboard', profileSetupVisible || welcomeStatus === 'pending' || captureOn || arriving);
-  const demoGate = useDemoGate('dashboard', tourOn);
-  /*
-    ÖRNEK SATIRLAR TEK KAYNAKTAN.
-
-    Liste bu üç satırı çiziyordu ama HALKA gerçek (boş) veriden besleniyordu: ekranda
-    üç görev dururken kart "Bugün için planın boş" diyordu. Aynı ekranda iki çelişen
-    cümle — bu turda üçüncü kez çıkan kusur ailesi. Sayı ve liste artık aynı diziden
-    türüyor, yani biri değişince öteki kendiliğinden uyuyor.
-  */
-  const demoActive = demoGate(tasks.length);
-  const demoMyDayTasks = React.useMemo(() => ([
-    { type: 'task' as const, id: 'mock-task-1', title: language === 'tr' ? 'Haftalık Raporu Hazırla' : 'Prepare Weekly Report', priority: 'High', isCompleted: false, original: {} },
-    { type: 'task' as const, id: 'mock-task-2', title: language === 'tr' ? 'Kitap Oku (20 sayfa)' : 'Read Book (20 pages)', priority: 'Medium', isCompleted: false, original: {} },
-    { type: 'task' as const, id: 'mock-task-3', title: language === 'tr' ? 'Spor Salonuna Git' : 'Go to Gym', priority: 'Low', isCompleted: true, original: {} },
-  ]), [language]);
-
-  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-  const todayEndMs = todayStart.getTime() + 86400000;
-
-  // Gün tanımı tek yerde — Günüm de aynısını okuyor (bkz. dayScope.ts).
-  const dayScope = React.useMemo(() => scopeDay(tasks), 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tasks, todayEndMs]);
-
-  const todayTasksIncomplete = dayScope.incomplete;
-  const undatedTasksIncomplete = dayScope.undated;
-  const todayTasksCompleted = dayScope.completed;
-
-  /*
-    TARİHSİZLER HEDEFİN DIŞINDA — bilerek. Onlar bir TARİH TAAHHÜDÜ taşımıyor;
-    hedefe katılsalardı kalıcı bir "mutfak düzeni" görevi olan kullanıcının günü asla
-    kapanmazdı. Aynı tanım `handleCheckTask`teki "gün temizlendi" kutlamasında da
-    kullanılıyor, yani halka ile kutlama aynı anı söylüyor.
-  */
-  const todayTasks = React.useMemo(
-    () => [...todayTasksIncomplete, ...todayTasksCompleted],
-    [todayTasksIncomplete, todayTasksCompleted],
-  );
-  const todayCompleted = demoActive
-    ? demoMyDayTasks.filter(d => d.isCompleted).length
-    : todayTasksCompleted.length;
-  const dailyGoal = demoActive ? demoMyDayTasks.length : todayTasks.length;
-  /*
-    GECİKMİŞ SAYISI Zen'in analizinden: şerit ile Zen kartı aynı sayıyı söylemeli.
-    Eski yerel hesap sunucunun '0001' "tarih yok" değerini gecikmiş sayıyordu ve saf-gün
-    tarihini ('…T00:00:00Z') UTC'nin gerisindeki saat dilimlerinde bir gün kaydırıyordu.
-  */
-  const overdueCount = zen.analysis.overdue.length;
-  // "Sen yokken" (B5): 2+ gün aradan sonra açılış selamının yerine tek satır (bkz. awaySentence).
-  const awayLine = useAwayLine(language === 'en' ? 'en' : 'tr', todayTasksIncomplete.length + overdueCount);
-
-  const fetchTasks = async () => {
-    setLoading(true);
-    try {
-      const data = await TaskService.getTasks();
-      setTasks(Array.isArray(data) ? data : []);
-    } catch (e: unknown) {
-      if (httpStatusOf(e) !== 401) swallow('index.fetchTasks', e);
-    } finally {
-      setLoading(false);
-      tasksFetchedInSession = true; setTasksFetched(true);
-    }
-  };
-
-  /*
-    ÇARK YALNIZ ELLE ÇEKİŞTE. Eskiden `refreshing={isLoading}` idi: her odaklanmadaki
-    sessiz yenileme de çarkı gösteriyordu — odaktan her dönüşte ekranın tepesinde
-    beliren çark, geçişin pürüzlü hissettirmesinin bir parçasıydı.
-  */
-  const [pullRefreshing, setPullRefreshing] = useState(false);
-  const [wakeKey, wake] = useWakeSignal(); // dönüş / öne gelme / yenileme → panel bir kez "canlanır"
-  // Varış: yazılanlar eklendiyse panel bir kez uyanır (ışık dalgası, yeni yapraklar); bitince tur açılır.
-  const onCaptureDone = useLatestCallback((added: { tasks: number; habits: number }) => {
-    if (added.tasks + added.habits === 0) return;
-    wake();
-    setArriving(true);
-    setTimeout(() => setArriving(false), 900);
-  });
-  const onPullRefresh = async () => {
-    setPullRefreshing(true);
-    try { await Promise.all([fetchTasks(), fetchStats(), refreshFocusHistory()]); }
-    finally { setPullRefreshing(false); wake(); }
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchTasks();
-      fetchStats();
-      void refreshFocusHistory();
-    }, [])
-  );
-
-
-
-  /**
-   * SAAT CANLI TUTULUYOR — selamlama gün içinde kendiliğinden değişsin.
-   *
-   * Zamanlayıcı bir sonraki saat başına hizalanıyor, sonra saatlik tekrar ediyor:
-   * 18:00'de "İyi günler" → "İyi akşamlar" olur.
-   *
-   * ARKA PLAN KAPISI (eklendi): iOS ve Android, uygulama arka plandayken
-   * `setInterval`i askıya alır ya da kısar. Kullanıcı sabah 10'da uygulamayı arka
-   * plana atıp akşam 20'de dönerse, zamanlayıcı bir sonraki tik'e kadar sessiz kalıyor
-   * ve ekranda hâlâ "Günaydın" yazıyordu — saatlerce yanlış bir cümle.
-   *
-   * Öne çıkma anında saat YENİDEN okunuyor. Zamanlayıcıyı düzeltmeye çalışmak yerine
-   * "geri döndüğünde gerçeği sor" yaklaşımı: platform ne yaparsa yapsın doğru sonuç.
-   */
-  useEffect(() => {
-    const syncHour = () => setCurrentHour(new Date().getHours());
-
-    const now = new Date();
-    const msUntilNextHour = (60 - now.getMinutes()) * 60000 - now.getSeconds() * 1000;
-    let interval: ReturnType<typeof setInterval>;
-    const timeout = setTimeout(() => {
-      syncHour();
-      interval = setInterval(syncHour, 3600000);
-    }, msUntilNextHour);
-
-    const sub = AppState.addEventListener('change', (st: string) => { if (st === 'active') syncHour(); });
-
-    return () => { clearTimeout(timeout); clearInterval(interval); sub.remove(); };
-  }, []);
-
-  const handleQuickSave = async (title: string, dayChoice: DayChoice = null) => {
-    // Titreşim BAŞTA çağrılıyordu: kayıt başarısız olsa bile kullanıcı "oldu"
-    // hissini almış oluyordu. Onay, olayın kendisinden sonra gelir.
-    const hint = parseTaskHint(title, language as 'tr' | 'en');
-    const isReminder = hint.tags?.includes('hatırlatıcı') || hint.tags?.includes('reminder');
-    
-    // "süt, yumurta, ekmek al" → tek görev + maddeler (bkz. nlp/checklist).
-    const checklist = parseChecklist(title, langOf(language));
-    const payload = {
-        // Alana aktarılan kısımlar (tarih/saat/acil) başlıktan çıkar — bkz. nlp/understand.titleOf.
-        title: checklist?.title ?? titleOf(title, understand(title, langOf(language))),
-        ...(checklist ? { subtasks: checklist.items.map(text => ({ text, done: false })) } : null),
-        description: '',
-        priority: hint.priority || 'Medium',
-        isCompleted: false,
-        dueDate: hint.dueDate || (dayChoice === 'today' ? dateKeyFromNow(0) : dayChoice === 'tomorrow' ? dateKeyFromNow(1) : null) || (isReminder ? new Date().toISOString() : null),
-        dueTime: hint.dueTime || null,
-        tags: hint.tags?.length ? hint.tags : ['Draft'],
-        // Tek anahtar: doğrudan istek ve kuyruktaki tekrar aynı görevi İKİ kez oluşturmaz.
-        clientKey: newTaskKey(),
-    };
-
-    try {
-        const isOnline = useNetworkStore.getState().isOnline;
-        if (!isOnline) {
-          const tempId = -Date.now();
-          useOfflineQueue.getState().enqueue({ type: 'create-task', tempId, payload });
-          addTask({ ...payload, id: tempId } as any);
-          if (isReminder) {
-            const { scheduleTaskNotification } = require('@/shared/utils/notifications');
-            await scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language, usePrefsStore.getState().hideNotificationContent);
-          }
-          haptic.success();
-          showToast(savedLocallyMessage(), 'success');
-        } else {
-          const created = await TaskService.createTask(payload as any);
-          addTask(created);
-
-          // Schedule notification if it's a reminder
-          if (created.id && isReminder) {
-              const { scheduleTaskNotification } = require('@/shared/utils/notifications');
-              await scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language, usePrefsStore.getState().hideNotificationContent);
-          }
-          haptic.success();
-          // İleri bir güne düştüyse NEREYE gittiğini söyle — ana sayfa yalnız bugünü gösterir.
-          // Tarihsiz eklenenler için de ayrı bir mesaj: "Bugün" sekmesi/widget onu SAYMAZ
-          // (yalnız vadesi gelenler sayılır), kullanıcı "eklendi ama görünmüyor" sanmasın.
-          const when = whenLabel(payload.dueDate, langOf(language));
-          const toastMsg = when
-            ? horizonCopy(langOf(language)).titled(payload.title, when)
-            : payload.dueDate
-              ? `"${payload.title}" ${t.toastTaskAdded}`
-              : horizonCopy(langOf(language)).titledNoDate(payload.title);
-          showToast(toastMsg, 'success');
-        }
-    } catch (error: unknown) {
-        if (isNetworkError(error)) {
-          const tempId = -Date.now();
-          useOfflineQueue.getState().enqueue({ type: 'create-task', tempId, payload });
-          addTask({ ...payload, id: tempId } as any);
-          if (isReminder) {
-            const { scheduleTaskNotification } = require('@/shared/utils/notifications');
-            await scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language, usePrefsStore.getState().hideNotificationContent);
-          }
-          haptic.success();
-          showToast(savedLocallyMessage(), 'success');
-        } else {
-          showToast(t.saveError, 'error');
-          throw error;
-        }
-    }
-  };
-
-  /**
-   * KOMUT PALETİNDEN GÖREV EKLEME.
-   *
-   * ── ÖLÇÜLEN SORUN: EKLENEN GÖREV KAYBOLUYORDU ────────────────────────────────
-   * Palet, görevi yalnız YEREL mağazaya yazıyordu: `useTaskStore.addTask(...)`.
-   * Sunucuya istek yok, çevrimdışı kuyruğa kayıt yok. Ekran her odaklandığında
-   * `fetchTasks()` çalışıyor ve `setTasks` listeyi SUNUCUNUNKİYLE değiştiriyor
-   * (bkz. useTaskStore.setTasks — birleştirme gelen diziden kurulur, yerelde kalan
-   * kayıtlar düşer). Yani kullanıcı "Görev başarıyla eklendi!" yazısını görüyor,
-   * sekme değiştirip dönünce görev yok oluyordu.
-   *
-   * Üstelik `id: Date.now()` sunucunun kimlik alanıyla çakışan POZİTİF bir sayıydı;
-   * çevrimdışı kuyruk geçici kimlikleri bilerek negatif üretiyor.
-   *
-   * Aynı payload iki yere (Enter ve "…görevini ekle" satırı) elle kopyalanmıştı.
-   * İkisi de artık ekranın KENDİ kayıt yolunu çağırıyor: `handleQuickSave` zaten
-   * çevrimiçi/çevrimdışı ayrımını, hatırlatıcı bildirimini ve bildirimi yapıyor.
-   * Tek yol = tek davranış.
-   */
-  const portalSavingRef = useRef(false);
-  const savePortalTask = async () => {
-    const title = portalSearch.trim();
-    if (!title) return;
-    /*
-      PANEL KAYIT BİTİNCE KAPANIYOR, önce değil.
-
-      İyimser kapanış denendi ve geri alındı: kayıt artık gerçekten sunucuya gidiyor
-      ve başarısız olabiliyor. Önce kapatınca, hata durumunda kullanıcının yazdığı
-      cümle kayboluyordu — paneli geri açmak ise paletin TEK giriş noktası olması
-      kuralını bozuyordu (bkz. uxConsistency → "gizli ikinci bir tetik yok").
-
-      Beklemenin bedeli küçük: çevrimdışıyken `handleQuickSave` yerelde anında
-      bitiriyor, çevrimiçiyken tek bir POST. Çift gönderimi ref engelliyor.
-    */
-    if (portalSavingRef.current) return;
-    portalSavingRef.current = true;
-    try {
-      await handleQuickSave(title);
-      setCommandPortalVisible(false);
-    } catch (e) {
-      // handleQuickSave hata bildirimini kendisi gösteriyor; panel açık kalıyor ki
-      // kullanıcı yazdığını kaybetmeden yeniden deneyebilsin.
-      swallow('index.savePortalTask', e);
-    } finally {
-      portalSavingRef.current = false;
-    }
-  };
-
-  // Compute metrics
-  const tr = language === 'tr';
-
-  const dayLabels: string[] = t.dayLabels;
-
-  // Hesap ortak yardımcıda: aynı soru durum merkezindeki grafikte de soruluyordu ve
-  // orada tamponsuz cevaplanıyordu (bkz. streakDay → weekdayIndex).
-  const currentDayIndex = weekdayIndex();
-
-  const localTodayMinutes = todayFocusMinutes;
-
-  /*
-    Şerit HER ZAMAN yedi gün — hesap saf bir yardımcıda (bkz. weekStrip).
-    Burada iki ayrı kod yolu vardı ("dizi boş" ve "dizi dolu") ve aradaki üçüncü
-    durum düşünülmemişti: dizi DOLU AMA KISA gelirse bugünün yerel dakikası hiçbir
-    hücreye yazılamıyor, sessizce kayboluyordu.
-  */
-  // Ana sayfa ekranında "haftayı kaydır" — son 7 gün, haftalık raporla aynı sayım (bkz. dayHistory).
-  const dayHistory = React.useMemo(() => lastDays({ sessions: focusSessions, tasks, habits }), [focusSessions, tasks, habits]);
-  const weeklyFocus = React.useMemo(() => {
-    const summary = summarizeWeek({ sessions: focusSessions, tasks, habits, range: weekRange(new Date()) });
-    return summary.focusPerDay.map((minutes, i) => ({
-      day: dayLabels[i] ?? '',
-      minutes,
-      tasksCompleted: summary.tasksPerDay[i],
-    }));
-  }, [focusSessions, tasks, habits, dayLabels]);
-
-  const mergedWeeklyFocus = React.useMemo(
-    () => buildWeekStrip({ weeklyFocus, dayLabels, todayIndex: currentDayIndex, todayMinutes: localTodayMinutes }),
-    [weeklyFocus, dayLabels, currentDayIndex, localTodayMinutes],
-  );
-
-  const weeklyMinutes = mergedWeeklyFocus.reduce((s: number, d: any) => s + (d.minutes || 0), 0);
-
-  // ── Professional Momentum Score ────────────────────────────────────────────
-  // Hesap utils/momentum.ts'e taşındı (saf + test edilebilir). Habit bileşeni
-  // BUGÜN HARİÇ verilir: bugünü dahil edersek recordScore(momentum) bugünü geçmişe
-  // yazar → habitScore'u artırır → sonsuz 27↔28 salınımı. getLastNDays(8)'in ilk 7'si
-  // dünden 7 gün öncesine denk gelir (bugün indeks 7'de, atılır).
-  // getLastNDays(8) tek çağrı — eskiden aynı store taraması render başına 2 kez yapılıyordu.
-  /*
-    İÇERİKLE SABİT: getLastNDays depoyu (history) doğrudan okuyup her çağrıda yeni dizi
-    döndürüyor. Memo'yu girdilere bağlamak bayat veri riskiydi (gün sınırı 03:00, depo
-    dışarıdan değişir); içeriğe bağlamak değil — içerik aynıysa aynı dizi, değişince yenisi.
-  */
-  const last8Raw = getLastNDays(8);
-  const last8Key = last8Raw.map(d => `${d.date}:${d.score}`).join('|');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const last8Days = React.useMemo(() => last8Raw, [last8Key]);
-  // last8Days içerikle sabit → bu da; weeklyTips memo'su her render'da yeniden hesaplanıyordu.
-  const completionHistory = React.useMemo(() => last8Days.slice(0, 7), [last8Days]);
-  const habitActivityDays = completionHistory.filter(d => d.score >= 0).length;
-  // computeMomentum, girdileri (tasks, memoize mergedWeeklyFocus, primitive'ler) değişmedikçe
-  // ilgisiz re-render'larda (prefs/saat/momentum) yeniden hesaplanmasın diye memoize edildi.
-  const { momentum: rawMomentum, totalCount, completedCount, focusVolumeScore } = React.useMemo(
-    () => computeMomentum({
-      tasks,
-      weeklyFocus: mergedWeeklyFocus,
-      weeklyMinutes,
-      streak,
-      habitActivityDays,
-    }),
-    [tasks, mergedWeeklyFocus, weeklyMinutes, streak, habitActivityDays]
-  );
-  // Momentum history (last 8 days for sparkline delta)
-  const momentumHistory = last8Days;
-
-  const momentum = (() => {
-    if (momentumShieldActive) {
-      const hist = momentumHistory.filter(h => h.score >= 0);
-      const lastActive = hist.length ? hist[hist.length - 1] : null;
-      return lastActive ? Math.max(75, lastActive.score) : 75;
-    }
-    if (!todayRating) return rawMomentum;
-    const modifier = todayRating === 5 ? 10 : todayRating === 4 ? 5 : todayRating === 2 ? -5 : todayRating === 1 ? -10 : 0;
-    return Math.min(100, Math.max(0, rawMomentum + modifier));
-  })();
-
-  // Daily target coaching: reverse-compute what's needed to hit 75
-  const targetTasks = totalCount === 0 ? 3 : Math.max(0, Math.ceil(3 - completedCount));
-  const targetFocusMin = Math.max(0, Math.ceil(280 * (1 - focusVolumeScore) / 7)); // daily shortfall
-  // Capture initial session values to evaluate transition milestones (Delight triggers)
-  useEffect(() => {
-    if (!statsLoading && streak !== undefined && initialStreakRef.current === null) {
-      initialStreakRef.current = streak;
-    }
-  }, [statsLoading, streak]);
-
-  useEffect(() => {
-    if (!statsLoading && momentum !== undefined && initialMomentumRef.current === null) {
-      initialMomentumRef.current = momentum;
-    }
-  }, [statsLoading, momentum]);
-
-  useEffect(() => {
-    if (!statsLoading && todayCompleted !== undefined && initialTodayCompletedRef.current === null) {
-      initialTodayCompletedRef.current = todayCompleted;
-    }
-  }, [statsLoading, todayCompleted]);
-
-  // Senaryo bazlı değerlendirme isteme tetikleyicisi.
-  // Karar kuralları evaluateReviewPrompt'ta (saf ve test edilir); burada yalnızca
-  // girdileri toplayıp sonucu uygularız.
-  /*
-    BAŞKA BİR EKRAN AÇIKKEN DEĞERLENDİRME İSTEMİ ÇIKMAZ: tur, hoş geldin, profil kurulumu
-    ya da hızlı ekleme açıkken iki modal üst üste binerdi. Koşul kalkınca (örn. tur
-    kapanınca) efekt yeniden kurulur ve istek o zaman değerlendirilir.
-  */
-  const otherModalOpen = profileSetupVisible || welcomeStatus === 'pending' || captureOn || tourOn || quickDraftVisible;
-
-  useEffect(() => {
-    if (statsLoading || streak === undefined || tasks.length === 0 || otherModalOpen) return;
-
-    const checkReviewPrompt = async () => {
-      try {
-        const lastPromptTimeStr = await AsyncStorage.getItem('tazq_last_review_prompt_time');
-        const parsedLastPrompt = lastPromptTimeStr ? parseInt(lastPromptTimeStr, 10) : NaN;
-
-        const decision = evaluateReviewPrompt({
-          completedCount: tasks.filter(t => t && t.isCompleted).length,
-          initialCompletedCount: initialCompletedCountRef.current,
-          initialStreak: initialStreakRef.current,
-          initialMomentum: initialMomentumRef.current,
-          initialTodayCompleted: initialTodayCompletedRef.current,
-          overdueCount,
-          momentum,
-          todayRating,
-          streak,
-          todayCompleted,
-          dailyGoal,
-          lastPromptAt: Number.isNaN(parsedLastPrompt) ? null : parsedLastPrompt,
-          now: Date.now(),
-        });
-
-        if (decision.shouldPrompt) setReviewModalVisible(true);
-      } catch (err) {
-        swallow('index.checkReviewPrompt', err);
-      }
-    };
-
-    const timer = setTimeout(() => {
-      checkReviewPrompt();
-    }, 3000);
-
-    return () => clearTimeout(timer);
-  }, [statsLoading, tasks, streak, overdueCount, momentum, todayRating, todayCompleted, dailyGoal, otherModalOpen]);
-
-  // Track last scheduled values to avoid re-firing on every momentum change
-  const lastScheduledNotifRef = useRef({ momentum: -1, streak: -1 });
-
-  // Save daily momentum + reschedule weekly notification + check achievements
-  useEffect(() => {
-    if (statsLoading) return;
-    recordScore(momentum);
-    if (weeklyNotification &&
-        (momentum !== lastScheduledNotifRef.current.momentum || streak !== lastScheduledNotifRef.current.streak)) {
-      lastScheduledNotifRef.current = { momentum, streak };
-      scheduleWeeklySummary(momentum, streak, language);
-    }
-
-    // ── BAŞARIMLAR ────────────────────────────────────────────────────────────
-    // Lite modda gamification kapalı — kutlama/baseline çalışmaz (Pro'ya geçince
-    // ilk değerlendirmede sessiz baseline alınır, spam olmaz).
-    if (uiMode === 'lite') return;
-    // Hidrasyon tamamlanmadan değerlendirme YAPMA (unlocked yüklenmeden tetiklenirse
-    // tekrar kutlama olur).
-    if (!achHydrated) return;
-
-    const streakAch = checkStreakAchievement(streak);
-    const momAch = checkMomentumAchievement(momentum);
-
-    // İlk gözlemde SESSİZ baseline: kullanıcının şu an zaten hak ettiği eşikleri
-    // kutlamadan kilitle (eski kullanıcı / hafıza kaybı sonrası konfeti yağmuru olmasın).
-    // baselined=true ise no-op.
-    const earned: string[] = [];
-    if (streakAch) earned.push(streakAch.id);
-    if (momAch) earned.push(momAch.id);
-    baselineAchievements(earned);
-
-    // Yalnız GERÇEKTEN yeni açılan eşikler kutlanır (trigger içte unlocked'ı kontrol eder;
-    // baseline ile kilitlenenler burada no-op olur → "durum" değil "geçiş" kutlanır).
-    if (streakAch) triggerAchievement(streakAch);
-    if (momAch) triggerAchievement(momAch);
-  }, [momentum, streak, statsLoading, achHydrated, uiMode]);
-
-  // Daily perfect: all of today's tasks completed
-  useEffect(() => {
-    if (uiMode === 'lite' || statsLoading || !achHydrated || todayTasks.length === 0) return;
-    if (todayTasks.every(t => t.isCompleted)) {
-      triggerAchievement(ACHIEVEMENTS.daily_perfect);
-    }
-  }, [todayTasks, statsLoading, achHydrated, uiMode]);
-
-
-  /*
-    Örnek veri ve tur kapıları ORTAK kuraldan (bkz. features/onboarding/utils/firstRun).
-    Üç ekran aynı iki soruyu üç ayrı şekilde yanıtlıyordu; ayrışmalar yalnız yeni bir
-    hesabın ilk dakikasında görünür olduğu için canlıya kadar gitmişti.
-  */
-  /**
-   * ÖRNEK (SAHTE) SATIR MI?
-   *
-   * ── ÖLÇÜLEN SORUN ───────────────────────────────────────────────────────────
-   * Boş ekranı canlandıran sahte satırlar GERÇEK işleyicilere bağlıydı. Mağazalar
-   * bilinmeyen bir kimlikle sessizce hiçbir şey yapmıyor, yani veri bozulmuyordu —
-   * ama yan etkiler çalışıyordu. En kötüsü alışkanlıkta: sahte bir ritüele
-   * dokununca `pendingHabits` GERÇEK (ve boş) listeden hesaplanıyor, "hepsi bitti"
-   * çıkıyor ve kullanıcıya sahip olmadığı ritüeller için tam ekran kutlama
-   * patlıyordu. Titreşim ve ses de öyle: uygulama olmayan bir şeyi kutluyordu.
-   *
-   * Kimlik önekiyle ayırt ediliyor; gerçek alışkanlık kimlikleri de METİN olduğu
-   * için tür kontrolü yetmiyor (bkz. __tests__/dashboardIntegrity).
-   */
-
-  /* Ref: kapı her odaklanmada GÜNCEL diziyi okur, kapanışta eskiye saplanmaz. */
-
-  // Unified My Day feed items (Tasks only)
-  // useMemo: dizi halka paneline (detail) ve listeye gidiyor; her render'da yeni dizi memo'ları boşa düşürüyordu.
-  const myDayTasks = React.useMemo(() => {
-    // Örnek veri, GERÇEK görev yokken (bkz. useDemoGate — dört kuralın gerekçesi orada).
-    // Dizi yukarıda tanımlı: halka da onu sayıyor, ikisi ayrışamıyor.
-    if (demoActive) return demoMyDayTasks;
-
-    const items: Array<{
-      type: 'task';
-      id: string | number;
-      title: string;
-      priority?: string;
-      isCompleted: boolean;
-      original: any;
-    }> = [];
-
-    // Add today's incomplete tasks
-    todayTasksIncomplete.forEach(t => {
-      items.push({
-        type: 'task',
-        id: t.id,
-        title: t.title,
-        priority: t.priority,
-        isCompleted: false,
-        original: t
-      });
-    });
-
-    // Add today's undated incomplete tasks
-    undatedTasksIncomplete.forEach(t => {
-      items.push({
-        type: 'task',
-        id: t.id,
-        title: t.title,
-        priority: t.priority,
-        isCompleted: false,
-        original: t
-      });
-    });
-
-    // Add today's completed tasks
-    todayTasksCompleted.forEach(t => {
-      items.push({
-        type: 'task',
-        id: t.id,
-        title: t.title,
-        priority: t.priority,
-        isCompleted: true,
-        original: t
-      });
-    });
-
-    // Sort items:
-    // 1. Incomplete first, completed last
-    // 2. For incomplete: sorted by priority (High > Medium > Low)
-    // 3. For completed: alphabetical
-    return items.sort((a, b) => {
-      const aDone = a.isCompleted;
-      const bDone = b.isCompleted;
-      if (aDone !== bDone) return aDone ? 1 : -1;
-
-      if (!aDone) {
-        const priorityMap: Record<string, number> = { 'High': 3, 'Medium': 2, 'Low': 1 };
-        const scoreA = priorityMap[a.priority || 'Medium'] || 2;
-        const scoreB = priorityMap[b.priority || 'Medium'] || 2;
-        if (scoreA !== scoreB) return scoreB - scoreA;
-      }
-      return a.title.localeCompare(b.title);
-    });
-  }, [demoActive, demoMyDayTasks, todayTasksIncomplete, undatedTasksIncomplete, todayTasksCompleted]);
-  const highlight = useHighlight(myDayTasks.filter(item => !item.isCompleted), demoActive);
-
-  // Today's Habits
-  const myDayHabits = React.useMemo(() => {
-    if (demoGate(habits.length)) {
-      return [
-        {
-          id: 'mock-habit-1',
-          title: language === 'tr' ? 'Kitap Oku' : 'Read Book',
-          color: theme.streak,
-          emoji: '📚',
-          isCompleted: false,
-          isSkipped: false,
-          streak: 3,
-          original: {}
-        },
-        {
-          id: 'mock-habit-2',
-          title: language === 'tr' ? 'Su İç' : 'Drink Water',
-          color: theme.tertiary,
-          emoji: '🥛',
-          isCompleted: true,
-          isSkipped: false,
-          streak: 5,
-          original: {}
-        },
-        {
-          id: 'mock-habit-3',
-          title: language === 'tr' ? 'Yürüyüş' : 'Walk',
-          color: theme.primary,
-          emoji: '👟',
-          isCompleted: false,
-          isSkipped: false,
-          streak: 0,
-          original: {}
-        }
-      ];
-    }
-
-    // Yalnız BUGÜN planlı olanlar; şu anki zaman dilimi önde (bkz. habitSchedule).
-    return orderForNow(habits.filter(h => isDueToday(h, habitTodayKey)), habitTodayKey).map(h => {
-      const done = (h.completedDates ?? []).includes(habitTodayKey);
-      const week = weekProgress(h, habitTodayKey);
-      const skipped = (h.skippedDates ?? []).includes(habitTodayKey);
-      const streakVal = getHabitStreak(h);
-      return {
-        id: h.id,
-        title: h.name,
-        color: habitColor(h, isDark), // renk = nereden geldiği: mod rengi ya da kullanıcının seçimi
-        emoji: h.emoji,
-        isCompleted: done,
-        isSkipped: skipped,
-        streak: streakVal,
-        count: countOn(h, habitTodayKey),
-        missed: missState(h, habitTodayKey) === 'missed', // "iki kez kaçırma": bugün yaparsan zincir sürer
-        target: targetOf(h),
-        weekBadge: week && week.goal < 7 ? `${week.done}/${week.goal}` : null,
-        original: h
-      };
-    });
-  },
-    /*
-      currentHour: sıra ŞU ANKİ dilime göre (orderForNow içeride saati okuyor; dilim sınırları
-      12:00 / 17:00 tam saat). Memo saate bağlanmazsa sabah sırası akşama kadar kalırdı.
-    */
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [demoGate, habits, language, theme, habitTodayKey, isDark, getHabitStreak, currentHour]);
-
-  const handleCheckTask = async (taskId: number) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-    /*
-      KİLO GÖREVİ — Görevler ekranıyla AYNI kural.
-
-      Burada iki ayrı sapma vardı ve ikisi de aynı kökten geliyordu: bu ekran kendi
-      kontrolünü elle yazmış, `weightCheckin`teki ortak yardımcıları kullanmamıştı.
-
-      1) `tags.includes('weight_entry')` yazılıydı; ortak `isWeightEntryTask` ise BAŞLIĞA
-         da bakıyor ("Güncel kilonu gir"). Etiketsiz eski kilo görevleri bu yüzden
-         dashboard'da sıradan görev sayılıyor, modal hiç açılmadan TAMAMLANIYOR ve
-         kullanıcının kilosu hiç kaydedilmiyordu.
-
-      2) `canLogWeight` kontrolü yoktu. Tartım o hafta zaten girilmişse modal yine de
-         açılıyor, `recordWeeklyWeight` sessizce `false` dönüyor ve görev KAPANMIYORDU —
-         yani aksiyon merkezinde asla temizlenemeyen bir görev kalıyordu. Görevler
-         ekranı bu durumu zaten doğru ele alıyordu; iki ekran birbirinden kopmuştu.
-    */
-    if (isWeightEntryTask(task) && !task.isCompleted) {
-      haptic.select();
-      if (weightTaskAction() === 'log') {
-        setWeightModalTaskId(task.id);
-      } else {
-        // Tartım bu dönem zaten kayıtlı → görevin amacı yerine gelmiş, doğrudan kapat.
-        completeTaskOfflineFirst(task.id);
-        showToast(language === 'tr' ? 'Tartım zaten kayıtlı — görev tamamlandı' : 'Weigh-in already logged — task completed', 'success');
-      }
-      return;
-    }
-    if (task.isCompleted) return; // aksiyon merkezi sadece tamamlar, hiç geri almaz
-    haptic.surface();
-
-    /*
-      HALKA İLE AYNI TANIM — '0001' (tarih yok) sentinel'i burada da tarihsiz sayılmalı.
-      Eskiden bu satır kendi elle yazılmış filtresini kullanıyordu ve `!t.dueDate` boş
-      string/null'ı yakalıyor ama sunucunun '0001-01-01' sentinel'ini YAKALAMIYORDU —
-      o görev "geçmişte vadesi gelmiş, hâlâ bekliyor" sayılıyor, `allTasksDone` hiç
-      `true` olmuyordu. Sonuç: halka/TodayCard "Mükemmel gün!" derken bu fonksiyon aynı
-      anı "gün bitmedi" sanıyor, kutlama hiç tetiklenmiyordu (bkz. dayScope üstündeki not).
-    */
-    const allTasksDone = todayTasksIncomplete.filter(t => t.id !== taskId).length === 0;
-
-    if (soundEffects && !allTasksDone) {
-      playSoundEffect(require('../assets/sounds/success.mp3'), {
-        context: 'index.taskCompleteSound',
-        volume: 0.15,
-        reassertVolumeAfterMs: 150,
-      });
-    }
-
-    const prefsState = usePrefsStore.getState();
-    const isFirstWin = !prefsState.firstWinAt;
-
-    // Kutlama kararı tek yerde (bkz. features/user/utils/celebrate.ts):
-    // Sade modda konfeti yok, puan ve 'ilk başarı' damgası YİNE işlenir.
-    if (isFirstWin) celebrate({ kind: 'first-win', isLite, tr });
-    // İlk başarı damgası geri alınmaz; gün kutlamasının puanı geri alınınca düşer.
-    const clearedPoints = !isFirstWin && allTasksDone ? celebrate({ kind: 'day-cleared', isLite, tr }) : 0;
-    completeWithUndoToast(taskId, language === 'en' ? 'en' : 'tr', clearedPoints);
-  };
-
-  const startQuickFocus = () => {
-    haptic.commit();
-    /*
-      SEANS GÖREVLE BAŞLAR. `const target = topTaskToday` satırı vardı ama hiç
-      kullanılmıyor, seans `setCurrentTask('')` ile ADSIZ açılıyordu: odak ekranı
-      neye odaklanıldığını yazmıyor ve dakikalar hiçbir göreve işlenmiyordu
-      (bkz. useFocusStore → currentTaskId / taskFocusMinutes). Sıradaki iş yoksa
-      boş geçmek yine doğru — o zaman gerçekten bir konu yok.
-    */
-    // Anlık eylem (su iç…) seansın konusu olamaz: sıradaki odaklanılabilir iş seçilir.
-    const target = [...todayTasksIncomplete, ...undatedTasksIncomplete].find(isFocusWorthy);
-    setCurrentTask(target ? getLocalizedTaskTitle(target, tr) : '', target?.id ?? null);
-    // Store yolu: `setState` seansın BİTİŞ ANINI kurmuyor → kilitli telefonda sayaç geri kalıyordu.
-    useFocusStore.getState().setDuration(25);
-    useFocusStore.getState().setIsActive(true);
-    router.replace('/focus');
-  };
-
-  /**
-   * Marka işaretine dokunma — TAZQ Core paletini DOĞRUDAN açar (arama · akıllı ekleme ·
-   * komutlar). Arada bir menü vardı; asıl yüzeye bir dokunuş geç ulaştırıyordu ve
-   * dört satırının üçü başka yerde zaten vardı (bkz. CommandPortal).
-   *
-   * Logonun nabız atması ve halkası KORUNUYOR: uygulamanın karakteri ve dokunuşun
-   * kaydedildiğinin tek işareti.
-   *
-   * Palet BEKLEMEDEN açılıyor. Eskiden 220ms gecikme vardı (nabız bitsin diye) ve
-   * bu gözle görülür bir tepki gecikmesiydi — animasyon zaten paletin arkasında sürüyor,
-   * bitmesini beklemek gerekmiyor. Haptik de tek `surface`e indi: açılan bir yüzeyin
-   * karşılığı budur; çift atış (select + 130ms + surface) aynı olayı iki kez anlatıyordu.
-   */
-  const handleLogoPress = useCallback(() => {
-    haptic.surface();
-    setLogoTick(prev => prev + 1);
-    setPortalSearch('');
-    setCommandPortalVisible(true);
-  }, []);
-
-  const todaySurprise = (() => {
-    /*
-      YAPACAK BİR ŞEY YOKKEN KUTLAMA YOK.
-
-      Koşul `todayCompleted >= dailyGoal` idi ve boş günde 0 >= 0 doğru çıkıyordu:
-      hiçbir planı olmayan kullanıcı karta çift dokununca "MÜKEMMEL GÜN!" alkışı
-      alıyordu. TodayCard bu kuralı kendi içinde zaten doğru yazmış ("Bugün için
-      planın boş" — yanındaki not da nedenini anlatıyor: hiçbir şey yapmadan alkış
-      almak, gerçekten bir şey bitirince gelen alkışın değerini düşürür) ama
-      vurgulama dalı bu metni ezdiği için kural dışarıdan bozuluyordu.
-    */
-    if (dailyGoal === 0) return language === 'tr' ? 'BUGÜN SERBEST!' : 'A FREE DAY!';
-    if (todayCompleted >= dailyGoal) return language === 'tr' ? 'MÜKEMMEL GÜN!' : 'PERFECT DAY!';
-    const pct = todayCompleted / Math.max(dailyGoal, 1);
-    if (pct >= 0.5) return language === 'tr' ? 'YARIYA GELDİN!' : 'HALFWAY THERE!';
-    if (todayCompleted === 0) return language === 'tr' ? 'HAYDI BAKALIM!' : 'LET\'S GO!';
-    return language === 'tr' ? 'DEVAM ET!' : 'KEEP GOING!';
-  })();
-
-  const getGreeting = () => {
-    if (currentHour >= 5 && currentHour < 13) return t.greetingMorning;
-    if (currentHour >= 13 && currentHour < 18) return t.greetingAfternoon;
-    if (currentHour >= 18 && currentHour < 23) return t.greetingEvening;
-    return t.greetingNight;
-  };
-
-  const getSubGreeting = (): string => {
-    // Ekranda GÖRÜNEN görevleri say — eskiden `tasks.filter(!isCompleted)` ile TÜM
-    // tamamlanmamışlar sayılıyordu, gelecek tarihliler dahil. Ama aksiyon merkezi
-    // gelecek tarihlileri göstermez (bkz. myDayTasks). Sonuç: kullanıcı gördüğü tüm
-    // görevleri bitirse bile "5 görevin var" yazmaya devam ediyordu — göremediği
-    // görevler sayıldığı için yazı "statik/bozuk" görünüyordu.
-    const incomplete = todayTasksIncomplete.length + undatedTasksIncomplete.length;
-    if (isActive) {
-      return tr ? 'Harika! Odak seansın devam ediyor.' : "You're crushing it! Focus session in progress.";
-    }
-    if (incomplete === 0) {
-      return tr ? 'Temiz sayfa — yeni bir görev eklemek ister misin?' : 'Clean slate — want to add a new task?';
-    }
-    if (incomplete === 1) {
-      return tr ? 'Sadece 1 görevin kaldı. Kolayca bitirebilirsin!' : 'Just 1 task left. You can finish this!';
-    }
-    if (incomplete <= 5) {
-      return tr ? `${incomplete} görevin var. Hadi devam edelim!` : `${incomplete} tasks waiting. Let's keep going!`;
-    }
-    if (momentum >= 75) {
-      return tr ? `${incomplete} görev var ama sen zirvedesin — durdurulamaz!` : `${incomplete} tasks, but you're at peak momentum!`;
-    }
-    return tr ? `${incomplete} görevin var.` : `${incomplete} tasks today.`;
-  };
-
-  const pressMyDayItem = useLatestCallback((item: MyDayTaskItem) => { // satır işleyicileri: kimlik sabit, gövde güncel (bkz. MyDayItem)
-    /*
-      KİLO GÖREVİ — iki kusur birden.
-
-       1. `item.tags` diye bakılıyordu ama bu satırın aldığı nesne bir SARMAL:
-          etiketler `item.original.tags` altında. Koşul HİÇ doğru olmuyor,
-          yani kilo görevine basınca modal yerine Görevler sayfası açılıyordu.
-       2. Ham etiket kontrolü yerine ortak `isWeightEntryTask` kullanılmalı:
-          o, BAŞLIĞA da bakıyor ("Güncel kilonu gir") ve etiketsiz eski kilo
-          görevlerini de tanıyor.
-
-      İkisi de `handleCheckTask` içinde uzun uzun anlatılıp düzeltilmişti;
-      satır o düzeltmenin dışında kalmış.
-    */
-    if (isWeightEntryTask(item.original)) {
-      haptic.select();
-      setWeightModalTaskId(item.id);
-    } else {
-      router.push({ pathname: '/tasks', params: { highlightId: item.id } });
-    }
-  });
-  const checkMyDayItem = useLatestCallback((id: number) => handleCheckTask(id));
-  // İlk bekleyen görev = SIRADAKİ: odak çağrısı satırın yanında (ayrı kart değil).
-  // Görevi odak ekranına SEÇİLİ götürür; seans başlamaz (bkz. startQuickFocus farkı).
-  const focusMyDayItem = useLatestCallback((item: MyDayTaskItem) => {
-    setCurrentTask(getLocalizedTaskTitle(item.original || item, tr), Number(item.id));
-    router.push('/focus');
-  });
-  const myDayHandlers = React.useMemo(
-    () => ({ press: pressMyDayItem, check: checkMyDayItem, focus: focusMyDayItem }),
-    [pressMyDayItem, checkMyDayItem, focusMyDayItem],
-  );
-  const renderMyDayItem = (item: any, isLast: boolean, index: number) => (
-    <MyDayItem
-      key={`task-${item.id}`}
-      item={item}
-      isLast={isLast}
-      index={index}
-      handlers={myDayHandlers}
-      theme={theme}
-      isDark={isDark}
-      tr={tr}
-      focusLabel={RINGS_COPY[language === 'en' ? 'en' : 'tr'].focusCta}
-      priorityColor={priorityColor}
-      prefs={usePrefsStore.getState()}
-    />
-  );
-
-
-  /**
-   * GÜNÜ TAMAMLAMA ANI — kullanıcıyı uygulamaya bağlayan tek an.
-   *
-   * ÖLÇÜLEN SORUN: kullanıcı günün hedefinin %100'ünü bitirdiğinde karşılığı şuydu —
-   * 90pt'lik halka yeşile döner ve 11pt'lik bir satırda "Tümü tamamlandı" yazar. Hepsi
-   * bu. Sayfa bir RAPOR veriyordu, ödül vermiyordu; oysa insanı geri getiren şey metrik
-   * değil, bitirme ANIdır (Apple Fitness'ta halka kapanınca ekranı kaplayan kutlama).
-   *
-   * Kutlama katmanı zaten vardı (bkz. CelebrationOverlay, _layout'ta global) ama yalnız
-   * BAŞARIMLARA bağlıydı — yani ömürde bir kez. Günü tamamlamak ise her gün olabilen bir
-   * şey, o yüzden `celebrate` kullanılıyor: aynı katmanı açar, hiçbir şeyi kalıcı yapmaz.
-   *
-   * ÜÇ KAPI, üçü de ayrı bir yanlış kutlamayı engelliyor:
-   *  1. GEÇİŞ — yalnız "tamamlanmadı → tamamlandı" anında. `null` başlangıç değeriyle
-   *     ilk render atlanıyor: gün zaten bitmişken uygulamayı açmak kutlama değildir.
-   *  2. GÜNDE BİR — tarih anahtarı kalıcı. Uygulama kapanıp açılırsa, bileşen yeniden
-   *     kurulursa ya da son görev geri alınıp tekrar işaretlenirse tekrar patlamaz.
-   *  3. İLK KEZ DEĞİLSE — ilk mükemmel günde `daily_perfect` ROZETİ zaten açılıyor ve
-   *     kendi kutlamasını yapıyor; ikisi üst üste binmesin.
-   */
-  const dayCompleteRef = useRef<boolean | null>(null);
-  useEffect(() => {
-    /*
-      ÖRNEK VERİ KUTLAMA TETİKLEYEMEZ.
-
-      `dailyGoal` ve `todayCompleted` örnek veri açıkken sahte satırlardan geliyor
-      (halka ile liste aynı şeyi söylesin diye). Bugünkü örnek dizide üçte biri
-      tamamlı olduğu için koşul tutmuyor — ama bu bir TESADÜF: diziye dokunan biri
-      üçünü de "tamamlandı" yapsa, hiç görevi olmayan kullanıcıya gün kutlaması
-      patlardı. Kapı burada, tesadüfe bırakılmıyor.
-    */
-    if (demoActive) return;
-    const done = dailyGoal > 0 && todayCompleted >= dailyGoal;
-    const prev = dayCompleteRef.current;
-    dayCompleteRef.current = done;
-    if (prev !== false || !done) return;
-    if (isLite) return; // Sade mod: kutlama katmanı hiç açılmaz
-
-    const key = `@day_celebrated_${fmtDateKey()}`;
-    (async () => {
-      try {
-        if (await AsyncStorage.getItem(key)) return;
-        await AsyncStorage.setItem(key, '1');
-        const store = useAchievementStore.getState();
-        if (!store.hasUnlocked('daily_perfect')) return;
-        haptic.celebrate();
-        store.celebrate(ACHIEVEMENTS.daily_perfect);
-      } catch (e) { swallow('index.dailyCelebration', e); }
-    })();
-  }, [todayCompleted, dailyGoal, isLite, demoActive]);
-
-  // Render sırasında çağrılıyor (satır rengi) → useLatestCallback DEĞİL, useCallback.
-  const priorityColor = React.useCallback((p: string) => {
-    if (p === 'High') return theme.priorityHigh;
-    if (p === 'Medium') return theme.priorityMedium;
-    return theme.priorityLow;
-  }, [theme]);
-
-
-  /*
-    SKOR (momentum) artık "Bugün" özetinin İÇİNDE (TodayRings footer). Eskiden tek tanım,
-    iki konumdu (aktif dönem varsa eylemlerin altı) — kartsız satır iki ağır kartın
-    arasında öksüz kalıyordu. Aktif dönemde plan kartı (ModeTodayCard) yine özetten önce.
-  */
-
-  // Halka paneli (memo'lu) kararlı props alır: ilgisiz state Skia halkalarını çizdirmesin.
-  const todayDetail = React.useMemo<NonNullable<TodayRingsProps['detail']>>(() => ({
-    tasks: myDayTasks.filter(i => !i.isCompleted && typeof i.id === 'number').slice(0, 3).map(i => ({ id: i.id, title: getLocalizedTaskTitle(i.original || i, tr) })),
-    habits: (myDayHabits as Array<{ id: string; title?: string; name?: string; isCompleted?: boolean; isSkipped?: boolean; streak?: number }>).map(h => ({ id: h.id, title: h.title ?? h.name ?? '', done: !!h.isCompleted, skipped: !!h.isSkipped, streak: h.streak || 0 })),
-    focusMin: todayFocusMinutes, focusGoal: dailyGoalMinutes,
-    onFocusTask: (t) => { if (t) setCurrentTask(t.title, Number(t.id)); router.push('/focus'); },
-  }), [myDayTasks, myDayHabits, tr, todayFocusMinutes, dailyGoalMinutes, setCurrentTask, router]);
-
-  const todayMetrics = React.useMemo<TodayRingsProps['metrics']>(() => {
-    const c = RINGS_COPY[language === 'en' ? 'en' : 'tr'];
-    const habitPool = (myDayHabits as Array<{ isSkipped?: boolean; isCompleted?: boolean }>).filter(h => !h.isSkipped);
-    // Tur sırasında halka DOLU anlatılır (bkz. useDemoGate); bitince gerçek dakika.
-    const focusShown = demoActive ? Math.round(dailyGoalMinutes * 0.6) : todayFocusMinutes;
-    const habitsDone = habitPool.filter(h => h.isCompleted).length;
-    return [
-      { label: c.tasks, value: dailyGoal > 0 ? `${todayCompleted}/${dailyGoal}` : '—', progress: dailyGoal > 0 ? todayCompleted / dailyGoal : 0, reached: dailyGoal > 0 && todayCompleted >= dailyGoal, done: todayCompleted, total: dailyGoal },
-      { label: c.focus, value: `${focusShown}/${dailyGoalMinutes} ${c.min}`, progress: dailyGoalMinutes > 0 ? focusShown / dailyGoalMinutes : 0, reached: dailyGoalMinutes > 0 && focusShown >= dailyGoalMinutes, done: focusShown, total: dailyGoalMinutes },
-      { label: c.habits, value: habitPool.length > 0 ? `${habitsDone}/${habitPool.length}` : '—', progress: habitPool.length > 0 ? habitsDone / habitPool.length : 0, reached: habitPool.length > 0 && habitsDone >= habitPool.length, done: habitsDone, total: habitPool.length },
-    ];
-  }, [language, myDayHabits, demoActive, dailyGoalMinutes, todayFocusMinutes, dailyGoal, todayCompleted]);
-
-  // Plan, dijital panelin EN ÜSTÜ (aktif mod yoksa null → turun "aktif plan" adımı atlanır).
-  // Tarih şeridi → o günü saatleriyle aç (Gün ekranı = Bugün'ün saat görünümü; E-1).
-  const openDay = useLatestCallback((key?: string) => router.push(key ? { pathname: '/gun', params: { date: key } } : { pathname: '/gun' }));
-
-  // ── GELEN KUTUSU (bkz. features/dashboard/utils/inboxItems.ts) ─────────────────────────────────────────
-  const [inboxOpen, setInboxOpen] = useState(false);
-  const [supportThreads, setSupportThreads] = useState<MySupportMessage[]>([]);
-  const payments = usePaymentsStore(st => st.payments);
-  const unlockedAt = useAchievementStore(st => st.unlockedAt);
-  const inboxSeen = useInboxStore(st => st.seen);
-  // Destek yanıtları sunucuda: açılışta ve sayfaya her dönüşte bir kez (sessiz; misafirde istek yok).
-  useFocusEffect(useCallback(() => {
-    if (isGuest) return;
-    SupportService.getMyMessages().then(r => setSupportThreads(r.messages ?? [])).catch(e => swallow('inbox.support', e));
-    // Ödemeler ekranı açılmadan da taze: başka cihazda eklenen ödeme uyarıya ve hatırlatmaya girer.
-    void refreshPayments();
-  }, [isGuest]));
-  const inboxItems = React.useMemo(() => {
-    const now = new Date();
-    const tmr = new Date(now); tmr.setDate(tmr.getDate() + 1);
-    const ic = INBOX_COPY[language === 'en' ? 'en' : 'tr'];
-    return buildInbox({
-      now,
-      dayKey: dateKeyFromNow(0),
-      zen: { visible: !isLite && ((zen.cardVisible && zen.overduePlan.moves.length > 0) || zen.overloadVisible), overload: !zen.cardVisible && zen.overloadVisible },
-      someday: { visible: !isLite && zen.somedayNudgeVisible, count: zen.somedayCount },
-      payments,
-      support: supportThreads,
-      unlockedAt,
-      achievementTitle: (id) => { const a = ACHIEVEMENTS[id]; return a ? `${a.emoji} ${language === 'en' ? a.titleEn : a.titleTr}` : null; },
-      tomorrowCount: scopeOtherDay(tasks, tmr).incomplete.length,
-      copy: ic,
-    });
-  }, [isLite, zen.cardVisible, zen.overduePlan, zen.overloadVisible, zen.somedayNudgeVisible, zen.somedayCount, payments, supportThreads, unlockedAt, tasks, language]);
-  // Admin önizlemesi: her türden örnek kalem (gerçek verinin yanına; dokununca gerçek ekranlar açılır).
-  const inboxDemo = useInboxStore(st => st.demo);
-  const shownInbox = React.useMemo<InboxItem[]>(() => {
-    if (!inboxDemo) return inboxItems;
-    const ic = INBOX_COPY[language === 'en' ? 'en' : 'tr'];
-    return [...inboxItems,
-      { id: 'demo:pay1', kind: 'payment', rank: 1, title: language === 'en' ? 'Rent' : 'Kira', sub: ic.paymentOverdue(2), tone: 'error' },
-      { id: 'demo:pay2', kind: 'payment', rank: 2, title: language === 'en' ? 'Electricity' : 'Elektrik', sub: ic.paymentIn(1), tone: 'warning' },
-      { id: 'demo:sup', kind: 'support', rank: 1, title: ic.supportReply, sub: ic.supportSub(language === 'en' ? 'Thanks, we fixed it in the latest update.' : 'Teşekkürler, son güncellemede düzelttik.') },
-      { id: 'demo:ach', kind: 'badge', rank: 4, title: language === 'en' ? '7-Day Streak!' : '7 Günlük Seri!', sub: ic.badge },
-      { id: 'demo:tmr', kind: 'tomorrow', rank: 5, title: ic.tomorrow(5), sub: ic.tomorrowSub },
-    ].sort((a, b) => a.rank - b.rank) as InboxItem[];
-  }, [inboxDemo, inboxItems, language]);
-  const inboxDismissed = useInboxStore(st => st.dismissed);
-  const visibleInbox = React.useMemo(() => shownInbox.filter(it => !inboxDismissed.includes(it.id)), [shownInbox, inboxDismissed]);
-  const inboxUnread = visibleInbox.filter(it => !inboxSeen.includes(it.id)).length;
-  const openInbox = () => {
-    haptic.select();
-    setInboxOpen(true);
-    useInboxStore.getState().markSeen(visibleInbox.map(it => it.id));
-  };
-  // Kapanırken: görülmüş bilgi kalemleri kendiliğinden gider (bkz. inboxItems AUTO_CLEAR_ON_SEEN).
-  const closeInbox = () => {
-    setInboxOpen(false);
-    useInboxStore.getState().dismiss(visibleInbox.filter(it => AUTO_CLEAR_ON_SEEN.includes(it.kind)).map(it => it.id));
-  };
-  const onInboxItem = (item: InboxItem) => {
-    closeInbox();
-    if (clearsOnOpen(item.kind)) useInboxStore.getState().dismiss([item.id]);
-    if (item.kind === 'payment') router.push('/odemeler');
-    else if (item.kind === 'support') router.push({ pathname: '/settings', params: { section: 'legal', support: '1' } });
-    else if (item.kind === 'badge') router.push('/achievements');
-    else if (item.kind === 'tomorrow') openDay(dateKeyFromNow(1));
-  };
-  // Satırdan ödeme. Değişken tutar Ödemeler'deki tutar penceresine gider: pencere içinden pencere açılmaz (iOS).
-  const onInboxPay = (item: InboxItem) => {
-    const payment = payments.find(p => p.id === item.ref);
-    if (!payment) return null;
-    if (payment.isVariable) {
-      closeInbox();
-      router.push({ pathname: '/odemeler', params: { pay: String(payment.id) } });
-      return null;
-    }
-    return markPaidUndoable(payment.id, activeCycleKeyOf(payment));
-  };
-  const todayTopSlot = React.useMemo(() => <ModeTodayCard bare onOpen={() => router.push('/modlar')} />, [router]);
-
-  const todayFooter = React.useMemo(() => (!isLite ? (
-    <TourTarget id="momentum">
-      <MomentumPulse score={momentum} history={momentumHistory} language={language} loading={statsLoading || !(tasksFetched || tasksFetchedInSession)} embedded wake={wakeKey} />
-    </TourTarget>
-  ) : null), [isLite, momentum, momentumHistory, language, statsLoading, tasksFetched, wakeKey]);
-
-  const openQuickAdd = React.useCallback(() => setQuickDraftVisible(true), []);
-
-  // Alışkanlık şeridi (MyDayHabits, memo'lu) — işleyiciler kimliği sabit, gövdesi güncel.
-  const onAddHabit = useLatestCallback(() => { router.push('/cockpit'); });
-  const onHabitSkip = useLatestCallback<Parameters<MyDayHabitsProps['onSkip']>, void>((item) => {
-    if (isDemoId(item.id)) return;
-    // Atlamak bir BAŞARI değil; `success` titreşimi ritüeli
-    // tamamlamakla aynı karşılığı veriyordu.
-    haptic.surface();
-    toggleHabitSkipDate(item.id as string, habitTodayKey);
-  });
-  const onHabitToggle = useLatestCallback<Parameters<MyDayHabitsProps['onToggle']>, void>((item) => {
-    if (isDemoId(item.id)) return;
-    // Miktarlıda ara adım: yalnız hafif dokunuş; gün ancak hedefte "yapıldı".
-    const willComplete = (item.target ?? 1) > 1 ? (item.count ?? 0) + 1 === item.target : !item.isCompleted;
-    if ((item.target ?? 1) > 1 && !willComplete && !item.isCompleted && (item.count ?? 0) < item.target) {
-      haptic.select(); tapHabit(item.id as string, habitTodayKey); return;
-    }
-    if (!item.isCompleted) {
-      /*
-        ATLANAN RİTÜEL "BEKLEYEN" DEĞİLDİR. Koşul yalnız
-        `completedDates`e bakıyordu: kullanıcı bir ritüeli
-        "bugün değil" diye atlayıp kalanları bitirdiğinde gün
-        kapanmış sayılmıyor, kutlama hiç gelmiyordu. Oysa
-        sistemin geri kalanı atlamayı MAZUR görüyor — seri bile
-        bozulmuyor (bkz. useHabitStore → computeStreak).
-      */
-      const pendingHabits = habits.filter(h =>
-        h.id !== item.id && isDueToday(h, habitTodayKey) &&
-        !h.completedDates?.includes(habitTodayKey) &&
-        !h.skippedDates?.includes(habitTodayKey));
-      const allHabitsDone = pendingHabits.length === 0;
-
-      if (soundEffects && !allHabitsDone) {
-        playSoundEffect(require('../assets/sounds/habit.mp3'), {
-          context: 'index.habitDoneSound',
-          volume: 0.18,
-          reassertVolumeAfterMs: 150,
-        });
-      }
-
-      if (allHabitsDone) celebrate({ kind: 'habits-cleared', isLite, tr });
-    }
-    // Tamamlama BAŞARI, geri alma yalnızca yüzey hareketi — ikisi farklı anlam.
-    item.isCompleted ? haptic.surface() : haptic.success();
-    tapHabit(item.id as string, habitTodayKey);
-    if (willComplete) celebrateMilestone(item.id as string, habitTodayKey); // 7/21/66. tekrar
-  });
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <NavGlassArea nav={<BottomNavBar />}>
       <DottedBackground color={theme.onBackground} opacity={isDark ? 0.05 : 0.08} size={24} dotSize={1} />
       {/* Yüzen başlık — dört sayfanın da kullandığı ortak bileşen (bkz. ScreenHeader).
           Eskiden bu blok her sayfada kopyalanmıştı; kopyalar ayrışıp boyları farklılaşmıştı. */}
@@ -1769,7 +256,7 @@ export default function HomeScreen() {
           SAĞ ÜST = GELEN KUTUSU (2026-11-01). Eski düğme Hafta'ya götürüyordu (sekme çubuğunda zaten var — kullanıcı:
           "işlevini yitirmiş"). Gelen kutusu yeni bir şey: dağınık uyarıları toplar; rozet yalnız yeni bir şey varken.
         */
-        right={<InboxButton count={inboxUnread} onPress={openInbox} theme={theme} language={language === 'en' ? 'en' : 'tr'} />}
+        right={isLite && inboxEmpty ? undefined : <InboxButton count={inboxUnread} onPress={openInbox} theme={theme} language={language === 'en' ? 'en' : 'tr'} />}
       />
 
       <View style={{ flex: 1 }}>
@@ -1851,7 +338,7 @@ export default function HomeScreen() {
               kartı iki ayrı yüzeydi; alışkanlık ilerlemesi hiçbir özette yoktu. Vitrinin
               ilk bloğu artık günün tamamını tek nesnede söylüyor.
             */}
-            <TodayRings
+            {!isLite && <TodayRings
               tourId="today"
               // Selam ekranın durum şeridinde (ayrı blok yok). Ad bilinmiyorsa yalnız selam — "…, sen" UYDURULMAZ.
               greeting={awayLine ?? (() => { const n = (!isNamePlaceholder && user?.name?.split(' ')[0]) || guestProfile?.name?.split(' ')[0] || ''; return n ? `${getGreeting()}, ${n}` : getGreeting(); })()}
@@ -1889,7 +376,7 @@ export default function HomeScreen() {
               onTap={todayTap.onTap}
               theme={theme}
               padding={bentoPad}
-            />
+            />}
             {/* Ödemeler — GÖREV/plan akışından AYRI yüzey (bkz. PaymentsSummaryCard); panelin altında, ikincil. */}
             <PaymentsSummaryCard />
             </WideCol>
@@ -1934,7 +421,7 @@ export default function HomeScreen() {
                 
                 <BentoCard index={1} style={{ padding: 0, overflow: 'hidden' }}>
                   {/* BUGÜNKÜ RİTÜELLERİM (Daily Habits) */}
-                  <TourTarget id="habits" spotRadius={R.md} spotCorners="top">
+                  {!isLite && <><TourTarget id="habits" spotRadius={R.md} spotCorners="top">
                     <MyDayHabits
                       habits={myDayHabits}
                       theme={theme}
@@ -1946,7 +433,7 @@ export default function HomeScreen() {
                     />
                   </TourTarget>
 
-                  <Separator theme={theme} />
+                  <Separator theme={theme} /></>}
                   <TourTarget id="tasks" spotRadius={R.md} spotCorners="bottom">
                     {/* Dolgu YOK — SectionHeader kendi boşluğunu taşıyor. Sarmala da
                         vermek ikiye katlıyordu: bu başlık 32pt girintili çiziliyor ve
@@ -1957,7 +444,7 @@ export default function HomeScreen() {
                       accessibilityLabel={tr ? 'Günlük görevleri yönet' : 'Manage daily tasks'}
                     >
                     <SectionHeader
-                      title={tr ? 'Günlük görevlerim' : 'My daily tasks'}
+                      title={isLite ? LITE_COPY[language === 'en' ? 'en' : 'tr'].today() : (tr ? 'Günlük görevlerim' : 'My daily tasks')}
                       theme={theme}
                       tr={tr}
                       inset={S.md}
@@ -1967,7 +454,7 @@ export default function HomeScreen() {
                   {/* Render Incomplete Tasks */}
                   {(() => {
                     const incompleteTasks = highlight.ordered; // yıldız önde (madde 11)
-                    const visibleIncomplete = showAllIncomplete ? incompleteTasks : incompleteTasks.slice(0, 4);
+                    const visibleIncomplete = showAllIncomplete || isLite ? incompleteTasks : incompleteTasks.slice(0, 4);
                     
                     if (incompleteTasks.length === 0) {
                       return (
@@ -1981,13 +468,13 @@ export default function HomeScreen() {
 
                     return (
                       <View>
-                        {highlight.star && incompleteTasks.length > 1 && <HighlightHeader others={highlight.others} />}
+                        {!isLite && highlight.star && incompleteTasks.length > 1 && <HighlightHeader others={highlight.others} />}
                         {visibleIncomplete.map((item, idx) => {
                           const isLast = idx === visibleIncomplete.length - 1;
                           return renderMyDayItem(item, isLast, idx);
                         })}
                         
-                        {incompleteTasks.length > 4 && (
+                        {!isLite && incompleteTasks.length > 4 && (
                           <Touchable
                             onPress={() => { haptic.select(); setShowAllIncomplete(!showAllIncomplete); }}
                             /*
@@ -2088,16 +575,16 @@ export default function HomeScreen() {
               yazıyordu. Aynı ekranda iki çelişen cümle, ikisi de güvenilmez olur.
               Örnek veri varsa yönlendirmeyi tur yapıyor (bkz. useDemoGate).
             */}
-            {tasks.length === 0 && habits.length === 0 && !demoGate(tasks.length) && (
+            {tasks.length === 0 && (isLite || habits.length === 0) && !demoGate(tasks.length) && (
               <EntranceStage order={1} enabled={!tourOn} style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 <BentoCard index={1} style={{ padding: bentoPad, gap: S.sm }}>
                     <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.3, marginBottom: S.xs }}>
-                        {tr ? 'Hoş geldin! Nereden başlamak istersin?' : 'Welcome! Where would you like to start?'}
+                        {isLite ? LITE_COPY[language === 'en' ? 'en' : 'tr'].empty : tr ? 'Hoş geldin! Nereden başlamak istersin?' : 'Welcome! Where would you like to start?'}
                     </Text>
                     {[
                         { Icon: Plus, label: tr ? 'İlk görevini ekle' : 'Add your first task', sub: tr ? 'Aklındakini yaz, gerisini TAZQ halletsin' : 'Jot it down, TAZQ handles the rest', onPress: () => setQuickDraftVisible(true) }, // "ekle" diyen satır listeye değil eklemeye açılır
-                        { Icon: Rocket, label: tr ? 'Bir mod seç' : 'Choose a mode', sub: tr ? 'Sigara bırak, tasarruf, sınava hazırlık…' : 'Quit smoking, save, exam prep…', onPress: () => router.push('/modlar') },
-                        { Icon: Flame, label: tr ? 'Bir alışkanlık başlat' : 'Start a habit', sub: tr ? 'Her gün tek dokunuşla işaretle' : 'Check in daily with one tap', onPress: () => router.push('/cockpit') },
+                        ...(isLite ? [] : [{ Icon: Rocket, label: tr ? 'Bir mod seç' : 'Choose a mode', sub: tr ? 'Sigara bırak, tasarruf, sınava hazırlık…' : 'Quit smoking, save, exam prep…', onPress: () => router.push('/modlar') },
+                        { Icon: Flame, label: tr ? 'Bir alışkanlık başlat' : 'Start a habit', sub: tr ? 'Her gün tek dokunuşla işaretle' : 'Check in daily with one tap', onPress: () => router.push('/cockpit') }]),
                     ].map((row, i) => (
                         <Touchable key={i} onPress={row.onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingVertical: S.xs + 2 }} accessibilityRole="button" accessibilityLabel={row.label}>
                             <AppIcon Icon={row.Icon} color={theme.primary} />
@@ -2136,7 +623,7 @@ export default function HomeScreen() {
             </WideSplit>
 
             {/* Sayfanın altı: önümüzdeki günler · bu hafta · günün göğü (bkz. TodayBelow). Örnek veri varken çizilmez. */}
-            {!demoActive && (
+            {!demoActive && !isLite && (
               <TodayBelow
                 tasks={tasks} habits={habits} sessions={focusSessions}
                 today={dayHistory[dayHistory.length - 1]}
@@ -2155,6 +642,8 @@ export default function HomeScreen() {
           onClose={closeInbox}
           items={visibleInbox}
           onDismiss={(ids) => useInboxStore.getState().dismiss(ids)}
+          onRestore={(ids) => useInboxStore.getState().undismiss(ids)}
+          fresh={inboxFresh}
           language={language === 'en' ? 'en' : 'tr'}
           theme={theme}
           onItem={onInboxItem}
@@ -2224,7 +713,7 @@ export default function HomeScreen() {
         isDark={isDark}
         theme={theme}
         style={{
-          backgroundColor: theme.primary,
+          backgroundColor: theme.primaryFill,
           shadowColor: theme.primary,
           alignItems: 'center',
           justifyContent: 'center',
@@ -2236,12 +725,12 @@ export default function HomeScreen() {
           zaten Plus (+) kullanıyor, aynı ekranda iki + çelişki yaratıyordu. Şimşek bu butonu
           "anında yakala / hızlı ekle" olarak ayırır; + ise yapılandırılmış görev eklemede kalır.
 
-          Renk: paletten — koyu temada primary #0A84FF üstünde onPrimary (BİLEREK koyu, AA).
+          Renk: paletten: vurgu dolgusunun üstünde onPrimaryFill (sarıda koyu).
         */}
-        <Zap size={ICON.lg} color={theme.onPrimary} strokeWidth={2.5} fill={theme.onPrimary} />
+        <Zap size={ICON.lg} color={theme.onPrimaryFill} strokeWidth={2.5} fill={theme.onPrimaryFill} />
       </MagneticFAB>
 
-      <BottomNavBar />
+      </NavGlassArea>
 
       <CommandPortal
         visible={commandPortalVisible}
@@ -2250,7 +739,7 @@ export default function HomeScreen() {
         onQueryChange={setPortalSearch}
         onSubmit={savePortalTask}
         onQuickFocus={startQuickFocus}
-        saveTheDay={zen.saveTheDayHint ? { hint: zen.saveTheDayHint, onPress: () => { void zen.saveTheDay(); } } : null}
+        saveTheDay={!isLite && zen.saveTheDayHint ? { hint: zen.saveTheDayHint, onPress: () => { void zen.saveTheDay(); } } : null}
         tasks={tasks}
         priorityColor={priorityColor}
         theme={theme}
@@ -2298,17 +787,6 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  // Başlık çubuğu öğesi: SABİT 30pt (bkz. TOP_ITEM_SIZE). scale(34) hem 44pt'lik
-  // çubukta kenara 1.8pt bırakıyordu hem de tablette 42.5'e çıkıyordu — chrome ölçeklenmez.
-  // borderWidth/borderColor BURADA YOK: ikisi de kullanım yerinde temaya ve
-  // kişiselleştirme rengine göre veriliyor. Burada da yazılıydı ve değeri
-  // `rgba(255,255,255,0.1)` idi — açık temada görünmeyen bir renk. Hiç etkisi yoktu
-  // (satır içi hep eziyordu) ama kopyalanmayı bekleyen yanlış bir örnekti.
-  // Zemin rengi BURADA YOK, kullanım yerinde temadan: sabit beyazdı ve koyu temada yuvarlak
-  // kırpmanın kenarlarından (üst/alt/sol/sağ) ince beyaz çizgiler olarak sızıyordu.
-  avatarContainer: { width: TOP_AVATAR_SIZE, height: TOP_AVATAR_SIZE, borderRadius: R.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  scrollContent: { flexGrow: 1 },
-});
 
-export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback'; // çökerse yalnız bu ekran düşer
+
+export { RouteErrorBoundary as ErrorBoundary } from '@/shared/components/CrashFallback';

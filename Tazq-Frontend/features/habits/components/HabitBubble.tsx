@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { View, Text } from 'react-native';
 import { Coffee } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { CompletionBurst } from '@/shared/components/CompletionBurst';
 import { HabitLiquid } from '@/features/habits/components/HabitLiquid';
+import { useHabitCheck } from '@/features/habits/hooks/useHabitCheck';
 // Saf metin yardımcısı utils'e taşındı (uyku sınıflandırıcısı da kullanıyor);
 // buradan yeniden dışa veriliyor ki mevcut içe aktarmalar kırılmasın.
 import { compactHabitLabel } from '@/features/habits/utils/habitLabel';
@@ -60,28 +61,7 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
     İYİMSER ÇİZİM (2026-10-25, cihazda ölçüldü): halka ana sayfa baştan çizilmeden önce
     yerel durumla dolar; asıl kayıt bir sonraki karede yapılır.
   */
-  const target: number = item.target ?? 1;
-  const [optCount, setOptCount] = useState<number | null>(null);
-  const [optDone, setOptDone] = useState<boolean | null>(null);
-  useEffect(() => { setOptCount(null); setOptDone(null); }, [item.isCompleted, item.count]);
-  const isCompleted: boolean = optDone ?? !!item.isCompleted;
-  const count: number = optCount ?? item.count ?? (item.isCompleted ? target : 0);
-  const isSkipped: boolean = !!item.isSkipped;
-  const ratio = isSkipped ? 0 : isCompleted ? 1 : Math.min(1, count / target);
-
-  const [burst, setBurst] = useState(0);
-  const handlePress = () => {
-    if (target > 1) {
-      const next = count >= target ? 0 : count + 1;
-      if (next >= target) setBurst(b => b + 1);
-      setOptCount(next);
-      setOptDone(next >= target);
-    } else {
-      if (!item.isCompleted) setBurst(b => b + 1);
-      setOptDone(!item.isCompleted);
-    }
-    requestAnimationFrame(() => onPress());
-  };
+  const { target, isCompleted, count, isSkipped, ratio, burst, press: handlePress } = useHabitCheck(item, onPress);
 
   const meta: string | null = isSkipped ? null
     : target > 1 && !isCompleted && count > 0 ? `${count}/${target}`

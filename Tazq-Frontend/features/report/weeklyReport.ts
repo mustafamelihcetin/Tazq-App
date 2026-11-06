@@ -241,7 +241,7 @@ export function planProgress(tasks: ReportTask[], range: WeekRange, planTags: re
 // ── Anlatı ───────────────────────────────────────────────────────────────────
 type Lang = 'tr' | 'en';
 
-const DAY_NAMES: Record<Lang, string[]> = {
+export const DAY_NAMES: Record<Lang, string[]> = {
   tr: ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'],
   en: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
 };

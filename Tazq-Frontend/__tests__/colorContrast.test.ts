@@ -43,7 +43,7 @@ const CHECKS: Check[] = [
   ['container yazısı', 'onPrimaryContainer', 'primaryContainer', 4.5],
 
   // Buton yazıları — 4.5:1 (koyu temada birincil buton 3:1, gerekçe aşağıda).
-  ['birincil buton yazısı', 'onPrimary', 'primary', 4.5],
+  ['birincil buton yazısı', 'onPrimary', 'primaryFill', 4.5],
   ['ikincil buton yazısı', 'onSecondary', 'secondary', 4.5],
   ['üçüncül buton yazısı', 'onTertiary', 'tertiary', 4.5],
   ['yıkıcı buton yazısı', 'onError', 'error', 4.5],

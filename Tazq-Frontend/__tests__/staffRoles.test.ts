@@ -23,7 +23,7 @@ describe('ekip rolleri', () => {
   it('roller sunucuyla aynı küme ve okunur etiketli', () => {
     expect(STAFF_ROLES).toEqual(['User', 'Support', 'Analyst', 'Moderator', 'Admin']);
     expect(roleLabel('Admin', 'tr')).toBe('Süper admin');
-    expect(roleLabel('Analyst', 'tr')).toBe('Ürün Analisti');
+    expect(roleLabel('Analyst', 'tr')).toBe('Veri ve Sistem Uzmanı');
     expect(isAnalystOnly('Analyst')).toBe(true);
     expect(isAnalystOnly('Admin')).toBe(false);
   });

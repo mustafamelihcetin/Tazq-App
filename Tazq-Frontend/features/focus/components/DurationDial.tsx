@@ -71,6 +71,14 @@ export function snapMinutes(pos: number, fast: boolean): number {
 
 export const isStop = (m: number) => STOPS.includes(m);
 
+const HALO_REST = 13;
+const HALO_GROW = 7;
+/** Halkanın kadran kenarına uzaklığı. */
+export const DIAL_RING_INSET = 6;
+/** Hale en büyük halinde halkanın dışına ne kadar taşarsa tuval o kadar geniş. */
+export const DIAL_HALO_MAX = HALO_REST + HALO_GROW;
+export const DIAL_OVERSCAN = DIAL_HALO_MAX - DIAL_RING_INSET + 2;
+
 /** Yol nesnesi yalnız gerçek Skia ortamında kurulur: Canvas'ın İÇİNDE. */
 function Ring({ size, r, frac, grab, color }: { size: number; r: number; frac: SharedValue<number>; grab: SharedValue<number>; color: string }) {
   const c = size / 2;
@@ -78,7 +86,7 @@ function Ring({ size, r, frac, grab, color }: { size: number; r: number; frac: S
   const end = useDerivedValue(() => frac.value);
   const kx = useDerivedValue(() => c + r * Math.sin(frac.value * Math.PI * 2));
   const ky = useDerivedValue(() => c - r * Math.cos(frac.value * Math.PI * 2));
-  const halo = useDerivedValue(() => 13 + grab.value * 7);
+  const halo = useDerivedValue(() => HALO_REST + grab.value * HALO_GROW);
   return (
     <>
       <Path path={path} style="stroke" strokeWidth={8} strokeCap="round" color={color} start={0} end={end} />
@@ -88,7 +96,7 @@ function Ring({ size, r, frac, grab, color }: { size: number; r: number; frac: S
   );
 }
 
-export function DurationDial({ size, minutes, color, track, onCommit, onDragging, a11yLabel, language }: {
+export function DurationDial({ size, minutes, color, track, onCommit, onDragging, a11yLabel, language, allowOpen = true, hint }: {
   size: number; minutes: number; color: string; track: string;
   /** Parmak kalkınca seçilen değer (depoya yazılır). */
   onCommit: (m: number) => void;
@@ -96,6 +104,10 @@ export function DurationDial({ size, minutes, color, track, onCommit, onDragging
   onDragging?: (on: boolean) => void;
   a11yLabel: string;
   language: 'tr' | 'en';
+  /** Pomodoro: serbest seans durağı yok, tur süresi 120'de biter. */
+  allowOpen?: boolean;
+  /** Sürüklerken "Bitiş 13:21" yerine gösterilecek söz (Pomodoro: "5 dk mola"). */
+  hint?: (minutes: number) => string;
 }) {
   const reduce = useReduceMotion();
   const c0 = COPY[language];
@@ -103,7 +115,7 @@ export function DurationDial({ size, minutes, color, track, onCommit, onDragging
   const [dragging, setDragging] = useState(false);
   const shown = useRef(minutes);
 
-  const r = size / 2 - 6;
+  const r = size / 2 - DIAL_RING_INSET;
   const c = size / 2;
 
   const frac = useSharedValue(Math.min(minutes, DIAL_MAX) / DIAL_MAX);
@@ -158,7 +170,7 @@ export function DurationDial({ size, minutes, color, track, onCommit, onDragging
       travel.value = Math.max(travel.value, Math.hypot(e.translationX, e.translationY));
       if (travel.value < TAP_SLOP) return;
       const a = angleOf(e.x, e.y, size);
-      const next = advance(pos.value, prevAngle.value, a, DIAL_OPEN_POS);
+      const next = advance(pos.value, prevAngle.value, a, allowOpen ? DIAL_OPEN_POS : DIAL_MAX);
       const now = Date.now();
       const dt = Math.max(1, now - prevTime.value);
       // Yumuşatılmış hız: tek titrek karede adım değişmesin.
@@ -198,7 +210,7 @@ export function DurationDial({ size, minutes, color, track, onCommit, onDragging
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
         onAccessibilityAction={e => {
           const up = e.nativeEvent.actionName === 'increment';
-          if (up && minutes >= DIAL_MAX) { onCommit(DIAL_OPEN); return; }
+          if (up && minutes >= DIAL_MAX && allowOpen) { onCommit(DIAL_OPEN); return; }
           onCommit(Math.min(DIAL_MAX, Math.max(DIAL_MIN, Math.min(minutes, DIAL_MAX) + (up ? COARSE_STEP : -COARSE_STEP))));
         }}
       >
@@ -210,8 +222,9 @@ export function DurationDial({ size, minutes, color, track, onCommit, onDragging
             return <Line key={i} x1={c + r1 * Math.sin(t)} y1={c - r1 * Math.cos(t)} x2={c + r2 * Math.sin(t)} y2={c - r2 * Math.cos(t)} stroke={track} strokeWidth={i % 3 === 0 ? 2 : 1} />;
           })}
         </Svg>
-        <Canvas pointerEvents="none" style={{ position: 'absolute', width: size, height: size }}>
-          <Ring size={size} r={r} frac={frac} grab={grab} color={color} />
+        {/* Tuval kadrandan geniş: tutamağın halesi halkanın dışına taşar, tuval sınırında düz kesiliyordu (2026-11-06, iOS'ta cihazda). */}
+        <Canvas pointerEvents="none" style={{ position: 'absolute', left: -DIAL_OVERSCAN, top: -DIAL_OVERSCAN, width: size + DIAL_OVERSCAN * 2, height: size + DIAL_OVERSCAN * 2 }}>
+          <Ring size={size + DIAL_OVERSCAN * 2} r={r} frac={frac} grab={grab} color={color} />
         </Canvas>
         {dragging && LABELS.map(m => {
           const t = ((m % DIAL_MAX) / DIAL_MAX) * Math.PI * 2;
@@ -224,7 +237,7 @@ export function DurationDial({ size, minutes, color, track, onCommit, onDragging
           <View pointerEvents="none" style={{ alignItems: 'center' }}>
             <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: '#FFFFFF', fontSize: Math.round(size * (live === DIAL_OPEN ? 0.16 : 0.24)), fontWeight: '700', letterSpacing: -1.5, fontVariant: ['tabular-nums'] }}>{live === DIAL_OPEN ? c0.open : live}</Text>
             {live !== DIAL_OPEN && <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: F.footnote, fontWeight: '600', letterSpacing: 1.5 }}>{c0.unit}</Text>}
-            <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: F.footnote, fontWeight: '600', marginTop: S.xs, fontVariant: ['tabular-nums'] }}>{live === DIAL_OPEN ? c0.openHint : live === DIAL_MAX ? c0.moreHint : c0.ends(endsAt)}</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: F.footnote, fontWeight: '600', marginTop: S.xs, fontVariant: ['tabular-nums'] }}>{hint && live !== DIAL_OPEN ? hint(live) : live === DIAL_OPEN ? c0.openHint : live === DIAL_MAX ? c0.moreHint : c0.ends(endsAt)}</Text>
           </View>
         )}
       </View>

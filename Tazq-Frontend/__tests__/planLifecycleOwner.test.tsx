@@ -15,7 +15,7 @@ import { useTaskStore } from '@/features/tasks/store/useTaskStore';
 import { useAuthStore } from '@/features/user';
 import { TaskService } from '@/shared/services/api';
 
-const createTask = jest.spyOn(TaskService, 'createTask');
+let createTask: jest.SpyInstance;
 const yesterday = fmtDateKey(new Date(Date.now() - 86400000));
 
 function Instance({ lifecycle }: { lifecycle?: boolean }) {
@@ -34,7 +34,7 @@ describe('plan motorunun yaşam döngüsü', () => {
       listeners.push(fn);
       return { remove: () => { listeners = listeners.filter((l) => l !== fn); } };
     }) as never);
-    createTask.mockReset();
+    createTask = jest.spyOn(TaskService, 'createTask');
     createTask.mockResolvedValue({ id: 99 } as never);
     useAuthStore.setState({ user: { id: 1 } } as never);
     useStagedPlanStore.getState().reset();
@@ -65,7 +65,7 @@ describe('plan motorunun yaşam döngüsü', () => {
       act(() => { listeners.forEach((l) => l('active')); });
       await settle();
     }
-    const created = createTask.mock.calls.map((c) => (c[0] as { title: string }).title).filter((t) => t === 'Kaynak kitap temin et');
+    const created = createTask.mock.calls.map((c: unknown[]) => (c[0] as { title: string }).title).filter((t: string) => t === 'Kaynak kitap temin et');
     expect(created).toHaveLength(1);
     expect(useStagedPlanStore.getState().queues.exam.items.map((e) => (e.item as { titleTr: string }).titleTr)).toEqual(['Çıkmış soruları indir', 'Üçüncü']);
   });

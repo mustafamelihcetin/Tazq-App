@@ -1,4 +1,3 @@
-import { useMoneySymbol } from '@/features/modes/hooks/useMoneySymbol';
 import { quitItemName } from '@/features/modes/utils/goalTitle';
 import React, { useMemo, useState } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
@@ -12,9 +11,7 @@ import { usePlanAffinityStore } from '@/features/modes/store/usePlanAffinityStor
 import { hasSignal, type AffinityItem } from '@/features/modes/utils/planAffinity';
 import { areaLeanings, hasRhythmInsight, isLightDay, topBand } from '@/features/modes/utils/planLearner';
 import { getCleanDays, useQuitStore } from '@/shared/store/useQuitStore';
-import { useBudgetStore } from '@/shared/store/useBudgetStore';
-import { toDateKey } from '@/shared/utils/dateKey';
-import { quitView, savingsView } from '@/features/modes/utils/planTrack';
+import { quitView } from '@/features/modes/utils/planTrack';
 import { TRACK_COPY } from './track/trackCopy';
 import { detectSporTypeLocal } from '@/features/modes/utils/planAdaptations';
 import { activeDays, kiloProgress } from '@/features/modes/utils/planMeasure';
@@ -36,31 +33,11 @@ const LOCALE = { tr: 'tr-TR', en: 'en-US' };
 type Items = ReturnType<typeof usePlanItems>;
 
 export function PlanMeasure({ plan, items, c, lang, accent, onChanged, onOpenTrack }: { plan: ActivePlan; items: Items; c: PlanCopy; lang: 'tr' | 'en'; accent: string; onChanged: () => void; onOpenTrack: () => void }) {
-  if (plan.type === 'tasarruf') return <MoneySummary plan={plan} lang={lang} accent={accent} onOpen={onOpenTrack} />;
+  // Tasarrufun ölçüsü kahramanın su seviyesi: Bugün'de aynı tutar iki kez çizilmez.
+  if (plan.type === 'tasarruf') return null;
   if (plan.type === 'birakma') return <QuitSummary lang={lang} accent={accent} onOpen={onOpenTrack} />;
   if (plan.type === 'spor' && detectSporTypeLocal(plan.name) === 'kilo') return <KiloCard c={c} lang={lang} accent={accent} onChanged={onChanged} />;
   return <WeekCard plan={plan} items={items} c={c} lang={lang} accent={accent} />;
-}
-
-/** Bugün'de para: tek bakış, eylem Takip'te. */
-function MoneySummary({ plan, lang, accent, onOpen }: { plan: ActivePlan; lang: 'tr' | 'en'; accent: string; onOpen: () => void }) {
-  const { theme } = useAppTheme();
-  const b = useBudgetStore();
-  const t = TRACK_COPY[lang];
-  const type = b.budgetType === 'borc' || b.budgetType === 'acilfon' ? b.budgetType : 'birikim';
-  const v = savingsView({ type, start: parseFloat(b.startAmount) || 0, target: parseFloat(b.targetAmount) || 0, log: b.log, dateKey: plan.date, today: toDateKey(new Date()), monthlyExpense: b.monthlyExpense });
-  const { symbol } = useMoneySymbol(lang);
-  const money = (n: number) => `${symbol}${Math.round(n).toLocaleString(t.locale)}`;
-  return (
-    <Touchable accessibilityRole="button" accessibilityHint={t.summary.open} onPress={onOpen} style={[st.card, { backgroundColor: theme.surfaceCard }]}>
-      <Text style={[st.title, { color: theme.onSurface }]}>{t.money[type].title}</Text>
-      <Text style={{ fontSize: F.title3, fontWeight: W.bold, fontVariant: ['tabular-nums'], color: accent }}>{money(v.current)}</Text>
-      <View style={[st.track, { backgroundColor: theme.surfaceContainerHigh }]}>
-        <MotiView from={{ width: '0%' }} animate={{ width: `${v.isDebt ? 100 - v.pct : v.pct}%` }} transition={{ type: 'timing', duration: 700 }} style={{ height: '100%', borderRadius: R.full, backgroundColor: accent }} />
-      </View>
-      <Text style={{ fontSize: F.footnote, fontWeight: W.semibold, color: accent }}>{t.money[type].primary} ›</Text>
-    </Touchable>
-  );
 }
 
 /** Bugün'de bırakma: her şeyin temiz günü. */

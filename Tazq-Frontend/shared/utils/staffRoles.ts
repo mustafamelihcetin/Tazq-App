@@ -1,7 +1,7 @@
 /**
  * Ekip rolleri (madde 9, 2026-10-30) — sunucudaki StaffRoles/StaffPolicy ile aynı kümeler:
  *   Support   → yalnız destek kutusu
- *   Analyst   → Ürün Analisti: Analiz Merkezi (segment, huni, benimseme, odak davranışı). Kişi listesi YOK.
+ *   Analyst   → Veri ve Sistem Uzmanı: Analiz Merkezi ve sunucu durumu, yalnız görür. Kişi listesi YOK, müdahale YOK. (Kod adı Analyst kalır: kayıtlı rol değeri, kullanıcı görmez.)
  *   Moderator → kullanıcı listesi, ban, destek kutusu + mesaj silme
  *   Admin     → süper admin: hepsi + kişisel detay, dışa aktarma, silme, rol, sistem
  * Roller merdiven DEĞİL (Analist istatistik görür, Moderatör görmez) — yetenek başına küme.
@@ -26,8 +26,8 @@ export function canStaff(role: string | null | undefined, level: StaffLevel): bo
 }
 
 const LABELS: Record<'tr' | 'en', Record<StaffRole, string>> = {
-  tr: { User: 'Kullanıcı', Support: 'Destek', Analyst: 'Ürün Analisti', Moderator: 'Moderatör', Admin: 'Süper admin' },
-  en: { User: 'User', Support: 'Support', Analyst: 'Product Analyst', Moderator: 'Moderator', Admin: 'Super admin' },
+  tr: { User: 'Kullanıcı', Support: 'Destek', Analyst: 'Veri ve Sistem Uzmanı', Moderator: 'Moderatör', Admin: 'Süper admin' },
+  en: { User: 'User', Support: 'Support', Analyst: 'Data & Systems Specialist', Moderator: 'Moderator', Admin: 'Super admin' },
 };
 
 export function roleLabel(role: string | null | undefined, lang: string): string {
@@ -45,14 +45,14 @@ const DESCRIPTIONS: Record<'tr' | 'en', Record<StaffRole, string>> = {
   tr: {
     User: 'Ekip yetkisi yok — normal hesap',
     Support: 'Yalnız destek mesajlarını görür ve yanıtlar',
-    Analyst: 'Analiz Merkezi: toplu istatistik; kişi ve ad görmez',
+    Analyst: 'İstatistik ve sunucu durumunu görür; kişi görmez, müdahale edemez',
     Moderator: 'Kullanıcı listesi, ban ve destek; istatistik ve sistem yok',
     Admin: 'Her şey: kişisel detay, silme, dışa aktarma, roller, sistem',
   },
   en: {
     User: 'No team access — regular account',
     Support: 'Sees and answers support messages only',
-    Analyst: 'Analytics: aggregate stats; no people or names',
+    Analyst: 'Sees stats and server status; no people, cannot intervene',
     Moderator: 'User list, bans and support; no stats or system',
     Admin: 'Everything: personal detail, delete, export, roles, system',
   },
