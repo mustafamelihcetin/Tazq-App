@@ -47,6 +47,9 @@ namespace Tazq_App.Models
 		// Recurring task support
 		public RecurrenceType Recurrence { get; set; } = RecurrenceType.None;
 
+		// Tamamlanma anı: ana ölçü "haftada 3 gün iş bitiren kullanıcı" bunsuz hesaplanamıyordu (2026-11-07). Eski kayıtlarda boş.
+		public DateTime? CompletedAt { get; set; }
+
 		// Manual sort order (lower = higher in list)
 		public int SortOrder { get; set; } = 0;
 

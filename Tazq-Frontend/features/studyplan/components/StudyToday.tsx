@@ -167,7 +167,7 @@ export function StudyToday({ plan, c, lang, today, view, onOpenTab, onChanged, c
               </Touchable>
               {showFit && (
                 <View style={{ gap: S.xs, paddingBottom: S.sm }}>
-                  <Text style={{ fontSize: F.footnote, color: theme.onSurfaceVariant }}>{fit === 'over' ? c.fitWhyOver(outHere.length) : c.fitWhyTight}</Text>
+                  <Text style={{ fontSize: F.footnote, color: theme.onSurfaceVariant }}>{fit === 'over' ? c.fitWhyOver(outHere.length, Math.round(((allTopics.length - outHere.length) / Math.max(1, allTopics.length)) * 100)) : c.fitWhyTight}</Text>
                   <View style={st.wrap}>
                     <Touchable accessibilityRole="button" onPress={() => onOpenTab('settings')} style={[st.chip, { backgroundColor: theme.surfaceContainerHigh }]}>
                       <Text style={{ fontSize: F.footnote, fontWeight: W.semibold, color: theme.onSurface }}>{c.addTime}</Text>

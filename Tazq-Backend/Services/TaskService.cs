@@ -375,6 +375,7 @@ namespace Tazq_App.Services
                 && await _context.Tasks.AnyAsync(t => t.UserId == userId && t.Id != task.Id && t.ClientKey == task.ClientKey && !t.IsCompleted))
                 task.ClientKey = null;
             task.IsCompleted = updatedTask.IsCompleted;
+            if (task.IsCompleted != wasCompleted) task.CompletedAt = task.IsCompleted ? DateTime.UtcNow : null;
             task.Priority = updatedTask.Priority;
             task.Tags = (updatedTask.Tags ?? new List<string>()).Take(MaxTagsPerTask).ToList();
             task.Subtasks = (updatedTask.Subtasks ?? new List<SubtaskItem>()).Take(MaxSubtasksPerTask).ToList();

@@ -3,7 +3,7 @@ import { Circle, Group, Line, LinearGradient, Path, Rect, RoundedRect, Skia, rec
 import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { litCount, type ExamField } from '@/features/modes/utils/planSignature';
-import { Sized, useTo } from './PlanScenes';
+import { Sized, useTo } from './PlanSceneKit';
 
 /*
   SINAVIN KENDİ SAHNESİ (2026-11-06, kullanıcı: "katiplikse klavye, hukuksa ona göre bir animasyon"). İlerleme her sahnede gerçek pay: biten konu ya da yolda geçen süre.

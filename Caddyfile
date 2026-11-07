@@ -4,6 +4,13 @@
     # uyarılar hiçbir yere ulaşmıyordu — sertifika bir gün yenilenemezse haber alınamazdı.
     # Uygulamanın ve sitenin her yerinde kullanılan adresle aynı olmalı.
     email destek@tazqapp.com
+
+    # Cloudflare'in arkasında gerçek kullanıcı IP'si (2026-11-06). Yalnız bu aralıklardan gelen CF-Connecting-IP'ye güvenilir;
+    # doğrudan gelen istekte başlık yok sayılır, sahte IP yazılamaz. Liste: cloudflare.com/ips. Bu olmadan hız sınırları bütün kullanıcıları tek IP sanar.
+    servers {
+        trusted_proxies static 173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+        client_ip_headers CF-Connecting-IP
+    }
 }
 
 # ─────────────────────────────────────────────
@@ -63,7 +70,9 @@
 api.tazqapp.com {
     import tazq_security
     encode zstd gzip
-    reverse_proxy tazq-backend:80
+    reverse_proxy tazq-backend:80 {
+        header_up X-Forwarded-For {client_ip}
+    }
 }
 
 # TAZQ — Landing + legal pages (served from backend wwwroot)
@@ -72,7 +81,9 @@ tazqapp.com {
     # Sıkıştırma (2026-11-02): ana sayfa 91 KB SIKIŞTIRILMADAN gidiyordu — mobilde ilk açılışı (LCP) ve
     # dolayısıyla arama sıralamasını yavaşlatıyordu. zstd/gzip ile birkaç kat küçülür.
     encode zstd gzip
-    reverse_proxy tazq-backend:80
+    reverse_proxy tazq-backend:80 {
+        header_up X-Forwarded-For {client_ip}
+    }
 }
 
 # SEO: tek kanonik host — www her zaman apex'e 301 döner

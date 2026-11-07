@@ -52,6 +52,11 @@ describe('kısa — kullanıcı bunalmaz (HIG / TipKit)', () => {
     }
   });
 
+  it('ekranda olmayan şey anlatılmaz', () => {
+    const text = JSON.stringify(all);
+    expect(text).not.toMatch(/Halkalar|The rings|toparla|tidy/);
+  });
+
   it('başlıklar 3 kelimeyi geçmez', () => {
     for (const s of all) for (const t of [s.title.tr, s.title.en]) expect(t.split(' ').length).toBeLessThanOrEqual(3);
   });

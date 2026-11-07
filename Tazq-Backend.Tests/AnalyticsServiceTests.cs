@@ -21,6 +21,25 @@ namespace Tazq_Backend.Tests
         }
 
         [Fact]
+        public async Task Ana_olcu_ayni_gun_tekrari_saymaz_uc_ayri_gun_ister()
+        {
+            var (db, svc) = Make();
+            db.Users.AddRange(
+                new User { Id = 1, Email = "1", Name = "uc-gun", CreatedAt = Now.AddDays(-60), LastActiveAt = Now },
+                new User { Id = 2, Email = "2", Name = "tek-gun", CreatedAt = Now.AddDays(-60), LastActiveAt = Now });
+            db.FocusSessions.AddRange(
+                new FocusSession { UserId = 1, StartedAt = Now.AddDays(-1), DurationMinutes = 25, TaskName = "a" },
+                new FocusSession { UserId = 1, StartedAt = Now.AddDays(-2), DurationMinutes = 25, TaskName = "a" },
+                new FocusSession { UserId = 1, StartedAt = Now.AddDays(-3), DurationMinutes = 25, TaskName = "a" },
+                new FocusSession { UserId = 2, StartedAt = Now.AddHours(-30), DurationMinutes = 25, TaskName = "a" },
+                new FocusSession { UserId = 2, StartedAt = Now.AddHours(-30), DurationMinutes = 10, TaskName = "a" });
+            await db.SaveChangesAsync();
+            var c = (await svc.GetReportAsync(Now)).Committed;
+            Assert.Equal(1, c.ThisWeek);
+            Assert.Equal(0, c.PreviousWeek);
+        }
+
+        [Fact]
         public async Task Audience_EkipVeTestHesabiHaric_AcikKararKazanir()
         {
             var (db, svc) = Make();

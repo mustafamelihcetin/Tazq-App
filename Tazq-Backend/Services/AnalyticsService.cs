@@ -148,7 +148,18 @@ namespace Tazq_App.Services
                 .ToListAsync();
 
             return new AnalyticsReport(now, segments, funnel, adoption, focus, stability, platforms.OrderByDescending(p => p.Installs).ToList(),
-                FirstMinuteOf(users.Select(u => u.Preferences)));
+                FirstMinuteOf(users.Select(u => u.Preferences)), await CommittedAsync(ids, now));
+        }
+
+        private async Task<CommittedUsers> CommittedAsync(HashSet<int> ids, DateTime now)
+        {
+            var since = now.AddDays(-14);
+            var tasks = await _db.Tasks.AsNoTracking().Where(t => t.CompletedAt != null && t.CompletedAt >= since).Select(t => new { t.UserId, At = t.CompletedAt!.Value }).ToListAsync();
+            var focus = await _db.FocusSessions.AsNoTracking().Where(f => f.StartedAt >= since && f.DurationMinutes > 0).Select(f => new { f.UserId, At = f.StartedAt }).ToListAsync();
+            var work = tasks.Concat(focus).Where(w => ids.Contains(w.UserId)).ToList();
+            int Count(DateTime from, DateTime to) => work.Where(w => w.At >= from && w.At < to)
+                .GroupBy(w => w.UserId).Count(g => g.Select(w => w.At.AddHours(TrHours).Date).Distinct().Count() >= 3);
+            return new CommittedUsers(Count(now.AddDays(-7), now.AddSeconds(1)), Count(since, now.AddDays(-7)));
         }
 
         /// <summary>Kullanıcı başına görev sinyalleri — yalnız düz (şifresiz) alanlar. Npgsql'e çevrilebilir (bkz. SqlTranslationTests).</summary>
@@ -222,8 +233,10 @@ namespace Tazq_App.Services
     public record FocusBehavior(int Sessions30d, int Completed30d, int AvgMinutes, int MedianMinutes, int[] LengthBuckets, int[] HourMinutes, int[] WeekdayMinutes, List<DayMinutes> Daily, int[] Heat);
     public record VersionCount(string Version, int Count);
     public record Stability(int Crashes7d, int AffectedUsers7d, double? CrashFreePct, List<VersionCount> TopVersions);
+    /// <summary>ANA ÖLÇÜ: son 7 günde en az 3 ayrı gün iş bitiren ya da odaklanan kullanıcı; önceki 7 günle kıyas.</summary>
+    public record CommittedUsers(int ThisWeek, int PreviousWeek);
     public record PlatformCount(string Platform, int Installs);
     public record FirstMinute(int Shown, int Wrote, int Skipped, double AvgItems, int ModeSuggested, int ModeAccepted, int Activated24h);
     public record AnalyticsReport(DateTime GeneratedAt, AnalyticsSegments Segments, List<FunnelStep> Funnel, List<FeatureAdoption> Adoption,
-        FocusBehavior Focus, Stability Stability, List<PlatformCount> Platforms, FirstMinute FirstMinute);
+        FocusBehavior Focus, Stability Stability, List<PlatformCount> Platforms, FirstMinute FirstMinute, CommittedUsers Committed);
 }

@@ -32,6 +32,7 @@ const COPY = {
     tabs: { overview: 'Genel', funnel: 'Huni', features: 'Özellikler', focus: 'Odak', server: 'Sunucu' },
     loadFail: 'Analiz yüklenemedi.', retry: 'Tekrar dene', min: 'dk', hours: 'sa',
     pulse: 'NABIZ · SON 30 GÜN',
+    committed: 'Haftada 3+ gün iş bitiren', committedNote: (p: number) => `geçen hafta ${p}`,
     active: 'Aktif', stickiness: 'Yapışkanlık', day7: '7. gün dönüş', newUsers: 'Yeni kayıt', focus: 'Odak', crashFree: 'Çökmesiz',
     prev: 'geçen hafta',
     audience: 'Kitle', audienceHint: 'Herkes tek grupta, son görülmeye göre',
@@ -66,6 +67,7 @@ const COPY = {
     tabs: { overview: 'Overview', funnel: 'Funnel', features: 'Features', focus: 'Focus', server: 'Server' },
     loadFail: 'Could not load analytics.', retry: 'Retry', min: 'min', hours: 'h',
     pulse: 'PULSE · LAST 30 DAYS',
+    committed: 'Active 3+ days this week', committedNote: (p: number) => `last week ${p}`,
     active: 'Active', stickiness: 'Stickiness', day7: 'Day-7 return', newUsers: 'Sign-ups', focus: 'Focus', crashFree: 'Crash-free',
     prev: 'last week',
     audience: 'Audience', audienceHint: 'Everyone in one group, by last seen',
@@ -186,6 +188,13 @@ export function AnalyticsCenter({ lang, stats, insights, showServer }: {
         <Sentence parts={c.s.overview(active30, s.total, pct(s.oneDayOnly, decided))} />
         <DisplayPanel>
           <DisplayStatus label={c.pulse} />
+          {r.committed && (
+            <View style={{ gap: S.xxs }}>
+              <DisplayReadout label={c.committed} value={String(r.committed.thisWeek)} />
+              <Text style={muted}>{c.committedNote(r.committed.previousWeek)}</Text>
+              <DisplayDivider />
+            </View>
+          )}
           <View style={{ flexDirection: 'row', gap: S.md }}>
             <DisplayReadout style={{ flex: 1 }} label={c.active} value={`${active30}/${s.total}`} />
             <DisplayReadout label={c.stickiness} value={`%${Math.round(s.stickinessPct)}`} />
